@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GlobalRole {
+  SUPERADMIN
+  MEMBER
+  READER
+}
+
+enum AccessMode {
+  DOMAIN
+  LIST
+}
+
+enum StorageProviderKind {
+  NEXTCLOUD
+  GDRIVE
+}
+
+enum GroupRole {
+  ADMIN
+  MEMBER
+}
+
+enum WorkStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum TaskState {
+  PENDING
+  DONE
+}
+
+enum LinkType {
+  EXEC
+  REF
+}
+
+enum LinkTargetType {
+  SECTOR
+  USER
+}
+
+enum ArchiveStatus {
+  BUILDING
+  READY
+  CONFIRMED
+  FAILED
+}
+
+enum JobKind {
+  CREATE_USER
+  CREATE_GROUP_FOLDER
+  ADD_MEMBER
+  REMOVE_MEMBER
+  CREATE_WORK_FOLDER
+  DELETE_WORK_FOLDER
+}
+
+enum JobStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  name             String
+  globalRole       GlobalRole @default(MEMBER)
+  nextcloudUserId  String?
+  createdAt        DateTime @default(now())
+
+  memberships      GroupMembership[]
+  ownedGroups      Group[]           @relation("GroupOwner")
+  sectorGrants     SectorGrant[]
+  readerGrants     ReaderGrant[]
+  ownedSectors     Sector[]          @relation("SectorOwner")
+  ownedWorks       Work[]            @relation("WorkOwner")
+  createdWorks     Work[]            @relation("WorkCreator")
+  createdTasks     Task[]            @relation("TaskCreator")
+  completedTasks   Task[]            @relation("TaskCompleter")
+  taskRefs         TaskLink[]        @relation("LinkUser")
+  attachments      Attachment[]
+  archives         ArchiveRecord[]
+}
+
+model AccessConfig {
+  id                 Int                 @id @default(1)
+  mode               AccessMode          @default(LIST)
+  domain             String?
+  storageProvider    StorageProviderKind @default(NEXTCLOUD)
+  storageConfig      Json?
+  updatedAt          DateTime            @updatedAt
+}
+
+model AllowedEmail {
+  email     String   @id
+  createdAt DateTime @default(now())
+}
+
+model Group {
+  id                String   @id @default(uuid())
+  name              String   @unique
+  ownerId           String
+  owner             User     @relation("GroupOwner", fields: [ownerId], references: [id])
+  publicRead        Boolean  @default(false)
+  nextcloudGroupId  String?
+  nextcloudFolderId String?
+  createdAt         DateTime @default(now())
+
+  memberships  GroupMembership[]
+  sectors      Sector[]
+  works        Work[]
+  readerGrants ReaderGrant[]
+}
+
+model GroupMembership {
+  userId  String
+  groupId String
+  role    GroupRole @default(MEMBER)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+}
+
+model Sector {
+  id      String  @id @default(uuid())
+  name    String
+  groupId String?
+  ownerId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("SectorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  grants    SectorGrant[]
+  taskLinks TaskLink[]
+  homeTasks Task[]        @relation("TaskHomeSector")
+
+  // Unicidad por ámbito (FR-001): nombre único dentro del grupo o del espacio personal
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
+}
+
+model SectorGrant {
+  userId   String
+  sectorId String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sector   Sector @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+
+  @@id([userId, sectorId])
+}
+
+model ReaderGrant {
+  userId  String
+  groupId String
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+}
+
+model Work {
+  id                  String     @id @default(uuid())
+  name                String
+  description         String?
+  groupId             String?
+  ownerId             String?
+  status              WorkStatus @default(ACTIVE)
+  nextcloudFolderPath String?
+  createdById         String
+  createdAt           DateTime   @default(now())
+
+  group       Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner       User?          @relation("WorkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation("WorkCreator", fields: [createdById], references: [id])
+  doc         DocPage?
+  tasks       Task[]
+  attachments Attachment[]
+  archive     ArchiveRecord?
+
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
+}
+
+model DocPage {
+  workId    String   @id
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+  content   Json?
+  updatedAt DateTime @updatedAt
+}
+
+model Task {
+  id            String    @id @default(uuid())
+  rawText       String
+  displayText   String
+  state         TaskState @default(PENDING)
+  workId        String?
+  sectorId      String?
+  creatorId     String
+  completedAt   DateTime?
+  completedById String?
+  createdAt     DateTime  @default(now())
+
+  work        Work?   @relation(fields: [workId], references: [id], onDelete: Cascade)
+  homeSector  Sector? @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
+  creator     User    @relation("TaskCreator", fields: [creatorId], references: [id])
+  completedBy User?   @relation("TaskCompleter", fields: [completedById], references: [id])
+  links       TaskLink[]
+}
+
+model TaskLink {
+  taskId     String
+  type       LinkType
+  targetType LinkTargetType
+  targetId   String
+  // FKs opcionales según targetType (EXEC solo SECTOR; REF admite SECTOR o USER)
+  sectorId   String?
+  userId     String?
+
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sector Sector? @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  user   User?   @relation("LinkUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, type, targetType, targetId])
+  @@index([sectorId, type])
+  @@index([userId, type])
+}
+
+model Attachment {
+  id            String   @id @default(uuid())
+  workId        String
+  fileName      String
+  mimeType      String
+  size          Int
+  nextcloudPath String
+  uploadedById  String
+  createdAt     DateTime @default(now())
+
+  work       Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
+}
+
+model ArchiveRecord {
+  workId       String        @id
+  work         Work          @relation(fields: [workId], references: [id], onDelete: Cascade)
+  packagePath  String?
+  status       ArchiveStatus @default(BUILDING)
+  manifest     Json?
+  error        String?
+  archivedById String
+  archivedBy   User          @relation(fields: [archivedById], references: [id])
+  archivedAt   DateTime?
+  createdAt    DateTime      @default(now())
+}
+
+model ProvisioningJob {
+  id        String    @id @default(uuid())
+  kind      JobKind
+  payload   Json
+  status    JobStatus @default(PENDING)
+  attempts  Int       @default(0)
+  lastError String?
+  runAfter  DateTime  @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, runAfter])
+}

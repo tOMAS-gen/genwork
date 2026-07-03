@@ -1,0 +1,45 @@
+# Stack de DESARROLLO local: solo postgres + nextcloud, con puertos que no
+# chocan con otros proyectos. La app corre con `npm run dev` fuera de Docker.
+name: genwork-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: genwork
+      POSTGRES_PASSWORD: genwork-dev
+      POSTGRES_DB: genwork
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genwork"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nextcloud:
+    image: nextcloud:29-apache
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: genwork
+      POSTGRES_PASSWORD: genwork-dev
+      NEXTCLOUD_ADMIN_USER: ncadmin
+      NEXTCLOUD_ADMIN_PASSWORD: ncadmin-dev
+      NEXTCLOUD_TRUSTED_DOMAINS: localhost
+    ports:
+      - "8081:80"
+    volumes:
+      - ncdata-dev:/var/www/html
+
+volumes:
+  pgdata-dev:
+  ncdata-dev:

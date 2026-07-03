@@ -1,0 +1,562 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* Design system genwork — Flat minimalista (design-system/genwork/MASTER.md) */
+:root {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e4e5e7;
+  --accent: #2563eb;
+  --accent-soft: #eff4ff;
+  --primary: #1e293b;
+  --danger: #dc2626;
+  --ok: #16a34a;
+  --tag-work: #7c3aed;
+  --tag-exec: #2563eb;
+  --tag-ref: #b45309;
+  --radius: 10px;
+
+  /* Espaciado 4/8 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Sombras (uso mínimo, estilo flat) */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco visible global (accesibilidad) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 7px 14px;
+  color: var(--text);
+  transition:
+    border-color 180ms ease,
+    color 180ms ease,
+    background 180ms ease;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+  color: #fff;
+}
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---- Shell ---- */
+.shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar .brand {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 14px;
+  color: var(--text);
+}
+
+.sidebar a.nav {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.sidebar a.nav:hover {
+  background: var(--accent-soft);
+}
+
+.main {
+  padding: 24px 32px;
+  max-width: 980px;
+  width: 100%;
+}
+
+/* ---- Tareas ---- */
+.task {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.task input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  align-self: center;
+}
+
+.task.done .task-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.tag {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.tag-work {
+  color: var(--tag-work);
+  background: #f3eeff;
+}
+
+.tag-exec {
+  color: var(--tag-exec);
+  background: var(--accent-soft);
+}
+
+.tag-ref {
+  color: var(--tag-ref);
+  background: #fff4e0;
+}
+
+/* ---- Board TV ---- */
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  padding: 24px;
+}
+
+.board .card h2 {
+  margin: 0 0 6px;
+}
+
+.board .task {
+  font-size: 17px;
+}
+
+/* ---- Login ---- */
+.login-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: 360px;
+  text-align: center;
+}
+
+/* ============ Feature 002: Notion, diálogo, menú, drawer ============ */
+
+/* Botón de ícono (⋮, +, chevrons) */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+.icon-btn:hover {
+  background: var(--muted-soft, #f1f5f9);
+  color: var(--text);
+}
+
+/* ---- Diálogo nativo <dialog> ---- */
+dialog.dialog {
+  border: none;
+  border-radius: 14px;
+  padding: 0;
+  max-width: 480px;
+  width: 92%;
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+dialog.dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+.dialog-body {
+  padding: var(--space-lg);
+  display: grid;
+  gap: var(--space-md);
+}
+.dialog-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.dialog-field {
+  display: grid;
+  gap: 6px;
+}
+.dialog-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ---- Menú contextual (⋮) ---- */
+.menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+.menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 40;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  color: var(--text);
+  text-align: left;
+  transition: background 150ms ease;
+}
+.menu-item:hover {
+  background: var(--accent-soft);
+}
+.menu-item.danger {
+  color: var(--danger);
+}
+.menu-item.danger:hover {
+  background: #fef2f2;
+}
+
+/* ---- Hoja estilo Notion ---- */
+.sheet {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+.sheet-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  line-height: 1.15;
+}
+.sheet-desc {
+  color: var(--muted);
+  margin: 0 0 var(--space-lg);
+  font-size: 15px;
+}
+/* editor tipo documento, sin caja */
+.doc {
+  font-size: 16px;
+  line-height: 1.7;
+}
+.doc .ProseMirror {
+  outline: none;
+  min-height: 120px;
+}
+.doc .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted);
+  pointer-events: none;
+  height: 0;
+}
+.doc .ProseMirror img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.sheet-section-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: var(--space-2xl) 0 var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border);
+}
+
+/* fila de captura tipo bloc de notas */
+.notes-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+}
+.notes-row .plus {
+  color: var(--muted);
+  flex: none;
+}
+.notes-row input {
+  border: none;
+  padding: 6px 0;
+  font-size: 15px;
+}
+.notes-row input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ---- Drawer con sublistas ---- */
+.nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.nav-group:hover {
+  background: var(--accent-soft);
+}
+.nav-group .chev {
+  transition: transform 180ms ease;
+  color: var(--muted);
+}
+.nav-group.open .chev {
+  transform: rotate(90deg);
+}
+.nav-sublist {
+  display: grid;
+  gap: 1px;
+  margin: 2px 0 6px 12px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+.nav-sublist a {
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-sublist a:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* ---- Navegación compacta del board (TV) ---- */
+.board-nav {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 50;
+}
+.board-nav .menu-pop {
+  left: 0;
+  right: auto;
+}
+
+/* ---- Menú slash del editor de documentación (feature 003, FR-201..206) ---- */
+.slash-menu {
+  z-index: 60;
+  min-width: 240px;
+  max-width: 300px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  font-family: inherit;
+}
+.slash-group {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.slash-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.slash-item:hover,
+.slash-item.active {
+  background: var(--accent-soft);
+}
+.slash-item-icon {
+  flex: none;
+  color: var(--muted);
+}
+.slash-item.active .slash-item-icon {
+  color: var(--accent);
+}
+.slash-item-title {
+  flex: 1;
+  font-size: 14px;
+}
+.slash-item-shortcut {
+  flex: none;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.slash-empty {
+  padding: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Barra flotante de formato inline (feature 003, US4, FR-211/212) ---- */
+.inline-toolbar {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+}
+.inline-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.inline-toolbar button:hover {
+  background: var(--accent-soft);
+}
+.inline-toolbar button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

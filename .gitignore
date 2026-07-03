@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+dist/
+build/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Prisma
+prisma/*.db
+
+# Testing
+coverage/
+test-results/
+playwright-report/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+
+# Archivos temporales de export
+storage/archives/
+tsconfig.tsbuildinfo

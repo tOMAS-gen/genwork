@@ -1,0 +1,98 @@
+name: genwork
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-genwork}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en .env}
+      POSTGRES_DB: genwork
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Crea la database adicional para Nextcloud en el primer arranque
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-genwork}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nextcloud:
+    image: nextcloud:29-apache
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: nextcloud
+      POSTGRES_USER: ${POSTGRES_USER:-genwork}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en .env}
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-ncadmin}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD:?definir en .env}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_HOST:-nube.localhost}
+      OVERWRITEPROTOCOL: https
+    volumes:
+      - ncdata:/var/www/html
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost/status.php | grep -q '\"installed\":true' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  # Habilita la app Group Folders tras la instalación inicial
+  nextcloud-init:
+    image: nextcloud:29-apache
+    depends_on:
+      nextcloud:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        php /var/www/html/occ app:install groupfolders || true
+        php /var/www/html/occ app:enable groupfolders
+    volumes:
+      - ncdata:/var/www/html
+    restart: "no"
+
+  genwork:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-genwork}:${POSTGRES_PASSWORD}@postgres:5432/genwork
+      AUTH_SECRET: ${AUTH_SECRET:?definir en .env}
+      AUTH_URL: https://${GENWORK_HOST:-genwork.localhost}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?definir en .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?definir en .env}
+      NEXTCLOUD_URL: http://nextcloud
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-ncadmin}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      ARCHIVE_DIR: /data/archives
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?definir en .env}
+    volumes:
+      - archives:/data/archives
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on:
+      - genwork
+      - nextcloud
+
+volumes:
+  pgdata:
+  ncdata:
+  archives:
+  caddydata:

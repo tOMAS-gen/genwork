@@ -1,0 +1,7 @@
+{$GENWORK_HOST:genwork.localhost} {
+	reverse_proxy genwork:3000
+}
+
+{$NEXTCLOUD_HOST:nube.localhost} {
+	reverse_proxy nextcloud:80
+}

@@ -1,0 +1,30 @@
+"use client";
+
+/** Íconos SVG (Lucide) — el design system prohíbe emojis como íconos. */
+export {
+  Plus,
+  MoreVertical,
+  ChevronRight,
+  ChevronDown,
+  Paperclip,
+  Menu,
+  X,
+  Trash2,
+  Archive,
+  Download,
+  FolderOpen,
+  LayoutDashboard,
+  Users,
+  Settings,
+  LogOut,
+  Check,
+  Type,
+  Heading1,
+  Heading2,
+  Heading3,
+  Heading4,
+  List,
+  Image as ImageIcon,
+  Bold,
+  Italic,
+} from "lucide-react";
