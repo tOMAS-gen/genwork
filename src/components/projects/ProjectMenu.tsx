@@ -1,74 +1,61 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
-import { Archive, Download, Trash2 } from "@/components/ui/icons";
+import { Archive, ArchiveRestore, BookTemplate, Trash2 } from "@/components/ui/icons";
 import { api } from "@/components/ui/useApi";
+import { useToast } from "@/components/ui/Toast";
 
-type ArchiveStatus = "NONE" | "BUILDING" | "READY" | "CONFIRMED" | "FAILED";
-
-/**
- * Acciones del proyecto en menú ⋮ (FR-106): archivar (activos) / descargar +
- * eliminación definitiva (archivados). El flujo de archivado/eliminación
- * (feature 001, FR-030/031/032) se conserva; solo cambia dónde se dispara.
- */
 export function ProjectMenu({
   workId,
   workName,
   workStatus,
-  archiveStatus: initial,
 }: {
   workId: string;
   workName: string;
   workStatus: "ACTIVE" | "ARCHIVED";
-  archiveStatus: ArchiveStatus;
 }) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [status, setStatus] = useState<ArchiveStatus>(initial);
-  const [confirmName, setConfirmName] = useState("");
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
-  const polling = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    if (status === "BUILDING" && !polling.current) {
-      polling.current = setInterval(async () => {
-        const r = await api<{ status: ArchiveStatus; error?: string }>(
-          `/api/works/${workId}/archive`,
-        ).catch(() => null);
-        if (r && r.status !== "BUILDING") {
-          setStatus(r.status);
-          setError(r.error ?? "");
-          if (polling.current) clearInterval(polling.current);
-          polling.current = null;
-        }
-      }, 1500);
-    }
-    return () => {
-      if (polling.current) clearInterval(polling.current);
-      polling.current = null;
-    };
-  }, [status, workId]);
-
-  const start = async () => {
-    setError("");
-    await api(`/api/works/${workId}/archive`, { method: "POST" });
-    setStatus("BUILDING");
-  };
-  const confirm = async () => {
+  const archive = async () => {
     try {
-      await api(`/api/works/${workId}/archive/confirm`, { method: "POST" });
-      setStatus("CONFIRMED");
+      await api(`/api/works/${workId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "ARCHIVED" }),
+      });
+      toast("Proyecto archivado", "success");
+      router.push("/");
+    } catch {
+      toast("Error al archivar", "error");
+    }
+  };
+
+  const unarchive = async () => {
+    try {
+      await api(`/api/works/${workId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "ACTIVE" }),
+      });
+      toast("Proyecto desarchivado", "success");
       router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
+    } catch {
+      toast("Error al desarchivar", "error");
     }
   };
-  const destroy = async () => {
+
+  const deleteProject = async () => {
     try {
-      await api(`/api/works/${workId}`, { method: "DELETE", body: JSON.stringify({ confirmName }) });
+      await api(`/api/works/${workId}`, {
+        method: "DELETE",
+        body: JSON.stringify({ confirmName: deleteConfirmName }),
+      });
       router.push("/");
     } catch (err) {
       setError((err as Error).message);
@@ -79,19 +66,38 @@ export function ProjectMenu({
     workStatus === "ACTIVE"
       ? [
           {
-            label: "Archivar…",
+            label: "Guardar como plantilla",
+            icon: <BookTemplate size={16} />,
+            onSelect: async () => {
+              try {
+                const result = await api<{ id: string; name: string }>(`/api/works/${workId}/clone`, { method: "POST" });
+                toast(`Plantilla "${result.name}" creada`, "success");
+              } catch {
+                toast("Error al crear plantilla", "error");
+              }
+            },
+          },
+          {
+            label: "Archivar",
             icon: <Archive size={16} />,
+            onSelect: () => setArchiveDialogOpen(true),
+          },
+          {
+            label: "Eliminar proyecto…",
+            icon: <Trash2 size={16} />,
+            danger: true,
             onSelect: () => {
               setError("");
-              setDialogOpen(true);
+              setDeleteConfirmName("");
+              setDeleteDialogOpen(true);
             },
           },
         ]
       : [
           {
-            label: "Descargar paquete",
-            icon: <Download size={16} />,
-            onSelect: () => window.open(`/api/works/${workId}/archive/download`, "_blank"),
+            label: "Desarchivar",
+            icon: <ArchiveRestore size={16} />,
+            onSelect: () => void unarchive(),
           },
           {
             label: "Eliminar definitivamente…",
@@ -99,7 +105,8 @@ export function ProjectMenu({
             danger: true,
             onSelect: () => {
               setError("");
-              setDialogOpen(true);
+              setDeleteConfirmName("");
+              setDeleteDialogOpen(true);
             },
           },
         ];
@@ -109,61 +116,56 @@ export function ProjectMenu({
       <Menu items={items} label="Acciones del proyecto" />
 
       <Dialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        title={workStatus === "ACTIVE" ? "Archivar proyecto" : "Eliminar definitivamente"}
+        open={archiveDialogOpen}
+        onClose={() => setArchiveDialogOpen(false)}
+        title="Archivar proyecto"
       >
-        {workStatus === "ACTIVE" ? (
-          <>
-            <p className="muted" style={{ margin: 0 }}>
-              Genera un paquete portable (archivos + documentación + registro de tareas) para
-              guardarlo donde prefieras. Recién al confirmar, el proyecto sale de los activos.
-            </p>
-            {status === "NONE" || status === "FAILED" ? (
-              <button className="btn btn-primary" onClick={() => void start()}>
-                {status === "FAILED" ? "Reintentar armado" : "Armar paquete"}
-              </button>
-            ) : status === "BUILDING" ? (
-              <p>Armando paquete…</p>
-            ) : status === "READY" ? (
-              <div className="dialog-actions" style={{ justifyContent: "flex-start" }}>
-                <a className="btn" href={`/api/works/${workId}/archive/download`}>
-                  Descargar (.zip)
-                </a>
-                <button className="btn btn-primary" onClick={() => void confirm()}>
-                  Ya lo guardé — confirmar
-                </button>
-              </div>
-            ) : (
-              <p>Proyecto archivado ✓</p>
-            )}
-          </>
-        ) : (
-          <>
-            <p className="muted" style={{ margin: 0 }}>
-              Borra la carpeta completa en la mini nube y todos los datos del proyecto. No se puede
-              deshacer. Escribí el nombre exacto para confirmar: <strong>{workName}</strong>
-            </p>
-            <input
-              placeholder={workName}
-              value={confirmName}
-              onChange={(e) => setConfirmName(e.target.value)}
-            />
-            <div className="dialog-actions">
-              <button className="btn" onClick={() => setDialogOpen(false)}>
-                Cancelar
-              </button>
-              <button
-                className="btn btn-danger"
-                disabled={confirmName.trim() !== workName}
-                onClick={() => void destroy()}
-              >
-                Eliminar definitivamente
-              </button>
-            </div>
-          </>
-        )}
+        <p className="muted" style={{ margin: 0 }}>
+          <strong>{workName}</strong> pasará a la sección de archivados y dejará de verse en las vistas activas.
+        </p>
+        <div className="dialog-actions">
+          <button className="btn" onClick={() => setArchiveDialogOpen(false)}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setArchiveDialogOpen(false);
+              void archive();
+            }}
+          >
+            Archivar
+          </button>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        title={workStatus === "ARCHIVED" ? "Eliminar definitivamente" : "Eliminar proyecto"}
+      >
+        <p className="muted" style={{ margin: 0 }}>
+          Se eliminará <strong>{workName}</strong> con todas sus tareas, documentos y archivos.
+          No se puede deshacer. Escribí el nombre exacto para confirmar:
+        </p>
+        <input
+          placeholder={workName}
+          value={deleteConfirmName}
+          onChange={(e) => setDeleteConfirmName(e.target.value)}
+        />
         {error && <p style={{ color: "var(--danger)", margin: 0 }}>{error}</p>}
+        <div className="dialog-actions">
+          <button className="btn" onClick={() => setDeleteDialogOpen(false)}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn-danger"
+            disabled={deleteConfirmName.trim() !== workName}
+            onClick={() => void deleteProject()}
+          >
+            {workStatus === "ARCHIVED" ? "Eliminar definitivamente" : "Eliminar proyecto"}
+          </button>
+        </div>
       </Dialog>
     </>
   );

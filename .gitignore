@@ -34,3 +34,6 @@ Thumbs.db
 # Archivos temporales de export
 storage/archives/
 tsconfig.tsbuildinfo
+
+# Herramientas locales
+.impeccable/

@@ -15,10 +15,16 @@ export function CreateProjectDialog({
   open,
   onClose,
   onCreated,
+  cloneFromId,
+  isTemplate,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  /** T012: si viene de "Desde plantilla", se clonan las tareas de este proyecto. */
+  cloneFromId?: string | null;
+  /** T004: si viene del filtro "Plantillas", crea el proyecto marcado como plantilla. */
+  isTemplate?: boolean;
 }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [scope, setScope] = useState("");
@@ -50,6 +56,8 @@ export function CreateProjectDialog({
           name: name.trim(),
           description: description.trim() || undefined,
           groupId: scope || null,
+          ...(cloneFromId ? { cloneFromId } : {}),
+          ...(isTemplate ? { isTemplate: true } : {}),
         }),
       });
       reset();
@@ -68,7 +76,7 @@ export function CreateProjectDialog({
         reset();
         onClose();
       }}
-      title="Nuevo proyecto"
+      title={isTemplate ? "Nueva plantilla" : cloneFromId ? "Nuevo proyecto desde plantilla" : "Nuevo proyecto"}
     >
       <div className="dialog-field">
         <label htmlFor="np-scope">Ámbito</label>

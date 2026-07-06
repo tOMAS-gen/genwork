@@ -1,15 +1,26 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/ui/useApi";
-import { X } from "@/components/ui/icons";
+import { showToast } from "@/components/ui/Toast";
+import { X, Calendar } from "@/components/ui/icons";
+import { canEditTaskText } from "@/lib/domain/tasks/ownership";
+import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
+import { parseDates } from "@/lib/domain/dates/parser";
+import { TaskInlineEdit } from "./TaskInlineEdit";
 
 export interface TaskDto {
   id: string;
+  /** Texto crudo (con etiquetas /#@) — lo usa la edición inline (T008, R2 de 004). */
+  rawText: string;
   displayText: string;
   state: "PENDING" | "DONE";
   workId: string | null;
   work: { id: string; name: string } | null;
+  /** Origen de la tarea y, si fue adoptada por el proyecto, cuándo (FR-401). */
+  originType: "WORK" | "SECTOR";
+  adoptedAt: string | null;
   homeSector: { id: string; name: string } | null;
   links: {
     type: "EXEC" | "REF";
@@ -17,6 +28,112 @@ export interface TaskDto {
     sector: { id: string; name: string } | null;
     user: { id: string; name: string } | null;
   }[];
+  description: string | null;
+}
+
+type InlineMark =
+  | { kind: "tag"; start: number; end: number; tag: ReturnType<typeof parseTags>["tags"][number] }
+  | { kind: "date"; start: number; end: number; date: ReturnType<typeof parseDates>[number] };
+
+function renderInlineSegments(
+  task: TaskDto,
+  context: { workId?: string; sectorId?: string },
+  showWorkTag: boolean,
+  visibleLinks: TaskDto["links"],
+) {
+  const { tags } = parseTags(task.rawText);
+  const dates = parseDates(task.rawText);
+
+  // T014: se mergean tags y fechas en un único array ordenado por posición
+  // (mismo enfoque que TagHighlightInput, T013) para que el loop de render
+  // procese ambos tipos de marca sin solaparse.
+  const marks: InlineMark[] = [
+    ...tags.map((tag) => ({ kind: "tag" as const, start: tag.start, end: tag.end, tag })),
+    ...dates.map((date) => ({ kind: "date" as const, start: date.start, end: date.end, date })),
+  ].sort((a, b) => a.start - b.start);
+
+  const segments: React.ReactNode[] = [];
+  let lastEnd = 0;
+
+  for (const mark of marks) {
+    if (mark.start < lastEnd) continue; // evita solapamientos
+
+    if (mark.start > lastEnd) {
+      // se preservan también los segmentos de solo espacios: así el texto en vista
+      // ocupa las mismas posiciones que en el textarea de edición (sin saltos)
+      const text = task.rawText.slice(lastEnd, mark.start);
+      if (text) segments.push(<span key={`t-${lastEnd}`}>{text}</span>);
+    }
+
+    if (mark.kind === "date") {
+      const text = task.rawText.slice(mark.start, mark.end);
+      segments.push(
+        <span key={`date-${mark.start}`} className="date-chip">
+          <Calendar size={12} />
+          {text}
+        </span>,
+      );
+      lastEnd = mark.end;
+      continue;
+    }
+
+    const tag = mark.tag;
+    const norm = normalizeTagName(tag.name);
+
+    if (tag.symbol === "/") {
+      if (showWorkTag && task.work && normalizeTagName(task.work.name) === norm) {
+        segments.push(
+          <Link key={`tag-${tag.start}`} className="tag tag-work" href={`/works/${task.work.id}`}>
+            /{tag.name}
+          </Link>,
+        );
+      }
+    } else if (tag.symbol === "#") {
+      const link = task.links.find(
+        (l) => l.type === "EXEC" && l.targetType === "SECTOR" && l.sector && normalizeTagName(l.sector.name) === norm,
+      );
+      if (context.sectorId && link?.sector?.id === context.sectorId) {
+        // ocultar #sector propio en la vista de ese sector
+      } else if (link?.sector) {
+        segments.push(
+          <Link key={`tag-${tag.start}`} className="tag tag-exec" href={`/sectors/${link.sector.id}`}>
+            #{tag.name}
+          </Link>,
+        );
+      } else {
+        segments.push(<span key={`tag-${tag.start}`} className="tag tag-exec">#{tag.name}</span>);
+      }
+    } else if (tag.symbol === "@") {
+      const sectorLink = visibleLinks.find(
+        (l) => l.type === "REF" && l.targetType === "SECTOR" && l.sector && normalizeTagName(l.sector.name) === norm,
+      );
+      const userLink = visibleLinks.find(
+        (l) => l.targetType === "USER" && l.user && normalizeTagName(l.user.name) === norm,
+      );
+      if (sectorLink?.sector) {
+        segments.push(
+          <Link key={`tag-${tag.start}`} className="tag tag-ref" href={`/sectors/${sectorLink.sector.id}`}>
+            @{tag.name}
+          </Link>,
+        );
+      } else {
+        segments.push(
+          <span key={`tag-${tag.start}`} className="tag tag-user">
+            @{tag.name}
+          </span>,
+        );
+      }
+    }
+
+    lastEnd = mark.end;
+  }
+
+  if (lastEnd < task.rawText.length) {
+    const text = task.rawText.slice(lastEnd);
+    if (text) segments.push(<span key={`t-${lastEnd}`}>{text}</span>);
+  }
+
+  return segments;
 }
 
 /**
@@ -34,6 +151,22 @@ export function TaskItem({
   canToggle: boolean;
   onChanged: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
+  const descRef = useRef<HTMLTextAreaElement>(null);
+  const nameSaveRef = useRef<(() => void) | null>(null);
+
+  // FR-402/FR-403: la propiedad de edición depende del origen/adopción de la tarea
+  // y de la vista (proyecto siempre puede; sector solo si es de origen sector y no adoptada).
+  // Una tarea completada (tachada) no se edita: hay que destildarla primero.
+  const canEditText =
+    canToggle &&
+    task.state !== "DONE" &&
+    canEditTaskText(
+      { originType: task.originType, adoptedAt: task.adoptedAt },
+      context.workId ? "work" : "sector",
+    );
+
   const toggle = async () => {
     try {
       await api(`/api/tasks/${task.id}/toggle`, { method: "POST" });
@@ -49,49 +182,195 @@ export function TaskItem({
     onChanged();
   };
 
+  const handleDescriptionChange = async (value: string) => {
+    if (value === (task.description ?? "")) return;
+    try {
+      await api(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ description: value || null }),
+      });
+      onChanged();
+    } catch (err) {
+      alert((err as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    if (editing && focusTarget === "description") {
+      descRef.current?.focus();
+    }
+  }, [editing, focusTarget]);
+
+  // altura inicial del textarea de detalle = altura del contenido (1 línea si está vacío),
+  // para que la transición vista→edición no cambie el alto del bloque
+  useEffect(() => {
+    if (!editing) return;
+    const el = descRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }, [editing]);
+
+  const handleTextClick = (e: React.MouseEvent<HTMLSpanElement>) => {
+    if ((e.target as HTMLElement).closest("a")) return;
+    if (!canEditText) return;
+    setFocusTarget("name");
+    setEditing(true);
+  };
+
+  const handleDescriptionClick = () => {
+    if (!canEditText) return;
+    setFocusTarget("description");
+    setEditing(true);
+  };
+
+  // FR-306: si el guardado direccionó la tarea a otro proyecto, avisar con enlace.
+  // Al salir de la edición se guardan AMBOS campos: el nombre (ya guardado por
+  // TaskInlineEdit) y el detalle (leído acá del textarea antes de desmontar).
+  const handleSaved = (updated: TaskDto) => {
+    const descValue = descRef.current?.value;
+    if (descValue !== undefined) void handleDescriptionChange(descValue);
+    setEditing(false);
+    onChanged();
+    if (updated.workId && updated.workId !== context.workId) {
+      showToast({
+        message: `Tarea enviada a /${updated.work?.name ?? "otro proyecto"}`,
+        href: updated.work ? `/works/${updated.work.id}` : undefined,
+        linkLabel: "Ver",
+      });
+    }
+  };
+
+  /** Salida sin PATCH de nombre: guarda el detalle salvo que sea un descarte (Escape). */
+  const handleCancel = (discard?: boolean) => {
+    if (!discard) {
+      const descValue = descRef.current?.value;
+      if (descValue !== undefined) void handleDescriptionChange(descValue);
+    }
+    setEditing(false);
+  };
+
   // FR-039: en la vista del trabajo se muestran # y @; en la del sector, /trabajo y @
-  const showWorkTag = task.work && task.work.id !== context.workId;
+  const showWorkTag = !!(task.work && task.work.id !== context.workId);
   const visibleLinks = task.links.filter(
     (l) => !(l.targetType === "SECTOR" && l.sector?.id === context.sectorId),
   );
 
+  const hasDescription = !!(task.description && task.description.trim());
+
   return (
-    <div className={`task ${task.state === "DONE" ? "done" : ""}`}>
-      {canToggle ? (
-        <input type="checkbox" checked={task.state === "DONE"} onChange={() => void toggle()} />
-      ) : (
-        <span className="muted" title="Se completa en su sector de ejecución">
-          ◇
-        </span>
-      )}
-      <span className="task-text" style={{ flex: 1 }}>
-        {task.displayText}{" "}
-        {showWorkTag && (
-          <Link className="tag tag-work" href={`/works/${task.work!.id}`}>
-            /{task.work!.name}
-          </Link>
-        )}{" "}
-        {visibleLinks.map((l, i) =>
-          l.targetType === "SECTOR" && l.sector ? (
-            <Link
-              key={i}
-              className={`tag ${l.type === "EXEC" ? "tag-exec" : "tag-ref"}`}
-              href={`/sectors/${l.sector.id}`}
-            >
-              {l.type === "EXEC" ? "#" : "@"}
-              {l.sector.name}
-            </Link>
-          ) : l.user ? (
-            <span key={i} className="tag tag-ref">
-              @{l.user.name}
-            </span>
-          ) : null,
+    <div className={`task ${task.state === "DONE" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""}`}>
+      <div className="task-row">
+        {/* T008: la casilla permanece visible durante la edición, sin salto de altura de fila. */}
+        {canToggle ? (
+          <input type="checkbox" checked={task.state === "DONE"} onChange={() => void toggle()} />
+        ) : (
+          <span className="muted" title="Se completa en su sector de ejecución">
+            ◇
+          </span>
         )}
-      </span>
-      {canToggle && (
-        <button className="icon-btn" style={{ width: 28, height: 28 }} onClick={() => void remove()} aria-label="Eliminar tarea">
-          <X size={15} />
-        </button>
+        {editing ? (
+          <>
+            {/* FR-404: en vista sector, el proyecto queda fijo (chip no editable) fuera del texto en edición. */}
+            {context.sectorId && task.work && (
+              <span className="tag tag-work" title="Proyecto (fijo, se cambia desde el proyecto)">
+                /{task.work.name}
+              </span>
+            )}
+            <TaskInlineEdit
+              task={task}
+              context={context}
+              description={task.description}
+              onDescriptionChange={(v) => void handleDescriptionChange(v)}
+              descriptionRef={descRef}
+              skipAutoFocus={focusTarget === "description"}
+              saveRef={nameSaveRef}
+              onSaved={handleSaved}
+              onCancel={handleCancel}
+            />
+          </>
+        ) : (
+          <span
+            className="task-text"
+            style={{ flex: 1, cursor: canEditText ? "text" : "default" }}
+            onClick={handleTextClick}
+          >
+            {context.sectorId && task.work && !parseTags(task.rawText).tags.some(
+              (t) => t.symbol === "/" && normalizeTagName(t.name) === normalizeTagName(task.work!.name),
+            ) && (
+              <Link className="tag tag-work" href={`/works/${task.work.id}`}>
+                /{task.work.name}
+              </Link>
+            )}
+            {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
+          </span>
+        )}
+        {canToggle && (
+          <button
+            className="icon-btn"
+            style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
+            onClick={() => void remove()}
+            aria-label="Eliminar tarea"
+            tabIndex={editing ? -1 : 0}
+          >
+            <X size={15} />
+          </button>
+        )}
+      </div>
+      {editing && (
+        <textarea
+          ref={descRef}
+          className="task-edit-description"
+          defaultValue={task.description ?? ""}
+          placeholder="Descripción"
+          rows={1}
+          onInput={(e) => {
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = el.scrollHeight + "px";
+          }}
+          onBlur={(e) => {
+            // el foco volvió al campo de nombre (Tab/clic dentro de la tarea): seguir editando
+            const related = e.relatedTarget as HTMLElement | null;
+            if (related && related.closest(".task") === e.currentTarget.closest(".task")) return;
+            // el foco salió de la tarea: guardar nombre + detalle y cerrar
+            // (el guardado del nombre dispara handleSaved, que lee este textarea)
+            if (nameSaveRef.current) nameSaveRef.current();
+            else {
+              void handleDescriptionChange(e.target.value);
+              setEditing(false);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Tab" && e.shiftKey) {
+              e.preventDefault();
+              const nameInput = e.currentTarget.closest(".task")?.querySelector<HTMLTextAreaElement>(".task-edit-input");
+              nameInput?.focus();
+            } else if (e.key === "Enter" && !e.shiftKey) {
+              // Enter guarda ambos campos y cierra (Shift+Enter inserta salto de línea)
+              e.preventDefault();
+              if (nameSaveRef.current) nameSaveRef.current();
+              else {
+                void handleDescriptionChange(e.currentTarget.value);
+                setEditing(false);
+              }
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setEditing(false);
+            }
+          }}
+        />
+      )}
+      {hasDescription && !editing && (
+        <div className="task-description-panel">
+          <div
+            className="task-description-readonly"
+            style={{ cursor: canEditText ? "pointer" : "default" }}
+            onClick={handleDescriptionClick}
+          >
+            {task.description}
+          </div>
+        </div>
       )}
     </div>
   );

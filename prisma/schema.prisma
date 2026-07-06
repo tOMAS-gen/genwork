@@ -62,6 +62,8 @@ enum JobKind {
   REMOVE_MEMBER
   CREATE_WORK_FOLDER
   DELETE_WORK_FOLDER
+  MOVE_WORK_FOLDER
+  RENAME_WORK_FOLDER
 }
 
 enum JobStatus {
@@ -70,35 +72,59 @@ enum JobStatus {
   FAILED
 }
 
-model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
-  name             String
-  globalRole       GlobalRole @default(MEMBER)
-  nextcloudUserId  String?
-  createdAt        DateTime @default(now())
+enum TaskOrigin {
+  WORK
+  SECTOR
+}
 
-  memberships      GroupMembership[]
-  ownedGroups      Group[]           @relation("GroupOwner")
-  sectorGrants     SectorGrant[]
-  readerGrants     ReaderGrant[]
-  ownedSectors     Sector[]          @relation("SectorOwner")
-  ownedWorks       Work[]            @relation("WorkOwner")
-  createdWorks     Work[]            @relation("WorkCreator")
-  createdTasks     Task[]            @relation("TaskCreator")
-  completedTasks   Task[]            @relation("TaskCompleter")
-  taskRefs         TaskLink[]        @relation("LinkUser")
-  attachments      Attachment[]
-  archives         ArchiveRecord[]
+enum LabelColor {
+  RED
+  ORANGE
+  AMBER
+  GREEN
+  TEAL
+  BLUE
+  INDIGO
+  VIOLET
+  PINK
+  GRAY
+}
+
+model User {
+  id              String     @id @default(uuid())
+  email           String     @unique
+  name            String
+  image           String?
+  globalRole      GlobalRole @default(MEMBER)
+  nextcloudUserId String?
+  createdAt       DateTime   @default(now())
+
+  memberships     GroupMembership[]
+  ownedGroups     Group[]           @relation("GroupOwner")
+  sectorGrants    SectorGrant[]
+  readerGrants    ReaderGrant[]
+  ownedSectors    Sector[]          @relation("SectorOwner")
+  ownedWorks      Work[]            @relation("WorkOwner")
+  createdWorks    Work[]            @relation("WorkCreator")
+  createdTasks    Task[]            @relation("TaskCreator")
+  completedTasks  Task[]            @relation("TaskCompleter")
+  lastEditedTasks Task[]            @relation("TaskLastEditor")
+  taskRefs        TaskLink[]        @relation("LinkUser")
+  attachments     Attachment[]
+  archives        ArchiveRecord[]
+  labelKeys       LabelKey[]        @relation("LabelKeyOwner")
+  favorites       UserFavorite[]
+  notes           Note[]
+  personalStages  ProjectStage[]    @relation("PersonalStages")
 }
 
 model AccessConfig {
-  id                 Int                 @id @default(1)
-  mode               AccessMode          @default(LIST)
-  domain             String?
-  storageProvider    StorageProviderKind @default(NEXTCLOUD)
-  storageConfig      Json?
-  updatedAt          DateTime            @updatedAt
+  id              Int                 @id @default(1)
+  mode            AccessMode          @default(LIST)
+  domain          String?
+  storageProvider StorageProviderKind @default(NEXTCLOUD)
+  storageConfig   Json?
+  updatedAt       DateTime            @updatedAt
 }
 
 model AllowedEmail {
@@ -112,6 +138,7 @@ model Group {
   ownerId           String
   owner             User     @relation("GroupOwner", fields: [ownerId], references: [id])
   publicRead        Boolean  @default(false)
+  color             String?
   nextcloudGroupId  String?
   nextcloudFolderId String?
   createdAt         DateTime @default(now())
@@ -120,6 +147,8 @@ model Group {
   sectors      Sector[]
   works        Work[]
   readerGrants ReaderGrant[]
+  labelKeys    LabelKey[]
+  stages       ProjectStage[]
 }
 
 model GroupMembership {
@@ -133,16 +162,18 @@ model GroupMembership {
 }
 
 model Sector {
-  id      String  @id @default(uuid())
+  id      String      @id @default(uuid())
   name    String
+  color   LabelColor?
   groupId String?
   ownerId String?
-  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  owner   User?   @relation("SectorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  group   Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner   User?       @relation("SectorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  grants    SectorGrant[]
-  taskLinks TaskLink[]
-  homeTasks Task[]        @relation("TaskHomeSector")
+  grants      SectorGrant[]
+  taskLinks   TaskLink[]
+  homeTasks   Task[]        @relation("TaskHomeSector")
+  originTasks Task[]        @relation("TaskOriginSector")
 
   // Unicidad por ámbito (FR-001): nombre único dentro del grupo o del espacio personal
   @@unique([groupId, name])
@@ -161,8 +192,8 @@ model SectorGrant {
 model ReaderGrant {
   userId  String
   groupId String
-  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   @@id([userId, groupId])
 }
@@ -174,17 +205,25 @@ model Work {
   groupId             String?
   ownerId             String?
   status              WorkStatus @default(ACTIVE)
+  isTemplate          Boolean    @default(false)
+  dueDate             DateTime?
+  folderSeq           Int        @default(autoincrement())
   nextcloudFolderPath String?
   createdById         String
   createdAt           DateTime   @default(now())
 
+  stageId String?
+
   group       Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
   owner       User?          @relation("WorkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   createdBy   User           @relation("WorkCreator", fields: [createdById], references: [id])
+  stage       ProjectStage?  @relation(fields: [stageId], references: [id], onDelete: SetNull)
   doc         DocPage?
   tasks       Task[]
   attachments Attachment[]
   archive     ArchiveRecord?
+  labels      WorkLabel[]
+  favorites   UserFavorite[]
 
   @@unique([groupId, name])
   @@unique([ownerId, name])
@@ -209,11 +248,25 @@ model Task {
   completedById String?
   createdAt     DateTime  @default(now())
 
-  work        Work?   @relation(fields: [workId], references: [id], onDelete: Cascade)
-  homeSector  Sector? @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
-  creator     User    @relation("TaskCreator", fields: [creatorId], references: [id])
-  completedBy User?   @relation("TaskCompleter", fields: [completedById], references: [id])
-  links       TaskLink[]
+  dueDate DateTime?
+
+  originType     TaskOrigin @default(WORK)
+  originSectorId String?
+  adoptedAt      DateTime?
+  lastEditedById String?
+  lastEditedAt   DateTime?
+  description    String?
+  position       Int        @default(0)
+
+  work         Work?      @relation(fields: [workId], references: [id], onDelete: Cascade)
+  homeSector   Sector?    @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
+  originSector Sector?    @relation("TaskOriginSector", fields: [originSectorId], references: [id], onDelete: SetNull)
+  creator      User       @relation("TaskCreator", fields: [creatorId], references: [id])
+  completedBy  User?      @relation("TaskCompleter", fields: [completedById], references: [id])
+  lastEditedBy User?      @relation("TaskLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+  links        TaskLink[]
+
+  @@index([workId, position])
 }
 
 model TaskLink {
@@ -273,4 +326,79 @@ model ProvisioningJob {
   updatedAt DateTime  @updatedAt
 
   @@index([status, runAfter])
+}
+
+model LabelKey {
+  id      String  @id @default(uuid())
+  name    String
+  groupId String?
+  ownerId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("LabelKeyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  values     LabelValue[]
+  workLabels WorkLabel[]
+
+  // Unicidad por ámbito (mismo patrón que Sector): nombre único dentro del grupo o del espacio personal
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
+}
+
+model LabelValue {
+  id    String     @id @default(uuid())
+  keyId String
+  name  String
+  color LabelColor
+  key   LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+
+  workLabels WorkLabel[]
+
+  @@unique([keyId, name])
+}
+
+model WorkLabel {
+  workId  String
+  keyId   String
+  valueId String
+  work    Work       @relation(fields: [workId], references: [id], onDelete: Cascade)
+  key     LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  value   LabelValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
+
+  @@id([workId, keyId])
+}
+
+model UserFavorite {
+  userId String
+  workId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work   Work   @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@id([userId, workId])
+}
+
+model ProjectStage {
+  id        String  @id @default(uuid())
+  name      String
+  color     String?
+  sortOrder Int     @default(0)
+  groupId   String?
+  ownerId   String?
+  group     Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner     User?   @relation("PersonalStages", fields: [ownerId], references: [id], onDelete: Cascade)
+  works     Work[]
+
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
+}
+
+model Note {
+  id        String   @id @default(uuid())
+  title     String   @default("")
+  content   Json?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt(sort: Desc)])
 }

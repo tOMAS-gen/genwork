@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { LabelColor } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 import { conflict, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
@@ -25,7 +26,14 @@ async function getSectorWithOperate(userId: string, id: string) {
   return sector;
 }
 
-const patchSchema = z.object({ name: z.string().trim().min(1).max(80) });
+const patchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    color: z.nativeEnum(LabelColor).nullable().optional(),
+  })
+  .refine((data) => data.name !== undefined || data.color !== undefined, {
+    message: "Debe incluir al menos name o color",
+  });
 
 /** Renombrar conserva vínculos (FR-015). */
 export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
@@ -33,13 +41,27 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   const { id } = await params;
   const sector = await getSectorWithOperate(session.user.id, id);
 
-  const { name } = patchSchema.parse(await req.json());
-  const dup = await prisma.sector.findFirst({
-    where: { groupId: sector.groupId, ownerId: sector.ownerId, name, id: { not: id } },
-  });
-  if (dup) throw conflict(`Ya existe un sector llamado "${name}" en este ámbito`);
+  const { name, color } = patchSchema.parse(await req.json());
 
-  const updated = await prisma.sector.update({ where: { id }, data: { name } });
+  if (name !== undefined) {
+    const dup = await prisma.sector.findFirst({
+      where: {
+        groupId: sector.groupId,
+        ownerId: sector.ownerId,
+        name: { equals: name, mode: "insensitive" },
+        id: { not: id },
+      },
+    });
+    if (dup) throw conflict(`Ya existe un sector llamado "${name}" en este ámbito`);
+  }
+
+  const updated = await prisma.sector.update({
+    where: { id },
+    data: {
+      ...(name !== undefined ? { name } : {}),
+      ...(color !== undefined ? { color } : {}),
+    },
+  });
   return NextResponse.json(updated);
 });
 

@@ -4,6 +4,8 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { useEffect, useRef } from "react";
 import { api } from "@/components/ui/useApi";
 import { SlashCommand } from "./slashCommand";
@@ -33,6 +35,8 @@ export function DocEditor({
       StarterKit,
       Image,
       Placeholder.configure({ placeholder: "Escribí acá la documentación del proyecto…" }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
       SlashCommand.configure({ openImagePicker }),
     ],
     content: (initialContent as object) ?? "",

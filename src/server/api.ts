@@ -14,6 +14,8 @@ export class ApiError extends Error {
 }
 
 export const unauthorized = () => new ApiError(401, "UNAUTHORIZED", "Iniciá sesión para continuar");
+export const badRequest = (msg: string, extra?: Record<string, unknown>) =>
+  new ApiError(400, "INVALID_INPUT", msg, extra);
 export const forbidden = (msg = "No tenés permiso para esta acción") =>
   new ApiError(403, "FORBIDDEN", msg);
 export const notFound = (msg = "No encontrado") => new ApiError(404, "NOT_FOUND", msg);

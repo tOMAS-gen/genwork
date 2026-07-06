@@ -27,6 +27,8 @@ export interface SlashItem {
 }
 
 const GROUP_BASICOS = "Bloques básicos";
+const GROUP_LISTAS = "Listas";
+const GROUP_BLOQUES = "Bloques";
 
 /** Borra el comando "/filtro" antes de aplicar el bloque elegido. */
 function deleteCommandRange(ctx: SlashRunContext) {
@@ -104,6 +106,56 @@ export function getSlashItems(): SlashItem[] {
       run: (ctx) => {
         deleteCommandRange(ctx).run();
         ctx.openImagePicker();
+      },
+    },
+    {
+      id: "numbered-list",
+      title: "Lista numerada",
+      aliases: ["ol", "ordered", "numerada", "numbered"],
+      shortcut: null,
+      group: GROUP_LISTAS,
+      run: (ctx) => {
+        deleteCommandRange(ctx).toggleOrderedList().run();
+      },
+    },
+    {
+      id: "task-list",
+      title: "Lista de tareas",
+      aliases: ["todo", "checkbox", "check", "tarea", "tareas"],
+      shortcut: null,
+      group: GROUP_LISTAS,
+      run: (ctx) => {
+        deleteCommandRange(ctx).toggleTaskList().run();
+      },
+    },
+    {
+      id: "blockquote",
+      title: "Cita",
+      aliases: ["quote", "blockquote", "cita"],
+      shortcut: null,
+      group: GROUP_BLOQUES,
+      run: (ctx) => {
+        deleteCommandRange(ctx).toggleBlockquote().run();
+      },
+    },
+    {
+      id: "code-block",
+      title: "Bloque de código",
+      aliases: ["code", "codigo", "código", "pre"],
+      shortcut: null,
+      group: GROUP_BLOQUES,
+      run: (ctx) => {
+        deleteCommandRange(ctx).toggleCodeBlock().run();
+      },
+    },
+    {
+      id: "divider",
+      title: "Divisor",
+      aliases: ["hr", "horizontal", "divider", "linea", "línea", "separador"],
+      shortcut: null,
+      group: GROUP_BLOQUES,
+      run: (ctx) => {
+        deleteCommandRange(ctx).setHorizontalRule().run();
       },
     },
   ];

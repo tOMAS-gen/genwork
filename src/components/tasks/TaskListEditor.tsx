@@ -3,18 +3,18 @@
 import { useRef, useState } from "react";
 import { Plus } from "@/components/ui/icons";
 import { api } from "@/components/ui/useApi";
+import { showToast } from "@/components/ui/Toast";
 import { splitTaskLines } from "@/lib/domain/tasks/multiline";
-
-interface Suggestion {
-  id: string;
-  name: string;
-  type: "work" | "sector" | "user";
-}
+import { useTagAutocomplete, type Suggestion } from "./useTagAutocomplete";
+import { TagHighlightInput } from "./TagHighlightInput";
+import type { TaskDto } from "./TaskItem";
 
 /**
  * Bloc de notas de tareas (FR-105): escribir + Enter crea la tarea y el foco sigue
- * en la línea para la siguiente. Autocompletado inline `/` `#` `@` (feature 001);
- * pegar multilínea crea una tarea por línea no vacía (splitTaskLines).
+ * en la línea para la siguiente. Autocompletado inline `/` `#` `@` vía useTagAutocomplete
+ * (feature 001 + R2 de 004); pegar multilínea crea una tarea por línea no vacía
+ * (splitTaskLines). Si la tarea creada se direccionó a otro proyecto, avisa con un Toast
+ * (R3 de 004).
  */
 export function TaskListEditor({
   context,
@@ -24,20 +24,28 @@ export function TaskListEditor({
   onCreated: () => void;
 }) {
   const [text, setText] = useState("");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [activeTag, setActiveTag] = useState<{ symbol: string; start: number } | null>(null);
+  const [desc, setDesc] = useState("");
   const [unresolved, setUnresolved] = useState<{ symbol: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const descRef = useRef<HTMLTextAreaElement>(null);
+  const { suggestions, activeTag, onTextChange, pick: pickSuggestion, clear } = useTagAutocomplete({
+    context,
+  });
 
-  const contextQuery = context.workId
-    ? `contextWorkId=${context.workId}`
-    : context.sectorId
-      ? `contextSectorId=${context.sectorId}`
-      : "";
+  /** Avisa si la tarea creada quedó direccionada a un proyecto distinto del contexto actual. */
+  const notifyIfMovedAway = (task: TaskDto) => {
+    if (task.workId && task.workId !== context.workId) {
+      showToast({
+        message: `Tarea enviada a /${task.work?.name ?? "otro proyecto"}`,
+        href: task.work ? `/works/${task.work.id}` : undefined,
+        linkLabel: "Ver",
+      });
+    }
+  };
 
-  const createOne = async (rawText: string) => {
-    await api("/api/tasks", {
+  const createOne = async (rawText: string): Promise<TaskDto> => {
+    return api<TaskDto>("/api/tasks", {
       method: "POST",
       body: JSON.stringify({
         rawText,
@@ -51,29 +59,13 @@ export function TaskListEditor({
     setText(value);
     setError(null);
     setUnresolved([]);
-    const before = value.slice(0, caret);
-    const match = /(^|\s)([/#@])([\p{L}\p{N}_\-.]*)$/u.exec(before);
-    if (match) {
-      const symbol = match[2];
-      const query = match[3];
-      setActiveTag({ symbol, start: caret - query.length });
-      const results = await api<Suggestion[]>(
-        `/api/tags/suggest?symbol=${encodeURIComponent(symbol)}&q=${encodeURIComponent(query)}&${contextQuery}`,
-      ).catch(() => []);
-      setSuggestions(results);
-    } else {
-      setActiveTag(null);
-      setSuggestions([]);
-    }
+    await onTextChange(value, caret);
   };
 
   const pick = (s: Suggestion) => {
-    if (!activeTag) return;
     const caret = inputRef.current?.selectionStart ?? text.length;
-    const next = text.slice(0, activeTag.start) + s.name + " " + text.slice(caret);
+    const next = pickSuggestion(s, text, caret);
     setText(next);
-    setActiveTag(null);
-    setSuggestions([]);
     inputRef.current?.focus();
   };
 
@@ -81,10 +73,20 @@ export function TaskListEditor({
     const raw = text.trim();
     if (!raw) return;
     try {
-      await createOne(raw);
+      const task = await createOne(raw);
+      // el detalle se guarda con un PATCH aparte (el POST solo parsea el rawText)
+      const description = desc.trim();
+      if (description) {
+        await api(`/api/tasks/${task.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ description }),
+        });
+      }
       setText("");
+      setDesc("");
       setUnresolved([]);
       onCreated();
+      notifyIfMovedAway(task);
       inputRef.current?.focus(); // bloc de notas: sigue el foco
     } catch (err) {
       const body = (err as { body?: { error?: { unresolvedTags?: { symbol: string; name: string }[] } } })
@@ -100,9 +102,14 @@ export function TaskListEditor({
     if (lines.length <= 1) return; // una sola línea: comportamiento normal
     e.preventDefault();
     try {
-      for (const line of lines) await createOne(line);
+      let lastMoved: TaskDto | null = null;
+      for (const line of lines) {
+        const task = await createOne(line);
+        if (task.workId && task.workId !== context.workId) lastMoved = task;
+      }
       setText("");
       onCreated();
+      if (lastMoved) notifyIfMovedAway(lastMoved); // resumen: un solo toast, no spamear
       inputRef.current?.focus();
     } catch (err) {
       setError((err as Error).message);
@@ -129,9 +136,12 @@ export function TaskListEditor({
     <div style={{ position: "relative" }}>
       <div className="notes-row">
         <Plus size={16} className="plus" />
-        <input
+        <TagHighlightInput
           ref={inputRef}
-          placeholder="Escribí una tarea y Enter…  (/proyecto  #sector  @referencia)"
+          placeholder={context.workId
+            ? "Escribí una tarea y Enter…  (#sector  @referencia)"
+            : "Escribí una tarea y Enter…  (/proyecto  #sector  @referencia)"
+          }
           value={text}
           onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}
           onPaste={onPaste}
@@ -142,12 +152,45 @@ export function TaskListEditor({
             } else if (e.key === "Enter") {
               e.preventDefault();
               void submit();
+            } else if (e.key === "Tab" && suggestions.length === 0 && !e.shiftKey && text.trim()) {
+              // Tab baja al campo de detalle (visible solo cuando hay texto de tarea)
+              e.preventDefault();
+              descRef.current?.focus();
             } else if (e.key === "Escape") {
-              setSuggestions([]);
+              clear();
             }
           }}
         />
       </div>
+
+      {(text.trim() !== "" || desc !== "") && (
+        <textarea
+          ref={descRef}
+          className="task-edit-description task-create-description"
+          value={desc}
+          placeholder="Descripción (opcional)"
+          rows={1}
+          onInput={(e) => {
+            const el = e.currentTarget;
+            el.style.height = "auto";
+            el.style.height = el.scrollHeight + "px";
+          }}
+          onChange={(e) => setDesc(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              // Enter también crea la tarea desde el detalle (Shift+Enter: salto de línea)
+              e.preventDefault();
+              void submit();
+            } else if (e.key === "Tab" && e.shiftKey) {
+              e.preventDefault();
+              inputRef.current?.focus();
+            } else if (e.key === "Escape") {
+              setDesc("");
+              inputRef.current?.focus();
+            }
+          }}
+        />
+      )}
 
       {suggestions.length > 0 && (
         <div
@@ -164,7 +207,7 @@ export function TaskListEditor({
               style={{ padding: "6px 8px", cursor: "pointer" }}
             >
               <span
-                className={`tag ${s.type === "work" ? "tag-work" : s.type === "user" ? "tag-ref" : "tag-exec"}`}
+                className={`tag ${s.type === "work" ? "tag-work" : s.type === "user" ? "tag-user" : "tag-exec"}`}
               >
                 {activeTag?.symbol}
                 {s.name}

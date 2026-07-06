@@ -28,12 +28,14 @@ export const GET = withApi(async () => {
   return NextResponse.json(groups);
 });
 
-const createSchema = z.object({ name: z.string().trim().min(1).max(80) });
+const createSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  color: z.string().nullable().optional(),
+});
 
-/** FR-021: cualquier usuario crea grupos; el creador queda como admin principal. */
 export const POST = withApi(async (req) => {
   const session = await requireWriter();
-  const { name } = createSchema.parse(await req.json());
+  const { name, color } = createSchema.parse(await req.json());
 
   const existing = await prisma.group.findUnique({ where: { name } });
   if (existing) throw conflict(`Ya existe un grupo llamado "${name}"`);
@@ -41,6 +43,7 @@ export const POST = withApi(async (req) => {
   const group = await prisma.group.create({
     data: {
       name,
+      color: color ?? null,
       ownerId: session.user.id,
       memberships: { create: { userId: session.user.id, role: "ADMIN" } },
     },

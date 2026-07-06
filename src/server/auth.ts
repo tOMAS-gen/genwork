@@ -25,6 +25,7 @@ declare module "next-auth" {
       email: string;
       name: string;
       globalRole: GlobalRole;
+      image?: string | null;
     };
   }
 }
@@ -65,15 +66,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login", error: "/login" },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       // Usuarios de prueba (modo dev): ya creados en authorize, sin allowlist
       if (account?.provider === "dev") return DEV_AUTH_ENABLED;
 
       const email = normalizeEmail(user.email ?? "");
       if (!email) return false;
 
+      const image = (profile as Record<string, unknown>)?.picture as string | undefined
+        ?? (profile as Record<string, unknown>)?.image as string | undefined
+        ?? null;
+
       const existing = await prisma.user.findUnique({ where: { email } });
-      if (existing) return true;
+      if (existing) {
+        await prisma.user.update({ where: { email }, data: { image } });
+        return true;
+      }
 
       const userCount = await prisma.user.count();
       const isBootstrap = userCount === 0;
@@ -97,6 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email,
           name: user.name ?? email,
           globalRole: isBootstrap ? "SUPERADMIN" : "MEMBER",
+          image,
         },
       });
       if (isBootstrap) {
@@ -128,6 +137,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (dbUser) {
           token.userId = dbUser.id;
           token.globalRole = dbUser.globalRole;
+          token.image = dbUser.image ?? null;
         }
       }
       return token;
@@ -137,6 +147,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.userId) {
         session.user.id = token.userId as string;
         session.user.globalRole = token.globalRole as GlobalRole;
+        session.user.image = (token.image as string) ?? null;
       }
       return session;
     },

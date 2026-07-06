@@ -39,6 +39,23 @@ Las migraciones de la base corren solas en cada arranque de genwork.
    Nextcloud). Con esa cuenta instala el **cliente de escritorio de Nextcloud** y las carpetas
    de sus grupos se sincronizan solas.
 
+## Desarrollo local
+
+```bash
+# 1. Levantar postgres (:5433) + Nextcloud (:8081)
+docker compose -f deploy/docker-compose.dev.yml up -d
+
+# 2. Configurar Nextcloud (una sola vez)
+bash scripts/setup-nextcloud.sh
+
+# 3. Migraciones + app
+npm run db:migrate
+npm run dev            # http://localhost:3010
+```
+
+Con `DEV_AUTH=true` en `.env` hay tres usuarios de prueba sin Google
+(admin / miembro / lector) en la pantalla de login. Nunca activarlo en producción.
+
 ## Validación completa
 
 Ver `specs/001-gestion-trabajos-sectores/quickstart.md` — escenarios end-to-end por user story.

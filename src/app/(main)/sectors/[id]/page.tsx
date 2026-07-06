@@ -3,15 +3,18 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/ui/useApi";
-import { TaskInput } from "@/components/tasks/TaskInput";
+import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { FilterBar, type FilterState } from "@/components/filters/FilterBar";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface SectorView {
-  sector: { id: string; name: string };
-  exec: TaskDto[];
+  sector: { id: string; name: string; color: string | null; group: { id: string; name: string } | null };
+  loose: TaskDto[];
+  byWork: { work: { id: string; name: string; status: string }; tasks: TaskDto[] }[];
   refs: TaskDto[];
+  metrics: { total: number; done: number };
   level: "read" | "operate";
 }
 
@@ -42,7 +45,31 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   }, []);
   useLiveRefresh(load, { sectorId: id });
 
-  if (!view) return <p className="muted">Cargando…</p>;
+  if (!view) {
+    return (
+      <div className="sheet">
+        <Skeleton variant="text" height="28px" width="30%" />
+        <div style={{ marginTop: "var(--space-2)" }}>
+          <Skeleton variant="card" width="100%" height="40px" />
+        </div>
+        <div style={{ marginTop: "var(--space-2)", display: "flex", gap: "var(--space-1)" }}>
+          <Skeleton variant="text" width="70px" />
+          <Skeleton variant="text" width="70px" />
+          <Skeleton variant="text" width="70px" />
+        </div>
+        <div style={{ marginTop: "var(--space-2)" }}>
+          <Skeleton variant="text" height="22px" width="40%" />
+        </div>
+        <div style={{ marginTop: "var(--space-1)" }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} style={{ marginBottom: "var(--space-1)" }}>
+              <Skeleton variant="text" width="100%" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const canOperate = view.level === "operate";
 
@@ -61,7 +88,7 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <div>
+    <div className="sheet">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h1>#{view.sector.name}</h1>
         {canOperate && (
@@ -72,13 +99,13 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
       </div>
 
       {canOperate && (
-        <TaskInput context={{ sectorId: id }} onCreated={load} />
+        <TaskListEditor context={{ sectorId: id }} onCreated={load} />
       )}
 
       <FilterBar filters={filters} onChange={setFilters} works={works} sectors={sectors} />
 
       <h2>Tareas del sector</h2>
-      {view.exec.map((task) => (
+      {view.loose.map((task) => (
         <TaskItem
           key={task.id}
           task={task}
@@ -87,7 +114,25 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
           onChanged={load}
         />
       ))}
-      {view.exec.length === 0 && <p className="muted">Sin tareas con los filtros actuales.</p>}
+      {view.byWork.map((group) => (
+        <div key={group.work.id} style={{ marginTop: "var(--space-2)" }}>
+          <h3 className="muted" style={{ fontSize: "0.85rem", marginBottom: "var(--space-1)" }}>
+            {group.work.name}
+          </h3>
+          {group.tasks.map((task) => (
+            <TaskItem
+              key={task.id}
+              task={task}
+              context={{ sectorId: id }}
+              canToggle={canOperate}
+              onChanged={load}
+            />
+          ))}
+        </div>
+      ))}
+      {view.loose.length === 0 && view.byWork.length === 0 && (
+        <p className="muted">Sin tareas con los filtros actuales.</p>
+      )}
 
       {view.refs.length > 0 && (
         <>

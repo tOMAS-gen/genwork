@@ -4,11 +4,14 @@ import { notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canAddress } from "@/lib/domain/permissions";
-import { normalizeTagName } from "@/lib/domain/tags/parser";
+import { canonical, toTagForm } from "@/lib/domain/tags/matching";
 import { scopeOf } from "@/server/tasks";
 
 /**
- * Autocompletado de etiquetas (FR-009): matching case/acento-insensible.
+ * Autocompletado de etiquetas (FR-009): matching tolerante case/acento-insensible y
+ * espacio ≡ guion (canonical, ver matching.ts). El candidato matchea si su nombre canónico
+ * empieza con la forma canónica del query (prefijo). Cada sugerencia incluye `insertText`
+ * (toTagForm) para que la UI inserte una etiqueta parseable.
  * `/` incluye trabajos direccionables (canAddress, FR-038) aunque no se puedan abrir;
  * `@` sugiere sectores Y usuarios del ámbito (FR-041).
  */
@@ -18,7 +21,7 @@ export const GET = withApi(async (req) => {
   const url = new URL(req.url);
 
   const symbol = url.searchParams.get("symbol");
-  const q = normalizeTagName(url.searchParams.get("q") ?? "");
+  const q = canonical(url.searchParams.get("q") ?? "");
   const contextWorkId = url.searchParams.get("contextWorkId");
   const contextSectorId = url.searchParams.get("contextSectorId");
 
@@ -38,19 +41,29 @@ export const GET = withApi(async (req) => {
     scopeWhere = { ownerId: ctx.id };
   }
 
-  const matches = (name: string) => normalizeTagName(name).startsWith(q);
-  let results: { id: string; name: string; type: "work" | "sector" | "user" }[] = [];
+  const matches = (name: string) => canonical(name).startsWith(q);
+  let results: {
+    id: string;
+    name: string;
+    type: "work" | "sector" | "user";
+    insertText: string;
+  }[] = [];
 
   if (symbol === "/") {
     const works = await prisma.work.findMany({ where: { ...scopeWhere, status: "ACTIVE" } });
     results = works
       .filter((w) => matches(w.name) && canAddress(ctx, scopeOf(w)))
-      .map((w) => ({ id: w.id, name: w.name, type: "work" as const }));
+      .map((w) => ({ id: w.id, name: w.name, type: "work" as const, insertText: toTagForm(w.name) }));
   } else if (symbol === "#" || symbol === "@") {
     const sectors = await prisma.sector.findMany({ where: scopeWhere });
     results = sectors
       .filter((s) => matches(s.name))
-      .map((s) => ({ id: s.id, name: s.name, type: "sector" as const }));
+      .map((s) => ({
+        id: s.id,
+        name: s.name,
+        type: "sector" as const,
+        insertText: toTagForm(s.name),
+      }));
 
     if (symbol === "@") {
       // Usuarios del ámbito: miembros del grupo, o solo el dueño en espacio personal
@@ -69,7 +82,12 @@ export const GET = withApi(async (req) => {
       results.push(
         ...users
           .filter((u) => matches(u.name) || matches(u.email.split("@")[0]))
-          .map((u) => ({ id: u.id, name: u.name, type: "user" as const })),
+          .map((u) => ({
+            id: u.id,
+            name: u.name,
+            type: "user" as const,
+            insertText: toTagForm(u.name),
+          })),
       );
     }
   }

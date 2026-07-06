@@ -9,6 +9,7 @@ import { canManageGroup } from "@/lib/domain/permissions";
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   publicRead: z.boolean().optional(),
+  color: z.string().nullable().optional(),
 });
 
 /** PATCH nombre / lectura para no miembros (FR-024). Solo ADMIN del grupo. */
@@ -25,4 +26,18 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   const body = patchSchema.parse(await req.json());
   const updated = await prisma.group.update({ where: { id }, data: body });
   return NextResponse.json(updated);
+});
+
+export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
+  const session = await requireWriter();
+  const { id } = await params;
+
+  const group = await prisma.group.findUnique({ where: { id } });
+  if (!group) throw notFound();
+
+  const ctx = await getUserContext(session.user.id);
+  if (!canManageGroup(ctx, id)) throw forbidden("Solo los administradores del grupo");
+
+  await prisma.group.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 });

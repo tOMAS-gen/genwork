@@ -6,6 +6,7 @@
 
 import { prisma } from "@/lib/db/client";
 import { getStorageProvider } from "./index";
+import { formatFolderName } from "./paths";
 import type { JobKind, Prisma } from "@prisma/client";
 
 const MAX_ATTEMPTS = 10;
@@ -23,7 +24,9 @@ export type JobPayload =
       groupId: string | null;
       ownerUserId: string | null;
     }
-  | { kind: "DELETE_WORK_FOLDER"; folderPath: string };
+  | { kind: "DELETE_WORK_FOLDER"; folderPath: string }
+  | { kind: "MOVE_WORK_FOLDER"; workId: string; fromPath: string; toPath: string }
+  | { kind: "RENAME_WORK_FOLDER"; workId: string; fromPath: string; toPath: string };
 
 export async function enqueue(payload: JobPayload): Promise<void> {
   await prisma.provisioningJob.create({
@@ -73,6 +76,10 @@ async function runJob(payload: JobPayload): Promise<void> {
       return;
     }
     case "CREATE_WORK_FOLDER": {
+      // Trabajo borrado antes de correr el job: no hay carpeta que crear
+      const work = await prisma.work.findUnique({ where: { id: payload.workId } });
+      if (!work) return;
+      const folderName = formatFolderName(work.folderSeq, payload.workName);
       let scope: { groupName: string } | { personalStorageUserId: string };
       if (payload.groupId) {
         const group = await prisma.group.findUniqueOrThrow({ where: { id: payload.groupId } });
@@ -86,7 +93,7 @@ async function runJob(payload: JobPayload): Promise<void> {
       }
       const { folderPath } = await storage.createWorkFolder({
         scope,
-        workName: payload.workName,
+        workName: folderName,
       });
       await prisma.work.update({
         where: { id: payload.workId },
@@ -96,6 +103,16 @@ async function runJob(payload: JobPayload): Promise<void> {
     }
     case "DELETE_WORK_FOLDER": {
       await storage.deleteFolder(payload.folderPath);
+      return;
+    }
+    case "MOVE_WORK_FOLDER":
+    case "RENAME_WORK_FOLDER": {
+      await storage.moveFolder(payload.fromPath, payload.toPath);
+      // updateMany: si el trabajo fue borrado entre el enqueue y el job, no falla
+      await prisma.work.updateMany({
+        where: { id: payload.workId },
+        data: { nextcloudFolderPath: payload.toPath },
+      });
       return;
     }
   }

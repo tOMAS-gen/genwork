@@ -22,7 +22,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 
   const sector = await prisma.sector.findUnique({
     where: { id },
-    include: { group: { select: { publicRead: true } } },
+    include: { group: { select: { id: true, name: true, publicRead: true } } },
   });
   if (!sector) throw notFound();
 
@@ -44,14 +44,28 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 
   const [execLinks, refLinks, loose] = await Promise.all([
     prisma.taskLink.findMany({
-      where: { sectorId: id, type: "EXEC", task: { OR: [{ work: { status: "ACTIVE" } }, { workId: null }] } },
+      where: {
+        sectorId: id,
+        type: "EXEC",
+        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }] },
+      },
       include: { task: { include: taskInclude } },
+      orderBy: { task: { position: "asc" } },
     }),
     prisma.taskLink.findMany({
-      where: { sectorId: id, type: "REF", task: { OR: [{ work: { status: "ACTIVE" } }, { workId: null }] } },
+      where: {
+        sectorId: id,
+        type: "REF",
+        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }] },
+      },
       include: { task: { include: taskInclude } },
+      orderBy: { task: { position: "asc" } },
     }),
-    prisma.task.findMany({ where: { sectorId: id }, include: taskInclude }),
+    prisma.task.findMany({
+      where: { sectorId: id, OR: [{ work: { isTemplate: false } }, { workId: null }] },
+      include: taskInclude,
+      orderBy: { position: "asc" },
+    }),
   ]);
 
   const dedupe = <T extends { id: string }>(items: T[]) => {
@@ -59,15 +73,45 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     return items.filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
   };
 
-  const exec = applyTaskFilters(
+  const allExec = applyTaskFilters(
     dedupe([...execLinks.map((l) => l.task), ...loose]),
     filters,
   );
-  const execIds = new Set(exec.map((t) => t.id));
+  const execIds = new Set(allExec.map((t) => t.id));
   const refs = applyTaskFilters(
     dedupe(refLinks.map((l) => l.task)).filter((t) => !execIds.has(t.id)),
     filters,
   );
 
-  return NextResponse.json({ sector: { id: sector.id, name: sector.name }, exec, refs, level });
+  // Split exec tasks: loose (no project) vs grouped by work
+  const looseExec = allExec.filter((t) => t.workId === null);
+  const byWorkMap = new Map<string, { work: { id: string; name: string; status: string }; tasks: typeof allExec }>();
+  for (const t of allExec) {
+    if (t.workId === null || !t.work) continue;
+    let entry = byWorkMap.get(t.workId);
+    if (!entry) {
+      entry = { work: { id: t.work.id, name: t.work.name, status: t.work.status }, tasks: [] };
+      byWorkMap.set(t.workId, entry);
+    }
+    entry.tasks.push(t);
+  }
+  const byWork = [...byWorkMap.values()].sort((a, b) => a.work.name.localeCompare(b.work.name));
+
+  const allTasks = [...allExec, ...refs];
+  const totalCount = allExec.length;
+  const doneCount = allExec.filter((t) => t.state === "DONE").length;
+
+  return NextResponse.json({
+    sector: {
+      id: sector.id,
+      name: sector.name,
+      color: sector.color,
+      group: sector.group ? { id: sector.group.id, name: sector.group.name } : null,
+    },
+    level,
+    loose: looseExec,
+    byWork,
+    refs,
+    metrics: { total: totalCount, done: doneCount },
+  });
 });

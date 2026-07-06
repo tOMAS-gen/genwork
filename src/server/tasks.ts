@@ -4,7 +4,9 @@
  */
 
 import { prisma } from "@/lib/db/client";
-import { parseTags, tagsBySymbol, normalizeTagName } from "@/lib/domain/tags/parser";
+import { parseTags, tagsBySymbol } from "@/lib/domain/tags/parser";
+import { matchByTag, tagMatchesName } from "@/lib/domain/tags/matching";
+import { parseDates } from "@/lib/domain/dates/parser";
 import { toggleState } from "@/lib/domain/tasks/state";
 import {
   canAddress,
@@ -145,9 +147,7 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
     const candidates = await prisma.work.findMany({
       where: { ...scopeWhere, status: "ACTIVE" },
     });
-    const target = candidates.find(
-      (w) => normalizeTagName(w.name) === normalizeTagName(workName),
-    );
+    const target = matchByTag(workName, candidates, (w) => w.name);
     if (!target) {
       unresolved.push({ symbol: "/", name: workName });
     } else if (!canAddress(ctx, scopeOf(target))) {
@@ -159,8 +159,7 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
 
   // --- `#sector`: ejecución ---
   const sectors = await prisma.sector.findMany({ where: scopeWhere });
-  const findSector = (name: string) =>
-    sectors.find((s) => normalizeTagName(s.name) === normalizeTagName(name));
+  const findSector = (name: string) => matchByTag(name, sectors, (s) => s.name);
 
   const execSectorIds = new Set<string>();
   for (const name of grouped["#"]) {
@@ -183,9 +182,7 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
         continue;
       }
       const u = users.find(
-        (x) =>
-          normalizeTagName(x.name) === normalizeTagName(name) ||
-          normalizeTagName(x.email.split("@")[0]) === normalizeTagName(name),
+        (x) => tagMatchesName(name, x.name) || tagMatchesName(name, x.email.split("@")[0]),
       );
       if (u) refUserIds.add(u.id);
       else unresolved.push({ symbol: "@", name });
@@ -214,11 +211,34 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
   };
 }
 
+interface EditMeta {
+  /** Usuario que hizo la edición de texto (FR-401). */
+  lastEditedById: string;
+  /** Marca adoptedAt=now si corresponde (edición desde proyecto de tarea de origen SECTOR sin adoptar). */
+  adopt?: boolean;
+}
+
+/**
+ * Calcula la posición de inserción para una tarea nueva dentro de su scope
+ * (trabajo, o sector cuando la tarea está suelta): MAX(position) + 1, o 0
+ * si no hay tareas previas en ese scope.
+ */
+async function nextPosition(workId: string | null, homeSectorId: string | null): Promise<number> {
+  const where = workId ? { workId } : { workId: null, sectorId: homeSectorId };
+  const result = await prisma.task.aggregate({
+    where,
+    _max: { position: true },
+  });
+  return (result._max.position ?? -1) + 1;
+}
+
 export async function saveTask(
   ctx: UserContext,
-  input: ResolveInput & { taskId?: string },
+  input: ResolveInput & { taskId?: string; editMeta?: EditMeta },
 ): Promise<TaskWithLinks> {
   const resolved = await resolveTask(ctx, input);
+  const parsedDates = parseDates(input.rawText);
+  const dueDate = parsedDates[0]?.iso ? new Date(parsedDates[0].iso) : null;
 
   const linksData = [
     ...resolved.execSectorIds.map((sectorId) => ({
@@ -249,7 +269,13 @@ export async function saveTask(
           displayText: resolved.displayText,
           workId: resolved.workId,
           sectorId: resolved.homeSectorId,
+          dueDate,
           links: { deleteMany: {}, create: linksData },
+          ...(input.editMeta && {
+            lastEditedById: input.editMeta.lastEditedById,
+            lastEditedAt: new Date(),
+            ...(input.editMeta.adopt && { adoptedAt: new Date() }),
+          }),
         },
         include: taskInclude,
       })
@@ -259,8 +285,13 @@ export async function saveTask(
           displayText: resolved.displayText,
           workId: resolved.workId,
           sectorId: resolved.homeSectorId,
+          dueDate,
           creatorId: ctx.id,
+          // Propiedad de edición (FR-401): origen según contexto de creación.
+          originType: input.contextWorkId ? "WORK" : "SECTOR",
+          originSectorId: input.contextWorkId ? null : (input.contextSectorId ?? null),
           links: { create: linksData },
+          position: await nextPosition(resolved.workId, resolved.homeSectorId),
         },
         include: taskInclude,
       });

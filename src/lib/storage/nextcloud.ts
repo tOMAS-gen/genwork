@@ -188,7 +188,32 @@ export class NextcloudProvider implements StorageProvider {
       path: f.filename,
       size: f.size,
       isDirectory: f.type === "directory",
+      lastModified: f.lastmod,
+      mimeType: f.mime ?? (f.type === "directory" ? "httpd/unix-directory" : "application/octet-stream"),
     }));
+  }
+
+  async listShallow(folderPath: string, subpath?: string): Promise<StorageFileInfo[]> {
+    const target = subpath ? `${folderPath}/${subpath}` : folderPath;
+    if (!(await this.dav.exists(target))) return [];
+    const items = (await this.dav.getDirectoryContents(target, {
+      deep: false,
+    })) as FileStat[];
+    return items.map((f) => ({
+      name: f.basename,
+      path: f.filename,
+      size: f.size,
+      isDirectory: f.type === "directory",
+      lastModified: f.lastmod,
+      mimeType: f.mime ?? (f.type === "directory" ? "httpd/unix-directory" : "application/octet-stream"),
+    }));
+  }
+
+  async moveFolder(from: string, to: string): Promise<void> {
+    if (!(await this.dav.exists(from))) return;
+    const toParent = to.substring(0, to.lastIndexOf("/"));
+    await this.ensureDir(toParent);
+    await this.dav.moveFile(from, to);
   }
 
   async deleteFolder(folderPath: string): Promise<void> {

@@ -1,69 +1,74 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
-
-interface Group {
-  id: string;
-  name: string;
-  publicRead: boolean;
-  _count: { sectors: number; works: number };
-  memberships: { user: { email: string } }[];
-}
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { Plus, Users } from "@/components/ui/icons";
+import { GroupCard, type GroupCardData } from "@/components/groups/GroupCard";
+import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
 
 export default function GroupsPage() {
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [name, setName] = useState("");
-  const [error, setError] = useState("");
+  const [groups, setGroups] = useState<GroupCardData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const load = () => void api<Group[]>("/api/groups").then(setGroups).catch(() => {});
-  useEffect(load, []);
-
-  const create = async () => {
-    if (!name.trim()) return;
-    try {
-      await api("/api/groups", { method: "POST", body: JSON.stringify({ name: name.trim() }) });
-      setName("");
-      setError("");
-      load();
-    } catch (err) {
-      setError((err as Error).message);
-    }
+  const load = () => {
+    setLoading(true);
+    void api<GroupCardData[]>("/api/groups")
+      .then(setGroups)
+      .catch(() => {})
+      .finally(() => setLoading(false));
   };
+  useEffect(load, []);
 
   return (
     <div>
-      <h1>Grupos</h1>
-      <div style={{ display: "flex", gap: 8, maxWidth: 480, marginBottom: 16 }}>
-        <input
-          placeholder="Nombre del grupo (ej.: Producción)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void create()}
-        />
-        <button className="btn btn-primary" onClick={() => void create()}>
-          Crear
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-4)" }}>
+        <h1 style={{ margin: 0 }}>Grupos</h1>
+        <button
+          className="btn btn-primary"
+          onClick={() => setDialogOpen(true)}
+          title="Crear un grupo"
+          aria-label="Crear un grupo"
+          style={{ padding: "8px 12px" }}
+        >
+          <Plus size={20} />
         </button>
       </div>
-      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
-      <div style={{ display: "grid", gap: 10, maxWidth: 620 }}>
-        {groups.map((g) => (
-          <Link key={g.id} className="card" href={`/groups/${g.id}`}>
-            <strong>{g.name}</strong>{" "}
-            {g.publicRead && <span className="tag tag-ref">lectura pública</span>}
-            <div className="muted">
-              {g.memberships.length} miembros · {g._count.sectors} sectores · {g._count.works}{" "}
-              proyectos
-            </div>
-          </Link>
-        ))}
-        {groups.length === 0 && (
-          <p className="muted">
-            Sin grupos todavía. Lo que crees fuera de un grupo es personal: solo lo ves vos.
-          </p>
-        )}
-      </div>
+
+      <CreateGroupDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onCreated={load}
+      />
+
+      {loading ? (
+        <div style={{ display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+          <Skeleton variant="card" height="72px" />
+          <Skeleton variant="card" height="72px" />
+          <Skeleton variant="card" height="72px" />
+        </div>
+      ) : groups.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Sin grupos todavía"
+          description="Lo que crees fuera de un grupo es personal: solo lo ves vos. Creá un grupo para compartir proyectos con tu equipo."
+          action={{ label: "Nuevo grupo", onClick: () => setDialogOpen(true) }}
+        />
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+            gap: "var(--space-3)",
+          }}
+        >
+          {groups.map((g) => (
+            <GroupCard key={g.id} group={g} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

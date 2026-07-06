@@ -39,18 +39,42 @@ export const GET = withApi(async () => {
             include: { work: { select: { name: true } } },
           },
         },
-        orderBy: { task: { createdAt: "asc" } },
+        orderBy: { task: { position: "asc" } },
       });
+      const workIds = [...new Set(links.map((l) => l.task.workId).filter((id): id is string => id != null))];
+
+      // FR-408/409: una sola query para todas las asignaciones, agrupadas por work (evita N+1)
+      const workLabels = await prisma.workLabel.findMany({
+        where: { workId: { in: workIds } },
+        include: { value: { include: { key: true } } },
+      });
+      const labelsByWorkId = new Map<string, { keyName: string; color: string }[]>();
+      for (const l of workLabels) {
+        const list = labelsByWorkId.get(l.workId) ?? [];
+        list.push({ keyName: l.value.key.name, color: l.value.color });
+        labelsByWorkId.set(l.workId, list);
+      }
+      const colorByWorkId = new Map<string, string | null>();
+      for (const workId of workIds) {
+        const labels = labelsByWorkId.get(workId) ?? [];
+        if (labels.length === 0) {
+          colorByWorkId.set(workId, null);
+          continue;
+        }
+        const sorted = [...labels].sort((a, b) => a.keyName.localeCompare(b.keyName));
+        colorByWorkId.set(workId, sorted[0].color);
+      }
+
       const tasks = links.map((l) => ({
         id: l.task.id,
         text: l.task.displayText,
         state: l.task.state,
         workName: l.task.work?.name ?? null,
+        workColor: l.task.workId ? colorByWorkId.get(l.task.workId) ?? null : null,
       }));
       return {
-        sector: { id: sector.id, name: sector.name },
-        pending: tasks.filter((t) => t.state === "PENDING"),
-        done: tasks.filter((t) => t.state === "DONE"),
+        sector: { id: sector.id, name: sector.name, color: sector.color },
+        tasks,
       };
     }),
   );

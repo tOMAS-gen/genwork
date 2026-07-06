@@ -8,6 +8,7 @@ export interface MenuItem {
   onSelect: () => void;
   icon?: React.ReactNode;
   danger?: boolean;
+  disabled?: boolean;
 }
 
 /**
@@ -62,7 +63,10 @@ export function Menu({
               key={i}
               role="menuitem"
               className={`menu-item ${item.danger ? "danger" : ""}`}
+              disabled={item.disabled}
+              aria-disabled={item.disabled}
               onClick={() => {
+                if (item.disabled) return;
                 setOpen(false);
                 item.onSelect();
               }}

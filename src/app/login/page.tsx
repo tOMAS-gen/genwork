@@ -1,5 +1,6 @@
 import { signIn, auth, DEV_AUTH_ENABLED, DEV_USERS } from "@/server/auth";
 import { redirect } from "next/navigation";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 /**
  * Único punto de entrada (FR-017). El rechazo por correo no autorizado muestra
@@ -19,14 +20,8 @@ export default async function LoginPage({
   return (
     <div className="login-wrap">
       <div className="card login-card">
-        <h1>genwork</h1>
+        <h1 className="login-brand"><BrandLogo /></h1>
         <p className="muted">Gestión de proyectos por cliente y sector</p>
-        {denied && (
-          <p style={{ color: "var(--danger)" }}>
-            Tu correo no está autorizado para ingresar. Pedile acceso al administrador del
-            sistema.
-          </p>
-        )}
         <form
           action={async () => {
             "use server";
@@ -37,6 +32,13 @@ export default async function LoginPage({
             Ingresar con Google
           </button>
         </form>
+
+        {denied && (
+          <div className="login-error" role="alert">
+            Tu correo no está autorizado para ingresar. Pedile acceso al administrador del
+            sistema.
+          </div>
+        )}
 
         {DEV_AUTH_ENABLED && (
           <div style={{ marginTop: 18, borderTop: "1px solid var(--border)", paddingTop: 12 }}>

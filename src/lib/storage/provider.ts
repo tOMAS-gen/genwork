@@ -10,6 +10,8 @@ export interface StorageFileInfo {
   path: string;
   size: number;
   isDirectory: boolean;
+  lastModified: string;
+  mimeType: string;
 }
 
 export interface StorageProvider {
@@ -49,6 +51,12 @@ export interface StorageProvider {
 
   /** Lista recursivamente los archivos de una carpeta (para el export). */
   list(folderPath: string): Promise<StorageFileInfo[]>;
+
+  /** Lista un solo nivel de directorio (no recursivo, para el visor de archivos). */
+  listShallow(folderPath: string, subpath?: string): Promise<StorageFileInfo[]>;
+
+  /** Mueve una carpeta (archivado/desarchivado). */
+  moveFolder(from: string, to: string): Promise<void>;
 
   /** FR-032: borra la carpeta completa de un trabajo (eliminación definitiva). */
   deleteFolder(folderPath: string): Promise<void>;
