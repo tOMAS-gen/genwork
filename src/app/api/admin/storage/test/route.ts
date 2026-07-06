@@ -7,6 +7,9 @@ export const POST = withApi(async () => {
   await requireSuperAdmin();
   try {
     const storage = await getStorageProvider();
+    if (!storage) {
+      return NextResponse.json({ ok: false, detail: "Almacenamiento no configurado" });
+    }
     const result = await storage.test();
     return NextResponse.json(result);
   } catch (err) {

@@ -1,0 +1,35 @@
+name: genwork
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-genwork}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?definir en .env}
+      POSTGRES_DB: genwork
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-genwork}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  genwork:
+    image: ghcr.io/tomas-gen/genwork:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-genwork}:${POSTGRES_PASSWORD}@postgres:5432/genwork
+      AUTH_SECRET: ${AUTH_SECRET:?definir en .env}
+      AUTH_URL: ${AUTH_URL:?definir en .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?definir en .env}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?definir en .env}
+
+volumes:
+  pgdata:

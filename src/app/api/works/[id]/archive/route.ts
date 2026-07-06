@@ -79,6 +79,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
       }));
 
       const storage = await getStorageProvider();
+      if (!storage) throw new Error("Almacenamiento no configurado");
       const zipPath = path.join(ARCHIVE_DIR, `${id}.zip`);
       const manifest = await buildArchivePackage(
         storage,

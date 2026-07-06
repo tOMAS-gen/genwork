@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { notFound, withApi } from "@/server/api";
 import { requireSession } from "@/server/auth";
@@ -26,6 +27,12 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   if (level === "none") throw notFound();
 
   const storage = await getStorageProvider();
+  if (!storage) {
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
+      { status: 404 },
+    );
+  }
   const stream = await storage.read(attachment.nextcloudPath);
 
   return new Response(Readable.toWeb(stream) as ReadableStream, {

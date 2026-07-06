@@ -15,6 +15,7 @@ import { FilesBrowser } from "@/components/files/FilesBrowser";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 import { CheckSquare, FileText, Folder } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { useToast } from "@/components/ui/Toast";
@@ -46,6 +47,7 @@ interface WorkFull {
 export default function WorkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [work, setWork] = useState<WorkFull | null>(null);
+  usePageTitle(work?.name ?? null);
   const [docLoaded, setDocLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files">("tasks");
   const { toast } = useToast();

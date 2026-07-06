@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/ui/useApi";
 import { NoteList, type NoteListItem } from "@/components/notes/NoteList";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function NotesPage() {
+  usePageTitle("Notas");
   const router = useRouter();
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [loading, setLoading] = useState(true);

@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
 import { Inbox, Palette, Trash2, Users } from "@/components/ui/icons";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 const COLOR_OPTIONS = [
   "RED", "ORANGE", "AMBER", "GREEN", "TEAL",
@@ -48,6 +49,8 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const [showPalette, setShowPalette] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const router = useRouter();
+
+  usePageTitle(group?.name ?? null);
 
   const load = useCallback(() => {
     void api<Group[]>("/api/groups")

@@ -7,6 +7,7 @@ import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { FilterBar, type FilterState } from "@/components/filters/FilterBar";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 interface SectorView {
@@ -25,6 +26,7 @@ interface SectorView {
 export default function SectorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [view, setView] = useState<SectorView | null>(null);
+  usePageTitle(view?.sector.name ?? null);
   const [filters, setFilters] = useState<FilterState>({ workId: "", refSectorId: "", state: "" });
   const [works, setWorks] = useState<{ id: string; name: string }[]>([]);
   const [sectors, setSectors] = useState<{ id: string; name: string }[]>([]);

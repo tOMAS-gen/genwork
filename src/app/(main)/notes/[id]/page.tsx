@@ -7,6 +7,7 @@ import { NoteEditor, type NoteDto } from "@/components/notes/NoteEditor";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Trash2, FileText } from "@/components/ui/icons";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 /**
  * Página de edición de una nota individual (feature 015): breadcrumbs, editor
@@ -21,6 +22,7 @@ export default function NotePage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [title, setTitle] = useState("");
+  usePageTitle(title || null);
 
   const load = useCallback(() => {
     setLoading(true);

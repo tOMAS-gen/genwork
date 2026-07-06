@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface UserRow {
   id: string;
@@ -18,6 +19,7 @@ interface GroupRow {
 
 /** Roles: cuenta Lector para pantallas/TV + grupos habilitados (FR-025, US6). */
 export default function UsersAdminPage() {
+  usePageTitle("Usuarios");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [status, setStatus] = useState("");

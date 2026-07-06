@@ -8,7 +8,7 @@ import type { NextcloudConfig, StorageProvider } from "./provider";
  * Prioridad: AccessConfig.storageConfig (panel admin) → variables de entorno
  * (valores del Nextcloud incluido en el docker-compose).
  */
-export async function getStorageProvider(): Promise<StorageProvider> {
+export async function getStorageProvider(): Promise<StorageProvider | null> {
   const config = await prisma.accessConfig.findUnique({ where: { id: 1 } });
 
   if (config?.storageProvider === "GDRIVE") {
@@ -30,7 +30,7 @@ export async function getStorageProvider(): Promise<StorageProvider> {
   };
 
   if (!nc.url || !nc.adminUser || !nc.adminPassword) {
-    throw new Error("Nextcloud sin configurar: completar el módulo de conexión en el panel admin");
+    return null;
   }
 
   return new NextcloudProvider(nc);

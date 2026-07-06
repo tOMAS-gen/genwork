@@ -8,8 +8,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { AtSign } from "@/components/ui/icons";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function ReferencesPage() {
+  usePageTitle("Mis referencias");
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [loading, setLoading] = useState(true);
 

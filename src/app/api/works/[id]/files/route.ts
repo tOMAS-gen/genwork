@@ -44,6 +44,10 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     );
   }
 
+  if (!storage) {
+    return NextResponse.json({ files: [], nextcloudUrl: null, folderSeq: work.folderSeq });
+  }
+
   try {
     const raw = await storage.listShallow(work.nextcloudFolderPath, subpath);
     const basePath = work.nextcloudFolderPath;

@@ -38,6 +38,12 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
   if (!(file instanceof File)) throw conflict("Falta el archivo (campo 'file')");
 
   const storage = await getStorageProvider();
+  if (!storage) {
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
+      { status: 404 },
+    );
+  }
   const { filePath } = await storage.upload({
     folderPath: work.nextcloudFolderPath,
     fileName: file.name,

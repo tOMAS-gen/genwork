@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { signIn, auth, DEV_AUTH_ENABLED, DEV_USERS } from "@/server/auth";
 import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/ui/BrandLogo";
+
+export const metadata: Metadata = { title: "Iniciar sesión" };
 
 /**
  * Único punto de entrada (FR-017). El rechazo por correo no autorizado muestra

@@ -13,6 +13,7 @@ import { FilterBar, type DashboardFilters } from "@/components/dashboard/FilterB
 import { getProjectStatus } from "@/lib/domain/works/dashboardUtils";
 import { Plus, FolderOpen, BookTemplate } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
+import { usePageTitle } from "@/lib/usePageTitle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
@@ -95,6 +96,7 @@ export default function HomePage() {
 }
 
 function HomePageContent() {
+  usePageTitle("Proyectos");
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const queryFilterKind = searchParams.get("filter") === "mine"

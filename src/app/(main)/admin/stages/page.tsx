@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { Trash2, Plus, ArrowUp, ArrowDown } from "@/components/ui/icons";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface GroupDto {
   id: string;
@@ -72,6 +73,7 @@ function ColorSwatch({
  * Sigue el patrón visual de /admin/labels.
  */
 export default function StagesAdminPage() {
+  usePageTitle("Etapas");
   const [groups, setGroups] = useState<GroupDto[]>([]);
   const [groupId, setGroupId] = useState<string>("personal");
   const [stages, setStages] = useState<StageDto[]>([]);

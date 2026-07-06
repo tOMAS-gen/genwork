@@ -7,8 +7,10 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Plus, Users } from "@/components/ui/icons";
 import { GroupCard, type GroupCardData } from "@/components/groups/GroupCard";
 import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 export default function GroupsPage() {
+  usePageTitle("Grupos");
   const [groups, setGroups] = useState<GroupCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);

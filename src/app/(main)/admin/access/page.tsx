@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface AccessConfig {
   mode: "DOMAIN" | "LIST";
@@ -10,6 +11,7 @@ interface AccessConfig {
 
 /** Panel de control de acceso del super-admin (FR-019, US5). */
 export default function AccessAdminPage() {
+  usePageTitle("Control de acceso");
   const [config, setConfig] = useState<AccessConfig | null>(null);
   const [emails, setEmails] = useState<string[]>([]);
   const [newEmail, setNewEmail] = useState("");

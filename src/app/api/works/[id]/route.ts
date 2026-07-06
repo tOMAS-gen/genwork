@@ -170,7 +170,9 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, {
 
   if (work.nextcloudFolderPath) {
     const storage = await getStorageProvider();
-    await storage.deleteFolder(work.nextcloudFolderPath);
+    if (storage) {
+      await storage.deleteFolder(work.nextcloudFolderPath);
+    }
   }
   await prisma.work.delete({ where: { id } });
 

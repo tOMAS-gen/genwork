@@ -12,6 +12,22 @@ Nextcloud incluido; también podés conectar un Nextcloud externo desde el panel
 - Proyecto en Google Cloud Console con **OAuth Client ID** (tipo Web):
   - Redirect URI: `https://genwork.midominio.com/api/auth/callback/google`
 
+## Variables de entorno
+
+| Variable | Descripción | Obligatoria | Default |
+|----------|-------------|-------------|---------|
+| DATABASE_URL | URL de conexión PostgreSQL | Sí | — |
+| AUTH_SECRET | Secreto para firmar sesiones (next-auth) | Sí | — |
+| AUTH_URL | URL pública de la aplicación (ej. https://genwork.example.com) | Sí | — |
+| GOOGLE_CLIENT_ID | Client ID de Google OAuth | Sí | — |
+| GOOGLE_CLIENT_SECRET | Client Secret de Google OAuth | Sí | — |
+| NEXTCLOUD_URL | URL del servidor Nextcloud | No | — |
+| NEXTCLOUD_ADMIN_USER | Usuario administrador de Nextcloud | No | — |
+| NEXTCLOUD_ADMIN_PASSWORD | Contraseña del admin de Nextcloud | No | — |
+| APP_ENCRYPTION_KEY | Clave para encriptar secretos almacenados | No* | — |
+
+*APP_ENCRYPTION_KEY es obligatoria si se usa Nextcloud.
+
 ## Pasos
 
 ```bash
@@ -25,6 +41,40 @@ docker compose ps        # esperar los 4 servicios healthy
 ```
 
 Las migraciones de la base corren solas en cada arranque de genwork.
+
+## Despliegue desde GHCR
+
+Podés usar la imagen pública de genwork sin necesidad de clonar el repo.
+
+### Mínimo (sin Nextcloud)
+
+```bash
+docker run -d --name genwork \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/genwork" \
+  -e AUTH_SECRET="$(openssl rand -base64 32)" \
+  -e AUTH_URL="https://genwork.example.com" \
+  -e GOOGLE_CLIENT_ID="xxx" \
+  -e GOOGLE_CLIENT_SECRET="xxx" \
+  -p 3000:3000 \
+  ghcr.io/tomas-gen/genwork:latest
+```
+
+### Completo (con Nextcloud)
+
+```bash
+docker run -d --name genwork \
+  -e DATABASE_URL="postgresql://user:pass@host:5432/genwork" \
+  -e AUTH_SECRET="$(openssl rand -base64 32)" \
+  -e AUTH_URL="https://genwork.example.com" \
+  -e GOOGLE_CLIENT_ID="xxx" \
+  -e GOOGLE_CLIENT_SECRET="xxx" \
+  -e NEXTCLOUD_URL="https://cloud.example.com" \
+  -e NEXTCLOUD_ADMIN_USER="admin" \
+  -e NEXTCLOUD_ADMIN_PASSWORD="xxx" \
+  -e APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  -p 3000:3000 \
+  ghcr.io/tomas-gen/genwork:latest
+```
 
 ## Primer uso
 

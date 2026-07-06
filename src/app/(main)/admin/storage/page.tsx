@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 interface StorageConfig {
   provider: "NEXTCLOUD";
@@ -19,6 +20,7 @@ interface Job {
 
 /** Módulo de conexión de la mini nube (FR-037) + estado de la cola (research R6). */
 export default function StorageAdminPage() {
+  usePageTitle("Almacenamiento");
   const [config, setConfig] = useState<StorageConfig | null>(null);
   const [password, setPassword] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);

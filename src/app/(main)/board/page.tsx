@@ -1,11 +1,10 @@
-import { BoardGrid } from "@/components/board/BoardGrid";
+"use client";
 
-/**
- * Dashboard dentro del shell autenticado (feature 004, US3, FR-307): mismo
- * drawer que el resto de la app, sin menú hamburguesa flotante. El rol Lector
- * nunca llega acá — el layout del grupo lo redirige a /tv.
- */
+import { BoardGrid } from "@/components/board/BoardGrid";
+import { usePageTitle } from "@/lib/usePageTitle";
+
 export default function BoardPage() {
+  usePageTitle("Vista de tareas");
   return (
     <div>
       <h1 style={{ fontSize: "var(--text-2xl)", margin: "0 0 var(--space-4)" }}>Vista de tareas</h1>

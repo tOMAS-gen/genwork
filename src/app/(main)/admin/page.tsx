@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { Shield, HardDrive, Users, Tag, Layers } from "@/components/ui/icons";
+
+export const metadata: Metadata = { title: "Administración" };
 
 export default async function AdminHome() {
   const session = await auth();

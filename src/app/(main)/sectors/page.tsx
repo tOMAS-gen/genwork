@@ -7,11 +7,13 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ArrowUpDown, Inbox, LayoutGrid, List, Plus, Search } from "@/components/ui/icons";
 import { SectorCard, type SectorCardData } from "@/components/sectors/SectorCard";
 import { CreateSectorDialog } from "@/components/sectors/CreateSectorDialog";
+import { usePageTitle } from "@/lib/usePageTitle";
 
 type ViewMode = "grid" | "list";
 type SortKey = "name" | "progress" | "tasks";
 
 export default function SectorsPage() {
+  usePageTitle("Sectores");
   const [sectors, setSectors] = useState<SectorCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);

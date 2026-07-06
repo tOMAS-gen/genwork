@@ -52,6 +52,13 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     );
   }
 
+  if (!storage) {
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
+      { status: 404 },
+    );
+  }
+
   const stream = await storage.read(fullPath);
   const fileName = relPath.split("/").pop() || "archivo";
 

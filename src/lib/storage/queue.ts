@@ -39,8 +39,11 @@ export async function enqueue(payload: JobPayload): Promise<void> {
   void processPending().catch(() => {});
 }
 
+class StorageUnavailableError extends Error {}
+
 async function runJob(payload: JobPayload): Promise<void> {
   const storage = await getStorageProvider();
+  if (!storage) throw new StorageUnavailableError("Storage no configurado");
 
   switch (payload.kind) {
     case "CREATE_USER": {
@@ -138,8 +141,9 @@ export async function processPending(): Promise<void> {
           data: { status: "DONE", lastError: null },
         });
       } catch (err) {
-        const attempts = job.attempts + 1;
-        const failed = attempts >= MAX_ATTEMPTS;
+        const storageUnavailable = err instanceof StorageUnavailableError;
+        const attempts = storageUnavailable ? MAX_ATTEMPTS : job.attempts + 1;
+        const failed = storageUnavailable || attempts >= MAX_ATTEMPTS;
         await prisma.provisioningJob.update({
           where: { id: job.id },
           data: {
