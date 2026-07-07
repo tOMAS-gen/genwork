@@ -33,7 +33,8 @@ export async function GET(req: Request) {
   };
 
   if (oauthError) {
-    const expectedRedirectUri = `${url.origin}/api/admin/storage/google/callback`;
+    const publicOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? url.origin;
+    const expectedRedirectUri = `${publicOrigin.replace(/\/$/, "")}/api/admin/storage/google/callback`;
     const mapOAuthError = (error: string, description: string | null): string => {
       switch (error) {
         case "invalid_request":
@@ -57,7 +58,8 @@ export async function GET(req: Request) {
 
   const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
   const clientSecret = process.env.GDRIVE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
-  const redirectUri = `${url.origin}/api/admin/storage/google/callback`;
+  const publicOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? url.origin;
+  const redirectUri = `${publicOrigin.replace(/\/$/, "")}/api/admin/storage/google/callback`;
 
   try {
     const { refreshToken, email } = await exchangeCode({ clientId, clientSecret, code, redirectUri });

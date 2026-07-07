@@ -28,8 +28,8 @@ export async function GET(req: Request) {
     );
   }
 
-  const origin = new URL(req.url).origin;
-  const redirectUri = `${origin}/api/admin/storage/google/callback`;
+  const origin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? new URL(req.url).origin;
+  const redirectUri = `${origin.replace(/\/$/, "")}/api/admin/storage/google/callback`;
   const state = crypto.randomUUID();
 
   const url = buildConsentUrl({ clientId, redirectUri, state });
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   const res = NextResponse.redirect(url);
   res.cookies.set("gdrive_oauth_state", state, {
     httpOnly: true,
-    secure: origin.startsWith("https"),
+    secure: origin.startsWith("https") || redirectUri.startsWith("https"),
     sameSite: "lax",
     path: "/",
     maxAge: 600, // 10 min
