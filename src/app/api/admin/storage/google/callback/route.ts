@@ -13,6 +13,8 @@ export async function GET(req: Request) {
   await requireSuperAdmin();
 
   const url = new URL(req.url);
+  const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? url.origin;
+  const base = baseUrl.replace(/\/$/, "");
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const oauthError = url.searchParams.get("error");
@@ -26,15 +28,14 @@ export async function GET(req: Request) {
 
   const fail = (msg: string) => {
     const res = NextResponse.redirect(
-      new URL(`/admin/storage?gdrive=error&detail=${encodeURIComponent(msg)}`, req.url),
+      `${base}/admin/storage?gdrive=error&detail=${encodeURIComponent(msg)}`,
     );
     res.cookies.delete("gdrive_oauth_state");
     return res;
   };
 
   if (oauthError) {
-    const publicOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? url.origin;
-    const expectedRedirectUri = `${publicOrigin.replace(/\/$/, "")}/api/admin/storage/google/callback`;
+    const expectedRedirectUri = `${base}/api/admin/storage/google/callback`;
     const mapOAuthError = (error: string, description: string | null): string => {
       switch (error) {
         case "invalid_request":
@@ -58,8 +59,7 @@ export async function GET(req: Request) {
 
   const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
   const clientSecret = process.env.GDRIVE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
-  const publicOrigin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? url.origin;
-  const redirectUri = `${publicOrigin.replace(/\/$/, "")}/api/admin/storage/google/callback`;
+  const redirectUri = `${base}/api/admin/storage/google/callback`;
 
   try {
     const { refreshToken, email } = await exchangeCode({ clientId, clientSecret, code, redirectUri });
@@ -78,7 +78,7 @@ export async function GET(req: Request) {
       update: { storageProvider: "GDRIVE", storageConfig },
     });
 
-    const res = NextResponse.redirect(new URL("/admin/storage?gdrive=connected", req.url));
+    const res = NextResponse.redirect(`${base}/admin/storage?gdrive=connected`);
     res.cookies.delete("gdrive_oauth_state");
     return res;
   } catch (err) {

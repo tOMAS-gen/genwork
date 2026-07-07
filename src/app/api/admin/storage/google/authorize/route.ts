@@ -9,10 +9,11 @@ import { buildConsentUrl } from "@/lib/storage/google-auth";
 export async function GET(req: Request) {
   await requireSuperAdmin();
 
+  const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? new URL(req.url).origin;
+  const base = baseUrl.replace(/\/$/, "");
+
   const fail = (msg: string) =>
-    NextResponse.redirect(
-      new URL(`/admin/storage?gdrive=error&detail=${encodeURIComponent(msg)}`, req.url),
-    );
+    NextResponse.redirect(`${base}/admin/storage?gdrive=error&detail=${encodeURIComponent(msg)}`);
 
   const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
   if (!clientId) {
@@ -28,8 +29,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const origin = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? new URL(req.url).origin;
-  const redirectUri = `${origin.replace(/\/$/, "")}/api/admin/storage/google/callback`;
+  const redirectUri = `${base}/api/admin/storage/google/callback`;
   const state = crypto.randomUUID();
 
   const url = buildConsentUrl({ clientId, redirectUri, state });
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   const res = NextResponse.redirect(url);
   res.cookies.set("gdrive_oauth_state", state, {
     httpOnly: true,
-    secure: origin.startsWith("https") || redirectUri.startsWith("https"),
+    secure: base.startsWith("https"),
     sameSite: "lax",
     path: "/",
     maxAge: 600, // 10 min
