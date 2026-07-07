@@ -63,7 +63,7 @@ export function BoardGrid() {
         const doneCount = col.tasks.filter((t) => t.state === "DONE").length;
         const total = col.tasks.length;
         const prog = progress(doneCount, total);
-        const colorClass = col.sector.color ? `label-${col.sector.color.toLowerCase()}` : "pc-name-pill-default";
+        const colorClass = col.sector.color ? "color-chip" : "pc-name-pill-default";
 
         return (
           <div key={col.sector.id} className="board-card">
@@ -71,7 +71,7 @@ export function BoardGrid() {
             <div className="card-header">
               <span
                 className={`pc-name-pill ${colorClass}`}
-                style={col.sector.color ? { color: "var(--text)" } : undefined}
+                style={col.sector.color ? ({ "--c": col.sector.color, color: "var(--text)" } as React.CSSProperties) : undefined}
               >
                 {col.sector.name.toUpperCase()}
               </span>

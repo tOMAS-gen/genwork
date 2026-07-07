@@ -12,12 +12,15 @@ export interface SectorCardData {
 export function SectorCard({ sector }: { sector: SectorCardData }) {
   const { metrics } = sector;
   const pct = metrics.total > 0 ? Math.round((metrics.done / metrics.total) * 100) : 0;
-  const colorClass = sector.color ? `label-${sector.color.toLowerCase()}` : "pc-name-pill-default";
+  const colorClass = sector.color ? "color-chip" : "pc-name-pill-default";
 
   return (
     <Link href={`/sectors/${sector.id}`} className="project-card">
       <div className="card-header">
-        <span className={`pc-name-pill ${colorClass}`} style={sector.color ? { color: "var(--text)" } : undefined}>
+        <span
+          className={`pc-name-pill ${colorClass}`}
+          style={sector.color ? ({ "--c": sector.color, color: "var(--text)" } as React.CSSProperties) : undefined}
+        >
           {sector.name.toUpperCase()}
         </span>
       </div>

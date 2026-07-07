@@ -5,6 +5,7 @@ import { requireSession } from "@/server/auth";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
+import { NextcloudProvider } from "@/lib/storage/nextcloud";
 
 async function getWorkWithAccess(userId: string, id: string) {
   const ctx = await getUserContext(userId);
@@ -55,13 +56,14 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       ...f,
       path: f.path.startsWith(basePath) ? f.path.slice(basePath.length + 1) : f.path,
     }));
-    const ncUrl = process.env.NEXTCLOUD_URL?.replace(/\/$/, "") ?? "";
-    const dir = subpath
-      ? `${work.nextcloudFolderPath}/${subpath}`
-      : work.nextcloudFolderPath;
-    const nextcloudUrl = ncUrl
-      ? `${ncUrl}/apps/files/?dir=${encodeURIComponent(dir)}`
-      : null;
+    let nextcloudUrl: string | null = null;
+    if (storage instanceof NextcloudProvider) {
+      const ncUrl = process.env.NEXTCLOUD_URL?.replace(/\/$/, "") ?? "";
+      const dir = subpath
+        ? `${work.nextcloudFolderPath}/${subpath}`
+        : work.nextcloudFolderPath;
+      nextcloudUrl = ncUrl ? `${ncUrl}/apps/files/?dir=${encodeURIComponent(dir)}` : null;
+    }
 
     return NextResponse.json({ files, nextcloudUrl, folderSeq: work.folderSeq });
   } catch {

@@ -10,12 +10,15 @@ export interface GroupCardData {
 }
 
 export function GroupCard({ group }: { group: GroupCardData }) {
-  const colorClass = group.color ? `label-${group.color.toLowerCase()}` : "pc-name-pill-default";
+  const colorClass = group.color ? "color-chip" : "pc-name-pill-default";
 
   return (
     <Link href={`/groups/${group.id}`} className="project-card">
       <div className="card-header">
-        <span className={`pc-name-pill ${colorClass}`}>
+        <span
+          className={`pc-name-pill ${colorClass}`}
+          style={group.color ? ({ "--c": group.color, color: "var(--text)" } as React.CSSProperties) : undefined}
+        >
           {group.name.toUpperCase()}
         </span>
         {group.publicRead && (

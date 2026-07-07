@@ -77,19 +77,6 @@ enum TaskOrigin {
   SECTOR
 }
 
-enum LabelColor {
-  RED
-  ORANGE
-  AMBER
-  GREEN
-  TEAL
-  BLUE
-  INDIGO
-  VIOLET
-  PINK
-  GRAY
-}
-
 model User {
   id              String     @id @default(uuid())
   email           String     @unique
@@ -99,32 +86,38 @@ model User {
   nextcloudUserId String?
   createdAt       DateTime   @default(now())
 
-  memberships     GroupMembership[]
-  ownedGroups     Group[]           @relation("GroupOwner")
-  sectorGrants    SectorGrant[]
-  readerGrants    ReaderGrant[]
-  ownedSectors    Sector[]          @relation("SectorOwner")
-  ownedWorks      Work[]            @relation("WorkOwner")
-  createdWorks    Work[]            @relation("WorkCreator")
-  createdTasks    Task[]            @relation("TaskCreator")
-  completedTasks  Task[]            @relation("TaskCompleter")
-  lastEditedTasks Task[]            @relation("TaskLastEditor")
-  taskRefs        TaskLink[]        @relation("LinkUser")
-  attachments     Attachment[]
-  archives        ArchiveRecord[]
-  labelKeys       LabelKey[]        @relation("LabelKeyOwner")
-  favorites       UserFavorite[]
-  notes           Note[]
-  personalStages  ProjectStage[]    @relation("PersonalStages")
+  memberships        GroupMembership[]
+  ownedGroups        Group[]            @relation("GroupOwner")
+  sectorGrants       SectorGrant[]
+  readerGrants       ReaderGrant[]
+  ownedSectors       Sector[]           @relation("SectorOwner")
+  ownedWorks         Work[]             @relation("WorkOwner")
+  createdWorks       Work[]             @relation("WorkCreator")
+  createdTasks       Task[]             @relation("TaskCreator")
+  completedTasks     Task[]             @relation("TaskCompleter")
+  lastEditedTasks    Task[]             @relation("TaskLastEditor")
+  taskRefs           TaskLink[]         @relation("LinkUser")
+  attachments        Attachment[]
+  archives           ArchiveRecord[]
+  labelKeys          LabelKey[]         @relation("LabelKeyOwner")
+  favorites          UserFavorite[]
+  notes              Note[]
+  personalStages     ProjectStage[]     @relation("PersonalStages")
+  reminders          Reminder[]         @relation("ReminderOwner")
+  createdReminders   Reminder[]         @relation("ReminderCreator")
+  reminderDeliveries ReminderDelivery[]
 }
 
 model AccessConfig {
-  id              Int                 @id @default(1)
-  mode            AccessMode          @default(LIST)
-  domain          String?
-  storageProvider StorageProviderKind @default(NEXTCLOUD)
-  storageConfig   Json?
-  updatedAt       DateTime            @updatedAt
+  id                  Int                 @id @default(1)
+  mode                AccessMode          @default(LIST)
+  domain              String?
+  storageProvider     StorageProviderKind @default(NEXTCLOUD)
+  storageConfig       Json?
+  // Recordatorios: zona horaria única del sistema (R4) y config de email cifrada (R5).
+  timezone            String              @default("America/Argentina/Buenos_Aires")
+  reminderEmailConfig Json?
+  updatedAt           DateTime            @updatedAt
 }
 
 model AllowedEmail {
@@ -149,6 +142,7 @@ model Group {
   readerGrants ReaderGrant[]
   labelKeys    LabelKey[]
   stages       ProjectStage[]
+  reminders    Reminder[]
 }
 
 model GroupMembership {
@@ -162,13 +156,13 @@ model GroupMembership {
 }
 
 model Sector {
-  id      String      @id @default(uuid())
+  id      String  @id @default(uuid())
   name    String
-  color   LabelColor?
+  color   String?
   groupId String?
   ownerId String?
-  group   Group?      @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  owner   User?       @relation("SectorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("SectorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   grants      SectorGrant[]
   taskLinks   TaskLink[]
@@ -258,13 +252,14 @@ model Task {
   description    String?
   position       Int        @default(0)
 
-  work         Work?      @relation(fields: [workId], references: [id], onDelete: Cascade)
-  homeSector   Sector?    @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
-  originSector Sector?    @relation("TaskOriginSector", fields: [originSectorId], references: [id], onDelete: SetNull)
-  creator      User       @relation("TaskCreator", fields: [creatorId], references: [id])
-  completedBy  User?      @relation("TaskCompleter", fields: [completedById], references: [id])
-  lastEditedBy User?      @relation("TaskLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+  work         Work?       @relation(fields: [workId], references: [id], onDelete: Cascade)
+  homeSector   Sector?     @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
+  originSector Sector?     @relation("TaskOriginSector", fields: [originSectorId], references: [id], onDelete: SetNull)
+  creator      User        @relation("TaskCreator", fields: [creatorId], references: [id])
+  completedBy  User?       @relation("TaskCompleter", fields: [completedById], references: [id])
+  lastEditedBy User?       @relation("TaskLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
   links        TaskLink[]
+  labels       TaskLabel[]
 
   @@index([workId, position])
 }
@@ -338,20 +333,25 @@ model LabelKey {
 
   values     LabelValue[]
   workLabels WorkLabel[]
+  taskLabels TaskLabel[]
 
-  // Unicidad por ámbito (mismo patrón que Sector): nombre único dentro del grupo o del espacio personal
+  // Unicidad por ámbito (tres niveles posibles):
+  // - Global: groupId=null, ownerId=null
+  // - Grupo: groupId=X, ownerId=null
+  // - Personal: groupId=null, ownerId=U
   @@unique([groupId, name])
   @@unique([ownerId, name])
 }
 
 model LabelValue {
-  id    String     @id @default(uuid())
+  id    String   @id @default(uuid())
   keyId String
   name  String
-  color LabelColor
-  key   LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  color String
+  key   LabelKey @relation(fields: [keyId], references: [id], onDelete: Cascade)
 
   workLabels WorkLabel[]
+  taskLabels TaskLabel[]
 
   @@unique([keyId, name])
 }
@@ -365,6 +365,17 @@ model WorkLabel {
   value   LabelValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
 
   @@id([workId, keyId])
+}
+
+model TaskLabel {
+  taskId  String
+  keyId   String
+  valueId String
+  task    Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  key     LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  value   LabelValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, keyId])
 }
 
 model UserFavorite {
@@ -401,4 +412,117 @@ model Note {
   updatedAt DateTime @updatedAt
 
   @@index([userId, updatedAt(sort: Desc)])
+}
+
+// ─── Recordatorios con calendario (feature 036) ──────────────────────────────
+
+enum ReminderScope {
+  INDIVIDUAL
+  GROUP
+  GLOBAL
+}
+
+enum RecurrenceType {
+  ONCE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  EVERY_N
+}
+
+enum EveryUnit {
+  DAY
+  WEEK
+  MONTH
+}
+
+// Nombrado ReminderLinkKind para no colisionar con LinkTargetType {SECTOR,USER}.
+enum ReminderLinkKind {
+  WORK
+  SECTOR
+  TASK
+}
+
+enum DeliveryStatus {
+  PENDING
+  DISMISSED
+  SNOOZED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model Reminder {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  scope       ReminderScope
+  ownerId     String? // set en INDIVIDUAL
+  groupId     String? // set en GROUP
+  createdById String
+
+  date           DateTime // fecha local de la ocurrencia base (en tz del sistema)
+  recurrenceType RecurrenceType @default(ONCE)
+  weekdays       Int[] // solo WEEKLY (0=lun..6=dom)
+  everyN         Int? // solo EVERY_N
+  everyUnit      EveryUnit? // solo EVERY_N
+  untilDate      DateTime? // fin opcional por fecha
+  maxOccurrences Int? // fin opcional por cantidad
+
+  linkType ReminderLinkKind?
+  linkId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner      User?              @relation("ReminderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  group      Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy  User               @relation("ReminderCreator", fields: [createdById], references: [id])
+  leads      ReminderLead[]
+  deliveries ReminderDelivery[]
+
+  @@index([scope])
+  @@index([groupId])
+  @@index([ownerId])
+}
+
+model ReminderLead {
+  id          String @id @default(uuid())
+  reminderId  String
+  daysBefore  Int // 0 = mismo día
+  minuteOfDay Int // 0..1439 (hora local de disparo)
+
+  reminder   Reminder           @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  deliveries ReminderDelivery[]
+
+  @@unique([reminderId, daysBefore, minuteOfDay])
+}
+
+model ReminderDelivery {
+  id             String         @id @default(uuid())
+  reminderId     String
+  leadId         String
+  userId         String
+  occurrenceDate DateTime // fecha de la ocurrencia
+  firedAt        DateTime // instante (UTC) del disparo
+  status         DeliveryStatus @default(PENDING)
+  snoozedUntil   DateTime?
+  emailStatus    EmailStatus    @default(PENDING)
+  emailError     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  reminder Reminder     @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  lead     ReminderLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Idempotencia dura: nunca dos avisos por (reminder, lead, ocurrencia, usuario).
+  @@unique([reminderId, leadId, occurrenceDate, userId])
+  @@index([userId, status])
+  @@index([emailStatus])
 }

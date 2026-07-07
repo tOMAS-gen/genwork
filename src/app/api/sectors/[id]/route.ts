@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { LabelColor } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 import { conflict, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
 import { emit } from "@/server/events";
+import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 
 async function getSectorWithOperate(userId: string, id: string) {
   const sector = await prisma.sector.findUnique({
@@ -29,7 +29,7 @@ async function getSectorWithOperate(userId: string, id: string) {
 const patchSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
-    color: z.nativeEnum(LabelColor).nullable().optional(),
+    color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
   })
   .refine((data) => data.name !== undefined || data.color !== undefined, {
     message: "Debe incluir al menos name o color",
@@ -59,7 +59,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     where: { id },
     data: {
       ...(name !== undefined ? { name } : {}),
-      ...(color !== undefined ? { color } : {}),
+      ...(color !== undefined ? { color: color === null ? null : normalizeHex(color) } : {}),
     },
   });
   return NextResponse.json(updated);

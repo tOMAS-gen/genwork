@@ -192,11 +192,17 @@ export function TaskListEditor({
         />
       )}
 
-      {suggestions.length > 0 && (
+      {(suggestions.length > 0 || (activeTag?.symbol === "$" && suggestions.length === 0)) && (
         <div
           className="card"
           style={{ position: "absolute", zIndex: 10, marginTop: 2, padding: 6, minWidth: 260 }}
         >
+          {suggestions.length === 0 && activeTag?.symbol === "$" && (
+            // FR-010: ámbito de la tarea sin etiquetas disponibles → estado vacío informativo.
+            <div className="muted" style={{ padding: "6px 8px" }}>
+              No hay etiquetas disponibles
+            </div>
+          )}
           {suggestions.map((s) => (
             <div
               key={`${s.type}-${s.id}`}
@@ -204,15 +210,30 @@ export function TaskListEditor({
                 e.preventDefault();
                 pick(s);
               }}
-              style={{ padding: "6px 8px", cursor: "pointer" }}
+              style={{ padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
             >
-              <span
-                className={`tag ${s.type === "work" ? "tag-work" : s.type === "user" ? "tag-user" : "tag-exec"}`}
-              >
-                {activeTag?.symbol}
-                {s.name}
-              </span>{" "}
-              <span className="muted">{s.type === "work" ? "proyecto" : s.type}</span>
+              {s.type === "label" ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="project-dot color-dot"
+                    style={{ "--c": s.color ?? "#6b7280" } as React.CSSProperties}
+                  />
+                  <span>
+                    {s.keyName}: {s.name}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span
+                    className={`tag ${s.type === "work" ? "tag-work" : s.type === "user" ? "tag-user" : "tag-exec"}`}
+                  >
+                    {activeTag?.symbol}
+                    {s.name}
+                  </span>{" "}
+                  <span className="muted">{s.type === "work" ? "proyecto" : s.type}</span>
+                </>
+              )}
             </div>
           ))}
         </div>

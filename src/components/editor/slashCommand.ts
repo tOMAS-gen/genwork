@@ -10,6 +10,9 @@ import { SlashMenu, type SlashMenuHandle } from "./SlashMenu";
 export interface SlashCommandOptions {
   /** Inyectado por DocEditor: abre el selector de archivo del ítem "Imagen" (FR-204b). */
   openImagePicker: () => void;
+  /** NoteEditor la pasa en `false`: "Imagen" no tiene Image extension ni picker
+   *  en notas, así que no tiene sentido ofrecerla ahí. Default: true. */
+  includeImage?: boolean;
 }
 
 /**
@@ -24,6 +27,7 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
   addOptions() {
     return {
       openImagePicker: () => {},
+      includeImage: true,
     };
   },
 
@@ -41,7 +45,8 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
           const charBefore = state.doc.textBetween(range.from - 1, range.from, "\n", "\n");
           return charBefore === "" || charBefore === " " || charBefore === "\n";
         },
-        items: ({ query }) => filterSlashItems(getSlashItems(), query),
+        items: ({ query }) =>
+          filterSlashItems(getSlashItems({ includeImage: extension.options.includeImage }), query),
         command: ({ editor, range, props }) => {
           const item = props as SlashItem;
           item.run({ editor, range, openImagePicker: extension.options.openImagePicker });

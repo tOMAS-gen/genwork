@@ -70,3 +70,15 @@ export interface NextcloudConfig {
   adminUser: string;
   adminPassword: string;
 }
+
+/** Config resuelta del proveedor Google Drive (feature 034). */
+export interface GoogleDriveConfig {
+  clientId: string;
+  clientSecret: string;
+  /** Refresh token del administrador (ya descifrado). */
+  refreshToken: string;
+  /** Shared Drive dedicado donde la plataforma administra los archivos. */
+  sharedDriveId: string;
+  /** Carpeta raíz opcional dentro del Shared Drive. */
+  rootFolderId?: string;
+}

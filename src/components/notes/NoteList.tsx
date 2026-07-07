@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { Plus, Trash2, FileText } from "@/components/ui/icons";
 
 export interface NoteListItem {
@@ -95,12 +96,15 @@ export function NoteList({
                   className="icon-btn"
                   title="Eliminar nota"
                   aria-label="Eliminar nota"
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (window.confirm("¿Eliminar esta nota? Esta acción no se puede deshacer.")) {
-                      onDelete(note.id);
-                    }
+                    const ok = await showConfirm("¿Eliminar esta nota? Esta acción no se puede deshacer.", {
+                      title: "Eliminar nota",
+                      confirmLabel: "Eliminar",
+                      danger: true,
+                    });
+                    if (ok) onDelete(note.id);
                   }}
                 >
                   <Trash2 size={16} />

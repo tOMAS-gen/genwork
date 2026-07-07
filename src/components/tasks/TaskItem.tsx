@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { X, Calendar } from "@/components/ui/icons";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
@@ -22,6 +23,8 @@ export interface TaskDto {
   originType: "WORK" | "SECTOR";
   adoptedAt: string | null;
   homeSector: { id: string; name: string } | null;
+  /** Etiquetas de proyecto asignadas a la tarea (feature 032): una por clave. */
+  labels: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
   links: {
     type: "EXEC" | "REF";
     targetType: "SECTOR" | "USER";
@@ -123,6 +126,25 @@ function renderInlineSegments(
           </span>,
         );
       }
+    } else if (tag.symbol === "$") {
+      // T008: el tag $valor resuelto se muestra como chip con el color del LabelValue
+      // asignado a la tarea (mismo estilo --c + color-chip que LabelPicker), matcheando
+      // por nombre de valor (normalizado, igual que los otros símbolos).
+      const label = task.labels.find((l) => normalizeTagName(l.valueName) === norm);
+      if (label) {
+        segments.push(
+          <span
+            key={`tag-${tag.start}`}
+            className="label-chip color-chip"
+            style={{ "--c": label.color } as React.CSSProperties}
+            title={`${label.keyName}: ${label.valueName}`}
+          >
+            {label.valueName}
+          </span>,
+        );
+      } else {
+        segments.push(<span key={`tag-${tag.start}`} className="tag tag-label">${tag.name}</span>);
+      }
     }
 
     lastEnd = mark.end;
@@ -172,12 +194,17 @@ export function TaskItem({
       await api(`/api/tasks/${task.id}/toggle`, { method: "POST" });
       onChanged();
     } catch (err) {
-      alert((err as Error).message);
+      showToast({ message: (err as Error).message });
     }
   };
 
   const remove = async () => {
-    if (!confirm("¿Eliminar esta tarea?")) return;
+    const ok = await showConfirm("¿Eliminar esta tarea?", {
+      title: "Eliminar tarea",
+      confirmLabel: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
     await api(`/api/tasks/${task.id}`, { method: "DELETE" });
     onChanged();
   };
@@ -191,7 +218,7 @@ export function TaskItem({
       });
       onChanged();
     } catch (err) {
-      alert((err as Error).message);
+      showToast({ message: (err as Error).message });
     }
   };
 

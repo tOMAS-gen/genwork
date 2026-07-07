@@ -10,7 +10,25 @@ const taskInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
   work: { select: { id: true, name: true, status: true } },
   homeSector: { select: { id: true, name: true } },
+  labels: { include: { value: { include: { key: true } } } },
 } as const;
+
+/** Aplana el include crudo de `labels` al shape del contrato (análogo a works/[id]). */
+function withFlatLabels<T extends { labels: { keyId: string; valueId: string; value: { name: string; color: string; key: { name: string } } }[] }>(
+  task: T,
+) {
+  const { labels, ...rest } = task;
+  return {
+    ...rest,
+    labels: labels.map((l) => ({
+      keyId: l.keyId,
+      keyName: l.value.key.name,
+      valueId: l.valueId,
+      valueName: l.value.name,
+      color: l.value.color,
+    })),
+  };
+}
 
 /**
  * Vista de sector (FR-010/011): `exec` = tareas que se ejecutan acá (completables);
@@ -41,13 +59,20 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     refSectorId: url.searchParams.get("refSectorId"),
     state: (url.searchParams.get("state") as TaskFilters["state"]) ?? null,
   };
+  const labelValueId = url.searchParams.get("labelValueId");
+  const labelKeyId = url.searchParams.get("labelKeyId");
+  const labelWhere = labelValueId
+    ? { labels: { some: { valueId: labelValueId, ...(labelKeyId ? { keyId: labelKeyId } : {}) } } }
+    : labelKeyId
+      ? { labels: { some: { keyId: labelKeyId } } }
+      : {};
 
   const [execLinks, refLinks, loose] = await Promise.all([
     prisma.taskLink.findMany({
       where: {
         sectorId: id,
         type: "EXEC",
-        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }] },
+        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }], ...labelWhere },
       },
       include: { task: { include: taskInclude } },
       orderBy: { task: { position: "asc" } },
@@ -56,13 +81,13 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       where: {
         sectorId: id,
         type: "REF",
-        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }] },
+        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }], ...labelWhere },
       },
       include: { task: { include: taskInclude } },
       orderBy: { task: { position: "asc" } },
     }),
     prisma.task.findMany({
-      where: { sectorId: id, OR: [{ work: { isTemplate: false } }, { workId: null }] },
+      where: { sectorId: id, OR: [{ work: { isTemplate: false } }, { workId: null }], ...labelWhere },
       include: taskInclude,
       orderBy: { position: "asc" },
     }),
@@ -109,9 +134,9 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       group: sector.group ? { id: sector.group.id, name: sector.group.name } : null,
     },
     level,
-    loose: looseExec,
-    byWork,
-    refs,
+    loose: looseExec.map(withFlatLabels),
+    byWork: byWork.map((entry) => ({ ...entry, tasks: entry.tasks.map(withFlatLabels) })),
+    refs: refs.map(withFlatLabels),
     metrics: { total: totalCount, done: doneCount },
   });
 });

@@ -45,7 +45,9 @@ export const GET = withApi(async (req) => {
   let results: {
     id: string;
     name: string;
-    type: "work" | "sector" | "user";
+    type: "work" | "sector" | "user" | "label";
+    keyName?: string;
+    color?: string;
     insertText: string;
   }[] = [];
 
@@ -90,6 +92,30 @@ export const GET = withApi(async (req) => {
           })),
       );
     }
+  } else if (symbol === "$") {
+    // Etiquetas disponibles del ámbito (FR-009): globales + las del grupo del work/sector
+    // de contexto (R3/R4 de specs/032). Sin grupo (espacio personal), solo globales.
+    const keys = await prisma.labelKey.findMany({
+      where: {
+        OR: [
+          { groupId: null, ownerId: null },
+          ...("groupId" in scopeWhere ? [{ groupId: scopeWhere.groupId, ownerId: null }] : []),
+        ],
+      },
+      include: { values: true },
+    });
+
+    results = keys
+      .flatMap((k) => k.values.map((v) => ({ key: k, value: v })))
+      .filter(({ value }) => matches(value.name))
+      .map(({ key, value }) => ({
+        id: value.id,
+        name: value.name,
+        type: "label" as const,
+        keyName: key.name,
+        color: value.color,
+        insertText: toTagForm(value.name),
+      }));
   }
 
   return NextResponse.json(results.slice(0, 8));

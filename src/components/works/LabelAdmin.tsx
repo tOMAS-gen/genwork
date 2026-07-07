@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { Trash2, Plus, Pencil } from "@/components/ui/icons";
+import { ColorField } from "@/components/ui/ColorField";
 
 interface LabelValueDto {
   id: string;
@@ -13,21 +15,15 @@ interface LabelValueDto {
 interface LabelKeyDto {
   id: string;
   name: string;
+  scope: "global" | "group" | "personal";
   values: LabelValueDto[];
 }
 
-const COLORS: { value: string; label: string }[] = [
-  { value: "RED", label: "Rojo" },
-  { value: "ORANGE", label: "Naranja" },
-  { value: "AMBER", label: "Ámbar" },
-  { value: "GREEN", label: "Verde" },
-  { value: "TEAL", label: "Verde azulado" },
-  { value: "BLUE", label: "Azul" },
-  { value: "INDIGO", label: "Índigo" },
-  { value: "VIOLET", label: "Violeta" },
-  { value: "PINK", label: "Rosa" },
-  { value: "GRAY", label: "Gris" },
-];
+/** Ámbito de datos que administra este componente (ver research.md R7). */
+export type LabelAdminScope = { kind: "global" } | { kind: "group"; groupId: string };
+
+/** Color hex por defecto para un valor de etiqueta nuevo. */
+const DEFAULT_COLOR = "#ef4444";
 
 /** Extrae el mensaje/detalle de un error lanzado por el helper `api` (contrato { error }). */
 function errorInfo(err: unknown): { message: string; affectedWorks?: number; status?: number } {
@@ -43,15 +39,20 @@ function errorInfo(err: unknown): { message: string; affectedWorks?: number; sta
 }
 
 /**
- * Administración de etiquetas del ámbito por defecto (personal/global, sin groupId).
+ * Administración de etiquetas de un ámbito dado (global o de grupo, `scope` prop).
  * Tabla de claves con edición inline del nombre, valores como chips con color y
  * alta/baja de claves y valores. Reutiliza los mismos contratos que LabelPicker.
+ *
+ * `GET /api/labels` devuelve la UNIÓN (globales + ámbito); para una pantalla de
+ * administración se filtra client-side quedándose solo con las claves cuyo
+ * `scope` coincide con el ámbito administrado (R7/contracts/labels-api.md).
  */
-export function LabelAdmin() {
+export function LabelAdmin({ scope }: { scope: LabelAdminScope }) {
   const [keys, setKeys] = useState<LabelKeyDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newKeyName, setNewKeyName] = useState("");
+  const [creatingKey, setCreatingKey] = useState(false);
   const [newValue, setNewValue] = useState<Record<string, { name: string; color: string }>>({});
   const [editingKeyId, setEditingKeyId] = useState<string | null>(null);
   const [editingKeyName, setEditingKeyName] = useState("");
@@ -61,8 +62,12 @@ export function LabelAdmin() {
     setLoading(true);
     setError("");
     try {
-      const data = await api<LabelKeyDto[]>("/api/labels");
-      setKeys(data);
+      const url =
+        scope.kind === "group" ? `/api/labels?groupId=${scope.groupId}` : "/api/labels";
+      const data = await api<LabelKeyDto[]>(url);
+      // El endpoint devuelve la unión (globales + ámbito); acá administramos
+      // solo las claves del ámbito propio, no las globales heredadas.
+      setKeys(data.filter((k) => k.scope === scope.kind));
     } catch (err) {
       setError(errorInfo(err).message);
     } finally {
@@ -72,18 +77,24 @@ export function LabelAdmin() {
 
   useEffect(() => {
     void loadKeys();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.kind, scope.kind === "group" ? scope.groupId : null]);
 
   const createKey = async () => {
     const name = newKeyName.trim();
     if (!name) return;
     setError("");
     try {
+      const body =
+        scope.kind === "group"
+          ? { name, groupId: scope.groupId }
+          : { name, global: true };
       await api("/api/labels", {
         method: "POST",
-        body: JSON.stringify({ name, groupId: null }),
+        body: JSON.stringify(body),
       });
       setNewKeyName("");
+      setCreatingKey(false);
       await loadKeys();
     } catch (err) {
       setError(errorInfo(err).message);
@@ -120,7 +131,7 @@ export function LabelAdmin() {
     } catch (err) {
       const info = errorInfo(err);
       if (info.status === 409 && info.affectedWorks !== undefined) {
-        if (confirm(`${info.message}\n\n¿Eliminar la etiqueta igualmente?`)) {
+        if (await showConfirm(info.message + "\n\n¿Eliminar la etiqueta igualmente?", { title: "Eliminar etiqueta", confirmLabel: "Eliminar", danger: true })) {
           try {
             await api(`/api/labels/keys/${id}?confirm=true`, { method: "DELETE" });
             await loadKeys();
@@ -135,7 +146,7 @@ export function LabelAdmin() {
   };
 
   const addValue = async (keyId: string) => {
-    const draft = newValue[keyId] ?? { name: "", color: "RED" };
+    const draft = newValue[keyId] ?? { name: "", color: DEFAULT_COLOR };
     const name = draft.name.trim();
     if (!name) return;
     setError("");
@@ -159,7 +170,7 @@ export function LabelAdmin() {
     } catch (err) {
       const info = errorInfo(err);
       if (info.status === 409 && info.affectedWorks !== undefined) {
-        if (confirm(`${info.message}\n\n¿Eliminar el valor igualmente?`)) {
+        if (await showConfirm(info.message + "\n\n¿Eliminar el valor igualmente?", { title: "Eliminar valor", confirmLabel: "Eliminar", danger: true })) {
           try {
             await api(`/api/labels/values/${id}?confirm=true`, { method: "DELETE" });
             await loadKeys();
@@ -174,143 +185,52 @@ export function LabelAdmin() {
   };
 
   return (
-    <div className="card" style={{ display: "grid", gap: 16 }}>
-      <h2 style={{ fontSize: 16, margin: 0 }}>Etiquetas</h2>
-
+    <div className="label-admin">
       {loading && <p className="muted">Cargando…</p>}
       {error && <p style={{ color: "var(--danger)", margin: 0 }}>{error}</p>}
 
-      {!loading && keys.length === 0 && (
-        <p className="muted" style={{ margin: 0 }}>
-          Todavía no hay etiquetas en este ámbito.
-        </p>
-      )}
-
-      {!loading && keys.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
-              <th style={{ padding: "6px 8px", fontSize: 12 }} className="muted">
-                Clave
-              </th>
-              <th style={{ padding: "6px 8px", fontSize: 12 }} className="muted">
-                Valores
-              </th>
-              <th style={{ padding: "6px 8px", fontSize: 12, width: 40 }} className="muted">
-                Acciones
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((key) => {
-              const draft = newValue[key.id] ?? { name: "", color: "RED" };
-              const expanded = expandedKeyId === key.id;
-              return (
-                <tr key={key.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                  <td style={{ padding: "8px", verticalAlign: "top" }}>
-                    {editingKeyId === key.id ? (
-                      <input
-                        autoFocus
-                        value={editingKeyName}
-                        onChange={(e) => setEditingKeyName(e.target.value)}
-                        onBlur={() => void saveKeyName(key.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") void saveKeyName(key.id);
-                          if (e.key === "Escape") setEditingKeyId(null);
-                        }}
-                      />
-                    ) : (
+      {!loading && (
+        <div className="label-admin-grid">
+          {keys.map((key) => {
+            const draft = newValue[key.id] ?? { name: "", color: DEFAULT_COLOR };
+            const expanded = expandedKeyId === key.id;
+            return (
+              <div key={key.id} className="label-admin-card">
+                <div className="label-admin-card-head">
+                  {editingKeyId === key.id ? (
+                    <input
+                      autoFocus
+                      value={editingKeyName}
+                      onChange={(e) => setEditingKeyName(e.target.value)}
+                      onBlur={() => void saveKeyName(key.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void saveKeyName(key.id);
+                        if (e.key === "Escape") setEditingKeyId(null);
+                      }}
+                      style={{ flex: 1, minWidth: 0 }}
+                    />
+                  ) : (
+                    <span className="label-admin-key-label">
                       <button
-                        className="btn"
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          border: "none",
-                          background: "transparent",
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
+                        className="label-admin-key-name"
                         onClick={() => startEditKey(key)}
                         aria-label={`Editar clave ${key.name}`}
                       >
                         {key.name}
-                        <Pencil size={13} />
                       </button>
-                    )}
-                  </td>
-
-                  <td style={{ padding: "8px", verticalAlign: "top" }}>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
-                      {key.values.map((v) => (
-                        <span
-                          key={v.id}
-                          className={`label-chip label-${v.color.toLowerCase()}`}
-                          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-                        >
-                          {v.name}
-                          {expanded && (
-                            <button
-                              className="icon-btn"
-                              aria-label={`Eliminar valor ${v.name}`}
-                              onClick={() => void deleteValue(v.id)}
-                              style={{ padding: 0 }}
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          )}
-                        </span>
-                      ))}
-                      {key.values.length === 0 && (
-                        <span className="muted" style={{ fontSize: 12 }}>
-                          Sin valores todavía
-                        </span>
-                      )}
-                      <button
-                        className="icon-btn"
-                        aria-label={`Agregar valor a ${key.name}`}
-                        onClick={() => setExpandedKeyId(expanded ? null : key.id)}
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-
-                    {expanded && (
-                      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                        <input
-                          value={draft.name}
-                          onChange={(e) =>
-                            setNewValue((prev) => ({
-                              ...prev,
-                              [key.id]: { ...draft, name: e.target.value },
-                            }))
-                          }
-                          placeholder="Nuevo valor"
-                          onKeyDown={(e) => e.key === "Enter" && void addValue(key.id)}
-                        />
-                        <select
-                          value={draft.color}
-                          onChange={(e) =>
-                            setNewValue((prev) => ({
-                              ...prev,
-                              [key.id]: { ...draft, color: e.target.value },
-                            }))
-                          }
-                        >
-                          {COLORS.map((c) => (
-                            <option key={c.value} value={c.value}>
-                              {c.label}
-                            </option>
-                          ))}
-                        </select>
-                        <button className="btn" onClick={() => void addValue(key.id)}>
-                          Agregar
-                        </button>
-                      </div>
-                    )}
-                  </td>
-
-                  <td style={{ padding: "8px", verticalAlign: "top" }}>
+                      <span className="label-admin-count" aria-label={`${key.values.length} valores`}>
+                        {key.values.length}
+                      </span>
+                    </span>
+                  )}
+                  <div className="label-admin-card-acts">
+                    <button
+                      className="icon-btn"
+                      aria-label={`Editar clave ${key.name}`}
+                      onClick={() => startEditKey(key)}
+                    >
+                      <Pencil size={14} />
+                    </button>
                     <button
                       className="icon-btn"
                       aria-label={`Eliminar clave ${key.name}`}
@@ -318,29 +238,115 @@ export function LabelAdmin() {
                     >
                       <Trash2 size={15} />
                     </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+                  </div>
+                </div>
 
-      <div className="dialog-field">
-        <label htmlFor="la-new-key">Nueva clave</label>
-        <div style={{ display: "flex", gap: 6 }}>
-          <input
-            id="la-new-key"
-            value={newKeyName}
-            onChange={(e) => setNewKeyName(e.target.value)}
-            placeholder="Ej.: Prioridad"
-            onKeyDown={(e) => e.key === "Enter" && void createKey()}
-          />
-          <button className="btn" onClick={() => void createKey()}>
-            Agregar
-          </button>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                  {key.values.map((v) => (
+                    <span
+                      key={v.id}
+                      className="label-chip color-chip"
+                      style={{ ["--c"]: v.color, display: "inline-flex", alignItems: "center", gap: 6 } as React.CSSProperties}
+                    >
+                      {v.name}
+                      {expanded && (
+                        <button
+                          className="icon-btn"
+                          aria-label={`Eliminar valor ${v.name}`}
+                          onClick={() => void deleteValue(v.id)}
+                          style={{ padding: 0 }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </span>
+                  ))}
+                  {key.values.length === 0 && (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      Sin valores todavía
+                    </span>
+                  )}
+                  <button
+                    className="label-admin-add-value"
+                    aria-label={`Agregar valor a ${key.name}`}
+                    onClick={() => setExpandedKeyId(expanded ? null : key.id)}
+                  >
+                    <Plus size={13} />
+                    Valor
+                  </button>
+                </div>
+
+                {expanded && (
+                  <div style={{ display: "flex", gap: 6, marginTop: 4, alignItems: "center", flexWrap: "wrap" }}>
+                    <input
+                      value={draft.name}
+                      onChange={(e) =>
+                        setNewValue((prev) => ({
+                          ...prev,
+                          [key.id]: { ...draft, name: e.target.value },
+                        }))
+                      }
+                      placeholder="Nuevo valor"
+                      style={{ flex: "1 1 160px", minWidth: 0 }}
+                      onKeyDown={(e) => e.key === "Enter" && void addValue(key.id)}
+                    />
+                    <ColorField
+                      value={draft.color}
+                      ariaLabel={`Color del nuevo valor de ${key.name}`}
+                      onChange={(hex) =>
+                        setNewValue((prev) => ({
+                          ...prev,
+                          [key.id]: { ...draft, color: hex },
+                        }))
+                      }
+                    />
+                    <button className="btn" onClick={() => void addValue(key.id)}>
+                      Agregar
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="label-admin-card label-admin-new">
+            {creatingKey ? (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  id="la-new-key"
+                  autoFocus
+                  value={newKeyName}
+                  onChange={(e) => setNewKeyName(e.target.value)}
+                  placeholder="Ej.: Prioridad"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void createKey();
+                    if (e.key === "Escape") {
+                      setCreatingKey(false);
+                      setNewKeyName("");
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!newKeyName.trim()) setCreatingKey(false);
+                  }}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                <button className="btn" onClick={() => void createKey()}>
+                  Agregar
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="label-admin-new-trigger"
+                onClick={() => setCreatingKey(true)}
+              >
+                <Plus size={16} />
+                Nueva clave
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

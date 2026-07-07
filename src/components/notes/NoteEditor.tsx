@@ -31,10 +31,14 @@ export function NoteEditor({
   note,
   onTitleChange,
   onContentChange,
+  hideTitle = false,
 }: {
   note: NoteDto;
   onTitleChange?: (title: string) => void;
   onContentChange?: (content: unknown) => void;
+  /** Modo nota general ("Mis notas"): oculta el campo de título y la barra de
+   *  formato para escribir directo (el formato queda disponible con "/" y atajos). */
+  hideTitle?: boolean;
 }) {
   const [title, setTitle] = useState(note.title);
   const [status, setStatus] = useState<SaveStatus>("idle");
@@ -48,7 +52,8 @@ export function NoteEditor({
       Placeholder.configure({ placeholder: "Empezá a escribir..." }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      SlashCommand,
+      // Sin Image extension ni selector de archivo en notas: se oculta del menú "/".
+      SlashCommand.configure({ includeImage: false }),
     ],
     content: note.content ?? "",
     immediatelyRender: false,
@@ -126,19 +131,28 @@ export function NoteEditor({
 
   return (
     <div className="note-editor">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <input
-          className="note-title-input"
-          value={title}
-          placeholder="Sin título"
-          onChange={(e) => handleTitleChange(e.target.value)}
-        />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: hideTitle ? "flex-end" : "space-between",
+          gap: 8,
+        }}
+      >
+        {!hideTitle && (
+          <input
+            className="note-title-input"
+            value={title}
+            placeholder="Sin título"
+            onChange={(e) => handleTitleChange(e.target.value)}
+          />
+        )}
         <span className="note-save-status">
           {status === "saving" ? "Guardando..." : status === "saved" ? "Guardado" : ""}
         </span>
       </div>
 
-      {editor && (
+      {!hideTitle && editor && (
         <div className="note-toolbar">
           <button
             type="button"

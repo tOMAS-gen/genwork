@@ -5,6 +5,7 @@ import { conflict, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canManageGroup } from "@/lib/domain/permissions";
+import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 
 /** Busca el stage y valida el gate de admin del grupo al que pertenece. */
 async function getStageForAdmin(userId: string, id: string) {
@@ -25,7 +26,7 @@ async function getStageForAdmin(userId: string, id: string) {
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
-  color: z.string().trim().min(1).max(40).nullable().optional(),
+  color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
   sortOrder: z.number().int().optional(),
 });
 
@@ -48,7 +49,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     where: { id },
     data: {
       ...(name !== undefined ? { name } : {}),
-      ...(color !== undefined ? { color } : {}),
+      ...(color !== undefined ? { color: color === null ? null : normalizeHex(color) } : {}),
       ...(sortOrder !== undefined ? { sortOrder } : {}),
     },
   });

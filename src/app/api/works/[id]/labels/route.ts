@@ -5,6 +5,7 @@ import { badRequest, conflict, forbidden, notFound, withApi } from "@/server/api
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
+import { canAssignLabel } from "@/lib/domain/labels/availability";
 import { emit } from "@/server/events";
 
 /** Busca el work y exige que el usuario lo opere (mismo criterio que GET/PATCH /works/{id}). */
@@ -52,8 +53,8 @@ export const PUT = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   if (value.keyId !== keyId) {
     throw badRequest("El valor indicado no pertenece a la etiqueta indicada");
   }
-  // FR-410: la etiqueta debe pertenecer al mismo ámbito que el proyecto (grupo u owner)
-  if (value.key.groupId !== work.groupId || value.key.ownerId !== work.ownerId) {
+  // FR-410: la etiqueta debe ser global o pertenecer al mismo ámbito que el proyecto
+  if (!canAssignLabel(value.key, work)) {
     throw conflict("La etiqueta no pertenece al mismo ámbito que el proyecto");
   }
 

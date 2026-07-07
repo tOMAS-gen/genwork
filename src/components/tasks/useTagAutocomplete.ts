@@ -7,9 +7,13 @@ import { api } from "@/components/ui/useApi";
 export interface Suggestion {
   id: string;
   name: string;
-  type: "work" | "sector" | "user";
+  type: "work" | "sector" | "user" | "label";
   /** Forma etiquetable (espacios→guion) que el endpoint puede aportar; si falta, cae a `name`. */
   insertText?: string;
+  /** Clave interna de la etiqueta (solo `type: "label"`), para render/lookup del item. */
+  keyName?: string;
+  /** Color de la etiqueta (solo `type: "label"`), para render del item. */
+  color?: string;
 }
 
 /** Etiqueta activa mientras se escribe: símbolo disparador y posición donde empieza. */
@@ -18,7 +22,7 @@ export interface ActiveTag {
   start: number;
 }
 
-const TAG_TRIGGER_RE = /(^|\s)([/#@])([\p{L}\p{N}_\-.]*)$/u;
+const TAG_TRIGGER_RE = /(^|\s)([/#@$])([\p{L}\p{N}_\-.]*)$/u;
 
 /**
  * Hook compartido de autocompletado de etiquetas `/` `#` `@` (feature 001, R2 de 004).

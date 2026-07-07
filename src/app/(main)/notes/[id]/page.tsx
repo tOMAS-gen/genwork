@@ -6,6 +6,7 @@ import { api } from "@/components/ui/useApi";
 import { NoteEditor, type NoteDto } from "@/components/notes/NoteEditor";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { Trash2, FileText } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -42,8 +43,13 @@ export default function NotePage() {
 
   useEffect(load, [load]);
 
-  const deleteNote = () => {
-    if (!window.confirm("¿Eliminar esta nota? Esta acción no se puede deshacer.")) return;
+  const deleteNote = async () => {
+    const ok = await showConfirm("¿Eliminar esta nota? Esta acción no se puede deshacer.", {
+      title: "Eliminar nota",
+      confirmLabel: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
     void api(`/api/notes/${id}`, { method: "DELETE" }).then(() => {
       router.push("/notes");
     });

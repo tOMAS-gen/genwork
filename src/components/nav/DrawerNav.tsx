@@ -6,6 +6,7 @@ import {
   Archive,
   AtSign,
   BookTemplate,
+  Calendar,
   ChevronRight,
   FileText,
   Layers,
@@ -16,6 +17,7 @@ import {
   User,
   Users,
 } from "@/components/ui/icons";
+import { DueTodayBell } from "@/components/reminders/DueTodayBell";
 import { api } from "@/components/ui/useApi";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
@@ -119,6 +121,9 @@ export function DrawerNav({
           <Link href="/board" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Vista de tareas">
             <LayoutDashboard size={18} />
           </Link>
+          <Link href="/reminders" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Recordatorios">
+            <Calendar size={18} />
+          </Link>
           {isSuperAdmin && (
             <Link href="/admin" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Administración">
               <Settings size={18} />
@@ -126,6 +131,9 @@ export function DrawerNav({
           )}
         </div>
         <div className="sidebar-footer">
+          <div className="rail-link" data-tooltip="Vence hoy">
+            <DueTodayBell />
+          </div>
           <ThemeToggle mini />
           <div className="rail-link" data-tooltip="Salir">
             {logoutButton}
@@ -223,8 +231,12 @@ export function DrawerNav({
                 <Link key={it.id} href={`${base}/${it.id}`} title={it.name} onClick={closeMobileDrawer}>
                   <ItemIcon
                     size={14}
-                    className={color ? `label-${color.toLowerCase()}` : ""}
-                    style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4, background: "transparent" }}
+                    className={color ? "color-badge" : ""}
+                    style={
+                      color
+                        ? ({ "--c": color, flexShrink: 0, verticalAlign: -2, marginRight: 4, background: "transparent", border: "none", padding: 0 } as React.CSSProperties)
+                        : { flexShrink: 0, verticalAlign: -2, marginRight: 4, background: "transparent" }
+                    }
                   />
                   {it.name}
                   {base === "/sectors" && "group" in it && (it as SectorItem).group && (
@@ -291,6 +303,14 @@ export function DrawerNav({
           >
             <LayoutDashboard size={16} className="muted" /> Vista de tareas
           </Link>
+          <Link
+            className="nav"
+            href="/reminders"
+            onClick={closeMobileDrawer}
+            style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
+          >
+            <Calendar size={16} className="muted" /> Recordatorios
+          </Link>
           {isSuperAdmin && (
             <Link
               className="nav"
@@ -304,6 +324,7 @@ export function DrawerNav({
         </div>
       </div>
       <div className="sidebar-footer">
+        <DueTodayBell />
         <ThemeToggle />
         {logoutButton}
       </div>

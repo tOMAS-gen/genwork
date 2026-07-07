@@ -8,6 +8,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { enqueue } from "@/lib/storage/queue";
 import { cloneTasksFromTemplate } from "@/lib/domain/works/cloneFromTemplate";
+import { buildProjectCode } from "@/lib/domain/works/projectCode";
 
 export const GET = withApi(async (req) => {
   const session = await requireWriter();
@@ -151,10 +152,18 @@ export const POST = withApi(async (req) => {
     return newWork;
   });
 
+  // Código de referencia (feature 035): la carpeta del proyecto en el
+  // almacenamiento se nombra con GRUPO-SEQ-PROYECTO para que coincida con el
+  // código visible en la plataforma y sea ubicable en el Drive/Nextcloud.
+  const groupName = scope.groupId
+    ? (await prisma.group.findUnique({ where: { id: scope.groupId }, select: { name: true } }))?.name ?? null
+    : null;
+  const code = buildProjectCode(groupName, work.folderSeq, name);
+
   await enqueue({
     kind: "CREATE_WORK_FOLDER",
     workId: work.id,
-    workName: name,
+    workName: code,
     groupId: scope.groupId,
     ownerUserId: scope.ownerId,
   });

@@ -51,7 +51,10 @@ export function ProjectCard({
     >
       {/* Row 1: pill nombre + star + menu */}
       <div className="card-header">
-        <span className={`pc-name-pill ${color ? `label-${color.toLowerCase()}` : "pc-name-pill-default"}`} style={color ? { color: "var(--text)" } : undefined}>
+        <span
+          className={`pc-name-pill ${color ? "color-chip" : "pc-name-pill-default"}`}
+          style={color ? ({ "--c": color, color: "var(--text)" } as React.CSSProperties) : undefined}
+        >
           {project.name.toUpperCase()}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -102,7 +105,7 @@ export function ProjectCard({
       {project.labels.length > 0 && (
         <div className="pc-labels">
           {project.labels.map((l) => (
-            <span key={l.keyId} className={`label-chip label-${l.color.toLowerCase()}`}>
+            <span key={l.keyId} className="label-chip color-chip" style={{ "--c": l.color } as React.CSSProperties}>
               {l.valueName}
             </span>
           ))}

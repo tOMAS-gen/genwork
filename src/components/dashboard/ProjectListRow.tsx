@@ -39,7 +39,7 @@ export function ProjectListRow({
     >
       <td>
         <div className="col-project">
-          {color && <span className={`project-dot label-${color.toLowerCase()}`} />}
+          {color && <span className="project-dot color-dot" style={{ "--c": color } as React.CSSProperties} />}
           <div>
             <strong>{project.name}</strong>
             {parsedDue && (
@@ -55,7 +55,7 @@ export function ProjectListRow({
         {(project.labels.length > 0 || project.stage) && (
           <div className="col-labels">
             {project.labels.map((l) => (
-              <span key={l.valueId} className={`label-chip label-${l.color.toLowerCase()}`}>
+              <span key={l.valueId} className="label-chip color-chip" style={{ "--c": l.color } as React.CSSProperties}>
                 {l.valueName}
               </span>
             ))}

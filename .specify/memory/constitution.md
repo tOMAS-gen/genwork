@@ -1,15 +1,15 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0
-- Modified principles: II. Etiquetado inline — `@` ahora referencia sectores O usuarios
-  (semántica "necesita aporte de"); tabla de semántica actualizada.
+- Version change: 1.1.0 → 1.2.0
+- Modified principles: II. Etiquetado inline — se AGREGA el símbolo `$` para etiquetado de proyecto
+  (semántica "etiqueta de proyecto"); tabla de semántica actualizada con nueva fila `$`.
 - Added sections: n/a
 - Removed sections: n/a
 - Templates:
   - ✅ .specify/templates/plan-template.md — sin cambios requeridos
   - ✅ .specify/templates/spec-template.md — sin cambios requeridos
   - ✅ .specify/templates/tasks-template.md — sin cambios requeridos
-  - ✅ specs/001-gestion-trabajos-sectores/* — ya reflejan la semántica nueva (FR-040/041/042)
+  - ✅ specs/032-etiquetas-inline-tareas/* — reflejan la nueva semántica de `$`
 - Follow-up TODOs: ninguno.
 -->
 
@@ -45,6 +45,8 @@ se escribe. No se exigen formularios ni menús para clasificar.
 - `@nombre` referencia un sector o un usuario cuyo aporte se necesita para completar la tarea
   (mención: crea vínculo filtrable y visible para el referenciado, NO transfiere pertenencia ni
   habilita completar).
+- `$nombre` etiqueta la tarea con una etiqueta de proyecto (LabelKey/LabelValue de ámbito grupo
+  o global); es clasificatoria y filtrable, NO cambia dónde se ejecuta ni se completa la tarea.
 - El parser DEBE reconocer estas etiquetas en línea y convertirlas en vínculos navegables
   y filtrables.
 - Una tarea puede combinar los tres símbolos (ej.: `Comprar perfiles de hierro #Compras
@@ -98,6 +100,7 @@ mata el avance.
 | `/`     | Trabajo     | Cliente/trabajo al que pertenece la tarea     | La tarea se guarda y aparece en ese trabajo         |
 | `#`     | Sector      | Sector operativo donde se ejecuta la tarea    | La tarea aparece en la vista de ese sector          |
 | `@`     | Referencia  | Sector o usuario cuyo aporte necesita la tarea | Vínculo filtrable, visible para el referenciado; NO define dónde se completa |
+| `$`     | Etiqueta    | Etiqueta de proyecto (grupo/global) que clasifica la tarea | Vínculo filtrable; NO define dónde se ejecuta/completa |
 
 Reglas de dominio no negociables:
 
@@ -131,4 +134,4 @@ Reglas de dominio no negociables:
 - Cumplimiento: todo plan y toda revisión de implementación verifican los Principios I–V;
   la complejidad debe justificarse siempre.
 
-**Version**: 1.1.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-02
+**Version**: 1.2.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-06

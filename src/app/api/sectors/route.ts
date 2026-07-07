@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { LabelColor } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
+import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 import { conflict, forbidden, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
@@ -83,7 +83,7 @@ export const GET = withApi(async () => {
 const createSchema = z.object({
   name: z.string().trim().min(1).max(80),
   groupId: z.string().uuid().nullable().optional(),
-  color: z.nativeEnum(LabelColor).optional(),
+  color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
 });
 
 export const POST = withApi(async (req) => {
@@ -105,7 +105,8 @@ export const POST = withApi(async (req) => {
   if (dup) throw conflict(`Ya existe un sector llamado "${name}" en este ámbito`);
 
   const resolvedColor =
-    color ?? assignSectorColor(await prisma.sector.count({ where: scope }));
+    (color ? normalizeHex(color) : null) ??
+    assignSectorColor(await prisma.sector.count({ where: scope }));
 
   const sector = await prisma.sector.create({
     data: { name, ...scope, color: resolvedColor },

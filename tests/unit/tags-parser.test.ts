@@ -29,6 +29,58 @@ describe("parseTags — sintaxis básica (FR-007)", () => {
   });
 });
 
+describe("parseTags — símbolo $ (T003)", () => {
+  it("'$Alta' se reconoce como tag con symbol '$' y name 'Alta'", () => {
+    const r = parseTags("Tarea $Alta");
+    expect(r.tags).toEqual([{ symbol: "$", name: "Alta", start: 6, end: 11 }]);
+    expect(r.displayText).toBe("Tarea");
+  });
+
+  it("'$$' escapa a '$' literal (no es tag)", () => {
+    const r = parseTags("precio $$100");
+    expect(r.tags).toEqual([]);
+    expect(r.displayText).toBe("precio $100");
+  });
+
+  it("combinación 'Comprar #Compras $Alta /Tina' reconoce los tres símbolos", () => {
+    const r = parseTags("Comprar #Compras $Alta /Tina");
+    expect(r.tags.map((t) => ({ symbol: t.symbol, name: t.name }))).toEqual([
+      { symbol: "#", name: "Compras" },
+      { symbol: "$", name: "Alta" },
+      { symbol: "/", name: "Tina" },
+    ]);
+    expect(r.displayText).toBe("Comprar");
+  });
+
+  it("combinación con los cuatro símbolos '/ # @ $' se reconocen todos vía tagsBySymbol", () => {
+    const r = parseTags("Tarea /Tina #Compras @Metalurgica $Alta final");
+    expect(r.tags.map((t) => ({ symbol: t.symbol, name: t.name }))).toEqual([
+      { symbol: "/", name: "Tina" },
+      { symbol: "#", name: "Compras" },
+      { symbol: "@", name: "Metalurgica" },
+      { symbol: "$", name: "Alta" },
+    ]);
+    expect(r.displayText).toBe("Tarea final");
+    const g = tagsBySymbol(r.tags);
+    expect(g).toEqual({
+      "/": ["Tina"],
+      "#": ["Compras"],
+      "@": ["Metalurgica"],
+      "$": ["Alta"],
+    });
+  });
+
+  it("'$' seguido de espacio o de nada no es tag", () => {
+    const r1 = parseTags("precio $ final");
+    expect(r1.tags).toEqual([]);
+    expect(r1.displayText).toBe("precio $ final");
+
+    const r2 = parseTags("precio final $");
+    expect(r2.tags).toEqual([]);
+    expect(r2.displayText).toBe("precio final $");
+  });
+});
+
 describe("parseTags — literales y escapes (edge case spec)", () => {
   it("'perfil 20/20' no genera etiqueta (símbolo pegado a texto previo)", () => {
     const r = parseTags("cortar perfil 20/20 para marco");

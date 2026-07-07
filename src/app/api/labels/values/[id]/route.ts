@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { LabelColor } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
+import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 import { conflict, notFound, withApi } from "@/server/api";
 import { requireLabelAdmin, requireWriter } from "@/server/guards";
 
@@ -15,7 +15,7 @@ async function getValueForAdmin(userId: string, id: string) {
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
-  color: z.nativeEnum(LabelColor).optional(),
+  color: z.string().refine(isValidHex, "Color inválido").optional(),
 });
 
 /** PATCH /api/labels/values/{id} — renombra y/o cambia el color; duplicado en la clave → 409. */
@@ -35,7 +35,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
 
   const updated = await prisma.labelValue.update({
     where: { id },
-    data: { ...(name && { name }), ...(color && { color }) },
+    data: { ...(name && { name }), ...(color && { color: normalizeHex(color) ?? color }) },
   });
   return NextResponse.json(updated);
 });

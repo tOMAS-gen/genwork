@@ -104,6 +104,7 @@ interface Resolved {
   execSectorIds: string[];
   refSectorIds: string[];
   refUserIds: string[];
+  labels: { keyId: string; valueId: string }[];
 }
 
 /**
@@ -189,6 +190,38 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
     }
   }
 
+  // --- `$etiqueta`: valor de etiqueta del ámbito de la tarea (globales + grupo) ---
+  const labelsByKey = new Map<string, string>();
+  if (grouped["$"].length > 0) {
+    // Disponibilidad (feature 031): globales + las del grupo del ámbito de la tarea.
+    // Mismo where que GET /api/labels (globales + grupo, sin personales acá).
+    const values = await prisma.labelValue.findMany({
+      where: {
+        key: {
+          OR: [
+            { groupId: null, ownerId: null },
+            ...(contextScope.groupId !== null
+              ? [{ groupId: contextScope.groupId, ownerId: null }]
+              : []),
+          ],
+        },
+      },
+      include: { key: true },
+    });
+    for (const name of grouped["$"]) {
+      const matches = values.filter((v) => tagMatchesName(name, v.name));
+      // Nombre presente en >1 clave → ambigüedad: mismo camino que un tag sin resolver.
+      const keyIds = new Set(matches.map((v) => v.keyId));
+      if (matches.length === 0 || keyIds.size > 1) {
+        unresolved.push({ symbol: "$", name });
+        continue;
+      }
+      // Match único (una sola clave): resuelto. Un valor por clave, determinístico.
+      const value = matches[0];
+      labelsByKey.set(value.keyId, value.id);
+    }
+  }
+
   if (unresolved.length > 0) {
     throw conflict("Hay etiquetas que no coinciden con nada existente", {
       unresolvedTags: unresolved,
@@ -208,6 +241,7 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
     execSectorIds: [...execSectorIds],
     refSectorIds: [...refSectorIds],
     refUserIds: [...refUserIds],
+    labels: [...labelsByKey].map(([keyId, valueId]) => ({ keyId, valueId })),
   };
 }
 
@@ -261,6 +295,8 @@ export async function saveTask(
     })),
   ];
 
+  const labelsData = resolved.labels.map(({ keyId, valueId }) => ({ keyId, valueId }));
+
   const task = input.taskId
     ? await prisma.task.update({
         where: { id: input.taskId },
@@ -271,6 +307,13 @@ export async function saveTask(
           sectorId: resolved.homeSectorId,
           dueDate,
           links: { deleteMany: {}, create: linksData },
+          // Reconciliación (US3/FR-005/FR-007): se borran TODOS los TaskLabel de la
+          // tarea y se recrean solo los resueltos del texto nuevo. Si se quitó un
+          // $tag, su TaskLabel no vuelve a crearse (queda eliminado). Si se cambió
+          // el valor de una clave (ej. $Alta → $Baja), resolveTask ya dedupeó por
+          // keyId (Map, un valor por clave: @@id([taskId, keyId])), así que acá se
+          // crea un único TaskLabel con el valor nuevo para esa clave.
+          labels: { deleteMany: {}, create: labelsData },
           ...(input.editMeta && {
             lastEditedById: input.editMeta.lastEditedById,
             lastEditedAt: new Date(),
@@ -291,6 +334,7 @@ export async function saveTask(
           originType: input.contextWorkId ? "WORK" : "SECTOR",
           originSectorId: input.contextWorkId ? null : (input.contextSectorId ?? null),
           links: { create: linksData },
+          labels: { create: labelsData },
           position: await nextPosition(resolved.workId, resolved.homeSectorId),
         },
         include: taskInclude,

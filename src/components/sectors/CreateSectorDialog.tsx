@@ -2,12 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { ColorField } from "@/components/ui/ColorField";
 import { api } from "@/components/ui/useApi";
-
-const SECTOR_COLORS = [
-  "RED", "ORANGE", "AMBER", "GREEN", "TEAL",
-  "BLUE", "INDIGO", "VIOLET", "PINK", "GRAY",
-] as const;
 
 interface Group {
   id: string;
@@ -81,26 +77,12 @@ export function CreateSectorDialog({
       </div>
       <div className="dialog-field">
         <label>Color</label>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {SECTOR_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={`Color ${c}`}
-              aria-pressed={color === c}
-              onClick={() => setColor(color === c ? null : c)}
-              className={`sc-dot label-${c.toLowerCase()}`}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                cursor: "pointer",
-                border: color === c ? "2px solid var(--text)" : "2px solid transparent",
-                padding: 0,
-              }}
-            />
-          ))}
-        </div>
+        <ColorField
+          nullable
+          value={color}
+          onChange={(hex) => setColor(hex || null)}
+          ariaLabel="Color del sector"
+        />
       </div>
       <div className="dialog-field">
         <label htmlFor="ns-group">Grupo</label>

@@ -19,6 +19,11 @@ import {
   Heading4,
   List,
   ImageIcon,
+  ListOrdered,
+  CheckSquare,
+  Quote,
+  Code,
+  Minus,
 } from "@/components/ui/icons";
 
 /** Ícono por ítem del catálogo (mapeo UI, el dominio no conoce React/Lucide). */
@@ -30,6 +35,11 @@ const ICONS: Record<string, typeof Type> = {
   h4: Heading4,
   bullet: List,
   image: ImageIcon,
+  "numbered-list": ListOrdered,
+  "task-list": CheckSquare,
+  blockquote: Quote,
+  "code-block": Code,
+  divider: Minus,
 };
 
 export interface SlashMenuHandle {
@@ -66,6 +76,13 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function Sl
   useEffect(() => {
     setSelectedIndex(0);
   }, [itemsKey]);
+
+  // Al navegar con las flechas, mantené el ítem resaltado dentro del área visible
+  // del menú (si tiene scroll por overflow). `block: "nearest"` no salta si ya se ve.
+  useEffect(() => {
+    const active = containerRef.current?.querySelector(".slash-item.active");
+    active?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex, itemsKey]);
 
   // FR-201/edge case: reposiciona hacia arriba si el menú no entra cerca del borde inferior
   useLayoutEffect(() => {
@@ -152,7 +169,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function Sl
                   event.preventDefault();
                   command(item);
                 }}
-                onMouseEnter={() => setSelectedIndex(index)}
+                onMouseMove={() => setSelectedIndex(index)}
               >
                 <Icon size={16} className="slash-item-icon" />
                 <span className="slash-item-title">{item.title}</span>

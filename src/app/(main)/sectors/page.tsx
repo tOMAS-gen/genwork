@@ -186,7 +186,7 @@ export default function SectorsPage() {
                   <tr key={s.id} onClick={() => window.location.href = `/sectors/${s.id}`} style={{ cursor: "pointer" }}>
                     <td>
                       <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
-                        {s.color && <span className={`project-dot label-${s.color.toLowerCase()}`} />}
+                        {s.color && <span className="project-dot color-dot" style={{ "--c": s.color } as React.CSSProperties} />}
                         <strong>{s.name}</strong>
                       </div>
                     </td>

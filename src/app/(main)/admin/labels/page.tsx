@@ -12,7 +12,7 @@ export default async function LabelsAdminPage() {
   return (
     <div>
       <h1>Etiquetas</h1>
-      <LabelAdmin />
+      <LabelAdmin scope={{ kind: "global" }} />
     </div>
   );
 }

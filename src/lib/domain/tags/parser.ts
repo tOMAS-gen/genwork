@@ -5,15 +5,16 @@
  *   /nombre  → trabajo al que pertenece la tarea
  *   #nombre  → sector donde se ejecuta
  *   @nombre  → sector o usuario referenciado (necesita su aporte)
+ *   $nombre  → etiqueta de valor (clave/valor) asignada a la tarea
  *
  * Reglas:
  * - Una etiqueta solo se reconoce si el símbolo está al inicio del texto o precedido
  *   por espacio, y seguido de letra/número. "perfil 20/20" NO etiqueta (edge case spec).
- * - Escape con símbolo doble: "//", "##", "@@" → símbolo literal simple.
+ * - Escape con símbolo doble: "//", "##", "@@", "$$" → símbolo literal simple.
  * - El matching con entidades es insensible a mayúsculas y acentos: usar normalizeTagName.
  */
 
-export type TagSymbol = "/" | "#" | "@";
+export type TagSymbol = "/" | "#" | "@" | "$";
 
 export interface ParsedTag {
   symbol: TagSymbol;
@@ -31,7 +32,7 @@ export interface ParseResult {
   tags: ParsedTag[];
 }
 
-const SYMBOLS: ReadonlySet<string> = new Set(["/", "#", "@"]);
+const SYMBOLS: ReadonlySet<string> = new Set(["/", "#", "@", "$"]);
 // Letras (con acentos), números, guion, guion bajo y punto interno.
 const NAME_CHAR = /[\p{L}\p{N}_\-.]/u;
 
@@ -96,7 +97,7 @@ export function parseTags(rawText: string): ParseResult {
 
 /** Agrupa nombres parseados por símbolo, normalizados y sin duplicados. */
 export function tagsBySymbol(tags: readonly ParsedTag[]): Record<TagSymbol, string[]> {
-  const out: Record<TagSymbol, string[]> = { "/": [], "#": [], "@": [] };
+  const out: Record<TagSymbol, string[]> = { "/": [], "#": [], "@": [], "$": [] };
   const seen = new Set<string>();
   for (const t of tags) {
     const key = t.symbol + normalizeTagName(t.name);

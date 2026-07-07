@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
+import { ColorField } from "@/components/ui/ColorField";
 import { Trash2, Plus, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -17,54 +18,12 @@ interface StageDto {
   sortOrder: number;
 }
 
-const PALETTE: { value: string; label: string }[] = [
-  { value: "#ef4444", label: "Rojo" },
-  { value: "#f97316", label: "Naranja" },
-  { value: "#f59e0b", label: "Ámbar" },
-  { value: "#22c55e", label: "Verde" },
-  { value: "#10b981", label: "Esmeralda" },
-  { value: "#14b8a6", label: "Teal" },
-  { value: "#3b82f6", label: "Azul" },
-  { value: "#6366f1", label: "Índigo" },
-  { value: "#8b5cf6", label: "Violeta" },
-  { value: "#ec4899", label: "Rosa" },
-  { value: "#6b7280", label: "Gris" },
-  { value: "#92400e", label: "Marrón" },
-];
+const DEFAULT_NEW_COLOR = "#3b82f6";
 
 /** Extrae el mensaje de un error lanzado por el helper `api` (contrato { error }). */
 function errorMessage(err: unknown): string {
   const e = err as Error & { body?: { error?: { message?: string } } };
   return e.body?.error?.message ?? e.message ?? "Error inesperado";
-}
-
-function ColorSwatch({
-  value,
-  selected,
-  onClick,
-}: {
-  value: string;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`Color ${value}`}
-      aria-pressed={selected}
-      style={{
-        width: 24,
-        height: 24,
-        borderRadius: 6,
-        background: value,
-        border: selected ? "2px solid var(--text)" : "2px solid transparent",
-        outline: selected ? "1px solid var(--surface)" : "none",
-        cursor: "pointer",
-        padding: 0,
-      }}
-    />
-  );
 }
 
 /**
@@ -80,7 +39,7 @@ export default function StagesAdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState<string>(PALETTE[0].value);
+  const [newColor, setNewColor] = useState<string>(DEFAULT_NEW_COLOR);
 
   useEffect(() => {
     void (async () => {
@@ -230,16 +189,12 @@ export default function StagesAdminPage() {
                   {stage.name}
                 </span>
 
-                <div style={{ display: "flex", gap: 4 }}>
-                  {PALETTE.map((c) => (
-                    <ColorSwatch
-                      key={c.value}
-                      value={c.value}
-                      selected={stage.color === c.value}
-                      onClick={() => void updateStageColor(stage, c.value)}
-                    />
-                  ))}
-                </div>
+                <ColorField
+                  value={stage.color}
+                  onChange={(hex) => void updateStageColor(stage, hex)}
+                  ariaLabel={`Color de ${stage.name}`}
+                  align="end"
+                />
 
                 <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
                   <button
@@ -283,16 +238,11 @@ export default function StagesAdminPage() {
                 onKeyDown={(e) => e.key === "Enter" && void createStage()}
                 style={{ minWidth: 200 }}
               />
-              <div style={{ display: "flex", gap: 4 }}>
-                {PALETTE.map((c) => (
-                  <ColorSwatch
-                    key={c.value}
-                    value={c.value}
-                    selected={newColor === c.value}
-                    onClick={() => setNewColor(c.value)}
-                  />
-                ))}
-              </div>
+              <ColorField
+                value={newColor}
+                onChange={setNewColor}
+                ariaLabel="Color del nuevo estado"
+              />
               <button className="btn" onClick={() => void createStage()}>
                 <Plus size={14} />
                 Agregar

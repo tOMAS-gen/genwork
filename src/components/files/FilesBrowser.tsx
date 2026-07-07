@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Upload } from "@/components/ui/icons";
 
 interface StorageFileInfo {
   name: string;
@@ -58,6 +59,10 @@ export function FilesBrowser({
   const [nextcloudUrl, setNextcloudUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -81,6 +86,39 @@ export function FilesBrowser({
 
   useEffect(load, [load]);
 
+  const handleUpload = useCallback(
+    async (fileList: FileList | File[]) => {
+      const list = Array.from(fileList);
+      if (list.length === 0) return;
+      setUploading(true);
+      setUploadError(null);
+      try {
+        const fd = new FormData();
+        if (currentPath) fd.set("path", currentPath);
+        for (const f of list) fd.append("file", f);
+        const res = await fetch(`/api/works/${workId}/files/upload`, {
+          method: "POST",
+          body: fd,
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const code = body?.error?.code;
+          throw new Error(
+            code === "STORAGE_UNAVAILABLE"
+              ? "El almacenamiento no está configurado"
+              : body?.error?.message || "No se pudo subir el archivo",
+          );
+        }
+        load();
+      } catch (err) {
+        setUploadError((err as Error).message);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [workId, currentPath, load],
+  );
+
   const openFolder = (file: StorageFileInfo) => {
     setCurrentPath(file.path);
   };
@@ -92,13 +130,49 @@ export function FilesBrowser({
   const pathParts = currentPath.split("/").filter(Boolean);
 
   return (
-    <div className="file-explorer">
-      {nextcloudUrl && (
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--space-3)" }}>
+    <div
+      className={`file-explorer${dragging ? " file-explorer-dragging" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        if (e.dataTransfer.files.length) void handleUpload(e.dataTransfer.files);
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files?.length) void handleUpload(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+        >
+          <Upload size={16} />
+          {uploading ? "Subiendo…" : "Subir archivo"}
+        </button>
+        {nextcloudUrl && (
           <a href={nextcloudUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
             Abrir en Nextcloud
           </a>
-        </div>
+        )}
+      </div>
+
+      {uploadError && (
+        <p style={{ color: "var(--danger)", marginTop: 0 }}>{uploadError}</p>
       )}
 
       {currentPath && (

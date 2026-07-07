@@ -37,6 +37,10 @@ export async function requireLabelAdmin(
     throw forbidden("Solo el dueño del espacio personal puede administrar sus etiquetas");
   }
 
-  if (scope.groupId !== null && canManageGroup(ctx, scope.groupId)) return;
-  throw forbidden("Solo un administrador del grupo puede administrar sus etiquetas");
+  if (scope.groupId !== null) {
+    if (canManageGroup(ctx, scope.groupId)) return;
+    throw forbidden("Solo un administrador del grupo puede administrar sus etiquetas");
+  }
+
+  throw forbidden("Solo el administrador del sistema puede administrar las etiquetas globales");
 }

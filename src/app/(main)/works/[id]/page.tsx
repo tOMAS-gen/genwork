@@ -34,6 +34,7 @@ interface WorkFull {
   labels: WorkLabelDto[];
   nextcloudFolderPath: string | null;
   folderSeq: number;
+  code: string;
   dueDate: string | null;
   stageId: string | null;
   stage: { id: string; name: string; color: string | null } | null;
@@ -50,6 +51,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   usePageTitle(work?.name ?? null);
   const [docLoaded, setDocLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files">("tasks");
+  const [codeCopied, setCodeCopied] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(() => {
@@ -137,16 +139,20 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           <div className="sheet-title-row">
             {(() => {
               const color = getProjectColor(work.labels);
-              return color ? <span className={`project-dot label-${color.toLowerCase()}`} /> : null;
+              return (
+                <span
+                  className={`entity-color-dot${color ? "" : " entity-color-dot-empty"}`}
+                  style={color ? { background: color } : undefined}
+                  aria-hidden="true"
+                />
+              );
             })()}
-            <div>
-              <h1 className="sheet-title">{work.name}</h1>
-              <p className="sheet-desc">
-                {work.group ? `Grupo ${work.group.name}` : "Espacio personal"}
-                {work.status === "ARCHIVED" && " · ARCHIVADO"}
-              </p>
-            </div>
+            <h1 className="sheet-title">{work.name}</h1>
           </div>
+          <p className="sheet-desc">
+            {work.group ? `Grupo ${work.group.name}` : "Espacio personal"}
+            {work.status === "ARCHIVED" && " · ARCHIVADO"}
+          </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
           <ProjectMenu
@@ -181,6 +187,47 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           labels={work.labels}
           onChanged={load}
         />
+      </div>
+
+      {/* Código de referencia de la carpeta (feature 035) */}
+      <div
+        style={{
+          marginTop: "var(--space-2)",
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-2)",
+          flexWrap: "wrap",
+        }}
+      >
+        <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
+          Código / carpeta
+        </span>
+        <code
+          style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: "var(--text-sm)",
+            background: "var(--hover-soft)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)",
+            padding: "2px 8px",
+            userSelect: "all",
+          }}
+        >
+          {work.code}
+        </code>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ padding: "2px 8px", fontSize: "var(--text-xs)" }}
+          onClick={() => {
+            void navigator.clipboard.writeText(work.code).then(() => {
+              setCodeCopied(true);
+              setTimeout(() => setCodeCopied(false), 1500);
+            });
+          }}
+        >
+          {codeCopied ? "¡Copiado!" : "Copiar"}
+        </button>
       </div>
 
       <ProjectTabs

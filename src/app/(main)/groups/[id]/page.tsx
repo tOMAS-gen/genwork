@@ -9,13 +9,11 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
-import { Inbox, Palette, Trash2, Users } from "@/components/ui/icons";
+import { Inbox, Trash2, Users } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
-
-const COLOR_OPTIONS = [
-  "RED", "ORANGE", "AMBER", "GREEN", "TEAL",
-  "BLUE", "INDIGO", "VIOLET", "PINK", "GRAY",
-] as const;
+import { LabelAdmin } from "@/components/works/LabelAdmin";
+import { ColorField } from "@/components/ui/ColorField";
+import { MemberSearchField, type MemberCandidate } from "@/components/groups/MemberSearchField";
 
 interface Membership {
   role: "ADMIN" | "MEMBER";
@@ -43,11 +41,11 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const [group, setGroup] = useState<Group | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
-  const [email, setEmail] = useState("");
+  const [selectedMember, setSelectedMember] = useState<MemberCandidate | null>(null);
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [status, setStatus] = useState("");
-  const [showPalette, setShowPalette] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
 
   usePageTitle(group?.name ?? null);
@@ -62,6 +60,10 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   }, [id]);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    void api<{ id: string }>("/api/me").then((me) => setCurrentUserId(me.id)).catch(() => {});
+  }, []);
 
   if (!group) {
     return (
@@ -78,8 +80,8 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const changeColor = async (color: string) => {
-    setShowPalette(false);
+  const changeColor = async (hex: string) => {
+    const color = hex === "" ? null : hex;
     try {
       await api(`/api/groups/${id}`, { method: "PATCH", body: JSON.stringify({ color }) });
       setGroup((prev) => prev ? { ...prev, color } : prev);
@@ -96,12 +98,13 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const addMember = async () => {
+    if (!selectedMember) return;
     try {
       await api(`/api/groups/${id}/members`, {
         method: "POST",
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email: selectedMember.email, role }),
       });
-      setEmail("");
+      setSelectedMember(null);
       setStatus("");
       load();
     } catch (err) {
@@ -117,6 +120,13 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       setStatus((err as Error).message);
     }
   };
+
+  // Admin de grupo (FR-021/canManageGroup): un ADMIN en memberships de este grupo.
+  // El owner ya recibe membership ADMIN al crear el grupo (ver POST /api/groups),
+  // así que no hace falta comparar contra group.ownerId por separado.
+  const isGroupAdmin =
+    currentUserId !== null &&
+    group.memberships.some((m) => m.user.id === currentUserId && m.role === "ADMIN");
 
   const togglePublicRead = async () => {
     try {
@@ -139,56 +149,22 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       <div className="sheet-header">
         <div>
           <div className="sheet-title-row">
-            <div style={{ position: "relative" }}>
-              <span
-                className={`project-dot label-${(group.color ?? "gray").toLowerCase()}`}
-              />
-              {showPalette && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    marginTop: 6,
-                    display: "flex",
-                    gap: 6,
-                    padding: 8,
-                    background: "var(--surface)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    boxShadow: "var(--shadow-md)",
-                    zIndex: 10,
-                  }}
-                >
-                  {COLOR_OPTIONS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      className={`sc-dot label-${c.toLowerCase()}`}
-                      style={{ border: "none", padding: 0, cursor: "pointer" }}
-                      onClick={() => void changeColor(c)}
-                      aria-label={c}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <h1 className="sheet-title">{group.name}</h1>
-              <p className="sheet-desc">
-                {group.memberships.length} miembros · {group._count.sectors} sectores · {group._count.works} proyectos
-                {group.publicRead && " · Lectura pública"}
-              </p>
-            </div>
+            <ColorField
+              nullable
+              value={group.color}
+              onChange={(hex) => void changeColor(hex)}
+              ariaLabel="Color del grupo"
+              align="start"
+            />
+            <h1 className="sheet-title">{group.name}</h1>
           </div>
+          <p className="sheet-desc">
+            {group.memberships.length} miembros · {group._count.sectors} sectores · {group._count.works} proyectos
+            {group.publicRead && " · Lectura pública"}
+          </p>
         </div>
         <Menu
           items={[
-            {
-              label: "Cambiar color",
-              icon: <Palette size={16} />,
-              onSelect: () => setShowPalette((v) => !v),
-            },
             {
               label: "Eliminar grupo",
               icon: <Trash2 size={16} />,
@@ -217,13 +193,14 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       <div style={{ marginTop: "var(--space-5)" }}>
         <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>Miembros</h2>
         <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-2)", flexWrap: "wrap" }}>
-          <input
-            placeholder="correo@ejemplo.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && void addMember()}
-            style={{ flex: 1, minWidth: 200 }}
-          />
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <MemberSearchField
+              groupId={id}
+              selected={selectedMember}
+              onSelect={setSelectedMember}
+              onClear={() => setSelectedMember(null)}
+            />
+          </div>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN")}
@@ -232,7 +209,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             <option value="MEMBER">Miembro</option>
             <option value="ADMIN">Administrador</option>
           </select>
-          <button className="btn btn-primary" onClick={() => void addMember()}>
+          <button className="btn btn-primary" disabled={!selectedMember} onClick={() => void addMember()}>
             Agregar
           </button>
         </div>
@@ -263,6 +240,16 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           ))}
         </div>
       </div>
+
+      {/* Etiquetas del grupo (solo administradores; el servidor igualmente aplica el 403) */}
+      {isGroupAdmin && (
+        <div style={{ marginTop: "var(--space-5)" }}>
+          <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
+            Etiquetas del grupo
+          </h2>
+          <LabelAdmin scope={{ kind: "group", groupId: id }} />
+        </div>
+      )}
 
       {/* Proyectos */}
       <div style={{ marginTop: "var(--space-5)" }}>

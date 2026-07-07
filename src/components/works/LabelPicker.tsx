@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { api } from "@/components/ui/useApi";
-import { Tag } from "@/components/ui/icons";
+import { Tag, Search } from "@/components/ui/icons";
+import { normalizeTagName } from "@/lib/domain/tags/parser";
 
 interface LabelValueDto {
   id: string;
@@ -14,6 +15,7 @@ interface LabelValueDto {
 interface LabelKeyDto {
   id: string;
   name: string;
+  scope?: "global" | "group" | "personal";
   values: LabelValueDto[];
 }
 
@@ -49,6 +51,7 @@ export function LabelPicker({
   const [keys, setKeys] = useState<LabelKeyDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [query, setQuery] = useState("");
 
   const labelsQuery = workGroupId ? `?groupId=${workGroupId}` : "";
 
@@ -68,11 +71,37 @@ export function LabelPicker({
   const openPicker = () => {
     setOpen(true);
     setError("");
+    setQuery("");
     void loadKeys();
   };
 
   const assignedValueId = (keyId: string) =>
     labels.find((l) => l.keyId === keyId)?.valueId ?? null;
+
+  const scopeLabel: Record<"global" | "group" | "personal", string> = {
+    global: "Globales",
+    group: "Del grupo",
+    personal: "Personales",
+  };
+
+  // Filtro por texto: matchea nombre de clave o de valor (case/acento-insensible).
+  // Si la clave matchea, se muestran todos sus valores; si no, solo los valores
+  // que matcheen individualmente.
+  const filteredKeys = useMemo(() => {
+    const q = normalizeTagName(query.trim());
+    if (!q) return keys;
+    return keys
+      .map((k) => {
+        if (normalizeTagName(k.name).includes(q)) return k;
+        const values = k.values.filter((v) => normalizeTagName(v.name).includes(q));
+        return values.length > 0 ? { ...k, values } : null;
+      })
+      .filter((k): k is LabelKeyDto => k !== null);
+  }, [keys, query]);
+
+  const scopeSections = (["global", "group", "personal"] as const)
+    .map((scope) => ({ scope, keys: filteredKeys.filter((k) => (k.scope ?? "personal") === scope) }))
+    .filter((section) => section.keys.length > 0);
 
   const toggleValue = async (keyId: string, valueId: string) => {
     setError("");
@@ -94,7 +123,7 @@ export function LabelPicker({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
       {labels.map((l) => (
-        <span key={l.keyId} className={`label-chip label-${l.color.toLowerCase()}`}>
+        <span key={l.keyId} className="label-chip color-chip" style={{ "--c": l.color } as React.CSSProperties}>
           {l.valueName}
         </span>
       ))}
@@ -107,37 +136,68 @@ export function LabelPicker({
 
         {!loading && keys.length === 0 && (
           <p className="muted" style={{ margin: 0 }}>
-            Todavía no hay etiquetas en este ámbito.
+            No hay etiquetas disponibles.
+          </p>
+        )}
+
+        {!loading && keys.length > 0 && (
+          <div className="label-picker-search">
+            <Search size={15} className="label-picker-search-icon" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar etiqueta…"
+              aria-label="Buscar etiqueta"
+              autoFocus
+            />
+          </div>
+        )}
+
+        {!loading && keys.length > 0 && scopeSections.length === 0 && (
+          <p className="muted" style={{ margin: 0 }}>
+            Sin resultados.
           </p>
         )}
 
         {!loading &&
-          keys.map((key) => (
-            <div key={key.id} style={{ display: "grid", gap: 4 }}>
-              <strong style={{ fontSize: 13 }}>{key.name}</strong>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {key.values.map((v) => (
-                  <button
-                    key={v.id}
-                    className={`label-chip label-${v.color.toLowerCase()}`}
-                    style={{
-                      border:
-                        assignedValueId(key.id) === v.id
-                          ? "2px solid var(--text)"
-                          : "2px solid transparent",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => void toggleValue(key.id, v.id)}
-                  >
-                    {v.name}
-                  </button>
-                ))}
-                {key.values.length === 0 && (
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    Sin valores todavía
-                  </span>
-                )}
-              </div>
+          scopeSections.map((section) => (
+            <div key={section.scope} style={{ display: "grid", gap: "var(--space-2)" }}>
+              <span
+                className="muted"
+                style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.4 }}
+              >
+                {scopeLabel[section.scope]}
+              </span>
+              {section.keys.map((key) => (
+                <div key={key.id} style={{ display: "grid", gap: 4 }}>
+                  <strong style={{ fontSize: 13 }}>{key.name}</strong>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {key.values.map((v) => (
+                      <button
+                        key={v.id}
+                        className="label-chip color-chip"
+                        style={{
+                          "--c": v.color,
+                          border:
+                            assignedValueId(key.id) === v.id
+                              ? "2px solid var(--text)"
+                              : "2px solid transparent",
+                          cursor: "pointer",
+                        } as React.CSSProperties}
+                        onClick={() => void toggleValue(key.id, v.id)}
+                      >
+                        {v.name}
+                      </button>
+                    ))}
+                    {key.values.length === 0 && (
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        Sin valores todavía
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
 

@@ -10,6 +10,8 @@ import { getStorageProvider } from "@/lib/storage";
 import { enqueue } from "@/lib/storage/queue";
 import { computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
 import { emit } from "@/server/events";
+import { labelScopeOf } from "@/lib/domain/labels/availability";
+import { buildProjectCode } from "@/lib/domain/works/projectCode";
 
 async function getWorkWithAccess(userId: string, id: string, need: "read" | "operate") {
   const ctx = await getUserContext(userId);
@@ -51,6 +53,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
           links: { include: { sector: true, user: { select: { id: true, name: true } } } },
           homeSector: { select: { id: true, name: true } },
           work: { select: { id: true, name: true } },
+          labels: { include: { value: { include: { key: true } } } },
         },
       },
       archive: true,
@@ -60,15 +63,28 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   if (!full) return NextResponse.json(full);
 
   // FR-408/409: no exponemos el include crudo de Prisma, aplanamos al shape del contrato
-  const { labels, ...rest } = full;
+  const { labels, tasks, ...rest } = full;
   return NextResponse.json({
     ...rest,
+    // Código de referencia legible de la carpeta del proyecto (feature 035)
+    code: buildProjectCode(full.group?.name ?? null, full.folderSeq, full.name),
     labels: labels.map((l) => ({
       keyId: l.keyId,
       keyName: l.value.key.name,
       valueId: l.valueId,
       valueName: l.value.name,
       color: l.value.color,
+      scope: labelScopeOf({ groupId: l.value.key.groupId, ownerId: l.value.key.ownerId }),
+    })),
+    tasks: tasks.map(({ labels: taskLabels, ...task }) => ({
+      ...task,
+      labels: taskLabels.map((l) => ({
+        keyId: l.keyId,
+        keyName: l.value.key.name,
+        valueId: l.valueId,
+        valueName: l.value.name,
+        color: l.value.color,
+      })),
     })),
   });
 });

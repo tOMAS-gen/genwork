@@ -49,6 +49,7 @@ const TAG_CLASS: Record<string, string> = {
   "#": "tag-exec",
   "@": "tag-ref",
   "/": "tag-work",
+  "$": "tag-label",
 };
 
 function renderSegments(

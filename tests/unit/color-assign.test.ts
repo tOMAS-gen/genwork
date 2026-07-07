@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { LabelColor } from "@prisma/client";
 import { assignSectorColor, SECTOR_COLORS } from "@/lib/domain/sectors/colorAssign";
+import { PRESET_COLORS } from "@/lib/domain/colors/palette";
 
 describe("assignSectorColor — rotación básica", () => {
   it("existingCount 0 → primer color", () => {
@@ -29,12 +29,12 @@ describe("assignSectorColor — no falla con 0 sectores", () => {
   });
 });
 
-describe("assignSectorColor — valores siempre válidos", () => {
-  it("todos los colores devueltos son LabelColor válidos", () => {
-    const validColors = Object.values(LabelColor);
+describe("assignSectorColor — rota sobre PRESET_COLORS (hex)", () => {
+  it("todos los colores devueltos son hex válidos de PRESET_COLORS", () => {
+    const validHexes = PRESET_COLORS.map((c) => c.hex);
     for (let i = 0; i < SECTOR_COLORS.length * 3; i++) {
       const color = assignSectorColor(i);
-      expect(validColors).toContain(color);
+      expect(validHexes).toContain(color);
     }
   });
 });

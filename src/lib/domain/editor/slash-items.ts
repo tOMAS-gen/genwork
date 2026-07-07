@@ -35,8 +35,15 @@ function deleteCommandRange(ctx: SlashRunContext) {
   return ctx.editor.chain().focus().deleteRange(ctx.range);
 }
 
-export function getSlashItems(): SlashItem[] {
-  return [
+export interface GetSlashItemsOptions {
+  /** Incluye el ítem "Imagen" (requiere Image extension + selector de archivo,
+   *  solo disponible en el editor de documentación de proyecto). Default: true. */
+  includeImage?: boolean;
+}
+
+export function getSlashItems(options: GetSlashItemsOptions = {}): SlashItem[] {
+  const { includeImage = true } = options;
+  const items: SlashItem[] = [
     {
       id: "text",
       title: "Texto",
@@ -159,6 +166,7 @@ export function getSlashItems(): SlashItem[] {
       },
     },
   ];
+  return includeImage ? items : items.filter((item) => item.id !== "image");
 }
 
 /** Normaliza para comparar: minúsculas y sin acentos (igual criterio que tags/parser.ts). */
