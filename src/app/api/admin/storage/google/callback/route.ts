@@ -15,6 +15,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
+  const oauthError = url.searchParams.get("error");
+  const oauthErrorDescription = url.searchParams.get("error_description");
   const cookieState = req.headers
     .get("cookie")
     ?.split(";")
@@ -29,6 +31,25 @@ export async function GET(req: Request) {
     res.cookies.delete("gdrive_oauth_state");
     return res;
   };
+
+  if (oauthError) {
+    const expectedRedirectUri = `${url.origin}/api/admin/storage/google/callback`;
+    const mapOAuthError = (error: string, description: string | null): string => {
+      switch (error) {
+        case "invalid_request":
+          return `Error de configuración OAuth: verificá que el OAuth consent screen esté completo en Google Cloud Console y que la URI de redirección coincida con: ${expectedRedirectUri}`;
+        case "access_denied":
+          return "Se canceló la autorización, o tu cuenta no está como usuario de prueba en Google Cloud Console.";
+        case "invalid_scope":
+          return "El permiso de Drive no está habilitado. Agregá el scope en Google Cloud Console > OAuth consent screen > Scopes.";
+        case "redirect_uri_mismatch":
+          return `La URI de redirección no coincide con la registrada en Google Cloud Console. Registrá: ${expectedRedirectUri}`;
+        default:
+          return `Error de Google: ${error}. ${description ?? ""} Verificá la configuración en Google Cloud Console.`;
+      }
+    };
+    return fail(mapOAuthError(oauthError, oauthErrorDescription));
+  }
 
   if (!code || !state || !cookieState || state !== cookieState) {
     return fail("Estado inválido o expirado; reintentá la conexión.");

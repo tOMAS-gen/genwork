@@ -36,6 +36,8 @@ export default function StorageAdminPage() {
   const [sharedDriveId, setSharedDriveId] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [status, setStatus] = useState("");
+  const [redirectUri, setRedirectUri] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const loadJobs = () => void api<Job[]>("/api/admin/storage/jobs").then(setJobs).catch(() => {});
 
@@ -51,6 +53,7 @@ export default function StorageAdminPage() {
   useEffect(() => {
     loadConfig();
     loadJobs();
+    setRedirectUri(`${window.location.origin}/api/admin/storage/google/callback`);
     // Estado del flujo OAuth de Google (feature 034)
     const params = new URLSearchParams(window.location.search);
     const gd = params.get("gdrive");
@@ -88,6 +91,16 @@ export default function StorageAdminPage() {
   const retry = async (jobId: string) => {
     await api("/api/admin/storage/jobs", { method: "POST", body: JSON.stringify({ jobId }) });
     loadJobs();
+  };
+
+  const copyRedirectUri = async () => {
+    try {
+      await navigator.clipboard.writeText(redirectUri);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard no disponible; el usuario puede copiar manualmente el texto mostrado.
+    }
   };
 
   return (
@@ -139,9 +152,48 @@ export default function StorageAdminPage() {
                 placeholder="ID de la unidad compartida dedicada"
               />
             </label>
-            <p className="muted" style={{ margin: 0 }}>
-              Autorizá con Google (permiso de Drive) y pegá el ID del Shared Drive dedicado. Ver la guía de configuración en el README de deploy.
-            </p>
+            <div>
+              <label className="muted" style={{ display: "block", marginBottom: 4 }}>
+                URI de redirección (registrar en Google Cloud Console):
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <code
+                  style={{
+                    background: "var(--surface-2, #f4f4f5)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 4,
+                    padding: "4px 8px",
+                    fontFamily: "monospace",
+                    fontSize: 13,
+                  }}
+                >
+                  {redirectUri}
+                </code>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => void copyRedirectUri()}
+                >
+                  {copied ? "Copiado ✓" : "Copiar"}
+                </button>
+              </div>
+            </div>
+
+            <details>
+              <summary>Guía de configuración de Google Cloud Console</summary>
+              <ol className="muted" style={{ marginTop: 8, paddingLeft: 20, display: "grid", gap: 4 }}>
+                <li>Ir a Google Cloud Console &gt; APIs &amp; Services &gt; OAuth consent screen</li>
+                <li>Configurar: nombre de app, email de soporte</li>
+                <li>
+                  Agregar scope: <code>https://www.googleapis.com/auth/drive</code>
+                </li>
+                <li>Si es External: agregar tu email como Test User</li>
+                <li>Ir a Credentials &gt; Create OAuth Client ID (tipo Web application)</li>
+                <li>Agregar Authorized redirect URI (la que se muestra arriba)</li>
+                <li>Copiar Client ID y Client Secret a las variables de entorno GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET</li>
+                <li>Reiniciar la app y hacer clic en &quot;Conectar con Google&quot;</li>
+              </ol>
+            </details>
           </>
         )}
 

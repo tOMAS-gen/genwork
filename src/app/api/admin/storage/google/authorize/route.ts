@@ -9,9 +9,23 @@ import { buildConsentUrl } from "@/lib/storage/google-auth";
 export async function GET(req: Request) {
   await requireSuperAdmin();
 
+  const fail = (msg: string) =>
+    NextResponse.redirect(
+      new URL(`/admin/storage?gdrive=error&detail=${encodeURIComponent(msg)}`, req.url),
+    );
+
   const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
   if (!clientId) {
-    return NextResponse.redirect(new URL("/admin/storage?gdrive=error", req.url));
+    return fail(
+      "Falta configurar GDRIVE_CLIENT_ID (o GOOGLE_CLIENT_ID) en el servidor; contactá al administrador.",
+    );
+  }
+
+  const clientSecret = process.env.GDRIVE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
+  if (!clientSecret) {
+    return fail(
+      "Falta configurar GDRIVE_CLIENT_SECRET (o GOOGLE_CLIENT_SECRET) en el servidor; contactá al administrador.",
+    );
   }
 
   const origin = new URL(req.url).origin;
