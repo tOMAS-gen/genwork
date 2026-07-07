@@ -145,11 +145,11 @@ export default function StorageAdminPage() {
               </span>
             </div>
             <label>
-              ID del Shared Drive
+              ID del Shared Drive (opcional — solo Google Workspace)
               <input
                 value={sharedDriveId}
                 onChange={(e) => setSharedDriveId(e.target.value)}
-                placeholder="ID de la unidad compartida dedicada"
+                placeholder="Vacío = usa Mi Drive (Gmail personal)"
               />
             </label>
             <div>

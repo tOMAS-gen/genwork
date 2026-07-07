@@ -21,14 +21,14 @@ export async function getStorageProvider(): Promise<StorageProvider | null> {
     } | null;
     const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
     const clientSecret = process.env.GDRIVE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
-    if (!gd?.refreshTokenEnc || !gd.sharedDriveId || !clientId || !clientSecret) {
+    if (!gd?.refreshTokenEnc || !clientId || !clientSecret) {
       return null; // storage opcional (FR-006): sin config completa, no disponible
     }
     return new GoogleDriveProvider({
       clientId,
       clientSecret,
       refreshToken: decryptSecret(gd.refreshTokenEnc),
-      sharedDriveId: gd.sharedDriveId,
+      sharedDriveId: gd.sharedDriveId || undefined,
       rootFolderId: gd.rootFolderId,
     });
   }

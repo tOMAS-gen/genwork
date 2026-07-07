@@ -64,23 +64,28 @@ export class GoogleDriveProvider implements StorageProvider {
     return res.json().catch(() => null);
   }
 
+  private useSharedDrive(): boolean {
+    return !!this.cfg.sharedDriveId;
+  }
+
   private rootParent(): string {
-    return this.cfg.rootFolderId ?? this.cfg.sharedDriveId;
+    return this.cfg.rootFolderId ?? this.cfg.sharedDriveId ?? "root";
   }
 
   /** Busca una subcarpeta por nombre bajo un parent; la crea si no existe (idempotente). */
   private async findOrCreateFolder(name: string, parentId: string): Promise<string> {
     const safe = name.replace(/'/g, "\\'");
     const q = `name = '${safe}' and '${parentId}' in parents and mimeType = '${FOLDER_MIME}' and trashed = false`;
-    const found = (await this.api("GET", "/files", {
-      query: {
-        q,
-        corpora: "drive",
-        driveId: this.cfg.sharedDriveId,
-        includeItemsFromAllDrives: "true",
-        fields: "files(id,name)",
-      },
-    })) as { files?: DriveFile[] };
+    const listQuery: Record<string, string> = {
+      q,
+      includeItemsFromAllDrives: "true",
+      fields: "files(id,name)",
+    };
+    if (this.useSharedDrive()) {
+      listQuery.corpora = "drive";
+      listQuery.driveId = this.cfg.sharedDriveId!;
+    }
+    const found = (await this.api("GET", "/files", { query: listQuery })) as { files?: DriveFile[] };
     if (found.files && found.files.length > 0) return found.files[0].id;
 
     const created = (await this.api("POST", "/files", {
@@ -180,17 +185,18 @@ export class GoogleDriveProvider implements StorageProvider {
 
   async listShallow(folderPath: string, subpath?: string): Promise<StorageFileInfo[]> {
     const parentId = subpath ? subpath : folderPath;
-    const data = (await this.api("GET", "/files", {
-      query: {
-        q: `'${parentId}' in parents and trashed = false`,
-        corpora: "drive",
-        driveId: this.cfg.sharedDriveId,
-        includeItemsFromAllDrives: "true",
-        fields: "files(id,name,mimeType,size,modifiedTime)",
-        orderBy: "folder,name",
-        pageSize: "1000",
-      },
-    })) as { files?: DriveFile[] };
+    const listQuery: Record<string, string> = {
+      q: `'${parentId}' in parents and trashed = false`,
+      includeItemsFromAllDrives: "true",
+      fields: "files(id,name,mimeType,size,modifiedTime)",
+      orderBy: "folder,name",
+      pageSize: "1000",
+    };
+    if (this.useSharedDrive()) {
+      listQuery.corpora = "drive";
+      listQuery.driveId = this.cfg.sharedDriveId!;
+    }
+    const data = (await this.api("GET", "/files", { query: listQuery })) as { files?: DriveFile[] };
     return (data.files ?? []).map((f) => this.mapFile(f));
   }
 
@@ -234,10 +240,17 @@ export class GoogleDriveProvider implements StorageProvider {
 
   async test(): Promise<{ ok: boolean; detail: string }> {
     try {
-      const drive = (await this.api("GET", `/drives/${this.cfg.sharedDriveId}`, {
-        query: { fields: "id,name" },
-      })) as { id: string; name: string };
-      return { ok: true, detail: `Conectado al Shared Drive "${drive.name}"` };
+      if (this.useSharedDrive()) {
+        const drive = (await this.api("GET", `/drives/${this.cfg.sharedDriveId}`, {
+          query: { fields: "id,name" },
+        })) as { id: string; name: string };
+        return { ok: true, detail: `Conectado al Shared Drive "${drive.name}"` };
+      }
+      const about = (await this.api("GET", "/about", {
+        query: { fields: "user(displayName,emailAddress)" },
+      })) as { user?: { displayName?: string; emailAddress?: string } };
+      const who = about.user?.emailAddress ?? about.user?.displayName ?? "OK";
+      return { ok: true, detail: `Conectado a Mi Drive (${who})` };
     } catch (err) {
       return { ok: false, detail: `Sin acceso a Google Drive: ${(err as Error).message}` };
     }

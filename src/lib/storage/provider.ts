@@ -77,8 +77,8 @@ export interface GoogleDriveConfig {
   clientSecret: string;
   /** Refresh token del administrador (ya descifrado). */
   refreshToken: string;
-  /** Shared Drive dedicado donde la plataforma administra los archivos. */
-  sharedDriveId: string;
-  /** Carpeta raíz opcional dentro del Shared Drive. */
+  /** Shared Drive dedicado (Workspace). Vacío/ausente = usar Mi Drive. */
+  sharedDriveId?: string;
+  /** Carpeta raíz dentro del Drive (Shared o Mi Drive). */
   rootFolderId?: string;
 }
