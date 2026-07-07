@@ -46,7 +46,7 @@ const putSchema = z.discriminatedUnion("provider", [
   }),
   z.object({
     provider: z.literal("GDRIVE"),
-    sharedDriveId: z.string().min(1),
+    sharedDriveId: z.string().optional(),
     rootFolderId: z.string().optional(),
   }),
 ]);
@@ -62,7 +62,7 @@ export const PUT = withApi(async (req) => {
     // Mergea sharedDrive/rootFolder sin tocar refreshTokenEnc/connectedEmail (los setea el OAuth).
     const storageConfig = {
       ...prev,
-      sharedDriveId: body.sharedDriveId,
+      sharedDriveId: body.sharedDriveId || null,
       ...(body.rootFolderId ? { rootFolderId: body.rootFolderId } : {}),
     };
     await prisma.accessConfig.upsert({
