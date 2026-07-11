@@ -1531,6 +1531,7 @@ dialog.dialog::backdrop {
   font-size: inherit;
   font-weight: 500;
   white-space: nowrap;
+  font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 .date-chip svg {
@@ -2087,12 +2088,14 @@ dialog.dialog::backdrop {
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--text);
+  font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 .stat-card .stat-pct {
   font-size: var(--text-sm);
   color: var(--muted);
   margin-top: var(--space-1);
+  font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 /* Barra de filtros */
