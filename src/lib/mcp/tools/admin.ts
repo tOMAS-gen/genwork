@@ -5,6 +5,8 @@ import { badRequest, conflict, forbidden, notFound } from "@/server/api";
 import { canManageGroup } from "@/lib/domain/permissions";
 import { normalizeEmail } from "@/lib/domain/access";
 import { enqueue } from "@/lib/storage/queue";
+import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
+import { assignSectorColor } from "@/lib/domain/sectors/colorAssign";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -202,6 +204,56 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
         });
 
         return toolSuccess(`Grupo "${group.name}" borrado.`);
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "admin.sector.create",
+    {
+      title: "Crear sector",
+      description:
+        "Crea un sector nuevo en el catálogo global (sin ámbito de grupo). Exclusivo de SUPERADMIN " +
+        "(feature 044: sectores globales).",
+      inputSchema: {
+        name: z.string().trim().min(1).max(80),
+        color: z.string().refine(isValidHex, "Color inválido").optional(),
+      },
+    },
+    async ({ name, color }) => {
+      try {
+        assertSuperAdmin(ctx);
+        const existing = await prisma.sector.findFirst({
+          where: { name: { equals: name, mode: "insensitive" } },
+        });
+        if (existing) {
+          return toolSuccess(`Ya existía un sector llamado "${existing.name}".`, {
+            id: existing.id,
+            name: existing.name,
+            color: existing.color,
+          });
+        }
+
+        const resolvedColor = color ? normalizeHex(color) : null;
+        const finalColor = resolvedColor ?? assignSectorColor(await prisma.sector.count());
+        const sector = await prisma.sector.create({ data: { name, color: finalColor } });
+
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "admin.sector.create",
+          targetType: "Sector",
+          targetId: sector.id,
+          summary: `El asistente de IA creó el sector "${sector.name}".`,
+        });
+
+        return toolSuccess(`Sector "${sector.name}" creado.`, {
+          id: sector.id,
+          name: sector.name,
+          color: sector.color,
+        });
       } catch (err) {
         return toToolErrorResult(err);
       }
