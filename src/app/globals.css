@@ -1,5 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-
 /* Design system genwork — Flat minimalista (design-system/genwork/MASTER.md) */
 :root {
   --bg: #f8fafc;
@@ -145,7 +143,7 @@
 
 body {
   margin: 0;
-  font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 15px;
