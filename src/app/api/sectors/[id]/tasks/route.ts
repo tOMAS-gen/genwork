@@ -5,13 +5,29 @@ import { requireSession } from "@/server/auth";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
 import { applyTaskFilters, type TaskFilters } from "@/lib/domain/views/filters";
+import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 
 const taskInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
   work: { select: { id: true, name: true, status: true } },
   homeSector: { select: { id: true, name: true } },
   labels: { include: { value: { include: { key: true } } } },
+  status: true,
 } as const;
+
+/** Adjunta el conjunto de estados aplicable (selector de estado en la UI, FR-011). */
+async function withStatusOptions<
+  T extends { workId: string | null; sectorId: string | null; links: { type: string; sectorId: string | null }[] },
+>(tasks: T[]): Promise<(T & { statusOptions: ReturnType<typeof statusOptionDto>[] })[]> {
+  return Promise.all(
+    tasks.map(async (t) => ({
+      ...t,
+      statusOptions: (await loadApplicableStatusSet(t.workId, t.sectorId, execSectorIdsOf(t.links))).map(
+        statusOptionDto,
+      ),
+    })),
+  );
+}
 
 /** Aplana el include crudo de `labels` al shape del contrato (análogo a works/[id]). */
 function withFlatLabels<T extends { labels: { keyId: string; valueId: string; value: { name: string; color: string; key: { name: string } } }[] }>(
@@ -40,24 +56,19 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 
   const sector = await prisma.sector.findUnique({
     where: { id },
-    include: { group: { select: { id: true, name: true, publicRead: true } } },
   });
   if (!sector) throw notFound();
 
   const ctx = await getUserContext(session.user.id);
-  const level = accessSector(ctx, {
-    id: sector.id,
-    groupId: sector.groupId,
-    ownerId: sector.ownerId,
-    groupPublicRead: sector.group?.publicRead ?? false,
-  });
+  const level = accessSector(ctx, sector.id);
   if (level === "none") throw notFound();
 
   const url = new URL(req.url);
   const filters: TaskFilters = {
     workId: url.searchParams.get("workId"),
     refSectorId: url.searchParams.get("refSectorId"),
-    state: (url.searchParams.get("state") as TaskFilters["state"]) ?? null,
+    statusId: url.searchParams.get("statusId"),
+    statusType: (url.searchParams.get("statusType") as TaskFilters["statusType"]) ?? null,
   };
   const labelValueId = url.searchParams.get("labelValueId");
   const labelKeyId = url.searchParams.get("labelKeyId");
@@ -98,14 +109,15 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     return items.filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
   };
 
-  const allExec = applyTaskFilters(
-    dedupe([...execLinks.map((l) => l.task), ...loose]),
-    filters,
+  const allExec = await withStatusOptions(
+    applyTaskFilters(dedupe([...execLinks.map((l) => l.task), ...loose]), filters),
   );
   const execIds = new Set(allExec.map((t) => t.id));
-  const refs = applyTaskFilters(
-    dedupe(refLinks.map((l) => l.task)).filter((t) => !execIds.has(t.id)),
-    filters,
+  const refs = await withStatusOptions(
+    applyTaskFilters(
+      dedupe(refLinks.map((l) => l.task)).filter((t) => !execIds.has(t.id)),
+      filters,
+    ),
   );
 
   // Split exec tasks: loose (no project) vs grouped by work
@@ -122,16 +134,14 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   }
   const byWork = [...byWorkMap.values()].sort((a, b) => a.work.name.localeCompare(b.work.name));
 
-  const allTasks = [...allExec, ...refs];
   const totalCount = allExec.length;
-  const doneCount = allExec.filter((t) => t.state === "DONE").length;
+  const doneCount = allExec.filter((t) => t.status.type === "FINAL").length;
 
   return NextResponse.json({
     sector: {
       id: sector.id,
       name: sector.name,
       color: sector.color,
-      group: sector.group ? { id: sector.group.id, name: sector.group.name } : null,
     },
     level,
     loose: looseExec.map(withFlatLabels),

@@ -1,28 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { conflict, forbidden, notFound, withApi } from "@/server/api";
-import { requireWriter } from "@/server/guards";
-import { getUserContext } from "@/server/user-context";
-import { accessSector } from "@/lib/domain/permissions";
+import { conflict, notFound, withApi } from "@/server/api";
+import { requireSuperAdmin } from "@/server/guards";
 import { emit } from "@/server/events";
 import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 
-async function getSectorWithOperate(userId: string, id: string) {
-  const sector = await prisma.sector.findUnique({
-    where: { id },
-    include: { group: { select: { publicRead: true } } },
-  });
+async function getSectorWithOperate(id: string) {
+  const sector = await prisma.sector.findUnique({ where: { id } });
   if (!sector) throw notFound();
-  const ctx = await getUserContext(userId);
-  const level = accessSector(ctx, {
-    id: sector.id,
-    groupId: sector.groupId,
-    ownerId: sector.ownerId,
-    groupPublicRead: sector.group?.publicRead ?? false,
-  });
-  if (level === "none") throw notFound();
-  if (level !== "operate") throw forbidden();
+  await requireSuperAdmin();
   return sector;
 }
 
@@ -37,22 +24,19 @@ const patchSchema = z
 
 /** Renombrar conserva vínculos (FR-015). */
 export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireWriter();
   const { id } = await params;
-  const sector = await getSectorWithOperate(session.user.id, id);
+  await getSectorWithOperate(id);
 
   const { name, color } = patchSchema.parse(await req.json());
 
   if (name !== undefined) {
     const dup = await prisma.sector.findFirst({
       where: {
-        groupId: sector.groupId,
-        ownerId: sector.ownerId,
         name: { equals: name, mode: "insensitive" },
         id: { not: id },
       },
     });
-    if (dup) throw conflict(`Ya existe un sector llamado "${name}" en este ámbito`);
+    if (dup) throw conflict(`Ya existe un sector llamado "${name}"`);
   }
 
   const updated = await prisma.sector.update({
@@ -70,9 +54,8 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
  * Sin ?confirm=true responde 409 con el conteo de tareas afectadas.
  */
 export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireWriter();
   const { id } = await params;
-  await getSectorWithOperate(session.user.id, id);
+  await getSectorWithOperate(id);
 
   const affectedTasks = await prisma.taskLink.count({ where: { sectorId: id } });
   const looseTasks = await prisma.task.count({ where: { sectorId: id } });

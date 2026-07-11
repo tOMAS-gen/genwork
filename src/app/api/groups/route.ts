@@ -16,12 +16,11 @@ export const GET = withApi(async () => {
           OR: [
             { memberships: { some: { userId: session.user.id } } },
             { publicRead: true },
-            { sectors: { some: { grants: { some: { userId: session.user.id } } } } },
           ],
         },
     include: {
       memberships: { include: { user: { select: { id: true, email: true, name: true } } } },
-      _count: { select: { sectors: true, works: true } },
+      _count: { select: { works: true } },
     },
     orderBy: { name: "asc" },
   });

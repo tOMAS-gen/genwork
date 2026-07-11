@@ -1,0 +1,92 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/db/client";
+import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
+import { forbidden, notFound, withApi } from "@/server/api";
+import { requireWriter } from "@/server/guards";
+import { getUserContext } from "@/server/user-context";
+import { access, accessSector, canManageGroup } from "@/lib/domain/permissions";
+import { listApplicableSet, createStatus, type StatusScope } from "@/server/taskStatus";
+
+/** Resuelve el `StatusScope` desde query params/body y valida permiso de escritura. */
+async function resolveScopeAndAuthorize(
+  ctx: Awaited<ReturnType<typeof getUserContext>>,
+  params: { groupId?: string | null; ownerId?: string | null; sectorId?: string | null },
+  requireWrite: boolean,
+): Promise<StatusScope> {
+  if (params.sectorId) {
+    const sector = await prisma.sector.findUnique({ where: { id: params.sectorId } });
+    if (!sector) throw notFound("Sector no encontrado");
+    if (requireWrite) {
+      const level = accessSector(ctx, sector.id);
+      if (level !== "operate") throw forbidden("No administrás ese sector");
+    }
+    return { sectorId: params.sectorId };
+  }
+  if (params.groupId) {
+    if (requireWrite && !canManageGroup(ctx, params.groupId)) {
+      throw forbidden("El conjunto general de un grupo solo lo edita un administrador");
+    }
+    return { groupId: params.groupId };
+  }
+  const ownerId = params.ownerId ?? ctx.id;
+  if (requireWrite && access(ctx, { groupId: null, ownerId }) !== "operate") {
+    throw forbidden("No podés editar el conjunto personal de otro usuario");
+  }
+  return { ownerId };
+}
+
+/** GET /api/task-statuses?groupId=|ownerId=|sectorId= — conjunto aplicable a ese scope. */
+export const GET = withApi(async (req) => {
+  const session = await requireWriter();
+  const ctx = await getUserContext(session.user.id);
+  const url = new URL(req.url);
+  const scope = await resolveScopeAndAuthorize(
+    ctx,
+    {
+      groupId: url.searchParams.get("groupId"),
+      ownerId: url.searchParams.get("ownerId"),
+      sectorId: url.searchParams.get("sectorId"),
+    },
+    false,
+  );
+
+  const { inherited, statuses } = await listApplicableSet(scope);
+  return NextResponse.json({
+    inherited,
+    statuses: statuses.map((s) => ({
+      id: s.id,
+      name: s.name,
+      color: s.color,
+      type: s.type,
+      sortOrder: s.sortOrder,
+    })),
+  });
+});
+
+const createSchema = z.object({
+  groupId: z.string().uuid().optional(),
+  ownerId: z.string().uuid().optional(),
+  sectorId: z.string().uuid().optional(),
+  name: z.string().trim().min(1).max(80),
+  color: z.string().refine(isValidHex, "Color inválido"),
+  type: z.enum(["IN_PROGRESS", "FINAL"]),
+});
+
+/** POST /api/task-statuses — crea un estado nuevo en el conjunto del scope indicado. */
+export const POST = withApi(async (req) => {
+  const session = await requireWriter();
+  const ctx = await getUserContext(session.user.id);
+  const body = createSchema.parse(await req.json());
+  const scope = await resolveScopeAndAuthorize(ctx, body, true);
+
+  const status = await createStatus(scope, {
+    name: body.name,
+    color: normalizeHex(body.color)!,
+    type: body.type,
+  });
+  return NextResponse.json(
+    { id: status.id, name: status.name, color: status.color, type: status.type, sortOrder: status.sortOrder },
+    { status: 201 },
+  );
+});

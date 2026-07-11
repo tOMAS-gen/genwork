@@ -32,11 +32,12 @@ export const GET = withApi(async (req) => {
     if (!work) throw notFound();
     scopeWhere = work.groupId ? { groupId: work.groupId } : { ownerId: work.ownerId ?? ctx.id };
   } else if (contextSectorId) {
+    // El sector es catálogo global (feature 044): ya no tiene groupId/ownerId propio,
+    // así que no aporta ámbito de grupo. Solo validamos que exista y caemos al ámbito
+    // personal del usuario (mismo criterio que "sin contexto").
     const sector = await prisma.sector.findUnique({ where: { id: contextSectorId } });
     if (!sector) throw notFound();
-    scopeWhere = sector.groupId
-      ? { groupId: sector.groupId }
-      : { ownerId: sector.ownerId ?? ctx.id };
+    scopeWhere = { ownerId: ctx.id };
   } else {
     scopeWhere = { ownerId: ctx.id };
   }
@@ -57,7 +58,9 @@ export const GET = withApi(async (req) => {
       .filter((w) => matches(w.name) && canAddress(ctx, scopeOf(w)))
       .map((w) => ({ id: w.id, name: w.name, type: "work" as const, insertText: toTagForm(w.name) }));
   } else if (symbol === "#" || symbol === "@") {
-    const sectors = await prisma.sector.findMany({ where: scopeWhere });
+    // Sector es catálogo global (feature 044): sin scope de grupo/personal, cualquier
+    // sector es sugerible por nombre sin filtrar por scopeWhere.
+    const sectors = await prisma.sector.findMany({});
     results = sectors
       .filter((s) => matches(s.name))
       .map((s) => ({

@@ -5,7 +5,7 @@ export interface GroupCardData {
   name: string;
   color: string | null;
   publicRead: boolean;
-  _count: { sectors: number; works: number };
+  _count: { works: number };
   memberships: { user: { email: string } }[];
 }
 
@@ -27,7 +27,7 @@ export function GroupCard({ group }: { group: GroupCardData }) {
       </div>
 
       <div className="pc-group">
-        {group.memberships.length} miembros · {group._count.sectors} sectores · {group._count.works} proyectos
+        {group.memberships.length} miembros · {group._count.works} proyectos
       </div>
     </Link>
   );

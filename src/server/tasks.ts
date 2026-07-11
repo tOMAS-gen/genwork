@@ -7,30 +7,111 @@ import { prisma } from "@/lib/db/client";
 import { parseTags, tagsBySymbol } from "@/lib/domain/tags/parser";
 import { matchByTag, tagMatchesName } from "@/lib/domain/tags/matching";
 import { parseDates } from "@/lib/domain/dates/parser";
-import { toggleState } from "@/lib/domain/tasks/state";
+import { applyStatusChange } from "@/lib/domain/tasks/state";
+import {
+  resolveApplicableStatusSet,
+  initialStatus,
+  reassignOnSectorChange,
+  type TaskScopeRef,
+  type TaskStatusRef,
+} from "@/lib/domain/tasks/statusResolution";
 import {
   canAddress,
   canToggle,
   type Scope,
-  type SectorRef,
   type TaskRef,
   type UserContext,
 } from "@/lib/domain/permissions";
 import { conflict, forbidden, notFound } from "@/server/api";
 import { emit } from "@/server/events";
-import type { Prisma, Sector, Task, TaskLink, User, Work, Group } from "@prisma/client";
+import type { Prisma, Sector, Task, TaskLink, TaskStatus, User, Work, Group } from "@prisma/client";
 
 export type TaskWithLinks = Task & {
   links: (TaskLink & { sector: Sector | null; user: Pick<User, "id" | "name"> | null })[];
   work: Pick<Work, "id" | "name"> | null;
   homeSector: Pick<Sector, "id" | "name"> | null;
+  status: TaskStatus;
 };
 
 const taskInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
   work: { select: { id: true, name: true } },
   homeSector: { select: { id: true, name: true } },
+  status: true,
 } satisfies Prisma.TaskInclude;
+
+/** Cliente Prisma o de transacción — las consultas de scope funcionan con cualquiera de los dos. */
+type DbClient = typeof prisma | Prisma.TransactionClient;
+
+/**
+ * Scope de estado de una tarea (research.md D2, ajustado por feature 044): su sector EXEC
+ * (pertenencia, `#`) si tiene uno, más SIEMPRE el scope de su trabajo. El sector es
+ * catálogo global (feature 044) y ya no aporta groupId/ownerId, así que el workScope es el
+ * default del que hereda una tarea cuyo sector EXEC no tiene conjunto propio de estados.
+ */
+export async function resolveStatusScope(
+  workId: string | null,
+  homeSectorId: string | null,
+  execSectorIds: readonly string[],
+  db: DbClient = prisma,
+): Promise<TaskScopeRef> {
+  let workScope: TaskScopeRef["workScope"] = null;
+  if (workId) {
+    const work = await db.work.findUnique({ where: { id: workId } });
+    if (work) workScope = { groupId: work.groupId, ownerId: work.ownerId };
+  }
+
+  const sectorId = execSectorIds[0] ?? homeSectorId ?? null;
+  if (sectorId) {
+    const sector = await db.sector.findUnique({ where: { id: sectorId } });
+    // El sector es catálogo global (feature 044): ya no aporta groupId/ownerId; solo su
+    // id sirve para el override de estados por sector (TaskStatus.sectorId). El workScope
+    // viaja igual para servir de fallback si el sector no tiene conjunto propio.
+    if (sector) return { execSector: { id: sector.id, groupId: null, ownerId: null }, workScope };
+  }
+  return { execSector: null, workScope };
+}
+
+/** Candidatos de TaskStatus para un scope: el override de sector (si aplica) + el default de grupo/owner del work. */
+export async function fetchStatusCandidates(
+  scope: TaskScopeRef,
+  db: DbClient = prisma,
+): Promise<TaskStatusRef[]> {
+  const orFilters: Prisma.TaskStatusWhereInput[] = [];
+  if (scope.execSector) orFilters.push({ sectorId: scope.execSector.id });
+  // El default del work viaja siempre: es el fallback de un sector EXEC sin conjunto propio.
+  if (scope.workScope) {
+    if (scope.workScope.groupId) orFilters.push({ groupId: scope.workScope.groupId });
+    if (scope.workScope.ownerId) orFilters.push({ ownerId: scope.workScope.ownerId });
+  }
+  if (orFilters.length === 0) return [];
+  return db.taskStatus.findMany({ where: { OR: orFilters } });
+}
+
+export function execSectorIdsOf(links: readonly { type: string; sectorId: string | null }[]): string[] {
+  return links.filter((l) => l.type === "EXEC" && l.sectorId).map((l) => l.sectorId as string);
+}
+
+/**
+ * Conjunto aplicable de un `TaskStatus` para incluir en respuestas de listado
+ * (selector de estado en la UI, FR-011). No se restringe a nombre único: el
+ * cliente resuelve display.
+ */
+export function statusOptionDto(s: TaskStatusRef) {
+  return { id: s.id, name: s.name, color: s.color, type: s.type, sortOrder: s.sortOrder };
+}
+
+/** Conjunto de estados aplicable a una tarea, dado su scope resuelto (research.md D2). */
+export async function loadApplicableStatusSet(
+  workId: string | null,
+  homeSectorId: string | null,
+  execSectorIds: readonly string[],
+  db: DbClient = prisma,
+): Promise<TaskStatusRef[]> {
+  const scope = await resolveStatusScope(workId, homeSectorId, execSectorIds, db);
+  const candidates = await fetchStatusCandidates(scope, db);
+  return resolveApplicableStatusSet(scope, candidates);
+}
 
 export function scopeOf(entity: { groupId: string | null; ownerId: string | null }): Scope {
   return { groupId: entity.groupId, ownerId: entity.ownerId };
@@ -49,40 +130,22 @@ function scopeWithPublic(entity: {
 }
 
 export async function toTaskRef(task: TaskWithLinks): Promise<TaskRef> {
-  const [work, homeSector] = await Promise.all([
-    task.workId
-      ? prisma.work.findUnique({ where: { id: task.workId }, include: { group: true } })
-      : null,
-    task.sectorId
-      ? prisma.sector.findUnique({ where: { id: task.sectorId }, include: { group: true } })
-      : null,
-  ]);
+  const work = task.workId
+    ? await prisma.work.findUnique({ where: { id: task.workId }, include: { group: true } })
+    : null;
 
-  const sectorIds = task.links
-    .filter((l) => l.targetType === "SECTOR" && l.sectorId)
-    .map((l) => l.sectorId as string);
-  const sectors = await prisma.sector.findMany({
-    where: { id: { in: sectorIds } },
-    include: { group: true },
-  });
-  const sectorRef = (s: (typeof sectors)[number]): SectorRef => ({
-    id: s.id,
-    ...scopeWithPublic(s),
-  });
-  const byId = new Map(sectors.map((s) => [s.id, s]));
-
-  const linksOf = (type: "EXEC" | "REF") =>
+  // Los sectores son catálogo global (feature 044): el motor de permisos solo
+  // necesita sus ids planos (accessSector resuelve por SectorGrant), sin scope.
+  const linkSectorIds = (type: "EXEC" | "REF"): string[] =>
     task.links
       .filter((l) => l.type === type && l.targetType === "SECTOR" && l.sectorId)
-      .map((l) => byId.get(l.sectorId as string))
-      .filter((s): s is (typeof sectors)[number] => Boolean(s))
-      .map(sectorRef);
+      .map((l) => l.sectorId as string);
 
   return {
     workScope: work ? scopeWithPublic(work) : null,
-    homeSector: homeSector ? { id: homeSector.id, ...scopeWithPublic(homeSector) } : null,
-    execSectors: linksOf("EXEC"),
-    refSectors: linksOf("REF"),
+    homeSector: task.sectorId,
+    execSectors: linkSectorIds("EXEC"),
+    refSectors: linkSectorIds("REF"),
     refUserIds: new Set(
       task.links
         .filter((l) => l.type === "REF" && l.targetType === "USER" && l.userId)
@@ -129,12 +192,12 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
     : null;
   if (input.contextWorkId && !contextWork) throw notFound("Trabajo no encontrado");
 
-  // Ámbito de referencia para resolver nombres: el del contexto donde se escribe
+  // Ámbito de referencia para resolver `/trabajo` y `$etiqueta`: el del contexto donde
+  // se escribe. Los sectores ya no tienen ámbito propio (catálogo global, feature 044),
+  // así que un contexto de sector cae al ámbito personal del usuario.
   const contextScope: Scope = contextWork
     ? scopeOf(contextWork)
-    : contextSector
-      ? scopeOf(contextSector)
-      : { groupId: null, ownerId: ctx.id };
+    : { groupId: null, ownerId: ctx.id };
 
   const scopeWhere =
     contextScope.groupId !== null
@@ -158,8 +221,9 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
     }
   }
 
-  // --- `#sector`: ejecución ---
-  const sectors = await prisma.sector.findMany({ where: scopeWhere });
+  // --- `#sector`: ejecución. Catálogo global (feature 044): el nombre es único a
+  // nivel organización, así que se resuelve sobre todos los sectores sin acotar por ámbito. ---
+  const sectors = await prisma.sector.findMany();
   const findSector = (name: string) => matchByTag(name, sectors, (s) => s.name);
 
   const execSectorIds = new Set<string>();
@@ -297,6 +361,32 @@ export async function saveTask(
 
   const labelsData = resolved.labels.map(({ keyId, valueId }) => ({ keyId, valueId }));
 
+  const applicableSet = await loadApplicableStatusSet(
+    resolved.workId,
+    resolved.homeSectorId,
+    resolved.execSectorIds,
+  );
+
+  // Al editar: si el sector/trabajo cambió de forma que el estado actual ya no
+  // pertenece al conjunto aplicable, reasignar por tipo (FR-015). Al crear: el
+  // primer estado IN_PROGRESS del conjunto (FR-009).
+  let statusId: string;
+  let previousStatusId: string | null = null;
+  if (input.taskId) {
+    const existing = await prisma.task.findUnique({
+      where: { id: input.taskId },
+      select: { status: { select: { id: true, type: true } } },
+    });
+    if (!existing) throw notFound("Tarea no encontrada");
+    previousStatusId = existing.status.id;
+    statusId = reassignOnSectorChange(
+      { ...existing.status, name: "", color: "", sortOrder: 0, groupId: null, ownerId: null, sectorId: null },
+      applicableSet,
+    ).id;
+  } else {
+    statusId = initialStatus(applicableSet).id;
+  }
+
   const task = input.taskId
     ? await prisma.task.update({
         where: { id: input.taskId },
@@ -305,6 +395,7 @@ export async function saveTask(
           displayText: resolved.displayText,
           workId: resolved.workId,
           sectorId: resolved.homeSectorId,
+          statusId,
           dueDate,
           links: { deleteMany: {}, create: linksData },
           // Reconciliación (US3/FR-005/FR-007): se borran TODOS los TaskLabel de la
@@ -328,6 +419,7 @@ export async function saveTask(
           displayText: resolved.displayText,
           workId: resolved.workId,
           sectorId: resolved.homeSectorId,
+          statusId,
           dueDate,
           creatorId: ctx.id,
           // Propiedad de edición (FR-401): origen según contexto de creación.
@@ -339,6 +431,19 @@ export async function saveTask(
         },
         include: taskInclude,
       });
+
+  // Historial de estado (US4, FR-019): registrar el cambio si es una tarea nueva
+  // (fromStatusId null) o si el estado efectivamente cambió al editar.
+  if (!input.taskId || previousStatusId !== statusId) {
+    await prisma.taskStatusChange.create({
+      data: {
+        taskId: task.id,
+        fromStatusId: previousStatusId,
+        toStatusId: statusId,
+        changedById: ctx.id,
+      },
+    });
+  }
 
   emit({
     type: "task-changed",
@@ -362,7 +467,28 @@ export async function getTaskOrThrow(taskId: string): Promise<TaskWithLinks> {
   return task;
 }
 
-export async function toggleTask(ctx: UserContext, taskId: string): Promise<TaskWithLinks> {
+/** Historial de transiciones de estado de una tarea (US4), más reciente primero. */
+export async function getTaskStatusHistory(taskId: string) {
+  return prisma.taskStatusChange.findMany({
+    where: { taskId },
+    include: {
+      fromStatus: { select: { id: true, name: true, color: true } },
+      toStatus: { select: { id: true, name: true, color: true } },
+      changedBy: { select: { id: true, name: true } },
+    },
+    orderBy: { changedAt: "desc" },
+  });
+}
+
+/**
+ * Cambia el estado de una tarea a cualquier estado del conjunto aplicable
+ * (FR-010, sin restricción de orden). Reemplaza al viejo toggleTask() binario.
+ */
+export async function setTaskStatus(
+  ctx: UserContext,
+  taskId: string,
+  statusId: string,
+): Promise<TaskWithLinks> {
   const task = await getTaskOrThrow(taskId);
   const ref = await toTaskRef(task);
   if (!canToggle(ctx, ref)) {
@@ -371,11 +497,27 @@ export async function toggleTask(ctx: UserContext, taskId: string): Promise<Task
     );
   }
 
+  const execSectorIds = task.links
+    .filter((l) => l.type === "EXEC" && l.sectorId)
+    .map((l) => l.sectorId as string);
+  const applicableSet = await loadApplicableStatusSet(task.workId, task.sectorId, execSectorIds);
+  const newStatus = applicableSet.find((s) => s.id === statusId);
+  if (!newStatus) {
+    throw conflict("Ese estado no pertenece al conjunto de estados aplicable a esta tarea");
+  }
+
+  const previousStatusId = task.statusId;
   const updated = await prisma.task.update({
     where: { id: taskId },
-    data: toggleState(task.state, ctx.id, new Date()),
+    data: applyStatusChange(newStatus, ctx.id, new Date()),
     include: taskInclude,
   });
+
+  if (previousStatusId !== statusId) {
+    await prisma.taskStatusChange.create({
+      data: { taskId, fromStatusId: previousStatusId, toStatusId: statusId, changedById: ctx.id },
+    });
+  }
 
   emit({
     type: "task-changed",

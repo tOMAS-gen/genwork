@@ -38,14 +38,33 @@ async function main() {
     }
   }
 
+  // --- Estados de tarea (feature 042): conjunto default por grupo ---
+  async function ensureDefaultStatuses(groupId: string) {
+    const pending = await prisma.taskStatus.upsert({
+      where: { groupId_name: { groupId, name: "Pendiente" } },
+      update: {},
+      create: { groupId, name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS", sortOrder: 0 },
+    });
+    const done = await prisma.taskStatus.upsert({
+      where: { groupId_name: { groupId, name: "Hecha" } },
+      update: {},
+      create: { groupId, name: "Hecha", color: "#22c55e", type: "FINAL", sortOrder: 1 },
+    });
+    return { PENDING: pending, DONE: done };
+  }
+  const statusesByGroup: Record<string, { PENDING: { id: string }; DONE: { id: string } }> = {
+    [grupo1.id]: await ensureDefaultStatuses(grupo1.id),
+    [grupo2.id]: await ensureDefaultStatuses(grupo2.id),
+  };
+
   // --- Sectors (7) ---
   const sectorNames = ["Metalúrgica", "Carpintería", "Pintura", "Compras", "Diseño", "Montaje", "Control de calidad"];
   const sectors: Record<string, { id: string }> = {};
   for (const name of sectorNames) {
     sectors[name] = await prisma.sector.upsert({
-      where: { groupId_name: { groupId: grupo1.id, name } },
+      where: { name },
       update: {},
-      create: { name, groupId: grupo1.id },
+      create: { name },
     });
   }
 
@@ -217,7 +236,7 @@ async function main() {
         data: {
           rawText,
           displayText,
-          state: state as any,
+          statusId: statusesByGroup[wd.group.id][state as "PENDING" | "DONE"].id,
           workId: work.id,
           sectorId: sectorId ?? null,
           creatorId: admin.id,

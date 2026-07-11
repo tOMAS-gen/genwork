@@ -11,10 +11,12 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
 import { ColorField } from "@/components/ui/ColorField";
-import { Trash2 } from "@/components/ui/icons";
+import { Trash2, Settings, List, LayoutGrid } from "@/components/ui/icons";
+import { TaskStatusSettings } from "@/components/admin/TaskStatusSettings";
+import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 
 interface SectorView {
-  sector: { id: string; name: string; color: string | null; group: { id: string; name: string } | null };
+  sector: { id: string; name: string; color: string | null; group?: { id: string; name: string } | null };
   loose: TaskDto[];
   byWork: { work: { id: string; name: string; status: string }; tasks: TaskDto[] }[];
   refs: TaskDto[];
@@ -29,6 +31,8 @@ interface SectorView {
 export default function SectorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [view, setView] = useState<SectorView | null>(null);
+  const [showStatusSettings, setShowStatusSettings] = useState(false);
+  const [taskView, setTaskView] = useState<"list" | "board">("list");
   usePageTitle(view?.sector.name ?? null);
   const router = useRouter();
 
@@ -124,6 +128,11 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
             label="Acciones del sector"
             items={[
               {
+                label: "Estados de tarea",
+                icon: <Settings size={16} />,
+                onSelect: () => setShowStatusSettings((v) => !v),
+              },
+              {
                 label: "Eliminar sector",
                 icon: <Trash2 size={16} />,
                 danger: true,
@@ -134,26 +143,39 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
         )}
       </div>
 
+      {canOperate && showStatusSettings && (
+        <div className="card" style={{ marginTop: "var(--space-3)" }}>
+          <TaskStatusSettings scope={{ sectorId: id }} title="Estados de tarea de este sector" />
+        </div>
+      )}
+
+      <h2 style={{ marginTop: "var(--space-4)" }}>Tareas del sector</h2>
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div className="segmented" role="group" aria-label="Vista de tareas">
+          <button
+            type="button"
+            className={`segmented-btn${taskView === "list" ? " is-active" : ""}`}
+            onClick={() => setTaskView("list")}
+          >
+            <List size={14} /> Lista
+          </button>
+          <button
+            type="button"
+            className={`segmented-btn${taskView === "board" ? " is-active" : ""}`}
+            onClick={() => setTaskView("board")}
+          >
+            <LayoutGrid size={14} /> Tablero
+          </button>
+        </div>
+      </div>
+
       {canOperate && (
         <TaskListEditor context={{ sectorId: id }} onCreated={load} />
       )}
 
-      <h2 style={{ marginTop: "var(--space-4)" }}>Tareas del sector</h2>
-      {view.loose.map((task) => (
-        <TaskItem
-          key={task.id}
-          task={task}
-          context={{ sectorId: id }}
-          canToggle={canOperate}
-          onChanged={load}
-        />
-      ))}
-      {view.byWork.map((group) => (
-        <div key={group.work.id} style={{ marginTop: "var(--space-2)" }}>
-          <h3 className="muted" style={{ fontSize: "0.85rem", marginBottom: "var(--space-1)" }}>
-            {group.work.name}
-          </h3>
-          {group.tasks.map((task) => (
+      {taskView === "list" ? (
+        <>
+          {view.loose.map((task) => (
             <TaskItem
               key={task.id}
               task={task}
@@ -162,8 +184,31 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
               onChanged={load}
             />
           ))}
-        </div>
-      ))}
+          {view.byWork.map((group) => (
+            <div key={group.work.id} style={{ marginTop: "var(--space-2)" }}>
+              <h3 className="muted" style={{ fontSize: "0.85rem", marginBottom: "var(--space-1)" }}>
+                {group.work.name}
+              </h3>
+              {group.tasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  context={{ sectorId: id }}
+                  canToggle={canOperate}
+                  onChanged={load}
+                />
+              ))}
+            </div>
+          ))}
+        </>
+      ) : (
+        <TaskBoardView
+          tasks={[...view.loose, ...view.byWork.flatMap((g) => g.tasks)]}
+          context={{ sectorId: id }}
+          canToggle={canOperate}
+          onChanged={load}
+        />
+      )}
       {view.loose.length === 0 && view.byWork.length === 0 && (
         <p className="muted">Todavía no hay tareas en este sector.</p>
       )}

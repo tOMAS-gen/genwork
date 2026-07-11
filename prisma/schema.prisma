@@ -33,9 +33,9 @@ enum WorkStatus {
   ARCHIVED
 }
 
-enum TaskState {
-  PENDING
-  DONE
+enum TaskStatusType {
+  IN_PROGRESS
+  FINAL
 }
 
 enum LinkType {
@@ -90,12 +90,14 @@ model User {
   ownedGroups        Group[]            @relation("GroupOwner")
   sectorGrants       SectorGrant[]
   readerGrants       ReaderGrant[]
-  ownedSectors       Sector[]           @relation("SectorOwner")
   ownedWorks         Work[]             @relation("WorkOwner")
   createdWorks       Work[]             @relation("WorkCreator")
   createdTasks       Task[]             @relation("TaskCreator")
   completedTasks     Task[]             @relation("TaskCompleter")
   lastEditedTasks    Task[]             @relation("TaskLastEditor")
+  statusChangedTasks Task[]             @relation("TaskStatusChanger")
+  taskStatuses       TaskStatus[]       @relation("PersonalTaskStatuses")
+  taskStatusChanges  TaskStatusChange[]
   taskRefs           TaskLink[]         @relation("LinkUser")
   attachments        Attachment[]
   archives           ArchiveRecord[]
@@ -103,9 +105,11 @@ model User {
   favorites          UserFavorite[]
   notes              Note[]
   personalStages     ProjectStage[]     @relation("PersonalStages")
+  mcpConnections     McpConnection[]
   reminders          Reminder[]         @relation("ReminderOwner")
   createdReminders   Reminder[]         @relation("ReminderCreator")
   reminderDeliveries ReminderDelivery[]
+  errorLogs          ErrorLog[]
 }
 
 model AccessConfig {
@@ -137,12 +141,12 @@ model Group {
   createdAt         DateTime @default(now())
 
   memberships  GroupMembership[]
-  sectors      Sector[]
   works        Work[]
   readerGrants ReaderGrant[]
   labelKeys    LabelKey[]
   stages       ProjectStage[]
   reminders    Reminder[]
+  taskStatuses TaskStatus[]
 }
 
 model GroupMembership {
@@ -156,22 +160,18 @@ model GroupMembership {
 }
 
 model Sector {
-  id      String  @id @default(uuid())
-  name    String
-  color   String?
-  groupId String?
-  ownerId String?
-  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  owner   User?   @relation("SectorOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  id    String  @id @default(uuid())
+  name  String
+  color String?
 
-  grants      SectorGrant[]
-  taskLinks   TaskLink[]
-  homeTasks   Task[]        @relation("TaskHomeSector")
-  originTasks Task[]        @relation("TaskOriginSector")
+  grants       SectorGrant[]
+  taskLinks    TaskLink[]
+  homeTasks    Task[]        @relation("TaskHomeSector")
+  originTasks  Task[]        @relation("TaskOriginSector")
+  taskStatuses TaskStatus[]
 
-  // Unicidad por ámbito (FR-001): nombre único dentro del grupo o del espacio personal
-  @@unique([groupId, name])
-  @@unique([ownerId, name])
+  // Catálogo global (feature 044): nombre único a nivel organización, sin scope de grupo/personal
+  @@unique([name])
 }
 
 model SectorGrant {
@@ -208,16 +208,17 @@ model Work {
 
   stageId String?
 
-  group       Group?         @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  owner       User?          @relation("WorkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  createdBy   User           @relation("WorkCreator", fields: [createdById], references: [id])
-  stage       ProjectStage?  @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  group       Group?           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner       User?            @relation("WorkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdBy   User             @relation("WorkCreator", fields: [createdById], references: [id])
+  stage       ProjectStage?    @relation(fields: [stageId], references: [id], onDelete: SetNull)
   doc         DocPage?
   tasks       Task[]
   attachments Attachment[]
   archive     ArchiveRecord?
   labels      WorkLabel[]
   favorites   UserFavorite[]
+  mcpActivity McpActivityLog[]
 
   @@unique([groupId, name])
   @@unique([ownerId, name])
@@ -231,16 +232,18 @@ model DocPage {
 }
 
 model Task {
-  id            String    @id @default(uuid())
-  rawText       String
-  displayText   String
-  state         TaskState @default(PENDING)
-  workId        String?
-  sectorId      String?
-  creatorId     String
-  completedAt   DateTime?
-  completedById String?
-  createdAt     DateTime  @default(now())
+  id                String    @id @default(uuid())
+  rawText           String
+  displayText       String
+  statusId          String
+  statusChangedAt   DateTime?
+  statusChangedById String?
+  workId            String?
+  sectorId          String?
+  creatorId         String
+  completedAt       DateTime?
+  completedById     String?
+  createdAt         DateTime  @default(now())
 
   dueDate DateTime?
 
@@ -252,16 +255,67 @@ model Task {
   description    String?
   position       Int        @default(0)
 
-  work         Work?       @relation(fields: [workId], references: [id], onDelete: Cascade)
-  homeSector   Sector?     @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
-  originSector Sector?     @relation("TaskOriginSector", fields: [originSectorId], references: [id], onDelete: SetNull)
-  creator      User        @relation("TaskCreator", fields: [creatorId], references: [id])
-  completedBy  User?       @relation("TaskCompleter", fields: [completedById], references: [id])
-  lastEditedBy User?       @relation("TaskLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
-  links        TaskLink[]
-  labels       TaskLabel[]
+  work            Work?              @relation(fields: [workId], references: [id], onDelete: Cascade)
+  homeSector      Sector?            @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
+  originSector    Sector?            @relation("TaskOriginSector", fields: [originSectorId], references: [id], onDelete: SetNull)
+  creator         User               @relation("TaskCreator", fields: [creatorId], references: [id])
+  completedBy     User?              @relation("TaskCompleter", fields: [completedById], references: [id])
+  lastEditedBy    User?              @relation("TaskLastEditor", fields: [lastEditedById], references: [id], onDelete: SetNull)
+  status          TaskStatus         @relation(fields: [statusId], references: [id], onDelete: Restrict)
+  statusChangedBy User?              @relation("TaskStatusChanger", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  links           TaskLink[]
+  labels          TaskLabel[]
+  statusChanges   TaskStatusChange[]
 
   @@index([workId, position])
+  @@index([statusId])
+}
+
+/// Historial de transiciones de estado de una tarea (feature 042, US4). Los FKs a
+/// TaskStatus son SetNull (no Cascade): si un estado se elimina más adelante, el
+/// historial se conserva (pierde la referencia puntual, no la fila).
+model TaskStatusChange {
+  id           String   @id @default(uuid())
+  taskId       String
+  fromStatusId String?
+  toStatusId   String?
+  changedById  String?
+  changedAt    DateTime @default(now())
+
+  task       Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fromStatus TaskStatus? @relation("StatusChangeFrom", fields: [fromStatusId], references: [id], onDelete: SetNull)
+  toStatus   TaskStatus? @relation("StatusChangeTo", fields: [toStatusId], references: [id], onDelete: SetNull)
+  changedBy  User?       @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([taskId, changedAt])
+}
+
+/// Estado configurable de tarea (feature 042). Vive en un conjunto: el default de
+/// grupo/personal (groupId/ownerId, igual patrón que Sector), o el override de un
+/// sector puntual (sectorId). Exactamente uno de los tres scopes es no-nulo.
+/// Invariantes (validados en la capa de servicio, no en DB): nombre único dentro
+/// del conjunto, y exactamente un estado type=FINAL por conjunto.
+model TaskStatus {
+  id        String         @id @default(uuid())
+  name      String
+  color     String
+  type      TaskStatusType
+  sortOrder Int            @default(0)
+  groupId   String?
+  ownerId   String?
+  sectorId  String?
+  createdAt DateTime       @default(now())
+
+  group       Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner       User?              @relation("PersonalTaskStatuses", fields: [ownerId], references: [id], onDelete: Cascade)
+  sector      Sector?            @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  fromChanges TaskStatusChange[] @relation("StatusChangeFrom")
+  toChanges   TaskStatusChange[] @relation("StatusChangeTo")
+
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
+  @@unique([sectorId, name])
 }
 
 model TaskLink {
@@ -525,4 +579,91 @@ model ReminderDelivery {
   @@unique([reminderId, leadId, occurrenceDate, userId])
   @@index([userId, status])
   @@index([emailStatus])
+}
+
+// ─── Servidor MCP (feature 039) ──────────────────────────────────────────────
+
+/// Vinculación explícita entre un usuario y un asistente de IA que actúa en su
+/// nombre vía MCP (FR-009a). El token real nunca se persiste, solo su hash.
+model McpConnection {
+  id         String    @id @default(uuid())
+  userId     String
+  label      String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  confirmations McpConfirmation[]
+  activity      McpActivityLog[]
+
+  @@index([userId])
+}
+
+/// Pedido pendiente de confirmación de dos pasos para una acción destructiva o
+/// irreversible ejecutada vía MCP (FR-012).
+model McpConfirmation {
+  id           String    @id @default(uuid())
+  connectionId String
+  kind         String
+  payload      Json
+  summary      String
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  connection McpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+}
+
+/// Auditoría de acciones ejecutadas vía MCP, visible para el usuario dentro de
+/// Genwork (FR-010).
+model McpActivityLog {
+  id           String   @id @default(uuid())
+  connectionId String
+  userId       String
+  toolName     String
+  targetType   String
+  targetId     String?
+  workId       String?
+  summary      String
+  createdAt    DateTime @default(now())
+
+  connection McpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  work       Work?         @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@index([workId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ─── Registro de errores (feature 041) ────────────────────────────────────────
+
+enum ErrorLogStatus {
+  PENDING
+  RESOLVED
+}
+
+/// Ocurrencia agrupada de un error no controlado del servidor (FR-001/FR-002).
+/// Agrupada por `fingerprint` (mensaje+ruta, FR-007); nunca guarda el body/payload
+/// de la request, solo identificadores/metadatos (FR-002/FR-009, /speckit-clarify).
+model ErrorLog {
+  id          String         @id @default(uuid())
+  fingerprint String         @unique
+  message     String
+  stack       String?
+  route       String
+  method      String?
+  userId      String?
+  context     Json?
+  status      ErrorLogStatus @default(PENDING)
+  occurrences Int            @default(1)
+  firstSeenAt DateTime       @default(now())
+  lastSeenAt  DateTime       @default(now())
+  resolvedAt  DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, lastSeenAt])
 }

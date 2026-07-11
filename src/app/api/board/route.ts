@@ -11,20 +11,10 @@ export const GET = withApi(async () => {
   const ctx = await getUserContext(session.user.id);
 
   const sectors = await prisma.sector.findMany({
-    where: { groupId: { not: null } },
-    include: { group: { select: { publicRead: true } } },
     orderBy: { name: "asc" },
   });
 
-  const visible = sectors.filter(
-    (s) =>
-      accessSector(ctx, {
-        id: s.id,
-        groupId: s.groupId,
-        ownerId: s.ownerId,
-        groupPublicRead: s.group?.publicRead ?? false,
-      }) !== "none",
-  );
+  const visible = sectors.filter((s) => accessSector(ctx, s.id) !== "none");
 
   const board = await Promise.all(
     visible.map(async (sector) => {
@@ -36,7 +26,7 @@ export const GET = withApi(async () => {
         },
         include: {
           task: {
-            include: { work: { select: { name: true } } },
+            include: { work: { select: { name: true } }, status: true },
           },
         },
         orderBy: { task: { position: "asc" } },
@@ -68,7 +58,12 @@ export const GET = withApi(async () => {
       const tasks = links.map((l) => ({
         id: l.task.id,
         text: l.task.displayText,
-        state: l.task.state,
+        status: {
+          id: l.task.status.id,
+          name: l.task.status.name,
+          color: l.task.status.color,
+          type: l.task.status.type,
+        },
         workName: l.task.work?.name ?? null,
         workColor: l.task.workId ? colorByWorkId.get(l.task.workId) ?? null : null,
       }));

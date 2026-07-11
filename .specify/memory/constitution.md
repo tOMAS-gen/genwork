@@ -1,15 +1,23 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 1.2.0
-- Modified principles: II. Etiquetado inline — se AGREGA el símbolo `$` para etiquetado de proyecto
-  (semántica "etiqueta de proyecto"); tabla de semántica actualizada con nueva fila `$`.
+- Version change: 1.3.0 → 1.4.0
+- Modified sections: "Semántica de Etiquetado y Reglas de Dominio" > "Reglas de dominio no
+  negociables" — la regla "Los sectores de trabajo (...) los crea el usuario" se RESTRINGE:
+  la creación y administración (renombrar, recolorear, eliminar, otorgar/quitar acceso) de
+  sectores queda reservada exclusivamente al rol SUPERADMIN, quien asigna el acceso a usuarios
+  puntuales vía SectorGrant. No es uno de los Core Principles I-V, pero sí una regla de dominio
+  que antes permitía a cualquier usuario crear sectores; el resto de la frase (sectores como
+  vistas agregadoras de tareas de todos los trabajos) no cambia. Es una restricción material de
+  comportamiento, no una simple aclaración de redacción → bump MINOR (mismo criterio que el
+  cambio 1.2.0→1.3.0: no redefine un Core Principle de forma incompatible, pero sí acota
+  materialmente una guía existente).
 - Added sections: n/a
 - Removed sections: n/a
 - Templates:
-  - ✅ .specify/templates/plan-template.md — sin cambios requeridos
+  - ✅ .specify/templates/plan-template.md — sin cambios requeridos (gate genérico, no hardcodea principios)
   - ✅ .specify/templates/spec-template.md — sin cambios requeridos
   - ✅ .specify/templates/tasks-template.md — sin cambios requeridos
-  - ✅ specs/032-etiquetas-inline-tareas/* — reflejan la nueva semántica de `$`
+  - ✅ specs/044-sectores-globales/* — motivador de este cambio; ya alineado con la nueva redacción
 - Follow-up TODOs: ninguno.
 -->
 
@@ -69,18 +77,26 @@ del trabajo para ver su información o su avance.
 Rationale: el trabajo es la unidad de venta y ejecución; información y seguimiento operativo
 deben leerse juntos, en un único lugar.
 
-### IV. Estados simples e historial visible
+### IV. Completado binario, estados configurables
 
-Una tarea tiene exactamente dos estados: **Pendiente** y **Realizada**.
+Todo estado de tarea pertenece a exactamente uno de dos TIPOS: **en curso** (no completada)
+o **final** (completada). Ese invariante binario de completado no se negocia; lo que se
+permite configurar es el nombre, el color y la cantidad de estados dentro del tipo "en curso".
 
-- Se completa mediante un selector/casilla de verificación.
-- Al completarse se diferencia visualmente (tachada o similar) y PERMANECE en el historial
-  del trabajo; nunca se borra automáticamente.
+- Cada conjunto de estados (el general de la organización, o el propio de un sector que lo
+  adaptó) DEBE tener exactamente un estado de tipo "final" (equivalente a "Realizada"/"Hecha").
+- Puede haber uno o varios estados de tipo "en curso", con nombre y color propios definidos
+  por la organización o por el sector (ej.: "Pendiente", "En proceso", "En consulta").
+- Se completa asignando el estado "final" mediante un selector; al completarse se diferencia
+  visualmente (tachada o similar) y PERMANECE en el historial del trabajo; nunca se borra
+  automáticamente. Volver de "final" a cualquier estado "en curso" deshace ese registro.
 - La tarea se completa donde se EJECUTA (su sector de pertenencia `#`), no en los sectores
   que solo la referencian (`@`).
 
 Rationale: el usuario necesita ver de un vistazo qué falta y qué se hizo, y conservar el
-registro de lo realizado por trabajo.
+registro de lo realizado por trabajo — ese invariante binario no cambia. Lo que sí varía entre
+organizaciones es cómo llaman a las etapas antes de terminar (asignación, revisión, consulta);
+nombrarlas y colorearlas da flexibilidad real sin romper la simplicidad del seguimiento.
 
 ### V. Simplicidad primero (YAGNI)
 
@@ -104,8 +120,10 @@ mata el avance.
 
 Reglas de dominio no negociables:
 
-- Los sectores de trabajo (ej.: Metalúrgica, Compras) los crea el usuario y funcionan como
-  vistas agregadoras de tareas de todos los trabajos.
+- Los sectores de trabajo (ej.: Metalúrgica, Compras) son un catálogo global: los crea y
+  administra (renombra, recolorea, elimina, otorga/quita acceso) exclusivamente el rol
+  SUPERADMIN, que asigna el acceso a usuarios puntuales; funcionan como vistas agregadoras
+  de tareas de todos los trabajos, sin importar el grupo.
 - Filtrar es transversal: desde un sector se puede filtrar por trabajo, por otro sector
   referenciado, o por estado (ej.: en Compras, filtrar `@Metalurgica` para ver qué comprar
   en la ferretería).
@@ -134,4 +152,4 @@ Reglas de dominio no negociables:
 - Cumplimiento: todo plan y toda revisión de implementación verifican los Principios I–V;
   la complejidad debe justificarse siempre.
 
-**Version**: 1.2.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-06
+**Version**: 1.4.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-11

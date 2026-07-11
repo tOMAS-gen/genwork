@@ -16,8 +16,6 @@ export interface UserContext {
   adminGroupIds: ReadonlySet<string>;
   /** Sectores con permiso individual (SectorGrant). */
   grantedSectorIds: ReadonlySet<string>;
-  /** Grupos a los que pertenecen esos sectores con grant. */
-  grantedSectorGroupIds: ReadonlySet<string>;
   /** Grupos habilitados a un rol Lector (ReaderGrant). */
   readerGroupIds: ReadonlySet<string>;
 }
@@ -30,20 +28,16 @@ export interface Scope {
   groupPublicRead?: boolean;
 }
 
-export interface SectorRef extends Scope {
-  id: string;
-}
-
 /** Lo mínimo de una tarea para decidir permisos. */
 export interface TaskRef {
   /** Ámbito del trabajo al que pertenece (null si es tarea suelta de sector). */
   workScope: Scope | null;
-  /** Sector hogar si es tarea suelta. */
-  homeSector: SectorRef | null;
-  /** Sectores de ejecución (#). */
-  execSectors: readonly SectorRef[];
-  /** Sectores referenciados (@). */
-  refSectors: readonly SectorRef[];
+  /** Sector hogar si es tarea suelta (id del sector global). */
+  homeSector: string | null;
+  /** Sectores de ejecución (#) — ids de sectores globales. */
+  execSectors: readonly string[];
+  /** Sectores referenciados (@) — ids de sectores globales. */
+  refSectors: readonly string[];
   /** Usuarios referenciados (@). */
   refUserIds: ReadonlySet<string>;
 }
@@ -71,12 +65,14 @@ export function access(user: UserContext, scope: Scope): Access {
   return "none";
 }
 
-/** Acceso a un sector: suma el permiso individual por sector (FR-022). */
-export function accessSector(user: UserContext, sector: SectorRef): Access {
-  const base = access(user, sector);
-  if (base === "operate") return base;
-  if (user.globalRole !== "READER" && user.grantedSectorIds.has(sector.id)) return "operate";
-  return base;
+/**
+ * Acceso a un sector global: el único mecanismo no-SUPERADMIN es el SectorGrant
+ * individual (FR-022). El sector ya no tiene ámbito propio, así que no se invoca access().
+ */
+export function accessSector(user: UserContext, sectorId: string): Access {
+  if (user.globalRole === "SUPERADMIN") return "operate";
+  if (user.globalRole !== "READER" && user.grantedSectorIds.has(sectorId)) return "operate";
+  return "none";
 }
 
 /**
@@ -94,8 +90,9 @@ export function canToggle(user: UserContext, task: TaskRef): boolean {
 
 /**
  * Regla 7 (FR-038): direccionar ≠ acceder. Puede etiquetar `/trabajo` si el work
- * pertenece a un grupo donde el usuario tiene algún permiso (membresía o grant de
- * algún sector del grupo). No otorga read/operate sobre el work.
+ * pertenece a un grupo donde el usuario es miembro (o es dueño del ámbito personal).
+ * Como los sectores ya no tienen grupo, no existe la vía de "prestar" acceso por grant
+ * de sector. No otorga read/operate sobre el work.
  */
 export function canAddress(user: UserContext, workScope: Scope): boolean {
   if (user.globalRole === "READER") return false;
@@ -103,10 +100,7 @@ export function canAddress(user: UserContext, workScope: Scope): boolean {
 
   if (workScope.ownerId !== null) return workScope.ownerId === user.id;
   if (workScope.groupId === null) return false;
-  return (
-    user.memberGroupIds.has(workScope.groupId) ||
-    user.grantedSectorGroupIds.has(workScope.groupId)
-  );
+  return user.memberGroupIds.has(workScope.groupId);
 }
 
 /**

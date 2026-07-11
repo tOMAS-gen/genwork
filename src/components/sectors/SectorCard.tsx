@@ -4,8 +4,6 @@ export interface SectorCardData {
   id: string;
   name: string;
   color: string | null;
-  groupId: string | null;
-  group: { id: string; name: string } | null;
   metrics: { total: number; done: number; pending: number };
 }
 
@@ -24,8 +22,6 @@ export function SectorCard({ sector }: { sector: SectorCardData }) {
           {sector.name.toUpperCase()}
         </span>
       </div>
-
-      <div className="pc-group">{sector.group ? `Grupo ${sector.group.name}` : "Personal"}</div>
 
       {metrics.total > 0 && (
         <div className="pc-progress">

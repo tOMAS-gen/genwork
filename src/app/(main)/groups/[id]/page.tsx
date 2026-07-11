@@ -27,7 +27,7 @@ interface Group {
   ownerId: string;
   publicRead: boolean;
   memberships: Membership[];
-  _count: { sectors: number; works: number };
+  _count: { works: number };
 }
 
 interface Work {
@@ -159,7 +159,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             <h1 className="sheet-title">{group.name}</h1>
           </div>
           <p className="sheet-desc">
-            {group.memberships.length} miembros · {group._count.sectors} sectores · {group._count.works} proyectos
+            {group.memberships.length} miembros · {group._count.works} proyectos
             {group.publicRead && " · Lectura pública"}
           </p>
         </div>
@@ -301,8 +301,8 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         title="Eliminar grupo"
       >
         <p className="muted" style={{ margin: 0 }}>
-          Se eliminará el grupo <strong>{group.name}</strong>. Los sectores y proyectos del grupo
-          quedarán sin grupo asignado.
+          Se eliminará el grupo <strong>{group.name}</strong>. Los proyectos del grupo quedarán
+          sin grupo asignado.
         </p>
         <div className="dialog-actions">
           <button className="btn" onClick={() => setConfirmDelete(false)}>
