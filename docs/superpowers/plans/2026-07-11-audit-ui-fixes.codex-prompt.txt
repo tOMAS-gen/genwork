@@ -1,0 +1,7 @@
+Implementá las 7 tareas del plan en `docs/superpowers/plans/2026-07-11-audit-ui-fixes.md`, en orden, tal como está escrito ahí (cada tarea trae el código exacto antes/después).
+
+Reglas importantes:
+- NO ejecutes ningún comando de git (ni `git add`, ni `git commit`, ni nada). El repo ya tiene cambios sin commitear de otro trabajo en progreso (en `src/app/globals.css` y `src/components/nav/DrawerNav.tsx`) que NO debés tocar ni mezclar — dejá todo el árbol de trabajo tal como quede después de tus ediciones, sin comittear nada. Ignorá por completo los pasos "Step: Commit" de cada tarea del plan.
+- Ignorá también los pasos "Verificar manualmente" de cada tarea (requieren un navegador, se hacen después a mano). En su lugar, después de cada tarea corré `npx tsc --noEmit` (o el check de tipos que use el proyecto) sobre los archivos que tocaste para asegurarte de que no rompiste nada, y seguí a la siguiente tarea.
+- Aplicá los cambios EXACTAMENTE como están en el plan (los bloques de código "antes" ya están confirmados contra el archivo real). Si algún archivo no coincide exactamente con el "antes" citado en el plan (por ejemplo por los cambios sin commitear ya mencionados), avisá en el resumen final en vez de improvisar un cambio distinto.
+- Al terminar las 7 tareas, dá un resumen breve: qué archivos quedaron modificados y si algo no se pudo aplicar tal cual el plan.

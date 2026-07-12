@@ -48,6 +48,15 @@ export function FilterBar({
   const activeLabelColor =
     labelKeys.find((l) => l.valueId === filters.labelValueId)?.color ?? null;
 
+  const sectorLabel = filters.sectorId
+    ? sectors.find((s) => s.id === filters.sectorId)?.name ?? "Todos los sectores"
+    : "Todos los sectores";
+  const activeLabel = labelKeys.find((l) => l.valueId === filters.labelValueId);
+  const labelLabel = activeLabel ? `${activeLabel.keyName}: ${activeLabel.valueName}` : "Todas las etiquetas";
+  const statusLabel =
+    { pending: "Pendiente", in_progress: "En progreso", completed: "Completado" }[filters.status] ??
+    "Todos los estados";
+
   return (
     <div className="filter-bar">
       <div className="toolbar-left">
@@ -68,7 +77,12 @@ export function FilterBar({
 
       <div className="toolbar-center">
         <label className={`filter-pill${filters.sectorId ? " is-active" : ""}`}>
-          <select value={filters.sectorId} onChange={(e) => update({ sectorId: e.target.value })}>
+          <span className="filter-pill-label">{sectorLabel}</span>
+          <select
+            aria-label="Filtrar por sector"
+            value={filters.sectorId}
+            onChange={(e) => update({ sectorId: e.target.value })}
+          >
             <option value="">Todos los sectores</option>
             {sectors.map((s) => (
               <option key={s.id} value={s.id}>
@@ -82,7 +96,12 @@ export function FilterBar({
           {activeLabelColor && (
             <span className="filter-pill-dot" style={{ background: activeLabelColor }} aria-hidden="true" />
           )}
-          <select value={filters.labelValueId} onChange={(e) => update({ labelValueId: e.target.value })}>
+          <span className="filter-pill-label">{labelLabel}</span>
+          <select
+            aria-label="Filtrar por etiqueta"
+            value={filters.labelValueId}
+            onChange={(e) => update({ labelValueId: e.target.value })}
+          >
             <option value="">Todas las etiquetas</option>
             {labelKeys.map((l) => (
               <option key={l.valueId} value={l.valueId}>
@@ -93,7 +112,12 @@ export function FilterBar({
         </label>
 
         <label className={`filter-pill${filters.status ? " is-active" : ""}`}>
-          <select value={filters.status} onChange={(e) => update({ status: e.target.value })}>
+          <span className="filter-pill-label">{statusLabel}</span>
+          <select
+            aria-label="Filtrar por estado"
+            value={filters.status}
+            onChange={(e) => update({ status: e.target.value })}
+          >
             <option value="">Todos los estados</option>
             <option value="pending">Pendiente</option>
             <option value="in_progress">En progreso</option>

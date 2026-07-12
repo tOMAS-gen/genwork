@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { NoteEditor, type NoteDto } from "@/components/notes/NoteEditor";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 /**
  * "Mis notas": una única nota general por usuario (texto libre + checklist propio
@@ -38,7 +39,11 @@ export default function NotesPage() {
       <h1 className="sheet-title">Mis notas</h1>
 
       {loading ? (
-        <p className="muted">Cargando…</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+          <Skeleton variant="text" width="90%" />
+          <Skeleton variant="text" width="75%" />
+          <Skeleton variant="text" width="60%" />
+        </div>
       ) : note ? (
         <NoteEditor key={note.id} note={note} hideTitle />
       ) : (

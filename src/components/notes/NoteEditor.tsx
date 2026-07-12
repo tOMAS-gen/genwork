@@ -49,7 +49,7 @@ export function NoteEditor({
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: "Empezá a escribir..." }),
+      Placeholder.configure({ placeholder: "Empezá a escribir... Escribí “/” para ver opciones de formato" }),
       TaskList,
       TaskItem.configure({ nested: true }),
       // Sin Image extension ni selector de archivo en notas: se oculta del menú "/".
