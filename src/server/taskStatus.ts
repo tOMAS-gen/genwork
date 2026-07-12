@@ -11,7 +11,7 @@ import { validateStatusSet, canDeleteStatus } from "@/lib/domain/taskStatus/vali
 import { conflict, notFound } from "@/server/api";
 import type { Prisma, TaskStatus, TaskStatusType } from "@prisma/client";
 
-export type StatusScope = { groupId: string } | { ownerId: string } | { sectorId: string };
+export type StatusScope = { groupId: string } | { ownerId: string } | { sectorId: string } | { global: true };
 
 interface ScopeColumns {
   groupId: string | null;
@@ -19,10 +19,11 @@ interface ScopeColumns {
   sectorId: string | null;
 }
 
-function scopeColumns(scope: StatusScope): ScopeColumns {
+export function scopeColumns(scope: StatusScope): ScopeColumns {
   if ("groupId" in scope) return { groupId: scope.groupId, ownerId: null, sectorId: null };
   if ("ownerId" in scope) return { ownerId: scope.ownerId, groupId: null, sectorId: null };
-  return { sectorId: scope.sectorId, groupId: null, ownerId: null };
+  if ("sectorId" in scope) return { sectorId: scope.sectorId, groupId: null, ownerId: null };
+  return { groupId: null, ownerId: null, sectorId: null };
 }
 
 function scopeWhere(scope: StatusScope): Prisma.TaskStatusWhereInput {
@@ -117,10 +118,11 @@ async function resolveWriteTarget(id: string, asSectorId?: string): Promise<Task
   return forked;
 }
 
-function scopeOfStatus(status: TaskStatus): StatusScope {
+export function scopeOfStatus(status: TaskStatus): StatusScope {
   if (status.groupId) return { groupId: status.groupId };
   if (status.ownerId) return { ownerId: status.ownerId };
-  return { sectorId: status.sectorId as string };
+  if (status.sectorId) return { sectorId: status.sectorId };
+  return { global: true };
 }
 
 export async function createStatus(
