@@ -72,19 +72,25 @@ export async function resolveStatusScope(
   return { execSector: null, workScope };
 }
 
-/** Candidatos de TaskStatus para un scope: el override de sector (si aplica) + el default de grupo/owner del work. */
+/**
+ * Candidatos de TaskStatus para un scope: el override de sector (si aplica) + el default de
+ * grupo/owner del work + SIEMPRE el conjunto global (groupId/ownerId/sectorId los 3 `null`),
+ * que sirve de fallback de última instancia cuando ninguno de los otros conjuntos aplica
+ * (ver `resolveApplicableStatusSet`, que solo lo usa si no encontró nada más específico).
+ */
 export async function fetchStatusCandidates(
   scope: TaskScopeRef,
   db: DbClient = prisma,
 ): Promise<TaskStatusRef[]> {
-  const orFilters: Prisma.TaskStatusWhereInput[] = [];
+  const orFilters: Prisma.TaskStatusWhereInput[] = [
+    { groupId: null, ownerId: null, sectorId: null }, // conjunto global — fallback de última instancia
+  ];
   if (scope.execSector) orFilters.push({ sectorId: scope.execSector.id });
   // El default del work viaja siempre: es el fallback de un sector EXEC sin conjunto propio.
   if (scope.workScope) {
     if (scope.workScope.groupId) orFilters.push({ groupId: scope.workScope.groupId });
     if (scope.workScope.ownerId) orFilters.push({ ownerId: scope.workScope.ownerId });
   }
-  if (orFilters.length === 0) return [];
   return db.taskStatus.findMany({ where: { OR: orFilters } });
 }
 
