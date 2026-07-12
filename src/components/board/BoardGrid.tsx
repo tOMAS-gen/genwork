@@ -10,7 +10,13 @@ import { progress } from "@/lib/domain/works/progress";
 
 interface BoardColumn {
   sector: { id: string; name: string; color: string | null };
-  tasks: { id: string; text: string; state: string; workName: string | null; workColor: string | null }[];
+  tasks: {
+    id: string;
+    text: string;
+    status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL" };
+    workName: string | null;
+    workColor: string | null;
+  }[];
 }
 
 /**
@@ -60,7 +66,7 @@ export function BoardGrid() {
   return (
     <div className="board-grid">
       {board.map((col) => {
-        const doneCount = col.tasks.filter((t) => t.state === "DONE").length;
+        const doneCount = col.tasks.filter((t) => t.status.type === "FINAL").length;
         const total = col.tasks.length;
         const prog = progress(doneCount, total);
         const colorClass = col.sector.color ? "color-chip" : "pc-name-pill-default";
@@ -103,8 +109,13 @@ export function BoardGrid() {
 
             {/* Row 3: tareas, sin emojis */}
             {col.tasks.map((t) => (
-              <div key={t.id} className={t.state === "DONE" ? "task done" : "task"}>
-                <input type="checkbox" checked={t.state === "DONE"} disabled />
+              <div key={t.id} className={t.status.type === "FINAL" ? "task done" : "task"}>
+                <span
+                  className="entity-color-dot"
+                  style={{ background: t.status.color, width: 10, height: 10 }}
+                  title={t.status.name}
+                  aria-hidden="true"
+                />
                 <span className="task-text" style={{ flex: 1 }}>
                   {t.text}{" "}
                   {t.workName && (

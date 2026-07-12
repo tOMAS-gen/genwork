@@ -378,6 +378,20 @@ textarea:focus {
   background: var(--accent-soft);
 }
 
+/* Item activo del sidebar (dónde estás parado) — mismo tinte que el hover,
+   sin barra lateral, para no romper la forma plana del resto del sistema. */
+.sidebar a.nav.nav-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-sublist a.nav-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .main {
   padding: 24px 20px;
   width: 100%;
@@ -1450,19 +1464,42 @@ dialog.dialog::backdrop {
 .theme-menu-trigger {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: var(--space-2);
+  padding: 8px 10px;
   border: none;
   background: transparent;
   border-radius: 6px;
   color: var(--muted);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--text-sm);
   width: 100%;
   transition: background 150ms ease, color 150ms ease;
 }
 
 .theme-menu-trigger:hover {
+  color: var(--text);
+  background: var(--hover-soft);
+}
+
+/* Campanita "vence hoy" con label (pie del sidebar expandido) — mismo
+   tratamiento que .theme-menu-trigger para que las tres filas del footer
+   (campanita/tema/salir) se vean como un solo grupo, no ítems sueltos. */
+.rem-bell-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  width: 100%;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.rem-bell-trigger:hover {
   color: var(--text);
   background: var(--hover-soft);
 }
@@ -1935,23 +1972,40 @@ dialog.dialog::backdrop {
   color: var(--accent);
 }
 
+/* El texto visible es el <span class="filter-pill-label"> de al lado — un
+   <select> nativo no respeta text-overflow: ellipsis de forma confiable en
+   Chromium, así que el select queda como capa invisible que solo maneja el
+   click/teclado, cubriendo todo el pill. */
 .filter-pill select {
   appearance: none;
   -webkit-appearance: none;
+  position: absolute;
+  inset: 0;
   border: none;
   background: transparent;
   padding: 0;
   margin: 0;
   font: inherit;
   font-size: var(--text-sm);
-  color: inherit;
+  color: transparent;
+  opacity: 0;
   cursor: pointer;
-  max-width: 180px;
 }
 
-.filter-pill select:focus {
+.filter-pill select:focus-visible {
   outline: none;
-  box-shadow: none;
+}
+
+.filter-pill:has(select:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.filter-pill-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
 }
 
 .filter-pill-dot {
@@ -2096,6 +2150,16 @@ dialog.dialog::backdrop {
   color: var(--muted);
   margin-top: var(--space-1);
   font-family: var(--font-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (max-width: 480px) {
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-card {
+    min-width: 0;
+  }
 }
 
 /* Barra de filtros */
@@ -3612,6 +3676,174 @@ dialog.dialog::backdrop {
   }
 }
 
+/* Estados de tarea configurables (feature 042) */
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.segmented-btn {
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.segmented-btn + .segmented-btn {
+  border-left: 1px solid var(--border);
+}
+
+.segmented-btn.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.task-status-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.task-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.task-status-new {
+  border-style: dashed;
+}
+
+.task-status-name-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.task-status-name-input:hover,
+.task-status-name-input:focus {
+  border-color: var(--border);
+  background: var(--bg);
+  outline: none;
+}
+
+.task-status-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  padding-right: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--c) 16%, var(--surface));
+  color: color-mix(in srgb, var(--c) 85%, var(--text));
+}
+
+.task-status-pill::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-65%) rotate(45deg);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.task-status-pill-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 4px 3px 10px;
+  cursor: pointer;
+  max-width: 160px;
+}
+
+.task-status-pill-select:focus {
+  outline: 2px solid var(--c);
+  outline-offset: 1px;
+  border-radius: 6px;
+}
+
+.task-board {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  align-items: flex-start;
+}
+
+.task-board-column {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.task-board-column-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 2px 2px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-board-column-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.task-board-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 40px;
+}
+
+.task-board-column-empty {
+  font-size: 13px;
+  margin: 4px 2px;
+}
+
 
 /* ─── Recordatorios (feature 036) ──────────────────────────────────────────── */
 
@@ -3773,11 +4005,12 @@ dialog.dialog::backdrop {
   align-items: center;
   justify-content: center;
 }
+/* Posición (top/left o bottom/left) llega inline desde DueTodayBell, calculada
+   contra el botón — vive en un portal a document.body para no quedar recortada
+   por el overflow:hidden del sidebar (mismo motivo que .menu-pop en Menu.tsx). */
 .rem-bell-pop {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + var(--space-2));
   width: 320px;
+  max-width: calc(100vw - 24px);
   max-height: 420px;
   overflow-y: auto;
   background: var(--surface);

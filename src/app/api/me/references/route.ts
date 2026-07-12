@@ -6,7 +6,9 @@ import { requireSession } from "@/server/auth";
 /** Apartado personal "Mis referencias": tareas que me mencionan con @ (FR-041/042). */
 export const GET = withApi(async (req) => {
   const session = await requireSession();
-  const state = new URL(req.url).searchParams.get("state");
+  const url = new URL(req.url);
+  const statusId = url.searchParams.get("statusId");
+  const type = url.searchParams.get("type");
 
   const links = await prisma.taskLink.findMany({
     where: {
@@ -14,7 +16,8 @@ export const GET = withApi(async (req) => {
       targetType: "USER",
       userId: session.user.id,
       task: {
-        ...(state === "PENDING" || state === "DONE" ? { state } : {}),
+        ...(statusId ? { statusId } : {}),
+        ...(type === "IN_PROGRESS" || type === "FINAL" ? { status: { type } } : {}),
         OR: [{ work: { status: "ACTIVE" } }, { workId: null }],
       },
     },
@@ -24,6 +27,7 @@ export const GET = withApi(async (req) => {
           links: { include: { sector: true, user: { select: { id: true, name: true } } } },
           work: { select: { id: true, name: true } },
           homeSector: { select: { id: true, name: true } },
+          status: true,
         },
       },
     },

@@ -5,6 +5,7 @@ import { api } from "@/components/ui/useApi";
 import { DocEditor } from "@/components/editor/DocEditor";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 import { ProjectMenu } from "@/components/projects/ProjectMenu";
 import { LabelPicker, type WorkLabelDto } from "@/components/works/LabelPicker";
 import { ProjectTabs } from "@/components/works/ProjectTabs";
@@ -12,8 +13,9 @@ import { StatusBar } from "@/components/works/StatusBar";
 
 import { InlineDescription } from "@/components/works/InlineDescription";
 import { FilesBrowser } from "@/components/files/FilesBrowser";
+import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
-import { CheckSquare, FileText, Folder } from "@/components/ui/icons";
+import { CheckSquare, Clock, FileText, Folder, List, LayoutGrid } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -50,7 +52,8 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   const [work, setWork] = useState<WorkFull | null>(null);
   usePageTitle(work?.name ?? null);
   const [docLoaded, setDocLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files">("tasks");
+  const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files" | "activity">("tasks");
+  const [taskView, setTaskView] = useState<"list" | "board">("list");
   const [codeCopied, setCodeCopied] = useState(false);
   const { toast } = useToast();
 
@@ -122,7 +125,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const editable = work.status === "ACTIVE";
-  const doneCount = work.tasks.filter((t) => t.state === "DONE").length;
+  const doneCount = work.tasks.filter((t) => t.status.type === "FINAL").length;
 
   return (
     <div className="sheet">
@@ -235,28 +238,58 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           { key: "tasks", label: "Tareas", icon: CheckSquare },
           { key: "docs", label: "Documentos", icon: FileText },
           { key: "files", label: "Archivos", icon: Folder },
+          { key: "activity", label: "Actividad", icon: Clock },
         ]}
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files")}
+        onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files" | "activity")}
       />
 
       {activeTab === "tasks" && (
         <>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <div className="segmented" role="group" aria-label="Vista de tareas">
+              <button
+                type="button"
+                className={`segmented-btn${taskView === "list" ? " is-active" : ""}`}
+                onClick={() => setTaskView("list")}
+              >
+                <List size={14} /> Lista
+              </button>
+              <button
+                type="button"
+                className={`segmented-btn${taskView === "board" ? " is-active" : ""}`}
+                onClick={() => setTaskView("board")}
+              >
+                <LayoutGrid size={14} /> Tablero
+              </button>
+            </div>
+          </div>
           {editable && <TaskListEditor context={{ workId: id }} onCreated={load} />}
-          <div style={{ marginTop: "var(--space-1)" }}>
-            {work.tasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
+          {taskView === "list" ? (
+            <div style={{ marginTop: "var(--space-1)" }}>
+              {work.tasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  context={{ workId: id }}
+                  canToggle={editable}
+                  onChanged={load}
+                />
+              ))}
+              {work.tasks.length === 0 && !editable && (
+                <p className="muted">Sin tareas.</p>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginTop: "var(--space-2)" }}>
+              <TaskBoardView
+                tasks={work.tasks}
                 context={{ workId: id }}
                 canToggle={editable}
                 onChanged={load}
               />
-            ))}
-            {work.tasks.length === 0 && !editable && (
-              <p className="muted">Sin tareas.</p>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
 
@@ -267,6 +300,8 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
       {activeTab === "files" && (
         <FilesBrowser workId={id} />
       )}
+
+      {activeTab === "activity" && <WorkActivityFeed workId={id} />}
     </div>
   );
 }

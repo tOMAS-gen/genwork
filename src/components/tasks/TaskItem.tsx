@@ -6,6 +6,7 @@ import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { X, Calendar } from "@/components/ui/icons";
+import { Menu } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
@@ -16,7 +17,9 @@ export interface TaskDto {
   /** Texto crudo (con etiquetas /#@) — lo usa la edición inline (T008, R2 de 004). */
   rawText: string;
   displayText: string;
-  state: "PENDING" | "DONE";
+  status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL" };
+  /** Conjunto de estados aplicable a esta tarea (feature 042, FR-011). */
+  statusOptions: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL"; sortOrder: number }[];
   workId: string | null;
   work: { id: string; name: string } | null;
   /** Origen de la tarea y, si fue adoptada por el proyecto, cuándo (FR-401). */
@@ -167,11 +170,14 @@ export function TaskItem({
   context,
   canToggle,
   onChanged,
+  variant = "list",
 }: {
   task: TaskDto;
   context: { workId?: string; sectorId?: string };
   canToggle: boolean;
   onChanged: () => void;
+  /** "board": la columna ya indica el estado — sin selector, solo un menú para mover a otra. */
+  variant?: "list" | "board";
 }) {
   const [editing, setEditing] = useState(false);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
@@ -183,19 +189,35 @@ export function TaskItem({
   // Una tarea completada (tachada) no se edita: hay que destildarla primero.
   const canEditText =
     canToggle &&
-    task.state !== "DONE" &&
+    task.status.type !== "FINAL" &&
     canEditTaskText(
       { originType: task.originType, adoptedAt: task.adoptedAt },
       context.workId ? "work" : "sector",
     );
 
-  const toggle = async () => {
+  const changeStatus = async (statusId: string) => {
     try {
-      await api(`/api/tasks/${task.id}/toggle`, { method: "POST" });
+      await api(`/api/tasks/${task.id}/status`, {
+        method: "POST",
+        body: JSON.stringify({ statusId }),
+      });
       onChanged();
     } catch (err) {
       showToast({ message: (err as Error).message });
     }
+  };
+
+  /**
+   * Casilla de acceso rápido (además del selector de estado): marca el estado
+   * final directo, o vuelve al primer estado "en curso" del conjunto si ya
+   * estaba terminada — sin tener que abrir el selector.
+   */
+  const quickToggleFinal = async () => {
+    const target =
+      task.status.type === "FINAL"
+        ? task.statusOptions.find((s) => s.type === "IN_PROGRESS")
+        : task.statusOptions.find((s) => s.type === "FINAL");
+    if (target) void changeStatus(target.id);
   };
 
   const remove = async () => {
@@ -286,16 +308,24 @@ export function TaskItem({
   const hasDescription = !!(task.description && task.description.trim());
 
   return (
-    <div className={`task ${task.state === "DONE" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""}`}>
+    <div className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""}`}>
       <div className="task-row">
-        {/* T008: la casilla permanece visible durante la edición, sin salto de altura de fila. */}
-        {canToggle ? (
-          <input type="checkbox" checked={task.state === "DONE"} onChange={() => void toggle()} />
-        ) : (
+        {/* Casilla de acceso rápido (feature 042): permanece visible durante la
+            edición, sin salto de altura de fila. En el tablero no se muestra: los
+            3 puntos ya cubren el cambio de estado (columna = estado). */}
+        {canToggle && variant === "list" ? (
+          <input
+            type="checkbox"
+            checked={task.status.type === "FINAL"}
+            onChange={() => void quickToggleFinal()}
+            title={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
+            aria-label={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
+          />
+        ) : !canToggle ? (
           <span className="muted" title="Se completa en su sector de ejecución">
             ◇
           </span>
-        )}
+        ) : null}
         {editing ? (
           <>
             {/* FR-404: en vista sector, el proyecto queda fijo (chip no editable) fuera del texto en edición. */}
@@ -331,6 +361,39 @@ export function TaskItem({
             )}
             {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
           </span>
+        )}
+        {/* Selector de estado: solo si hay más de 2 estados en el conjunto (si son
+            solo Pendiente/Hecha, la casilla ya alcanza). En el tablero la columna ya
+            indica el estado — ahí se ofrece un menú para mover a otro en vez de selector. */}
+        {canToggle && variant === "list" && task.statusOptions.length > 2 && (
+          <span className="task-status-pill" style={{ "--c": task.status.color } as React.CSSProperties}>
+            <select
+              className="task-status-pill-select"
+              value={task.status.id}
+              onChange={(e) => void changeStatus(e.target.value)}
+              aria-label={`Estado de "${task.displayText}"`}
+            >
+              {task.statusOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </span>
+        )}
+        {canToggle && variant === "board" && task.statusOptions.length > 1 && (
+          <Menu
+            label={`Cambiar estado de "${task.displayText}"`}
+            items={task.statusOptions
+              .filter((s) => s.id !== task.status.id)
+              .map((s) => ({
+                label: s.name,
+                icon: (
+                  <span className="entity-color-dot" style={{ background: s.color }} aria-hidden="true" />
+                ),
+                onSelect: () => void changeStatus(s.id),
+              }))}
+          />
         )}
         {canToggle && (
           <button

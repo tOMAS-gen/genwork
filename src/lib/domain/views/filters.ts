@@ -1,10 +1,10 @@
 /**
- * Filtros combinables de vistas de tareas (FR-013) — lógica pura (US4).
+ * Filtros combinables de vistas de tareas (FR-013, FR-018) — lógica pura (US4).
  */
 
 export interface FilterableTask {
   id: string;
-  state: "PENDING" | "DONE";
+  status: { id: string; type: "IN_PROGRESS" | "FINAL" };
   workId: string | null;
   links: { type: "EXEC" | "REF"; targetType: "SECTOR" | "USER"; targetId: string }[];
 }
@@ -14,8 +14,10 @@ export interface TaskFilters {
   workId?: string | null;
   /** Solo tareas que referencian (@) este sector. */
   refSectorId?: string | null;
-  /** Solo tareas en este estado. */
-  state?: "PENDING" | "DONE" | null;
+  /** Solo tareas con este estado puntual (del conjunto aplicable). */
+  statusId?: string | null;
+  /** Solo tareas de este tipo de estado (equivalente al viejo pendiente/hecha binario). */
+  statusType?: "IN_PROGRESS" | "FINAL" | null;
 }
 
 export function applyTaskFilters<T extends FilterableTask>(
@@ -33,7 +35,8 @@ export function applyTaskFilters<T extends FilterableTask>(
     ) {
       return false;
     }
-    if (filters.state && t.state !== filters.state) return false;
+    if (filters.statusId && t.status.id !== filters.statusId) return false;
+    if (filters.statusType && t.status.type !== filters.statusType) return false;
     return true;
   });
 }

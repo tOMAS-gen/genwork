@@ -6,7 +6,7 @@ const t = (
   partial: Partial<FilterableTask> = {},
 ): FilterableTask => ({
   id,
-  state: "PENDING",
+  status: { id: "pendiente", type: "IN_PROGRESS" },
   workId: null,
   links: [],
   ...partial,
@@ -18,11 +18,13 @@ const refLink = (sectorId: string) => ({
   targetId: sectorId,
 });
 
-describe("applyTaskFilters — filtros combinables (FR-013, US4)", () => {
+const DONE = { id: "hecha", type: "FINAL" as const };
+
+describe("applyTaskFilters — filtros combinables (FR-013/018, US4)", () => {
   const tasks = [
     t("a", { workId: "tina", links: [refLink("metalurgica")] }),
-    t("b", { workId: "tina", state: "DONE" }),
-    t("c", { workId: "otro", links: [refLink("metalurgica")], state: "DONE" }),
+    t("b", { workId: "tina", status: DONE }),
+    t("c", { workId: "otro", links: [refLink("metalurgica")], status: DONE }),
     t("d", { workId: "otro", links: [refLink("pintura")] }),
   ];
 
@@ -37,13 +39,20 @@ describe("applyTaskFilters — filtros combinables (FR-013, US4)", () => {
     expect(applyTaskFilters(tasks, { workId: "tina" }).map((x) => x.id)).toEqual(["a", "b"]);
   });
 
-  it("por estado pendiente oculta las realizadas", () => {
-    expect(applyTaskFilters(tasks, { state: "PENDING" }).map((x) => x.id)).toEqual(["a", "d"]);
+  it("por tipo de estado (en curso) oculta las finales", () => {
+    expect(applyTaskFilters(tasks, { statusType: "IN_PROGRESS" }).map((x) => x.id)).toEqual([
+      "a",
+      "d",
+    ]);
   });
 
-  it("combinados: referencia + estado", () => {
+  it("por estado puntual (statusId)", () => {
+    expect(applyTaskFilters(tasks, { statusId: "hecha" }).map((x) => x.id)).toEqual(["b", "c"]);
+  });
+
+  it("combinados: referencia + tipo de estado", () => {
     expect(
-      applyTaskFilters(tasks, { refSectorId: "metalurgica", state: "DONE" }).map((x) => x.id),
+      applyTaskFilters(tasks, { refSectorId: "metalurgica", statusType: "FINAL" }).map((x) => x.id),
     ).toEqual(["c"]);
   });
 

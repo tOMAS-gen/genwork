@@ -12,6 +12,7 @@ import { computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
 import { emit } from "@/server/events";
 import { labelScopeOf } from "@/lib/domain/labels/availability";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
+import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 
 async function getWorkWithAccess(userId: string, id: string, need: "read" | "operate") {
   const ctx = await getUserContext(userId);
@@ -54,6 +55,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
           homeSector: { select: { id: true, name: true } },
           work: { select: { id: true, name: true } },
           labels: { include: { value: { include: { key: true } } } },
+          status: true,
         },
       },
       archive: true,
@@ -76,16 +78,26 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
       color: l.value.color,
       scope: labelScopeOf({ groupId: l.value.key.groupId, ownerId: l.value.key.ownerId }),
     })),
-    tasks: tasks.map(({ labels: taskLabels, ...task }) => ({
-      ...task,
-      labels: taskLabels.map((l) => ({
-        keyId: l.keyId,
-        keyName: l.value.key.name,
-        valueId: l.valueId,
-        valueName: l.value.name,
-        color: l.value.color,
-      })),
-    })),
+    tasks: await Promise.all(
+      tasks.map(async ({ labels: taskLabels, ...task }) => {
+        const applicable = await loadApplicableStatusSet(
+          task.workId,
+          task.sectorId,
+          execSectorIdsOf(task.links),
+        );
+        return {
+          ...task,
+          statusOptions: applicable.map(statusOptionDto),
+          labels: taskLabels.map((l) => ({
+            keyId: l.keyId,
+            keyName: l.value.key.name,
+            valueId: l.valueId,
+            valueName: l.value.name,
+            color: l.value.color,
+          })),
+        };
+      }),
+    ),
   });
 });
 

@@ -24,7 +24,7 @@ const mockStorage = (files: Record<string, string>): ArchiveStorage => ({
 const task = {
   displayText: "Armar estructura",
   rawText: "Armar estructura #Metalurgica /Tina",
-  state: "DONE" as const,
+  statusType: "FINAL" as const,
   createdAt: new Date("2026-07-01"),
   completedAt: new Date("2026-07-02"),
   creatorName: "Tomi",

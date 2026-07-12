@@ -45,7 +45,7 @@ export const GET = withApi(async (req) => {
 
   const doneCounts = await prisma.task.groupBy({
     by: ["workId"],
-    where: { workId: { in: workIds }, state: "DONE" },
+    where: { workId: { in: workIds }, status: { type: "FINAL" } },
     _count: true,
   });
   const doneByWorkId = new Map(doneCounts.map((d) => [d.workId, d._count]));

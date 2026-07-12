@@ -1,15 +1,19 @@
 /**
- * Clona tareas PENDING de un proyecto-plantilla a un proyecto nuevo.
+ * Clona tareas en curso (IN_PROGRESS) de un proyecto-plantilla a un proyecto nuevo.
  * Se ejecuta dentro de una transacción Prisma existente (no crea la suya).
  */
 
 import type { Prisma, Task } from "@prisma/client";
+import { loadApplicableStatusSet, execSectorIdsOf } from "@/server/tasks";
+import { initialStatus } from "@/lib/domain/tasks/statusResolution";
 
 type TxClient = Prisma.TransactionClient;
 
 /**
- * Copia las tareas PENDING (con sus TaskLinks válidos) del templateWork al newWork.
- * Los links cuyo target (sector o usuario) ya no exista se omiten silenciosamente.
+ * Copia las tareas en estado IN_PROGRESS (con sus TaskLinks válidos) del
+ * templateWork al newWork. Los links cuyo target (sector o usuario) ya no
+ * exista se omiten silenciosamente. El estado inicial de cada clon se resuelve
+ * contra el conjunto aplicable en el proyecto nuevo (research.md D2).
  */
 export async function cloneTasksFromTemplate(
   templateWorkId: string,
@@ -18,7 +22,7 @@ export async function cloneTasksFromTemplate(
   tx: TxClient,
 ): Promise<Task[]> {
   const templateTasks = await tx.task.findMany({
-    where: { workId: templateWorkId, state: "PENDING" },
+    where: { workId: templateWorkId, status: { type: "IN_PROGRESS" } },
     include: { links: true },
     orderBy: { createdAt: "asc" },
   });
@@ -26,12 +30,25 @@ export async function cloneTasksFromTemplate(
   const created: Task[] = [];
 
   for (const tpl of templateTasks) {
+    // Links cuyo target sigue existiendo (se recrean después de crear la tarea)
+    const validLinks = [];
+    for (const link of tpl.links) {
+      if (await targetExists(tx, link.targetType, link.targetId)) validLinks.push(link);
+    }
+
+    const applicable = await loadApplicableStatusSet(
+      newWorkId,
+      null,
+      execSectorIdsOf(validLinks),
+      tx,
+    );
+
     const newTask = await tx.task.create({
       data: {
         rawText: tpl.rawText,
         displayText: tpl.displayText,
         description: tpl.description,
-        state: "PENDING",
+        statusId: initialStatus(applicable).id,
         workId: newWorkId,
         creatorId,
         sectorId: tpl.sectorId,
@@ -39,11 +56,7 @@ export async function cloneTasksFromTemplate(
       },
     });
 
-    // Recrear links cuyo target siga existiendo
-    for (const link of tpl.links) {
-      const exists = await targetExists(tx, link.targetType, link.targetId);
-      if (!exists) continue;
-
+    for (const link of validLinks) {
       await tx.taskLink.create({
         data: {
           taskId: newTask.id,

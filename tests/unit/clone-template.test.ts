@@ -3,14 +3,15 @@ import { cloneTasksFromTemplate } from "@/lib/domain/works/cloneFromTemplate";
 
 /**
  * Mock in-memory de un Prisma TransactionClient, cubriendo solo los métodos
- * que usa cloneTasksFromTemplate: task.findMany/create, taskLink.create,
- * sector.findUnique, user.findUnique.
+ * que usa cloneTasksFromTemplate (feature 042): task.findMany/create,
+ * taskLink.create, sector.findUnique, user.findUnique, work.findUnique,
+ * taskStatus.findMany (resolución del conjunto aplicable, research.md D2).
  */
 type MockTask = {
   id: string;
   rawText: string;
   displayText: string;
-  state: "PENDING" | "DONE";
+  status: { type: "IN_PROGRESS" | "FINAL" };
   workId: string | null;
   sectorId: string | null;
   creatorId: string;
@@ -28,33 +29,54 @@ type MockTaskLink = {
   userId: string | null;
 };
 
+type MockStatus = {
+  id: string;
+  type: "IN_PROGRESS" | "FINAL";
+  sortOrder: number;
+  groupId: string | null;
+  ownerId: string | null;
+  sectorId: string | null;
+};
+
+const DEFAULT_STATUSES: MockStatus[] = [
+  { id: "status-in-progress", type: "IN_PROGRESS", sortOrder: 0, groupId: "group-1", ownerId: null, sectorId: null },
+  { id: "status-final", type: "FINAL", sortOrder: 1, groupId: "group-1", ownerId: null, sectorId: null },
+];
+
 function createMockTx(opts: {
   tasks: MockTask[];
   sectorIds?: string[];
   userIds?: string[];
+  workScope?: { groupId: string | null; ownerId: string | null };
+  statuses?: MockStatus[];
 }) {
-  const { tasks, sectorIds = [], userIds = [] } = opts;
-  const createdTasks: MockTask[] = [];
+  const {
+    tasks,
+    sectorIds = [],
+    userIds = [],
+    workScope = { groupId: "group-1", ownerId: null },
+    statuses = DEFAULT_STATUSES,
+  } = opts;
+  const createdTasks: (Omit<MockTask, "status" | "links"> & { statusId: string })[] = [];
   const createdLinks: MockTaskLink[] = [];
   let idCounter = 0;
 
   const tx = {
     task: {
-      async findMany({ where }: { where: { workId: string; state: string } }) {
+      async findMany({ where }: { where: { workId: string; status: { type: string } } }) {
         return tasks
-          .filter((t) => t.workId === where.workId && t.state === where.state)
+          .filter((t) => t.workId === where.workId && t.status.type === where.status.type)
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map((t) => ({ ...t, links: t.links.map((l) => ({ ...l })) }));
       },
-      async create({ data }: { data: Omit<MockTask, "id" | "createdAt" | "links"> }) {
-        const newTask: MockTask = {
-          ...data,
-          id: `new-task-${idCounter++}`,
-          createdAt: new Date(),
-          links: [],
-        };
+      async create({
+        data,
+      }: {
+        data: Omit<MockTask, "id" | "createdAt" | "links" | "status"> & { statusId: string };
+      }) {
+        const newTask = { ...data, id: `new-task-${idCounter++}`, createdAt: new Date() };
         createdTasks.push(newTask);
-        return newTask;
+        return { ...newTask, links: [] };
       },
     },
     taskLink: {
@@ -65,12 +87,27 @@ function createMockTx(opts: {
     },
     sector: {
       async findUnique({ where }: { where: { id: string } }) {
-        return sectorIds.includes(where.id) ? { id: where.id } : null;
+        if (!sectorIds.includes(where.id)) return null;
+        return { id: where.id, groupId: workScope.groupId, ownerId: workScope.ownerId };
       },
     },
     user: {
       async findUnique({ where }: { where: { id: string } }) {
         return userIds.includes(where.id) ? { id: where.id } : null;
+      },
+    },
+    work: {
+      async findUnique({ where }: { where: { id: string } }) {
+        return { id: where.id, groupId: workScope.groupId, ownerId: workScope.ownerId };
+      },
+    },
+    taskStatus: {
+      async findMany({ where }: { where: { OR: Record<string, unknown>[] } }) {
+        return statuses.filter((s) =>
+          where.OR.some((cond) =>
+            Object.entries(cond).every(([k, v]) => (s as Record<string, unknown>)[k] === v),
+          ),
+        );
       },
     },
   };
@@ -81,15 +118,15 @@ function createMockTx(opts: {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const asTx = (tx: unknown) => tx as any;
 
-describe("cloneTasksFromTemplate (T004)", () => {
-  it("clona solo tareas PENDING, no las DONE", async () => {
+describe("cloneTasksFromTemplate (T004, adaptado a feature 042)", () => {
+  it("clona solo tareas IN_PROGRESS, no las FINAL", async () => {
     const { tx, createdTasks } = createMockTx({
       tasks: [
         {
           id: "t1",
           rawText: "Tarea pendiente",
           displayText: "Tarea pendiente",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -101,7 +138,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t2",
           rawText: "Tarea ya hecha",
           displayText: "Tarea ya hecha",
-          state: "DONE",
+          status: { type: "FINAL" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -117,6 +154,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
     expect(result).toHaveLength(1);
     expect(createdTasks).toHaveLength(1);
     expect(createdTasks[0].rawText).toBe("Tarea pendiente");
+    expect(createdTasks[0].statusId).toBe("status-in-progress");
   });
 
   it("preserva rawText y displayText de las tareas clonadas", async () => {
@@ -126,7 +164,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t1",
           rawText: "Cortar chapa #Metalurgica",
           displayText: "Cortar chapa",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -150,7 +188,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t1",
           rawText: "Tarea con sector",
           displayText: "Tarea con sector",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: "sector-abc",
           creatorId: "u-template",
@@ -173,7 +211,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t1",
           rawText: "Tarea",
           displayText: "Tarea",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -197,7 +235,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t1",
           rawText: "Tarea",
           displayText: "Tarea",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template-owner",
@@ -222,7 +260,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t1",
           rawText: "Tarea con link",
           displayText: "Tarea con link",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -257,7 +295,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t1",
           rawText: "Tarea con link roto",
           displayText: "Tarea con link roto",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -284,14 +322,14 @@ describe("cloneTasksFromTemplate (T004)", () => {
     expect(createdLinks).toHaveLength(0);
   });
 
-  it("retorna array vacío si la plantilla no tiene tareas PENDING", async () => {
+  it("retorna array vacío si la plantilla no tiene tareas IN_PROGRESS", async () => {
     const { tx, createdTasks } = createMockTx({
       tasks: [
         {
           id: "t1",
           rawText: "Ya terminada",
           displayText: "Ya terminada",
-          state: "DONE",
+          status: { type: "FINAL" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -315,7 +353,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t-later",
           rawText: "Segunda en crearse",
           displayText: "Segunda en crearse",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -327,7 +365,7 @@ describe("cloneTasksFromTemplate (T004)", () => {
           id: "t-earlier",
           rawText: "Primera en crearse",
           displayText: "Primera en crearse",
-          state: "PENDING",
+          status: { type: "IN_PROGRESS" },
           workId: "template-1",
           sectorId: null,
           creatorId: "u-template",
@@ -344,5 +382,33 @@ describe("cloneTasksFromTemplate (T004)", () => {
     expect(result[0].rawText).toBe("Primera en crearse");
     expect(result[1].rawText).toBe("Segunda en crearse");
     expect(createdTasks[0].rawText).toBe("Primera en crearse");
+  });
+
+  it("resuelve el estado inicial contra el conjunto aplicable del proyecto nuevo (research.md D2)", async () => {
+    const { tx, createdTasks } = createMockTx({
+      workScope: { groupId: "group-2", ownerId: null },
+      statuses: [
+        { id: "g2-pendiente", type: "IN_PROGRESS", sortOrder: 0, groupId: "group-2", ownerId: null, sectorId: null },
+        { id: "g2-hecha", type: "FINAL", sortOrder: 1, groupId: "group-2", ownerId: null, sectorId: null },
+      ],
+      tasks: [
+        {
+          id: "t1",
+          rawText: "Tarea",
+          displayText: "Tarea",
+          status: { type: "IN_PROGRESS" },
+          workId: "template-1",
+          sectorId: null,
+          creatorId: "u-template",
+          originType: "WORK",
+          createdAt: new Date("2026-01-01"),
+          links: [],
+        },
+      ],
+    });
+
+    await cloneTasksFromTemplate("template-1", "new-work-1", "u-new", asTx(tx));
+
+    expect(createdTasks[0].statusId).toBe("g2-pendiente");
   });
 });

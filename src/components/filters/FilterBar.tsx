@@ -3,12 +3,19 @@
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 
-/** Barra de filtros combinables (FR-013, US4; FR-008 de 032): trabajo + referencia + estado + etiqueta. */
+/** Barra de filtros combinables (FR-013/018, US4; FR-008 de 032): trabajo + referencia + estado + etiqueta. */
 export interface FilterState {
   workId: string;
   refSectorId: string;
-  state: "" | "PENDING" | "DONE";
+  /** Estado puntual del conjunto aplicable al contexto ("" = todos). */
+  statusId: string;
   labelValueId: string;
+}
+
+export interface StatusFilterOption {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface LabelValueDto {
@@ -24,19 +31,22 @@ interface LabelKeyDto {
   values: LabelValueDto[];
 }
 
-const EMPTY_FILTERS: FilterState = { workId: "", refSectorId: "", state: "", labelValueId: "" };
+const EMPTY_FILTERS: FilterState = { workId: "", refSectorId: "", statusId: "", labelValueId: "" };
 
 export function FilterBar({
   filters,
   onChange,
   works,
   sectors,
+  statusOptions,
   groupId,
 }: {
   filters: FilterState;
   onChange: (next: FilterState) => void;
   works: { id: string; name: string }[];
   sectors: { id: string; name: string }[];
+  /** Estados del conjunto aplicable al contexto (FR-018): reemplaza el viejo pendiente/hecha fijo. */
+  statusOptions: StatusFilterOption[];
   /** Grupo del sector (US2, FR-008): acota las etiquetas disponibles para filtrar (grupo + globales). */
   groupId?: string | null;
 }) {
@@ -58,7 +68,7 @@ export function FilterBar({
   }, [groupId]);
 
   const hasFilters =
-    !!filters.workId || !!filters.refSectorId || !!filters.state || !!filters.labelValueId;
+    !!filters.workId || !!filters.refSectorId || !!filters.statusId || !!filters.labelValueId;
   const activeLabelColor =
     labelOptions.find((l) => l.valueId === filters.labelValueId)?.color ?? null;
 
@@ -90,14 +100,17 @@ export function FilterBar({
           ))}
         </select>
       </label>
-      <label className={`filter-pill${filters.state ? " is-active" : ""}`}>
+      <label className={`filter-pill${filters.statusId ? " is-active" : ""}`}>
         <select
-          value={filters.state}
-          onChange={(e) => onChange({ ...filters, state: e.target.value as FilterState["state"] })}
+          value={filters.statusId}
+          onChange={(e) => onChange({ ...filters, statusId: e.target.value })}
         >
           <option value="">Todos los estados</option>
-          <option value="PENDING">Pendientes</option>
-          <option value="DONE">Realizadas</option>
+          {statusOptions.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
         </select>
       </label>
       <label className={`filter-pill${filters.labelValueId ? " is-active" : ""}`}>

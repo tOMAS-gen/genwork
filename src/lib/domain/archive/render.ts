@@ -49,7 +49,7 @@ export function docToHtml(workName: string, docContent: unknown): string {
 export interface ArchivableTask {
   displayText: string;
   rawText: string;
-  state: "PENDING" | "DONE";
+  statusType: "IN_PROGRESS" | "FINAL";
   createdAt: Date;
   completedAt: Date | null;
   creatorName: string;
@@ -65,7 +65,7 @@ export function tasksToMarkdown(workName: string, tasks: ArchivableTask[]): stri
     "",
   ];
   for (const t of tasks) {
-    const mark = t.state === "DONE" ? "x" : " ";
+    const mark = t.statusType === "FINAL" ? "x" : " ";
     const tags = t.tags.map((tag) => `${tag.symbol}${tag.name}`).join(" ");
     lines.push(`- [${mark}] ${t.displayText}${tags ? ` — ${tags}` : ""}`);
     lines.push(

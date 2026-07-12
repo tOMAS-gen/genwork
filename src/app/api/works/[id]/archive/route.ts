@@ -59,6 +59,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
               creator: { select: { name: true } },
               completedBy: { select: { name: true } },
               links: { include: { sector: true, user: { select: { name: true } } } },
+              status: { select: { type: true } },
             },
           },
         },
@@ -67,7 +68,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
       const tasks: ArchivableTask[] = full.tasks.map((t) => ({
         displayText: t.displayText,
         rawText: t.rawText,
-        state: t.state,
+        statusType: t.status.type,
         createdAt: t.createdAt,
         completedAt: t.completedAt,
         creatorName: t.creator.name,

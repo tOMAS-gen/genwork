@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
-import { Shield, HardDrive, Users, Tag, Layers, AlertCircle } from "@/components/ui/icons";
+import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Administración" };
 
@@ -56,6 +56,15 @@ export default async function AdminHome() {
             <div>
               <div><strong>Estados de producción</strong></div>
               <span className="muted">Configurar las etapas de producción para los proyectos del grupo</span>
+            </div>
+          </div>
+        </Link>
+        <Link className="project-card" href="/admin/task-statuses">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <CheckSquare size={20} />
+            <div>
+              <div><strong>Estados de tarea</strong></div>
+              <span className="muted">Conjunto general de estados de tarea (en curso/final) por grupo o personal</span>
             </div>
           </div>
         </Link>
