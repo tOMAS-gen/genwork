@@ -28,7 +28,11 @@ describe("resolveApplicableStatusSet — research.md D2", () => {
     status({ id: "s-asignado", type: "IN_PROGRESS", sortOrder: 0, sectorId: "sec1" }),
     status({ id: "s-realizada", type: "FINAL", sortOrder: 1, sectorId: "sec1" }),
   ];
-  const all = [...groupDefault, ...sectorOverride];
+  const globalDefault = [
+    status({ id: "glob-pendiente", type: "IN_PROGRESS", sortOrder: 0 }),
+    status({ id: "glob-hecha", type: "FINAL", sortOrder: 1 }),
+  ];
+  const all = [...groupDefault, ...sectorOverride, ...globalDefault];
 
   it("usa el override del sector EXEC si existe", () => {
     const set = resolveApplicableStatusSet(
@@ -57,6 +61,30 @@ describe("resolveApplicableStatusSet — research.md D2", () => {
     const shuffled = [groupDefault[1], groupDefault[0]];
     const set = resolveApplicableStatusSet({ execSector: null, workScope: { groupId: "g1", ownerId: null } }, shuffled);
     expect(set.map((s) => s.id)).toEqual(["g-pendiente", "g-hecha"]);
+  });
+
+  it("cae al conjunto global si el sector EXEC no tiene override ni el work tiene grupo/personal con set propio", () => {
+    const set = resolveApplicableStatusSet(
+      {
+        execSector: { id: "sec-huerfano", groupId: null, ownerId: null },
+        workScope: { groupId: "g-inexistente", ownerId: null },
+      },
+      all,
+    );
+    expect(set.map((s) => s.id)).toEqual(["glob-pendiente", "glob-hecha"]);
+  });
+
+  it("sin sector EXEC, cae al conjunto global si el work no tiene grupo/personal con set propio", () => {
+    const set = resolveApplicableStatusSet(
+      { execSector: null, workScope: { groupId: "g-inexistente", ownerId: null } },
+      all,
+    );
+    expect(set.map((s) => s.id)).toEqual(["glob-pendiente", "glob-hecha"]);
+  });
+
+  it("sin sector EXEC ni workScope, cae al conjunto global", () => {
+    const set = resolveApplicableStatusSet({ execSector: null, workScope: null }, all);
+    expect(set.map((s) => s.id)).toEqual(["glob-pendiente", "glob-hecha"]);
   });
 });
 

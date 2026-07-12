@@ -38,14 +38,20 @@ function sortByOrder(statuses: TaskStatusRef[]): TaskStatusRef[] {
 }
 
 /**
- * Conjunto de estados aplicable a una tarea (research.md D2, ajustado por feature 044):
+ * Conjunto de estados aplicable a una tarea (research.md D2, ajustado por feature 044
+ * y por el scope global de admin):
  * 1. Si tiene sector EXEC con conjunto propio (override) → ese.
  * 2. Si tiene sector EXEC sin conjunto propio → el default del scope del trabajo
  *    (mismo fallback que "sin sector EXEC"). Los sectores son catálogo global
- *    (feature 044) y ya no tienen groupId/ownerId del cual heredar, así que un
- *    sector sin override cae al conjunto general del grupo/personal del Work.
+ *    (feature 044) y ya no tienen groupId/ownerId del cual heredar.
  * 3. Si no tiene sector EXEC → el default del scope del trabajo.
+ * 4. Si ninguno de los pasos anteriores dio resultado → el conjunto global
+ *    (groupId/ownerId/sectorId los 3 `null`), definido por el SUPERADMIN.
  */
+function globalFallback(statuses: TaskStatusRef[]): TaskStatusRef[] {
+  return sortByOrder(statuses.filter((s) => s.groupId === null && s.ownerId === null && s.sectorId === null));
+}
+
 export function resolveApplicableStatusSet(
   scope: TaskScopeRef,
   allStatuses: readonly TaskStatusRef[],
@@ -55,16 +61,20 @@ export function resolveApplicableStatusSet(
   if (scope.execSector) {
     const sectorOwn = statuses.filter((s) => s.sectorId === scope.execSector!.id);
     if (sectorOwn.length > 0) return sortByOrder(sectorOwn);
-    // Sin override propio del sector → cae al default del work (mismo fallback que "sin sector EXEC").
-    if (scope.workScope) return sortByOrder(byGroupOrOwner(statuses, scope.workScope));
-    return [];
+    if (scope.workScope) {
+      const workSet = byGroupOrOwner(statuses, scope.workScope);
+      if (workSet.length > 0) return sortByOrder(workSet);
+    }
+    return globalFallback(statuses);
   }
 
   if (scope.workScope) {
-    return sortByOrder(byGroupOrOwner(statuses, scope.workScope));
+    const workSet = byGroupOrOwner(statuses, scope.workScope);
+    if (workSet.length > 0) return sortByOrder(workSet);
+    return globalFallback(statuses);
   }
 
-  return [];
+  return globalFallback(statuses);
 }
 
 /** Estado inicial de una tarea nueva: el primer IN_PROGRESS del conjunto aplicable (FR-009). */
