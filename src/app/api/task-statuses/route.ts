@@ -11,9 +11,15 @@ import { listApplicableSet, createStatus, type StatusScope } from "@/server/task
 /** Resuelve el `StatusScope` desde query params/body y valida permiso de escritura. */
 async function resolveScopeAndAuthorize(
   ctx: Awaited<ReturnType<typeof getUserContext>>,
-  params: { groupId?: string | null; ownerId?: string | null; sectorId?: string | null },
+  params: { groupId?: string | null; ownerId?: string | null; sectorId?: string | null; global?: boolean },
   requireWrite: boolean,
 ): Promise<StatusScope> {
+  if (params.global) {
+    if (requireWrite && ctx.globalRole !== "SUPERADMIN") {
+      throw forbidden("Solo el administrador del sistema administra los estados globales");
+    }
+    return { global: true };
+  }
   if (params.sectorId) {
     const sector = await prisma.sector.findUnique({ where: { id: params.sectorId } });
     if (!sector) throw notFound("Sector no encontrado");
@@ -47,6 +53,7 @@ export const GET = withApi(async (req) => {
       groupId: url.searchParams.get("groupId"),
       ownerId: url.searchParams.get("ownerId"),
       sectorId: url.searchParams.get("sectorId"),
+      global: url.searchParams.get("global") === "true",
     },
     false,
   );
@@ -68,6 +75,7 @@ const createSchema = z.object({
   groupId: z.string().uuid().optional(),
   ownerId: z.string().uuid().optional(),
   sectorId: z.string().uuid().optional(),
+  global: z.boolean().optional(),
   name: z.string().trim().min(1).max(80),
   color: z.string().refine(isValidHex, "Color inválido"),
   type: z.enum(["IN_PROGRESS", "FINAL"]),
