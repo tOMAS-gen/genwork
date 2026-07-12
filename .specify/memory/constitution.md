@@ -1,15 +1,18 @@
 <!--
 Sync Impact Report
-- Version change: 1.3.0 → 1.4.0
+- Version change: 1.4.0 → 1.5.0
 - Modified sections: "Semántica de Etiquetado y Reglas de Dominio" > "Reglas de dominio no
-  negociables" — la regla "Los sectores de trabajo (...) los crea el usuario" se RESTRINGE:
-  la creación y administración (renombrar, recolorear, eliminar, otorgar/quitar acceso) de
-  sectores queda reservada exclusivamente al rol SUPERADMIN, quien asigna el acceso a usuarios
-  puntuales vía SectorGrant. No es uno de los Core Principles I-V, pero sí una regla de dominio
-  que antes permitía a cualquier usuario crear sectores; el resto de la frase (sectores como
-  vistas agregadoras de tareas de todos los trabajos) no cambia. Es una restricción material de
-  comportamiento, no una simple aclaración de redacción → bump MINOR (mismo criterio que el
-  cambio 1.2.0→1.3.0: no redefine un Core Principle de forma incompatible, pero sí acota
+  negociables" — la regla de la feature 044 ("los sectores son un catálogo global, los crea
+  y administra exclusivamente SUPERADMIN") se REDISTRIBUYE: la creación pasa a depender del
+  ámbito (Grupo/Personal/Global) del sector — SUPERADMIN o el ADMIN de ese grupo crean uno de
+  Grupo, cualquier usuario crea uno Personal, solo SUPERADMIN crea uno Global. La
+  ADMINISTRACIÓN de un sector ya creado (renombrar/recolorear/eliminar/otorgar acceso) NO
+  cambia: sigue 100% exclusiva de SUPERADMIN, sin excepción por ámbito — decisión explícita
+  del usuario en specs/046-sectores-ambito/ que diferencia este caso del ya resuelto para
+  TaskStatus en specs/045-permisos-ambito-estados/ (donde el ADMIN de grupo sí administra su
+  propio conjunto). No es uno de los Core Principles I-V, pero sí una regla de dominio que
+  vuelve a distribuir algo que 044 había centralizado → bump MINOR (mismo criterio que los
+  cambios previos: no redefine un Core Principle de forma incompatible, pero sí redistribuye
   materialmente una guía existente).
 - Added sections: n/a
 - Removed sections: n/a
@@ -17,7 +20,7 @@ Sync Impact Report
   - ✅ .specify/templates/plan-template.md — sin cambios requeridos (gate genérico, no hardcodea principios)
   - ✅ .specify/templates/spec-template.md — sin cambios requeridos
   - ✅ .specify/templates/tasks-template.md — sin cambios requeridos
-  - ✅ specs/044-sectores-globales/* — motivador de este cambio; ya alineado con la nueva redacción
+  - ✅ specs/046-sectores-ambito/* — motivador de este cambio; ya alineado con la nueva redacción
 - Follow-up TODOs: ninguno.
 -->
 
@@ -120,10 +123,14 @@ mata el avance.
 
 Reglas de dominio no negociables:
 
-- Los sectores de trabajo (ej.: Metalúrgica, Compras) son un catálogo global: los crea y
-  administra (renombra, recolorea, elimina, otorga/quita acceso) exclusivamente el rol
-  SUPERADMIN, que asigna el acceso a usuarios puntuales; funcionan como vistas agregadoras
-  de tareas de todos los trabajos, sin importar el grupo.
+- Los sectores de trabajo (ej.: Metalúrgica, Compras) pertenecen a uno de tres ámbitos —
+  un Grupo, el espacio Personal de un usuario, o Global (ninguno de los dos anteriores).
+  La CREACIÓN se distribuye por ámbito: SUPERADMIN o el ADMIN de ese grupo crean un sector
+  de Grupo; cualquier usuario crea uno Personal para sí mismo; solo SUPERADMIN crea uno
+  Global. La ADMINISTRACIÓN (renombrar, recolorear, eliminar, otorgar/quitar acceso vía
+  SectorGrant) de un sector ya creado sigue reservada exclusivamente a SUPERADMIN, sin
+  excepción por ámbito. Un sector de Grupo es vista agregadora de tareas de ese grupo; uno
+  Personal, del usuario dueño; uno Global, de toda la organización sin importar el grupo.
 - Filtrar es transversal: desde un sector se puede filtrar por trabajo, por otro sector
   referenciado, o por estado (ej.: en Compras, filtrar `@Metalurgica` para ver qué comprar
   en la ferretería).
@@ -152,4 +159,4 @@ Reglas de dominio no negociables:
 - Cumplimiento: todo plan y toda revisión de implementación verifican los Principios I–V;
   la complejidad debe justificarse siempre.
 
-**Version**: 1.4.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-11
+**Version**: 1.5.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-12

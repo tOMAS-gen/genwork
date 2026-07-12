@@ -1,31 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { badRequest, conflict, forbidden, notFound, withApi } from "@/server/api";
+import { badRequest, conflict, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
-import { getUserContext } from "@/server/user-context";
-import { access } from "@/lib/domain/permissions";
 import { canAssignLabel } from "@/lib/domain/labels/availability";
 import { emit } from "@/server/events";
-
-/** Busca el work y exige que el usuario lo opere (mismo criterio que GET/PATCH /works/{id}). */
-async function getOperableWork(userId: string, id: string) {
-  const ctx = await getUserContext(userId);
-  const work = await prisma.work.findUnique({
-    where: { id },
-    include: { group: { select: { publicRead: true } } },
-  });
-  if (!work) throw notFound();
-  const level = access(ctx, {
-    groupId: work.groupId,
-    ownerId: work.ownerId,
-    groupPublicRead: work.group?.publicRead ?? false,
-  });
-  // Sin acceso: 404, no filtra existencia (mismo contrato que /works/{id})
-  if (level === "none") throw notFound();
-  if (level !== "operate") throw forbidden();
-  return work;
-}
+import { getOperableWork } from "./_shared";
 
 const putSchema = z.object({
   keyId: z.string().uuid(),
@@ -33,10 +13,12 @@ const putSchema = z.object({
 });
 
 /**
- * PUT /api/works/{id}/labels — asigna o reemplaza el valor de una clave en el proyecto.
- * FR-409: a lo sumo un valor por clave y proyecto → upsert sobre (workId, keyId), la
- * asignación previa se reemplaza. Requiere operar el proyecto (administrar claves/valores
- * en sí es un gate aparte, FR-408, ya cubierto por /api/labels/*).
+ * PUT /api/works/{id}/labels — asigna un valor "secundario" en el proyecto: se suma
+ * a los ya asignados, sin restricción de una asignación por clave (podés tener varios
+ * valores de la misma clave, ej. Instagram + TikTok de "Redes sociales", más valores
+ * de otras claves). La etiqueta "principal" (una sola, da el color) se maneja aparte
+ * en /api/works/{id}/labels/primary. Requiere operar el proyecto (administrar
+ * claves/valores en sí es un gate aparte, FR-408, ya cubierto por /api/labels/*).
  */
 export const PUT = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   const session = await requireWriter();
@@ -59,9 +41,9 @@ export const PUT = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   }
 
   const workLabel = await prisma.workLabel.upsert({
-    where: { workId_keyId: { workId: id, keyId } },
+    where: { workId_keyId_valueId: { workId: id, keyId, valueId } },
     create: { workId: id, keyId, valueId },
-    update: { valueId },
+    update: {},
     include: { value: true },
   });
 
@@ -70,18 +52,21 @@ export const PUT = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 });
 
 /**
- * DELETE /api/works/{id}/labels?keyId= — quita la asignación de esa clave, si existe.
- * Requiere operar el proyecto. Idempotente: 204 exista o no la asignación (FR-409).
+ * DELETE /api/works/{id}/labels?keyId=&valueId= — quita una asignación puntual
+ * (secundaria o principal) del proyecto. Requiere operar el proyecto. Idempotente:
+ * 204 exista o no la asignación.
  */
 export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   const session = await requireWriter();
   const { id } = await params;
   await getOperableWork(session.user.id, id);
 
-  const keyId = new URL(req.url).searchParams.get("keyId");
-  if (!keyId) throw badRequest("Falta el parámetro keyId");
+  const url = new URL(req.url);
+  const keyId = url.searchParams.get("keyId");
+  const valueId = url.searchParams.get("valueId");
+  if (!keyId || !valueId) throw badRequest("Faltan los parámetros keyId y valueId");
 
-  await prisma.workLabel.deleteMany({ where: { workId: id, keyId } });
+  await prisma.workLabel.deleteMany({ where: { workId: id, keyId, valueId } });
 
   emit({ type: "work-changed", workId: id });
   return new NextResponse(null, { status: 204 });

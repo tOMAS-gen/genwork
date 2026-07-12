@@ -50,10 +50,19 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
         if (wanted.has("sector")) {
           const sectors = await prisma.sector.findMany({
             where: { name: { contains: text, mode: "insensitive" } },
+            include: { group: { select: { publicRead: true } } },
             take: LIMIT * 3,
           });
           result.sectors = sectors
-            .filter((s) => accessSector(ctx.userContext, s.id) !== "none")
+            .filter(
+              (s) =>
+                accessSector(ctx.userContext, {
+                  id: s.id,
+                  groupId: s.groupId,
+                  ownerId: s.ownerId,
+                  groupPublicRead: s.group?.publicRead ?? false,
+                }) !== "none",
+            )
             .slice(0, LIMIT)
             .map((s) => ({ id: s.id, name: s.name }));
         }

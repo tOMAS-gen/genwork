@@ -22,9 +22,20 @@ async function resolveScopeAndAuthorize(
     return { global: true };
   }
   if (params.sectorId) {
-    const sector = await prisma.sector.findUnique({ where: { id: params.sectorId } });
+    const sector = await prisma.sector.findUnique({
+      where: { id: params.sectorId },
+      include: { group: { select: { publicRead: true } } },
+    });
     if (!sector) throw notFound("Sector no encontrado");
-    if (requireWrite && accessSector(ctx.userContext, sector.id) !== "operate") {
+    if (
+      requireWrite &&
+      accessSector(ctx.userContext, {
+        id: sector.id,
+        groupId: sector.groupId,
+        ownerId: sector.ownerId,
+        groupPublicRead: sector.group?.publicRead ?? false,
+      }) !== "operate"
+    ) {
       throw forbidden("No administrás ese sector");
     }
     return { sectorId: params.sectorId };

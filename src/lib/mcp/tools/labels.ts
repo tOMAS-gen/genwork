@@ -93,15 +93,16 @@ export function registerLabelTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Asignar etiqueta a un proyecto",
       description:
-        "Asigna (o reemplaza) el valor de una etiqueta en un proyecto. Crea la clave/valor si no existen, dentro del ámbito del proyecto.",
+        "Asigna el valor de una etiqueta en un proyecto. Crea la clave/valor si no existen, dentro del ámbito del proyecto. Por default se suma como etiqueta secundaria (sin restricción de una por clave). Con `primary: true`, la marca como LA etiqueta principal del proyecto (una sola, da el color de la tarjeta), reemplazando la principal anterior si había una.",
       inputSchema: {
         workId: z.string().uuid(),
         key: z.string().trim().min(1).max(80),
         value: z.string().trim().min(1).max(80),
         color: z.string().refine(isValidHex, "Color inválido").optional(),
+        primary: z.boolean().optional(),
       },
     },
-    async ({ workId, key, value, color }) => {
+    async ({ workId, key, value, color, primary }) => {
       try {
         const work = await getWorkOperable(ctx, workId);
         const scope = { groupId: work.groupId, ownerId: work.ownerId };
@@ -133,11 +134,23 @@ export function registerLabelTools(server: McpServer, ctx: McpAuth): void {
           });
         }
 
-        const workLabel = await prisma.workLabel.upsert({
-          where: { workId_keyId: { workId, keyId: labelKey.id } },
-          create: { workId, keyId: labelKey.id, valueId: labelValue.id },
-          update: { valueId: labelValue.id },
-        });
+        let workLabel;
+        if (primary) {
+          [, workLabel] = await prisma.$transaction([
+            prisma.workLabel.updateMany({ where: { workId, isPrimary: true }, data: { isPrimary: false } }),
+            prisma.workLabel.upsert({
+              where: { workId_keyId_valueId: { workId, keyId: labelKey.id, valueId: labelValue.id } },
+              create: { workId, keyId: labelKey.id, valueId: labelValue.id, isPrimary: true },
+              update: { isPrimary: true },
+            }),
+          ]);
+        } else {
+          workLabel = await prisma.workLabel.upsert({
+            where: { workId_keyId_valueId: { workId, keyId: labelKey.id, valueId: labelValue.id } },
+            create: { workId, keyId: labelKey.id, valueId: labelValue.id },
+            update: {},
+          });
+        }
 
         await logMcpActivity({
           connectionId: ctx.connectionId,
@@ -165,16 +178,31 @@ export function registerLabelTools(server: McpServer, ctx: McpAuth): void {
     "label.unassign",
     {
       title: "Quitar etiqueta de un proyecto",
-      description: "Quita la asignación de una clave de etiqueta en un proyecto, si existe.",
-      inputSchema: { workId: z.string().uuid(), key: z.string().trim().min(1) },
+      description:
+        "Quita la asignación de una clave de etiqueta en un proyecto. Con `value`, quita solo ese valor puntual (un proyecto puede tener varios valores asignados de una misma clave); sin `value`, quita todos los valores asignados de esa clave.",
+      inputSchema: {
+        workId: z.string().uuid(),
+        key: z.string().trim().min(1),
+        value: z.string().trim().min(1).optional(),
+      },
     },
-    async ({ workId, key }) => {
+    async ({ workId, key, value }) => {
       try {
         await getWorkOperable(ctx, workId);
         const labelKey = await prisma.labelKey.findFirst({ where: { name: { equals: key, mode: "insensitive" } } });
         if (!labelKey) throw badRequest(`No existe la etiqueta "${key}"`);
 
-        await prisma.workLabel.deleteMany({ where: { workId, keyId: labelKey.id } });
+        let labelValue = null;
+        if (value) {
+          labelValue = await prisma.labelValue.findFirst({
+            where: { keyId: labelKey.id, name: { equals: value, mode: "insensitive" } },
+          });
+          if (!labelValue) throw badRequest(`No existe el valor "${value}" para la etiqueta "${key}"`);
+        }
+
+        await prisma.workLabel.deleteMany({
+          where: labelValue ? { workId, keyId: labelKey.id, valueId: labelValue.id } : { workId, keyId: labelKey.id },
+        });
 
         await logMcpActivity({
           connectionId: ctx.connectionId,
@@ -183,11 +211,13 @@ export function registerLabelTools(server: McpServer, ctx: McpAuth): void {
           targetType: "WorkLabel",
           targetId: `${workId}:${labelKey.id}`,
           workId,
-          summary: `El asistente de IA quitó la etiqueta "${labelKey.name}" del proyecto.`,
+          summary: value
+            ? `El asistente de IA quitó el valor "${value}" de la etiqueta "${labelKey.name}" del proyecto.`
+            : `El asistente de IA quitó la etiqueta "${labelKey.name}" del proyecto.`,
         });
         emit({ type: "work-changed", workId });
 
-        return toolSuccess(`Etiqueta "${key}" quitada.`);
+        return toolSuccess(value ? `Valor "${value}" de "${key}" quitado.` : `Etiqueta "${key}" quitada.`);
       } catch (err) {
         return toToolErrorResult(err);
       }

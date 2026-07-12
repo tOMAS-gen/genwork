@@ -25,18 +25,20 @@ const patchSchema = z
 /** Renombrar conserva vínculos (FR-015). */
 export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   const { id } = await params;
-  await getSectorWithOperate(id);
+  const sector = await getSectorWithOperate(id);
 
   const { name, color } = patchSchema.parse(await req.json());
 
   if (name !== undefined) {
     const dup = await prisma.sector.findFirst({
       where: {
+        groupId: sector.groupId,
+        ownerId: sector.ownerId,
         name: { equals: name, mode: "insensitive" },
         id: { not: id },
       },
     });
-    if (dup) throw conflict(`Ya existe un sector llamado "${name}"`);
+    if (dup) throw conflict(`Ya existe un sector llamado "${name}" en este ámbito`);
   }
 
   const updated = await prisma.sector.update({

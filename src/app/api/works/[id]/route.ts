@@ -73,6 +73,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
     labels: labels.map((l) => ({
       keyId: l.keyId,
       keyName: l.value.key.name,
+      isPrimary: l.isPrimary,
       valueId: l.valueId,
       valueName: l.value.name,
       color: l.value.color,

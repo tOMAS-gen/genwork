@@ -61,11 +61,10 @@ async function main() {
   const sectorNames = ["Metalúrgica", "Carpintería", "Pintura", "Compras", "Diseño", "Montaje", "Control de calidad"];
   const sectors: Record<string, { id: string }> = {};
   for (const name of sectorNames) {
-    sectors[name] = await prisma.sector.upsert({
-      where: { name },
-      update: {},
-      create: { name },
+    const existing = await prisma.sector.findFirst({
+      where: { groupId: null, ownerId: null, name },
     });
+    sectors[name] = existing ?? (await prisma.sector.create({ data: { name } }));
   }
 
   // --- Label Keys & Values ---

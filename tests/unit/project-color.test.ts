@@ -35,3 +35,21 @@ describe("getProjectColor — labels desordenadas", () => {
     expect(getProjectColor(labels)).toBe("#333333");
   });
 });
+
+describe("getProjectColor — etiqueta principal", () => {
+  it("devuelve el color de la etiqueta marcada isPrimary aunque no sea la primera alfabéticamente", () => {
+    const labels = [
+      { keyName: "Alfa Redes", color: "#0000ff", isPrimary: false },
+      { keyName: "Zeta Importancia", color: "#ff0000", isPrimary: true },
+    ];
+    expect(getProjectColor(labels)).toBe("#ff0000");
+  });
+
+  it("sin ninguna etiqueta marcada como principal, cae al orden alfabético", () => {
+    const labels = [
+      { keyName: "Zeta Redes", color: "#0000ff", isPrimary: false },
+      { keyName: "Alfa Plataformas", color: "#00ff00", isPrimary: false },
+    ];
+    expect(getProjectColor(labels)).toBe("#00ff00");
+  });
+});

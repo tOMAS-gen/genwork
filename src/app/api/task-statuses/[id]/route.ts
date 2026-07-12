@@ -22,17 +22,33 @@ async function authorizeWrite(
   if (!status) throw notFound("Estado no encontrado");
 
   if (asSectorId) {
-    const sector = await prisma.sector.findUnique({ where: { id: asSectorId } });
+    const sector = await prisma.sector.findUnique({
+      where: { id: asSectorId },
+      include: { group: { select: { publicRead: true } } },
+    });
     if (!sector) throw notFound("Sector no encontrado");
-    const level = accessSector(ctx, sector.id);
+    const level = accessSector(ctx, {
+      id: sector.id,
+      groupId: sector.groupId,
+      ownerId: sector.ownerId,
+      groupPublicRead: sector.group?.publicRead ?? false,
+    });
     if (level !== "operate") throw forbidden("No administrás ese sector");
     return;
   }
 
   if (status.sectorId) {
-    const sector = await prisma.sector.findUnique({ where: { id: status.sectorId } });
+    const sector = await prisma.sector.findUnique({
+      where: { id: status.sectorId },
+      include: { group: { select: { publicRead: true } } },
+    });
     if (!sector) throw notFound("Sector no encontrado");
-    const level = accessSector(ctx, sector.id);
+    const level = accessSector(ctx, {
+      id: sector.id,
+      groupId: sector.groupId,
+      ownerId: sector.ownerId,
+      groupPublicRead: sector.group?.publicRead ?? false,
+    });
     if (level !== "operate") throw forbidden("No administrás ese sector");
     return;
   }

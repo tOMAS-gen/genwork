@@ -2,14 +2,17 @@ import { describe, it, expect, vi } from "vitest";
 
 /**
  * resolveTask() depende de Prisma para buscar sectores/trabajos/usuarios/etiquetas.
- * Se mockea @/lib/db/client con un dataset en memoria: los sectores son catálogo
- * global (feature 044), así que #Ventas debe resolver siempre al mismo Sector sin
- * importar desde qué trabajo (ni grupo) se crea la tarea.
+ * Se mockea @/lib/db/client con un dataset en memoria: los sectores recuperan ámbito
+ * propio (feature 046) — el mismo nombre puede repetirse en distintos ámbitos (Grupo,
+ * Personal, Global) — y #sector/@sector resuelve por prioridad de ámbito (FR-008):
+ * (1) Grupo del contexto/trabajo actual, (2) sector Personal del usuario, (3) Global.
  */
 
 interface FakeSector {
   id: string;
   name: string;
+  groupId: string | null;
+  ownerId: string | null;
 }
 
 interface FakeWork {
@@ -20,14 +23,16 @@ interface FakeWork {
 }
 
 const sectors: FakeSector[] = [
-  { id: "sector-ventas", name: "Ventas" },
-  { id: "sector-soporte", name: "Soporte" },
+  // Dos sectores "Ventas" en ámbitos distintos, ambos accesibles para user-1:
+  // uno del Grupo 1, otro Personal de ese mismo usuario.
+  { id: "sector-ventas-grupo1", name: "Ventas", groupId: "group-1", ownerId: null },
+  { id: "sector-ventas-personal-user1", name: "Ventas", groupId: null, ownerId: "user-1" },
+  { id: "sector-soporte-global", name: "Soporte", groupId: null, ownerId: null },
 ];
 
 const works: FakeWork[] = [
   { id: "work-grupo-1", groupId: "group-1", ownerId: null, status: "ACTIVE" },
-  { id: "work-grupo-2", groupId: "group-2", ownerId: null, status: "ACTIVE" },
-  { id: "work-personal", groupId: null, ownerId: "user-2", status: "ACTIVE" },
+  { id: "work-personal-user1", groupId: null, ownerId: "user-1", status: "ACTIVE" },
 ];
 
 vi.mock("@/lib/db/client", () => ({
@@ -67,37 +72,43 @@ function ctxFor(id: string): UserContext {
   };
 }
 
-describe("resolveTask — #sector resuelve por catálogo global (feature 044)", () => {
-  it("una tarea con #Ventas creada desde trabajos de grupos distintos resuelve al MISMO sector", async () => {
+describe("resolveTask — #sector resuelve por prioridad de ámbito (feature 046)", () => {
+  it("una tarea con #Ventas creada en un trabajo del Grupo 1 resuelve al sector Ventas de ESE grupo", async () => {
     const ctx = ctxFor("user-1");
 
-    const desdeGrupo1 = await resolveTask(ctx, {
+    const resolved = await resolveTask(ctx, {
       rawText: "#Ventas hacer seguimiento comercial",
       contextWorkId: "work-grupo-1",
     });
-    const desdeGrupo2 = await resolveTask(ctx, {
-      rawText: "#Ventas hacer seguimiento comercial",
-      contextWorkId: "work-grupo-2",
-    });
 
-    expect(desdeGrupo1.execSectorIds).toEqual(["sector-ventas"]);
-    expect(desdeGrupo2.execSectorIds).toEqual(["sector-ventas"]);
-    expect(desdeGrupo1.execSectorIds).toEqual(desdeGrupo2.execSectorIds);
+    expect(resolved.execSectorIds).toEqual(["sector-ventas-grupo1"]);
   });
 
-  it("también resuelve al mismo sector desde un trabajo sin grupo (ámbito personal)", async () => {
-    const ctx = ctxFor("user-2");
+  it("una tarea con #Ventas creada en el espacio Personal del usuario resuelve al sector Ventas Personal de ese usuario", async () => {
+    const ctx = ctxFor("user-1");
 
-    const desdeGrupo1 = await resolveTask(ctx, {
+    const resolved = await resolveTask(ctx, {
       rawText: "#Ventas coordinar con cliente",
+      contextWorkId: "work-personal-user1",
+    });
+
+    expect(resolved.execSectorIds).toEqual(["sector-ventas-personal-user1"]);
+  });
+
+  it("con ambos sectores 'Ventas' accesibles, el mismo usuario resuelve distinto según el ámbito de creación", async () => {
+    const ctx = ctxFor("user-1");
+
+    const desdeGrupo = await resolveTask(ctx, {
+      rawText: "#Ventas hacer seguimiento comercial",
       contextWorkId: "work-grupo-1",
     });
     const desdePersonal = await resolveTask(ctx, {
       rawText: "#Ventas coordinar con cliente",
-      contextWorkId: "work-personal",
+      contextWorkId: "work-personal-user1",
     });
 
-    expect(desdePersonal.execSectorIds).toEqual(["sector-ventas"]);
-    expect(desdePersonal.execSectorIds).toEqual(desdeGrupo1.execSectorIds);
+    expect(desdeGrupo.execSectorIds).toEqual(["sector-ventas-grupo1"]);
+    expect(desdePersonal.execSectorIds).toEqual(["sector-ventas-personal-user1"]);
+    expect(desdeGrupo.execSectorIds).not.toEqual(desdePersonal.execSectorIds);
   });
 });

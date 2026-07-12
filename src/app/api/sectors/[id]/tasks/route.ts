@@ -56,11 +56,17 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 
   const sector = await prisma.sector.findUnique({
     where: { id },
+    include: { group: { select: { id: true, name: true, publicRead: true } } },
   });
   if (!sector) throw notFound();
 
   const ctx = await getUserContext(session.user.id);
-  const level = accessSector(ctx, sector.id);
+  const level = accessSector(ctx, {
+    id: sector.id,
+    groupId: sector.groupId,
+    ownerId: sector.ownerId,
+    groupPublicRead: sector.group?.publicRead ?? false,
+  });
   if (level === "none") throw notFound();
 
   const url = new URL(req.url);
@@ -142,6 +148,11 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       id: sector.id,
       name: sector.name,
       color: sector.color,
+      scope: sector.groupId
+        ? { type: "GROUP", groupId: sector.groupId, groupName: sector.group?.name }
+        : sector.ownerId
+          ? { type: "PERSONAL", ownerId: sector.ownerId }
+          : { type: "GLOBAL" },
     },
     level,
     loose: looseExec.map(withFlatLabels),

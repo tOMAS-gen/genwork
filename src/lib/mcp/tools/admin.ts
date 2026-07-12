@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { badRequest, conflict, forbidden, notFound } from "@/server/api";
-import { canManageGroup } from "@/lib/domain/permissions";
+import { canManageGroup, canCreateSector, type Scope } from "@/lib/domain/permissions";
 import { normalizeEmail } from "@/lib/domain/access";
 import { enqueue } from "@/lib/storage/queue";
 import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
@@ -215,21 +215,31 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Crear sector",
       description:
-        "Crea un sector nuevo en el catálogo global (sin ámbito de grupo). Exclusivo de SUPERADMIN " +
-        "(feature 044: sectores globales).",
+        "Crea un sector nuevo en el ámbito indicado: de grupo (groupId), Global (global:true) o " +
+        "Personal (por omisión, del propio usuario). Requiere permiso de administración sobre ese ámbito.",
       inputSchema: {
         name: z.string().trim().min(1).max(80),
         color: z.string().refine(isValidHex, "Color inválido").optional(),
+        groupId: z.string().uuid().optional(),
+        global: z.boolean().optional(),
       },
     },
-    async ({ name, color }) => {
+    async ({ name, color, groupId, global }) => {
       try {
-        assertSuperAdmin(ctx);
+        const scope: Scope = groupId
+          ? { groupId, ownerId: null }
+          : global
+            ? { groupId: null, ownerId: null }
+            : { groupId: null, ownerId: ctx.userId };
+
+        if (!canCreateSector(ctx.userContext, scope)) {
+          throw forbidden("Sin permiso para crear un sector en ese ámbito");
+        }
         const existing = await prisma.sector.findFirst({
-          where: { name: { equals: name, mode: "insensitive" } },
+          where: { name: { equals: name, mode: "insensitive" }, groupId: scope.groupId, ownerId: scope.ownerId },
         });
         if (existing) {
-          return toolSuccess(`Ya existía un sector llamado "${existing.name}".`, {
+          return toolSuccess(`Ya existía un sector llamado "${existing.name}" en ese ámbito.`, {
             id: existing.id,
             name: existing.name,
             color: existing.color,
@@ -238,7 +248,9 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
 
         const resolvedColor = color ? normalizeHex(color) : null;
         const finalColor = resolvedColor ?? assignSectorColor(await prisma.sector.count());
-        const sector = await prisma.sector.create({ data: { name, color: finalColor } });
+        const sector = await prisma.sector.create({
+          data: { name, color: finalColor, groupId: scope.groupId, ownerId: scope.ownerId },
+        });
 
         await logMcpActivity({
           connectionId: ctx.connectionId,

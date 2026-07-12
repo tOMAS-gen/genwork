@@ -74,12 +74,16 @@ export const GET = withApi(async (req) => {
     where: { workId: { in: workIds } },
     include: { value: { include: { key: true } } },
   });
-  const labelsByWorkId = new Map<string, { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[]>();
+  const labelsByWorkId = new Map<
+    string,
+    { keyId: string; keyName: string; isPrimary: boolean; valueId: string; valueName: string; color: string }[]
+  >();
   for (const l of workLabels) {
     const list = labelsByWorkId.get(l.workId) ?? [];
     list.push({
       keyId: l.keyId,
       keyName: l.value.key.name,
+      isPrimary: l.isPrimary,
       valueId: l.valueId,
       valueName: l.value.name,
       color: l.value.color,

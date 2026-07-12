@@ -115,9 +115,17 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
             orderBy: { position: "asc" },
           });
         } else {
-          const sector = await prisma.sector.findUnique({ where: { id: sectorId! } });
+          const sector = await prisma.sector.findUnique({
+            where: { id: sectorId! },
+            include: { group: { select: { publicRead: true } } },
+          });
           if (!sector) throw notFound("Sector no encontrado");
-          const level = accessSector(ctx.userContext, sector.id);
+          const level = accessSector(ctx.userContext, {
+            id: sector.id,
+            groupId: sector.groupId,
+            ownerId: sector.ownerId,
+            groupPublicRead: sector.group?.publicRead ?? false,
+          });
           if (level === "none") throw notFound("Sector no encontrado");
 
           const [execLinks, loose] = await Promise.all([

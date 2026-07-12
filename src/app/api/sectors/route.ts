@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
-import { conflict, withApi } from "@/server/api";
-import { requireSuperAdmin, requireWriter } from "@/server/guards";
+import { conflict, forbidden, withApi } from "@/server/api";
+import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
-import { accessSector } from "@/lib/domain/permissions";
+import { accessSector, canCreateSector, type Scope } from "@/lib/domain/permissions";
 import { assignSectorColor } from "@/lib/domain/sectors/colorAssign";
+
+type SectorScope =
+  | { type: "GROUP"; groupId: string; groupName?: string }
+  | { type: "PERSONAL"; ownerId: string }
+  | { type: "GLOBAL" };
 
 export const GET = withApi(async () => {
   const session = await requireWriter();
@@ -14,12 +19,21 @@ export const GET = withApi(async () => {
 
   const sectors = await prisma.sector.findMany({
     include: {
+      group: { select: { id: true, name: true, publicRead: true } },
       _count: { select: { taskLinks: { where: { type: "EXEC" } } } },
     },
     orderBy: { name: "asc" },
   });
 
-  const visible = sectors.filter((s) => accessSector(ctx, s.id) !== "none");
+  const visible = sectors.filter(
+    (s) =>
+      accessSector(ctx, {
+        id: s.id,
+        groupId: s.groupId,
+        ownerId: s.ownerId,
+        groupPublicRead: s.group?.publicRead ?? false,
+      }) !== "none",
+  );
 
   const sectorIds = visible.map((s) => s.id);
 
@@ -62,10 +76,20 @@ export const GET = withApi(async () => {
     else m.pending += 1;
   }
 
-  const withMetrics = visible.map((s) => ({
-    ...s,
-    metrics: metricsBySector.get(s.id) ?? { total: 0, done: 0, pending: 0 },
-  }));
+  const withMetrics = visible.map((s) => {
+    const { group, ...sector } = s;
+    const scope: SectorScope = s.groupId
+      ? { type: "GROUP", groupId: s.groupId, groupName: group?.name }
+      : s.ownerId
+        ? { type: "PERSONAL", ownerId: s.ownerId }
+        : { type: "GLOBAL" };
+
+    return {
+      ...sector,
+      scope,
+      metrics: metricsBySector.get(s.id) ?? { total: 0, done: 0, pending: 0 },
+    };
+  });
 
   return NextResponse.json(withMetrics);
 });
@@ -73,22 +97,37 @@ export const GET = withApi(async () => {
 const createSchema = z.object({
   name: z.string().trim().min(1).max(80),
   color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
+  groupId: z.string().uuid().optional(),
+  global: z.boolean().optional(),
 });
 
 export const POST = withApi(async (req) => {
-  await requireSuperAdmin();
-  const { name, color } = createSchema.parse(await req.json());
+  const session = await requireWriter();
+  const ctx = await getUserContext(session.user.id);
+  const { name, color, groupId, global } = createSchema.parse(await req.json());
+
+  const scope: Scope = groupId
+    ? { groupId, ownerId: null }
+    : global
+      ? { groupId: null, ownerId: null }
+      : { groupId: null, ownerId: session.user.id };
+
+  if (!canCreateSector(ctx, scope)) throw forbidden("Sin permiso para crear un sector en ese ámbito");
 
   const dup = await prisma.sector.findFirst({
-    where: { name: { equals: name, mode: "insensitive" } },
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      groupId: scope.groupId,
+      ownerId: scope.ownerId,
+    },
   });
-  if (dup) throw conflict(`Ya existe un sector llamado "${name}"`);
+  if (dup) throw conflict(`Ya existe un sector llamado "${name}" en ese ámbito`);
 
   const resolvedColor =
     (color ? normalizeHex(color) : null) ?? assignSectorColor(await prisma.sector.count());
 
   const sector = await prisma.sector.create({
-    data: { name, color: resolvedColor },
+    data: { name, color: resolvedColor, groupId: scope.groupId, ownerId: scope.ownerId },
   });
   return NextResponse.json(sector, { status: 201 });
 });

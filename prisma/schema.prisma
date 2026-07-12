@@ -88,6 +88,7 @@ model User {
 
   memberships        GroupMembership[]
   ownedGroups        Group[]            @relation("GroupOwner")
+  ownedSectors       Sector[]           @relation("OwnedSectors")
   sectorGrants       SectorGrant[]
   readerGrants       ReaderGrant[]
   ownedWorks         Work[]             @relation("WorkOwner")
@@ -147,6 +148,7 @@ model Group {
   stages       ProjectStage[]
   reminders    Reminder[]
   taskStatuses TaskStatus[]
+  sectors      Sector[]
 }
 
 model GroupMembership {
@@ -160,18 +162,29 @@ model GroupMembership {
 }
 
 model Sector {
-  id    String  @id @default(uuid())
-  name  String
-  color String?
+  id      String  @id @default(uuid())
+  name    String
+  color   String?
+  groupId String?
+  ownerId String?
 
+  group        Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner        User?         @relation("OwnedSectors", fields: [ownerId], references: [id], onDelete: Cascade)
   grants       SectorGrant[]
   taskLinks    TaskLink[]
   homeTasks    Task[]        @relation("TaskHomeSector")
   originTasks  Task[]        @relation("TaskOriginSector")
   taskStatuses TaskStatus[]
 
-  // Catálogo global (feature 044): nombre único a nivel organización, sin scope de grupo/personal
-  @@unique([name])
+  // Ámbito (feature 046): un sector pertenece a un Grupo (groupId), a un espacio
+  // Personal (ownerId) o al conjunto Global (ambos null). Unicidad por ámbito:
+  // - Grupo: @@unique([groupId, name])
+  // - Personal: @@unique([ownerId, name])
+  // - Global: índice único parcial sobre lower(name) WHERE groupId IS NULL AND
+  //   ownerId IS NULL, creado vía SQL crudo en la migración (Prisma no expresa
+  //   unique parcial en el schema declarativo).
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
 }
 
 model SectorGrant {
@@ -411,14 +424,19 @@ model LabelValue {
 }
 
 model WorkLabel {
+  id      String     @id @default(uuid())
   workId  String
   keyId   String
   valueId String
+  /// A lo sumo una fila con isPrimary=true por workId (ver índice único parcial en
+  /// la migración): es la etiqueta que da el color al proyecto. El resto son
+  /// "secundarias", sin restricción de una por clave.
+  isPrimary Boolean  @default(false)
   work    Work       @relation(fields: [workId], references: [id], onDelete: Cascade)
   key     LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
   value   LabelValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
 
-  @@id([workId, keyId])
+  @@unique([workId, keyId, valueId])
 }
 
 model TaskLabel {

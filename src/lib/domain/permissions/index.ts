@@ -20,7 +20,10 @@ export interface UserContext {
   readerGroupIds: ReadonlySet<string>;
 }
 
-/** Ámbito de un recurso: exactamente uno de groupId/ownerId no nulo (FR-027). */
+/**
+ * Ámbito de un recurso (feature 046): Grupo (groupId seteado), Personal (ownerId
+ * seteado) o Global (ambos null). Nunca ambos seteados a la vez.
+ */
 export interface Scope {
   groupId: string | null;
   ownerId: string | null;
@@ -28,16 +31,21 @@ export interface Scope {
   groupPublicRead?: boolean;
 }
 
+/** Un sector es un recurso con ámbito propio + su id (para el SectorGrant puntual). */
+export interface SectorRef extends Scope {
+  id: string;
+}
+
 /** Lo mínimo de una tarea para decidir permisos. */
 export interface TaskRef {
   /** Ámbito del trabajo al que pertenece (null si es tarea suelta de sector). */
   workScope: Scope | null;
-  /** Sector hogar si es tarea suelta (id del sector global). */
-  homeSector: string | null;
-  /** Sectores de ejecución (#) — ids de sectores globales. */
-  execSectors: readonly string[];
-  /** Sectores referenciados (@) — ids de sectores globales. */
-  refSectors: readonly string[];
+  /** Sector hogar si es tarea suelta. */
+  homeSector: SectorRef | null;
+  /** Sectores de ejecución (#). */
+  execSectors: readonly SectorRef[];
+  /** Sectores referenciados (@). */
+  refSectors: readonly SectorRef[];
   /** Usuarios referenciados (@). */
   refUserIds: ReadonlySet<string>;
 }
@@ -51,7 +59,12 @@ export function access(user: UserContext, scope: Scope): Access {
     return scope.ownerId === user.id ? "operate" : "none";
   }
 
-  if (scope.groupId === null) return "none";
+  // Ámbito Global (feature 046): ambos null → visible para todos. Cualquier
+  // usuario no-READER opera; un READER solo lee (jamás opera, regla 2). Equivale
+  // al caso `global: true` ya resuelto para StatusScope en la feature 045.
+  if (scope.groupId === null) {
+    return user.globalRole === "READER" ? "read" : "operate";
+  }
 
   // Rol Lector: jamás opera (regla 2)
   if (user.globalRole === "READER") {
@@ -66,13 +79,17 @@ export function access(user: UserContext, scope: Scope): Access {
 }
 
 /**
- * Acceso a un sector global: el único mecanismo no-SUPERADMIN es el SectorGrant
- * individual (FR-022). El sector ya no tiene ámbito propio, así que no se invoca access().
+ * Acceso a un sector (feature 046): SUPERADMIN siempre opera; si no, el acceso
+ * automático por ámbito (Grupo/Personal/Global) vía access(); si eso no basta, el
+ * SectorGrant individual (FR-022) es la excepción puntual que otorga operate fuera
+ * del ámbito natural. Nunca degrada un "read" ya concedido por ámbito.
  */
-export function accessSector(user: UserContext, sectorId: string): Access {
+export function accessSector(user: UserContext, sector: SectorRef): Access {
   if (user.globalRole === "SUPERADMIN") return "operate";
-  if (user.globalRole !== "READER" && user.grantedSectorIds.has(sectorId)) return "operate";
-  return "none";
+  const base = access(user, sector);
+  if (base === "operate") return base;
+  if (user.globalRole !== "READER" && user.grantedSectorIds.has(sector.id)) return "operate";
+  return base;
 }
 
 /**
@@ -91,8 +108,7 @@ export function canToggle(user: UserContext, task: TaskRef): boolean {
 /**
  * Regla 7 (FR-038): direccionar ≠ acceder. Puede etiquetar `/trabajo` si el work
  * pertenece a un grupo donde el usuario es miembro (o es dueño del ámbito personal).
- * Como los sectores ya no tienen grupo, no existe la vía de "prestar" acceso por grant
- * de sector. No otorga read/operate sobre el work.
+ * Opera sobre el ámbito del work, no sobre sectores; no otorga read/operate sobre él.
  */
 export function canAddress(user: UserContext, workScope: Scope): boolean {
   if (user.globalRole === "READER") return false;
@@ -124,6 +140,22 @@ export function taskAccess(user: UserContext, task: TaskRef): Access {
 export function canManageGroup(user: UserContext, groupId: string): boolean {
   if (user.globalRole === "SUPERADMIN") return true;
   return user.adminGroupIds.has(groupId);
+}
+
+/**
+ * Crear un sector nuevo en el ámbito indicado (feature 046):
+ * - SUPERADMIN puede en cualquier ámbito.
+ * - Ámbito Personal (ownerId): solo el propio dueño.
+ * - Ámbito Grupo (groupId): quien administra ese grupo (canManageGroup).
+ * - Ámbito Global (ambos null): exclusivo de SUPERADMIN → cualquier otro, false.
+ * La administración post-creación (renombrar/recolorear/eliminar/otorgar acceso)
+ * sigue siendo exclusiva de SUPERADMIN y no pasa por esta función.
+ */
+export function canCreateSector(user: UserContext, scope: Scope): boolean {
+  if (user.globalRole === "SUPERADMIN") return true;
+  if (scope.ownerId !== null) return scope.ownerId === user.id;
+  if (scope.groupId !== null) return canManageGroup(user, scope.groupId);
+  return false; // ámbito Global y no-SUPERADMIN
 }
 
 export function canRemoveMember(

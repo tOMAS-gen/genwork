@@ -19,6 +19,7 @@ import {
   canAddress,
   canToggle,
   type Scope,
+  type SectorRef,
   type TaskRef,
   type UserContext,
 } from "@/lib/domain/permissions";
@@ -140,18 +141,35 @@ export async function toTaskRef(task: TaskWithLinks): Promise<TaskRef> {
     ? await prisma.work.findUnique({ where: { id: task.workId }, include: { group: true } })
     : null;
 
-  // Los sectores son catálogo global (feature 044): el motor de permisos solo
-  // necesita sus ids planos (accessSector resuelve por SectorGrant), sin scope.
+  // Los sectores recuperan ámbito propio (feature 046): el motor de permisos necesita
+  // SectorRef completos ({id, groupId, ownerId, groupPublicRead}) para access()/accessSector().
   const linkSectorIds = (type: "EXEC" | "REF"): string[] =>
     task.links
       .filter((l) => l.type === type && l.targetType === "SECTOR" && l.sectorId)
       .map((l) => l.sectorId as string);
 
+  const execIds = linkSectorIds("EXEC");
+  const refIds = linkSectorIds("REF");
+  const allSectorIds = [
+    ...new Set([...(task.sectorId ? [task.sectorId] : []), ...execIds, ...refIds]),
+  ];
+  const sectors = allSectorIds.length
+    ? await prisma.sector.findMany({
+        where: { id: { in: allSectorIds } },
+        include: { group: { select: { publicRead: true } } },
+      })
+    : [];
+  const sectorRefById = new Map<string, SectorRef>(
+    sectors.map((s) => [s.id, { id: s.id, ...scopeWithPublic(s) }]),
+  );
+  const toRefs = (ids: string[]): SectorRef[] =>
+    ids.map((id) => sectorRefById.get(id)).filter((s): s is SectorRef => s !== undefined);
+
   return {
     workScope: work ? scopeWithPublic(work) : null,
-    homeSector: task.sectorId,
-    execSectors: linkSectorIds("EXEC"),
-    refSectors: linkSectorIds("REF"),
+    homeSector: task.sectorId ? (sectorRefById.get(task.sectorId) ?? null) : null,
+    execSectors: toRefs(execIds),
+    refSectors: toRefs(refIds),
     refUserIds: new Set(
       task.links
         .filter((l) => l.type === "REF" && l.targetType === "USER" && l.userId)
@@ -227,10 +245,23 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
     }
   }
 
-  // --- `#sector`: ejecución. Catálogo global (feature 044): el nombre es único a
-  // nivel organización, así que se resuelve sobre todos los sectores sin acotar por ámbito. ---
+  // --- `#sector`/`@sector`: los sectores recuperan ámbito propio (feature 046), así que
+  // el nombre puede repetirse entre ámbitos. Se resuelve por prioridad de ámbito (FR-008):
+  // (1) grupo del contexto/trabajo actual, (2) sector personal del usuario, (3) sector Global.
+  // El "grupo del contexto" se toma igual que el resto de la función: contextScope.groupId
+  // (groupId del trabajo de contexto, o null si el contexto es personal/sector). ---
   const sectors = await prisma.sector.findMany();
-  const findSector = (name: string) => matchByTag(name, sectors, (s) => s.name);
+  const findSector = (name: string): Sector | null => {
+    const matchIn = (predicate: (s: Sector) => boolean) =>
+      matchByTag(name, sectors.filter(predicate), (s) => s.name);
+    if (contextScope.groupId !== null) {
+      const group = matchIn((s) => s.groupId === contextScope.groupId);
+      if (group) return group;
+    }
+    const personal = matchIn((s) => s.ownerId === ctx.id);
+    if (personal) return personal;
+    return matchIn((s) => s.groupId === null && s.ownerId === null);
+  };
 
   const execSectorIds = new Set<string>();
   for (const name of grouped["#"]) {

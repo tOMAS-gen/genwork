@@ -9,6 +9,7 @@ import {
   canRemoveMember,
   type UserContext,
   type Scope,
+  type SectorRef,
   type TaskRef,
 } from "@/lib/domain/permissions";
 
@@ -30,6 +31,18 @@ const groupScope = (groupId = "g1", publicRead = false): Scope => ({
   groupPublicRead: publicRead,
 });
 const personalScope = (ownerId = "u1"): Scope => ({ groupId: null, ownerId });
+
+/**
+ * Sector suelto (SectorRef). Por defecto pertenece a un grupo ajeno ("g-ajeno",
+ * donde el usuario de prueba no es miembro ni admin), de forma que el único
+ * camino de acceso posible sea el SectorGrant puntual bajo prueba.
+ */
+const sectorRef = (id: string, overrides: Partial<Scope> = {}): SectorRef => ({
+  id,
+  groupId: "g-ajeno",
+  ownerId: null,
+  ...overrides,
+});
 
 const emptyTask = (partial: Partial<TaskRef> = {}): TaskRef => ({
   workScope: null,
@@ -75,13 +88,13 @@ describe("access — reglas 1-4", () => {
 describe("accessSector — permiso por sector suelto (FR-022)", () => {
   it("SectorGrant da operate sobre ese sector aunque no sea miembro de ningún grupo", () => {
     const u = user({ grantedSectorIds: new Set(["s1"]) });
-    expect(accessSector(u, "s1")).toBe("operate");
-    expect(accessSector(u, "s2")).toBe("none");
+    expect(accessSector(u, sectorRef("s1"))).toBe("operate");
+    expect(accessSector(u, sectorRef("s2"))).toBe("none");
   });
 
   it("READER no obtiene operate por grant", () => {
     const u = user({ globalRole: "READER", grantedSectorIds: new Set(["s1"]) });
-    expect(accessSector(u, "s1")).not.toBe("operate");
+    expect(accessSector(u, sectorRef("s1"))).not.toBe("operate");
   });
 });
 
@@ -93,8 +106,9 @@ describe("canToggle — regla 5 (FR-011)", () => {
 
   it("EXEC habilita, REF no", () => {
     const u = user({ grantedSectorIds: new Set(["s1"]) });
-    expect(canToggle(u, emptyTask({ execSectors: ["s1"] }))).toBe(true);
-    expect(canToggle(u, emptyTask({ refSectors: ["s1"] }))).toBe(false);
+    const s1 = sectorRef("s1");
+    expect(canToggle(u, emptyTask({ execSectors: [s1] }))).toBe(true);
+    expect(canToggle(u, emptyTask({ refSectors: [s1] }))).toBe(false);
   });
 
   it("READER jamás completa", () => {
@@ -104,7 +118,7 @@ describe("canToggle — regla 5 (FR-011)", () => {
 
   it("tarea suelta se completa vía su sector hogar (SectorGrant, ya no por membresía de grupo)", () => {
     const u = user({ grantedSectorIds: new Set(["s1"]) });
-    expect(canToggle(u, emptyTask({ homeSector: "s1" }))).toBe(true);
+    expect(canToggle(u, emptyTask({ homeSector: sectorRef("s1") }))).toBe(true);
   });
 });
 
@@ -130,7 +144,7 @@ describe("canAddress — regla 7 (FR-038): direccionar ≠ acceder", () => {
 describe("taskAccess — regla 8 (FR-042): visibilidad puntual por referencia", () => {
   it("REF a sector da read a quien opera ese sector, sin acceso al work", () => {
     const u = user({ grantedSectorIds: new Set(["s9"]) });
-    const t = emptyTask({ workScope: groupScope("g1"), refSectors: ["s9"] });
+    const t = emptyTask({ workScope: groupScope("g1"), refSectors: [sectorRef("s9")] });
     expect(taskAccess(u, t)).toBe("read");
     expect(canToggle(u, t)).toBe(false);
   });

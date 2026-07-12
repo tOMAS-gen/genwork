@@ -12,9 +12,18 @@ export const GET = withApi(async () => {
 
   const sectors = await prisma.sector.findMany({
     orderBy: { name: "asc" },
+    include: { group: { select: { publicRead: true } } },
   });
 
-  const visible = sectors.filter((s) => accessSector(ctx, s.id) !== "none");
+  const visible = sectors.filter(
+    (s) =>
+      accessSector(ctx, {
+        id: s.id,
+        groupId: s.groupId,
+        ownerId: s.ownerId,
+        groupPublicRead: s.group?.publicRead ?? false,
+      }) !== "none",
+  );
 
   const board = await Promise.all(
     visible.map(async (sector) => {

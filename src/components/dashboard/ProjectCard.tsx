@@ -21,7 +21,7 @@ export interface DashboardWork {
   isTemplate?: boolean;
   _count: { tasks: number };
   taskCounts: { done: number; total: number };
-  labels: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
+  labels: { keyId: string; keyName: string; isPrimary: boolean; valueId: string; valueName: string; color: string }[];
   stage: { id: string; name: string; color: string | null } | null;
 }
 
@@ -105,7 +105,11 @@ export function ProjectCard({
       {project.labels.length > 0 && (
         <div className="pc-labels">
           {project.labels.map((l) => (
-            <span key={l.keyId} className="label-chip color-chip" style={{ "--c": l.color } as React.CSSProperties}>
+            <span
+              key={`${l.keyId}-${l.valueId}`}
+              className="label-chip color-chip"
+              style={{ "--c": l.color } as React.CSSProperties}
+            >
               {l.valueName}
             </span>
           ))}
