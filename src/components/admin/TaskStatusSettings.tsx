@@ -7,7 +7,7 @@ import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { ColorField } from "@/components/ui/ColorField";
 import { ArrowUp, ArrowDown, Trash2, Plus } from "@/components/ui/icons";
 
-export type TaskStatusScope = { groupId: string } | { ownerId: string } | { sectorId: string };
+export type TaskStatusScope = { groupId: string } | { ownerId: string } | { sectorId: string } | { global: true };
 
 interface TaskStatusDto {
   id: string;
@@ -20,7 +20,8 @@ interface TaskStatusDto {
 function scopeQuery(scope: TaskStatusScope): string {
   if ("groupId" in scope) return `groupId=${scope.groupId}`;
   if ("ownerId" in scope) return `ownerId=${scope.ownerId}`;
-  return `sectorId=${scope.sectorId}`;
+  if ("sectorId" in scope) return `sectorId=${scope.sectorId}`;
+  return `global=true`;
 }
 
 /** Panel de administración de un conjunto de estados de tarea (feature 042, US1). */
@@ -100,6 +101,7 @@ export function TaskStatusSettings({ scope, title = "Estados de tarea" }: { scop
           ...("groupId" in scope ? { groupId: scope.groupId } : {}),
           ...("ownerId" in scope ? { ownerId: scope.ownerId } : {}),
           ...("sectorId" in scope ? { sectorId: scope.sectorId } : {}),
+          ...("global" in scope ? { global: true } : {}),
           name: newName.trim(),
           color: "#94a3b8",
           type: newType,

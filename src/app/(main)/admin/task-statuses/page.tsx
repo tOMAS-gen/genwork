@@ -34,7 +34,13 @@ export default function TaskStatusesAdminPage() {
   }, []);
 
   const scope: TaskStatusScope | null =
-    groupId === "personal" ? (meId ? { ownerId: meId } : null) : { groupId };
+    groupId === "personal"
+      ? meId
+        ? { ownerId: meId }
+        : null
+      : groupId === "global"
+        ? { global: true }
+        : { groupId };
 
   return (
     <div>
@@ -53,6 +59,7 @@ export default function TaskStatusesAdminPage() {
           onChange={(e) => setGroupId(e.target.value)}
         >
           <option value="personal">Personal</option>
+          <option value="global">Global (todos)</option>
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
