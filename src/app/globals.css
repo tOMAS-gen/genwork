@@ -1,3 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Preflight de Tailwind está desactivado (tailwind.config.ts, corePlugins.preflight:false)
+   para no resetear estilos fuera de los archivos migrados a Tailwind (047). Sin esto, la
+   utilidad `border` de Tailwind solo pone border-width y no dibuja nada, porque el navegador
+   asume border-style:none por default en elementos sin borde nativo.
+   IMPORTANTE: el valor inicial CSS de border-width NO es 0, es `medium` (~1.5-3px según el
+   motor). Si solo se fija border-style:solid sin también fijar border-width:0, ese ancho
+   "medium" se vuelve visible en TODO elemento del sitio que no declare su propio ancho de
+   borde, con color currentColor — esto rompió visualmente páginas fuera de Sectores la
+   primera vez que se probó. border-width:0 es la otra mitad necesaria de este mismo reset
+   (es exactamente lo que hace Preflight con estas dos declaraciones juntas); cualquier regla
+   existente que declare `border: 1px solid ...` fija su propio ancho con mayor especificidad,
+   así que no cambia nada ahí — solo habilita que las utilidades `border-*` de Tailwind dibujen
+   borde donde efectivamente se usan. */
+*,
+::before,
+::after {
+  border-width: 0;
+  border-style: solid;
+}
+
 /* Design system genwork — Flat minimalista (design-system/genwork/MASTER.md) */
 :root {
   --bg: #ffffff;
@@ -136,6 +160,10 @@
   --color-info: #60a5fa;
   --color-info-bg: rgba(59, 130, 246, 0.1);
   --color-info-text: #93c5fd;
+}
+
+[data-theme="dark"] .btn-danger {
+  color: var(--bg);
 }
 
 * {
@@ -683,6 +711,22 @@ textarea:focus {
   color: var(--text);
 }
 
+/* Botón "quitar" (X) dentro de un chip: el ícono visual queda chico para no
+   romper el pill, pero el área táctil real llega a 44x44 vía un pseudo-elemento
+   invisible centrado (FR-002), sin agrandar el layout del chip. */
+.label-chip-remove {
+  position: relative;
+}
+.label-chip-remove::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
 /* ---- Diálogo nativo <dialog> ---- */
 dialog.dialog {
   background: var(--surface);
@@ -699,6 +743,12 @@ dialog.dialog::backdrop {
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(3px);
   animation: dialog-overlay-in 180ms ease forwards;
+}
+
+/* Permite que un popover interno (ej. LabelPicker) se desborde visualmente del
+   rectángulo del diálogo en vez de recortarse por el overflow default del <dialog>. */
+dialog.dialog--overflow-visible {
+  overflow: visible;
 }
 
 /* ---- Fade-in genérico de modales/dialogs (feature 008, T025) ---- */
@@ -1020,6 +1070,33 @@ dialog.dialog::backdrop {
   padding: 10px;
   font-size: 13px;
   color: var(--muted);
+}
+
+/* ---- Panel de sugerencias de etiquetado inline `/ # @ $` (feature 001/004) ---- */
+.tag-suggestions {
+  z-index: 60;
+  max-width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  font-family: inherit;
+}
+.tag-suggestion {
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 150ms ease;
+}
+.tag-suggestion:hover,
+.tag-suggestion.active {
+  background: var(--accent-soft);
 }
 
 /* ---- Barra flotante de formato inline (feature 003, US4, FR-211/212) ---- */
@@ -1687,6 +1764,108 @@ dialog.dialog::backdrop {
   white-space: nowrap;
 }
 
+/* Encabezado "Principal"/"Secundarias" del picker: título + botón agregar, mismo
+   patrón visual en ambas secciones (feature de etiquetas principal/secundarias). */
+.label-picker-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.label-picker-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+/* Popover flotante que se abre al tocar "Agregar etiqueta": anclado con
+   position:absolute al encabezado de su sección (label-picker-section-head,
+   no portal — el modal contenedor es un <dialog> nativo con su propio
+   top-layer). La flechita (::before) lo conecta visualmente al botón que lo
+   abrió, en vez de quedar como una tarjeta flotante sin relación aparente. */
+.label-picker-add-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  z-index: 20;
+  min-width: 240px;
+  max-width: 320px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+/* La flechita vive en el contenedor externo (sin overflow) — si estuviera en
+   el mismo elemento que scrollea el listado (label-picker-add-popover-body),
+   quedaría recortada por su propio overflow-y. */
+.label-picker-add-popover::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 14px;
+  width: 12px;
+  height: 12px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+/* Listado de valores del popover: filas completas estilo menú (mismo lenguaje
+   visual que .menu-item / .menu-pop, usado en Menu.tsx) en vez de pastillas de
+   color sueltas — más legibles, con área de click más generosa y coherentes
+   con el resto de los desplegables del sitio. */
+.label-picker-scope-label {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+.label-picker-key-label {
+  display: block;
+  margin-top: 4px;
+  padding: 4px 10px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.label-picker-value-row {
+  font-size: 14px;
+}
+
+.label-picker-value-check {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.label-picker-add-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.label-picker-add-popover-body {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
 /* Buscador del picker de etiquetas del proyecto */
 .label-picker-search {
   display: flex;
@@ -1922,6 +2101,15 @@ dialog.dialog::backdrop {
 .label-admin-add-value:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Estado activo: el botón queda visible (no se oculta) mientras su propio
+   popover de selección está abierto, en vez de desaparecer. */
+.label-admin-add-value[aria-expanded="true"] {
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* Filtros como pills: el <select> nativo se conserva, estilado como chip */
@@ -2304,6 +2492,21 @@ dialog.dialog::backdrop {
 .pc-name-pill .project-dot {
   width: 10px;
   height: 10px;
+}
+
+/* Pill "Global" del catálogo de sectores (feature 044) */
+.pc-scope-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  background: var(--hover-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Grupo */
@@ -3729,6 +3932,24 @@ dialog.dialog::backdrop {
 
 .task-status-new {
   border-style: dashed;
+}
+
+.task-status-row-readonly {
+  gap: var(--space-2);
+}
+
+.task-status-color-dot {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.task-status-name-readonly {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
 }
 
 .task-status-name-input {

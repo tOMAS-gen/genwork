@@ -51,9 +51,13 @@ export function Menu({
       const target = e.target as Node;
       if (btnRef.current?.contains(target) || popRef.current?.contains(target)) return;
       setOpen(false);
+      btnRef.current?.focus();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        btnRef.current?.focus();
+      }
     };
     const onDismiss = () => setOpen(false);
     document.addEventListener("mousedown", onDocClick);
@@ -101,6 +105,7 @@ export function Menu({
                 onClick={() => {
                   if (item.disabled) return;
                   setOpen(false);
+                  btnRef.current?.focus();
                   item.onSelect();
                 }}
               >

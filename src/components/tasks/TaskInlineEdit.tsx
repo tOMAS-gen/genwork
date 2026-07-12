@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { parseTags } from "@/lib/domain/tags/parser";
 import { useTagAutocomplete, type Suggestion } from "./useTagAutocomplete";
+import { TagSuggestionsMenu } from "./TagSuggestionsMenu";
 import { TagHighlightInput } from "./TagHighlightInput";
 import type { TaskDto } from "./TaskItem";
 
@@ -38,8 +39,6 @@ function stripWorkTag(rawText: string): string {
 export function TaskInlineEdit({
   task,
   context,
-  description,
-  onDescriptionChange,
   descriptionRef,
   skipAutoFocus,
   saveRef,
@@ -70,9 +69,15 @@ export function TaskInlineEdit({
   // evita doble-guardado: Enter/Escape marcan la edición como resuelta antes de que
   // llegue el blur consecuente (el input pierde foco al desmontarse o al tocar Escape)
   const finishedRef = useRef(false);
-  const { suggestions, activeTag, onTextChange, pick: pickSuggestion, clear } = useTagAutocomplete({
-    context,
-  });
+  const {
+    suggestions,
+    activeTag,
+    selectedIndex,
+    onTextChange,
+    pick: pickSuggestion,
+    moveSelection,
+    clear,
+  } = useTagAutocomplete({ context });
 
   useEffect(() => {
     if (skipAutoFocus) return;
@@ -94,6 +99,22 @@ export function TaskInlineEdit({
     const next = pickSuggestion(s, text, caret);
     setText(next);
     inputRef.current?.focus();
+  };
+
+  /** FR-010: mismo criterio que TaskListEditor, pero para los cuatro símbolos `/ # @ $`. */
+  const emptyMessageFor = (symbol?: string): string | undefined => {
+    switch (symbol) {
+      case "/":
+        return "No hay proyectos disponibles";
+      case "#":
+        return "No hay sectores disponibles";
+      case "@":
+        return "No hay referencias disponibles";
+      case "$":
+        return "No hay etiquetas disponibles";
+      default:
+        return undefined;
+    }
   };
 
   const save = async () => {
@@ -181,13 +202,24 @@ export function TaskInlineEdit({
         onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}
         onBlur={onBlur}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && suggestions.length > 0) {
+          if (e.key === "ArrowDown" && suggestions.length > 0) {
             e.preventDefault();
-            pick(suggestions[0]);
+            moveSelection(1);
+          } else if (e.key === "ArrowUp" && suggestions.length > 0) {
+            e.preventDefault();
+            moveSelection(-1);
+          } else if (e.key === "Enter" && suggestions.length > 0) {
+            e.preventDefault();
+            pick(suggestions[selectedIndex]);
           } else if (e.key === "Enter") {
             e.preventDefault();
             finishedRef.current = true;
             void save();
+          } else if (e.key === "Tab" && suggestions.length > 0 && !e.shiftKey) {
+            // Tab acepta la sugerencia resaltada (igual que Enter), para poder seguir
+            // escribiendo la misma tarea sin que el foco salte a otro campo.
+            e.preventDefault();
+            pick(suggestions[selectedIndex]);
           } else if (e.key === "Tab" && suggestions.length === 0 && !e.shiftKey) {
             e.preventDefault();
             descriptionRef?.current?.focus();
@@ -200,34 +232,19 @@ export function TaskInlineEdit({
         }}
       />
 
-      {suggestions.length > 0 && (
-        <div
-          className="card"
-          style={{ position: "absolute", zIndex: 10, marginTop: 4, padding: 6, minWidth: 260 }}
-        >
-          {suggestions.map((s) => (
-            <div
-              key={`${s.type}-${s.id}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(s);
-              }}
-              style={{ padding: "6px 8px", cursor: "pointer" }}
-            >
-              <span
-                className={`tag ${s.type === "work" ? "tag-work" : s.type === "user" ? "tag-user" : "tag-exec"}`}
-              >
-                {activeTag?.symbol}
-                {s.name}
-              </span>{" "}
-              <span className="muted">{s.type === "work" ? "proyecto" : s.type}</span>
-            </div>
-          ))}
-        </div>
+      {(suggestions.length > 0 || (activeTag && suggestions.length === 0)) && (
+        <TagSuggestionsMenu
+          anchorEl={inputRef.current}
+          suggestions={suggestions}
+          selectedIndex={selectedIndex}
+          activeSymbol={activeTag?.symbol}
+          emptyMessage={emptyMessageFor(activeTag?.symbol)}
+          onPick={pick}
+        />
       )}
 
       {unresolved.length > 0 && (
-        <div className="card" style={{ marginTop: 8, padding: 10 }}>
+        <div className="card" style={{ marginTop: 8, padding: 10 }} aria-live="polite">
           {unresolved.map((tag) => (
             <div key={tag.symbol + tag.name} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span>
@@ -244,7 +261,11 @@ export function TaskInlineEdit({
           ))}
         </div>
       )}
-      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+      {error && (
+        <p role="alert" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

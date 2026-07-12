@@ -11,12 +11,23 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
 import { ColorField } from "@/components/ui/ColorField";
-import { Trash2, Settings, List, LayoutGrid } from "@/components/ui/icons";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Trash2, Settings, List, LayoutGrid, CheckSquare } from "@/components/ui/icons";
 import { TaskStatusSettings } from "@/components/admin/TaskStatusSettings";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 
 interface SectorView {
-  sector: { id: string; name: string; color: string | null; group?: { id: string; name: string } | null };
+  sector: {
+    id: string;
+    name: string;
+    color: string | null;
+    scope: {
+      type: "GROUP" | "PERSONAL" | "GLOBAL";
+      groupId?: string;
+      groupName?: string;
+      ownerId?: string;
+    };
+  };
   loose: TaskDto[];
   byWork: { work: { id: string; name: string; status: string }; tasks: TaskDto[] }[];
   refs: TaskDto[];
@@ -45,22 +56,22 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
 
   if (!view) {
     return (
-      <div className="sheet">
+      <div className="mx-auto max-w-[1100px]">
         <Skeleton variant="text" height="28px" width="30%" />
-        <div style={{ marginTop: "var(--space-2)" }}>
+        <div className="mt-2">
           <Skeleton variant="card" width="100%" height="40px" />
         </div>
-        <div style={{ marginTop: "var(--space-2)", display: "flex", gap: "var(--space-1)" }}>
+        <div className="mt-2 flex gap-1">
           <Skeleton variant="text" width="70px" />
           <Skeleton variant="text" width="70px" />
           <Skeleton variant="text" width="70px" />
         </div>
-        <div style={{ marginTop: "var(--space-2)" }}>
+        <div className="mt-2">
           <Skeleton variant="text" height="22px" width="40%" />
         </div>
-        <div style={{ marginTop: "var(--space-1)" }}>
+        <div className="mt-1">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} style={{ marginBottom: "var(--space-1)" }}>
+            <div key={i} className="mb-1">
               <Skeleton variant="text" width="100%" />
             </div>
           ))}
@@ -70,6 +81,12 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   }
 
   const canOperate = view.level === "operate";
+  const scopeLabel =
+    view.sector.scope.type === "GROUP"
+      ? view.sector.scope.groupName ?? "Grupo"
+      : view.sector.scope.type === "PERSONAL"
+        ? "Personal"
+        : "Global";
 
   const removeSector = async () => {
     try {
@@ -103,29 +120,44 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <div className="sheet">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+    <div className="mx-auto max-w-[1100px]">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           {canOperate ? (
-            <ColorField
-              nullable
-              value={view.sector.color}
-              onChange={(hex) => void changeColor(hex)}
-              ariaLabel="Color del sector"
-              align="start"
-            />
+            <span className="[&_.color-field-trigger]:min-h-11 [&_.color-field-trigger]:min-w-11">
+              <ColorField
+                nullable
+                value={view.sector.color}
+                onChange={(hex) => void changeColor(hex)}
+                ariaLabel="Color del sector"
+                align="start"
+              />
+            </span>
           ) : (
             <span
-              className={`entity-color-dot${view.sector.color ? "" : " entity-color-dot-empty"}`}
+              className={
+                view.sector.color
+                  ? "h-4 w-4 flex-shrink-0 rounded-full border border-[rgba(0,0,0,0.18)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+                  : "h-4 w-4 flex-shrink-0 rounded-full border-2 border-muted bg-transparent"
+              }
               style={view.sector.color ? { background: view.sector.color } : undefined}
               aria-hidden="true"
             />
           )}
-          <h1 style={{ margin: 0 }}>{view.sector.name}</h1>
+          <h1 className="m-0 min-w-0 flex-1 truncate" title={view.sector.name}>
+            {view.sector.name}
+          </h1>
+          <span
+            className="inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-md bg-[var(--hover-soft)] px-2 py-0.5 text-xs font-semibold tracking-wide text-text"
+            title={`Ámbito: ${scopeLabel}`}
+          >
+            {scopeLabel}
+          </span>
         </div>
         {canOperate && (
           <Menu
             label="Acciones del sector"
+            className="[&_.icon-btn]:h-11 [&_.icon-btn]:w-11"
             items={[
               {
                 label: "Estados de tarea",
@@ -144,24 +176,32 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
       </div>
 
       {canOperate && showStatusSettings && (
-        <div className="card" style={{ marginTop: "var(--space-3)" }}>
+        <div className="mt-3 rounded-xl border border-border bg-surface p-[18px]">
           <TaskStatusSettings scope={{ sectorId: id }} title="Estados de tarea de este sector" />
         </div>
       )}
 
-      <h2 style={{ marginTop: "var(--space-4)" }}>Tareas del sector</h2>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <div className="segmented" role="group" aria-label="Vista de tareas">
+      <h2 className="mt-4">Tareas del sector</h2>
+      <div className="flex justify-end">
+        <div
+          className="inline-flex flex-shrink-0 overflow-hidden rounded-[8px] border border-border"
+          role="group"
+          aria-label="Vista de tareas"
+        >
           <button
             type="button"
-            className={`segmented-btn${taskView === "list" ? " is-active" : ""}`}
+            className={`flex min-h-11 min-w-11 items-center gap-1 px-2.5 py-[5px] text-[13px] transition-colors ${
+              taskView === "list" ? "bg-accent-soft text-accent" : "bg-transparent text-muted"
+            }`}
             onClick={() => setTaskView("list")}
           >
             <List size={14} /> Lista
           </button>
           <button
             type="button"
-            className={`segmented-btn${taskView === "board" ? " is-active" : ""}`}
+            className={`flex min-h-11 min-w-11 items-center gap-1 border-l border-border px-2.5 py-[5px] text-[13px] transition-colors ${
+              taskView === "board" ? "bg-accent-soft text-accent" : "bg-transparent text-muted"
+            }`}
             onClick={() => setTaskView("board")}
           >
             <LayoutGrid size={14} /> Tablero
@@ -185,10 +225,8 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
             />
           ))}
           {view.byWork.map((group) => (
-            <div key={group.work.id} style={{ marginTop: "var(--space-2)" }}>
-              <h3 className="muted" style={{ fontSize: "0.85rem", marginBottom: "var(--space-1)" }}>
-                {group.work.name}
-              </h3>
+            <div key={group.work.id} className="mt-2">
+              <h3 className="mb-1 text-[0.85rem] text-muted">{group.work.name}</h3>
               {group.tasks.map((task) => (
                 <TaskItem
                   key={task.id}
@@ -210,13 +248,17 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
         />
       )}
       {view.loose.length === 0 && view.byWork.length === 0 && (
-        <p className="muted">Todavía no hay tareas en este sector.</p>
+        <EmptyState
+          icon={CheckSquare}
+          title="Sin tareas todavía"
+          description="Todavía no hay tareas en este sector."
+        />
       )}
 
       {view.refs.length > 0 && (
         <>
-          <h2 style={{ marginTop: 28 }}>Referencias</h2>
-          <p className="muted">
+          <h2 className="mt-7">Referencias</h2>
+          <p className="text-[13px] text-muted">
             Tareas de otros sectores que necesitan aporte de #{view.sector.name}; se completan en
             su sector de ejecución.
           </p>

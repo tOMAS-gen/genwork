@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 
 /** Sugerencia de autocompletado devuelta por /api/tags/suggest. */
@@ -27,9 +27,9 @@ const TAG_TRIGGER_RE = /(^|\s)([/#@$])([\p{L}\p{N}_\-.]*)$/u;
 /**
  * Hook compartido de autocompletado de etiquetas `/` `#` `@` (feature 001, R2 de 004).
  * Extrae la lógica duplicada de TaskListEditor y TaskInlineEdit: detección del trigger,
- * fetch a /api/tags/suggest y armado del texto resultante al elegir una sugerencia.
- * No toca el DOM ni maneja el `<input>`: los componentes siguen siendo dueños del texto
- * y del caret; este hook solo calcula estado y el nuevo texto a aplicar.
+ * fetch a /api/tags/suggest, navegación con flechas y armado del texto resultante al
+ * elegir una sugerencia. No toca el DOM ni maneja el `<input>`: los componentes siguen
+ * siendo dueños del texto y del caret; este hook solo calcula estado y el nuevo texto.
  */
 export function useTagAutocomplete({
   context,
@@ -38,6 +38,15 @@ export function useTagAutocomplete({
 }) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeTag, setActiveTag] = useState<ActiveTag | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  // Descarta respuestas de fetches viejos si el usuario ya siguió escribiendo (evita
+  // que una query obsoleta ("H") pise el resultado de una más reciente ("Her") por
+  // llegar fuera de orden, y con eso el texto insertado no corresponda a lo tipeado.
+  const requestSeq = useRef(0);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [suggestions]);
 
   const contextQuery = context.workId
     ? `contextWorkId=${context.workId}`
@@ -64,9 +73,11 @@ export function useTagAutocomplete({
       return;
     }
     setActiveTag({ symbol, start: caret - query.length });
+    const seq = ++requestSeq.current;
     const results = await api<Suggestion[]>(
       `/api/tags/suggest?symbol=${encodeURIComponent(symbol)}&q=${encodeURIComponent(query)}&${contextQuery}`,
     ).catch(() => []);
+    if (seq !== requestSeq.current) return; // llegó una respuesta más nueva primero, descartar esta
     setSuggestions(results);
   };
 
@@ -84,11 +95,20 @@ export function useTagAutocomplete({
     return next;
   };
 
+  /** Mueve el resaltado entre sugerencias (ArrowUp/ArrowDown), con wrap-around. */
+  const moveSelection = (delta: number) => {
+    setSelectedIndex((i) => {
+      const len = suggestions.length;
+      if (len === 0) return 0;
+      return (i + delta + len) % len;
+    });
+  };
+
   /** Cierra las sugerencias sin modificar el texto (p. ej. Escape). */
   const clear = () => {
     setActiveTag(null);
     setSuggestions([]);
   };
 
-  return { suggestions, activeTag, onTextChange, pick, clear };
+  return { suggestions, activeTag, selectedIndex, onTextChange, pick, moveSelection, clear };
 }

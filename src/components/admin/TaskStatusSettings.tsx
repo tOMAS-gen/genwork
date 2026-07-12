@@ -24,10 +24,11 @@ function scopeQuery(scope: TaskStatusScope): string {
   return `global=true`;
 }
 
-/** Panel de administración de un conjunto de estados de tarea (feature 042, US1). */
+/** Panel de administración de un conjunto de estados de tarea (feature 042, US1; 045 agrega permisos por canWrite). */
 export function TaskStatusSettings({ scope, title = "Estados de tarea" }: { scope: TaskStatusScope; title?: string }) {
   const [statuses, setStatuses] = useState<TaskStatusDto[]>([]);
   const [inherited, setInherited] = useState(false);
+  const [canWrite, setCanWrite] = useState(false);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState<"IN_PROGRESS" | "FINAL">("IN_PROGRESS");
@@ -35,11 +36,12 @@ export function TaskStatusSettings({ scope, title = "Estados de tarea" }: { scop
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api<{ inherited: boolean; statuses: TaskStatusDto[] }>(
+      const data = await api<{ inherited: boolean; canWrite: boolean; statuses: TaskStatusDto[] }>(
         `/api/task-statuses?${scopeQuery(scope)}`,
       );
       setStatuses(data.statuses);
       setInherited(data.inherited);
+      setCanWrite(data.canWrite);
     } catch (err) {
       showToast({ message: (err as Error).message });
     } finally {
@@ -128,87 +130,100 @@ export function TaskStatusSettings({ scope, title = "Estados de tarea" }: { scop
       )}
 
       <div className="task-status-list">
-        {statuses.map((s, i) => (
-          <div key={s.id} className="task-status-row">
-            <ColorField value={s.color} onChange={(hex) => void patch(s.id, { color: hex })} ariaLabel={`Color de ${s.name}`} />
-            <input
-              className="task-status-name-input"
-              defaultValue={s.name}
-              onBlur={(e) => {
-                const value = e.target.value.trim();
-                if (value && value !== s.name) void patch(s.id, { name: value });
-                else e.target.value = s.name;
-              }}
-            />
-            <div className="segmented" role="group" aria-label="Tipo de estado">
+        {statuses.map((s, i) =>
+          canWrite ? (
+            <div key={s.id} className="task-status-row">
+              <ColorField value={s.color} onChange={(hex) => void patch(s.id, { color: hex })} ariaLabel={`Color de ${s.name}`} />
+              <input
+                className="task-status-name-input"
+                aria-label={`Nombre del estado ${s.name}`}
+                defaultValue={s.name}
+                onBlur={(e) => {
+                  const value = e.target.value.trim();
+                  if (value && value !== s.name) void patch(s.id, { name: value });
+                  else e.target.value = s.name;
+                }}
+              />
+              <div className="segmented" role="group" aria-label="Tipo de estado">
+                <button
+                  type="button"
+                  className={`segmented-btn${s.type === "IN_PROGRESS" ? " is-active" : ""}`}
+                  onClick={() => void patch(s.id, { type: "IN_PROGRESS" })}
+                >
+                  En curso
+                </button>
+                <button
+                  type="button"
+                  className={`segmented-btn${s.type === "FINAL" ? " is-active" : ""}`}
+                  onClick={() => void patch(s.id, { type: "FINAL" })}
+                >
+                  Final
+                </button>
+              </div>
               <button
                 type="button"
-                className={`segmented-btn${s.type === "IN_PROGRESS" ? " is-active" : ""}`}
-                onClick={() => void patch(s.id, { type: "IN_PROGRESS" })}
+                className="icon-btn min-h-[44px] min-w-[44px]"
+                disabled={i === 0}
+                onClick={() => void move(i, -1)}
+                aria-label="Subir"
               >
-                En curso
+                <ArrowUp size={15} />
               </button>
               <button
                 type="button"
-                className={`segmented-btn${s.type === "FINAL" ? " is-active" : ""}`}
-                onClick={() => void patch(s.id, { type: "FINAL" })}
+                className="icon-btn min-h-[44px] min-w-[44px]"
+                disabled={i === statuses.length - 1}
+                onClick={() => void move(i, 1)}
+                aria-label="Bajar"
               >
-                Final
+                <ArrowDown size={15} />
+              </button>
+              <button type="button" className="icon-btn min-h-[44px] min-w-[44px]" onClick={() => void remove(s)} aria-label="Eliminar">
+                <Trash2 size={15} />
               </button>
             </div>
-            <button
-              type="button"
-              className="icon-btn"
-              disabled={i === 0}
-              onClick={() => void move(i, -1)}
-              aria-label="Subir"
-            >
-              <ArrowUp size={15} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn"
-              disabled={i === statuses.length - 1}
-              onClick={() => void move(i, 1)}
-              aria-label="Bajar"
-            >
-              <ArrowDown size={15} />
-            </button>
-            <button type="button" className="icon-btn" onClick={() => void remove(s)} aria-label="Eliminar">
-              <Trash2 size={15} />
-            </button>
-          </div>
-        ))}
+          ) : (
+            <div key={s.id} className="task-status-row task-status-row-readonly">
+              <span className="task-status-color-dot" style={{ background: s.color }} aria-hidden="true" />
+              <span className="task-status-name-readonly">{s.name}</span>
+              <span className="muted" style={{ fontSize: 13 }}>
+                {s.type === "IN_PROGRESS" ? "En curso" : "Final"}
+              </span>
+            </div>
+          ),
+        )}
       </div>
 
-      <div className="task-status-row task-status-new">
-        <input
-          className="task-status-name-input"
-          placeholder="Nombre del estado nuevo"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void create()}
-        />
-        <div className="segmented" role="group" aria-label="Tipo del estado nuevo">
-          <button
-            type="button"
-            className={`segmented-btn${newType === "IN_PROGRESS" ? " is-active" : ""}`}
-            onClick={() => setNewType("IN_PROGRESS")}
-          >
-            En curso
-          </button>
-          <button
-            type="button"
-            className={`segmented-btn${newType === "FINAL" ? " is-active" : ""}`}
-            onClick={() => setNewType("FINAL")}
-          >
-            Final
+      {canWrite && (
+        <div className="task-status-row task-status-new">
+          <input
+            className="task-status-name-input"
+            placeholder="Nombre del estado nuevo"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void create()}
+          />
+          <div className="segmented" role="group" aria-label="Tipo del estado nuevo">
+            <button
+              type="button"
+              className={`segmented-btn${newType === "IN_PROGRESS" ? " is-active" : ""}`}
+              onClick={() => setNewType("IN_PROGRESS")}
+            >
+              En curso
+            </button>
+            <button
+              type="button"
+              className={`segmented-btn${newType === "FINAL" ? " is-active" : ""}`}
+              onClick={() => setNewType("FINAL")}
+            >
+              Final
+            </button>
+          </div>
+          <button type="button" className="icon-btn min-h-[44px] min-w-[44px]" onClick={() => void create()} aria-label="Agregar estado">
+            <Plus size={15} />
           </button>
         </div>
-        <button type="button" className="icon-btn" onClick={() => void create()} aria-label="Agregar estado">
-          <Plus size={15} />
-        </button>
-      </div>
+      )}
     </div>
   );
 }

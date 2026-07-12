@@ -6,6 +6,7 @@ import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { splitTaskLines } from "@/lib/domain/tasks/multiline";
 import { useTagAutocomplete, type Suggestion } from "./useTagAutocomplete";
+import { TagSuggestionsMenu } from "./TagSuggestionsMenu";
 import { TagHighlightInput } from "./TagHighlightInput";
 import type { TaskDto } from "./TaskItem";
 
@@ -29,9 +30,15 @@ export function TaskListEditor({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
-  const { suggestions, activeTag, onTextChange, pick: pickSuggestion, clear } = useTagAutocomplete({
-    context,
-  });
+  const {
+    suggestions,
+    activeTag,
+    selectedIndex,
+    onTextChange,
+    pick: pickSuggestion,
+    moveSelection,
+    clear,
+  } = useTagAutocomplete({ context });
 
   /** Avisa si la tarea creada quedó direccionada a un proyecto distinto del contexto actual. */
   const notifyIfMovedAway = (task: TaskDto) => {
@@ -146,12 +153,23 @@ export function TaskListEditor({
           onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}
           onPaste={onPaste}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && suggestions.length > 0) {
+            if (e.key === "ArrowDown" && suggestions.length > 0) {
               e.preventDefault();
-              pick(suggestions[0]);
+              moveSelection(1);
+            } else if (e.key === "ArrowUp" && suggestions.length > 0) {
+              e.preventDefault();
+              moveSelection(-1);
+            } else if (e.key === "Enter" && suggestions.length > 0) {
+              e.preventDefault();
+              pick(suggestions[selectedIndex]);
             } else if (e.key === "Enter") {
               e.preventDefault();
               void submit();
+            } else if (e.key === "Tab" && suggestions.length > 0 && !e.shiftKey) {
+              // Tab acepta la sugerencia resaltada (igual que Enter), para poder seguir
+              // escribiendo la misma tarea sin que el foco salte a otro campo.
+              e.preventDefault();
+              pick(suggestions[selectedIndex]);
             } else if (e.key === "Tab" && suggestions.length === 0 && !e.shiftKey && text.trim()) {
               // Tab baja al campo de detalle (visible solo cuando hay texto de tarea)
               e.preventDefault();
@@ -193,54 +211,19 @@ export function TaskListEditor({
       )}
 
       {(suggestions.length > 0 || (activeTag?.symbol === "$" && suggestions.length === 0)) && (
-        <div
-          className="card"
-          style={{ position: "absolute", zIndex: 10, marginTop: 2, padding: 6, minWidth: 260 }}
-        >
-          {suggestions.length === 0 && activeTag?.symbol === "$" && (
-            // FR-010: ámbito de la tarea sin etiquetas disponibles → estado vacío informativo.
-            <div className="muted" style={{ padding: "6px 8px" }}>
-              No hay etiquetas disponibles
-            </div>
-          )}
-          {suggestions.map((s) => (
-            <div
-              key={`${s.type}-${s.id}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pick(s);
-              }}
-              style={{ padding: "6px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-            >
-              {s.type === "label" ? (
-                <>
-                  <span
-                    aria-hidden="true"
-                    className="project-dot color-dot"
-                    style={{ "--c": s.color ?? "#6b7280" } as React.CSSProperties}
-                  />
-                  <span>
-                    {s.keyName}: {s.name}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span
-                    className={`tag ${s.type === "work" ? "tag-work" : s.type === "user" ? "tag-user" : "tag-exec"}`}
-                  >
-                    {activeTag?.symbol}
-                    {s.name}
-                  </span>{" "}
-                  <span className="muted">{s.type === "work" ? "proyecto" : s.type}</span>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+        <TagSuggestionsMenu
+          anchorEl={inputRef.current}
+          suggestions={suggestions}
+          selectedIndex={selectedIndex}
+          activeSymbol={activeTag?.symbol}
+          // FR-010: ámbito de la tarea sin etiquetas disponibles → estado vacío informativo.
+          emptyMessage={activeTag?.symbol === "$" ? "No hay etiquetas disponibles" : undefined}
+          onPick={pick}
+        />
       )}
 
       {unresolved.length > 0 && (
-        <div className="card" style={{ marginTop: 8, padding: 10 }}>
+        <div className="card" style={{ marginTop: 8, padding: 10 }} aria-live="polite">
           {unresolved.map((tag) => (
             <div key={tag.symbol + tag.name} style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span>
@@ -257,7 +240,11 @@ export function TaskListEditor({
           ))}
         </div>
       )}
-      {error && <p style={{ color: "var(--danger)" }}>{error}</p>}
+      {error && (
+        <p role="alert" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

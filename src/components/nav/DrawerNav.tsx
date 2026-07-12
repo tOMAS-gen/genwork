@@ -34,7 +34,12 @@ interface Item {
 
 interface SectorItem extends Item {
   color: string | null;
-  group: { name: string } | null;
+  scope: {
+    type: "GROUP" | "PERSONAL" | "GLOBAL";
+    groupId?: string;
+    groupName?: string;
+    ownerId?: string;
+  };
 }
 
 interface GroupItem extends Item {
@@ -42,7 +47,7 @@ interface GroupItem extends Item {
 }
 
 interface WorkItem extends Item {
-  labels: { keyName: string; color: string }[];
+  labels: { keyName: string; color: string; isPrimary?: boolean }[];
 }
 
 const CAP = 10;
@@ -111,7 +116,7 @@ export function DrawerNav({
     return (
       <nav className="sidebar-nav sidebar-nav-mini">
         {userName && (
-          <div className="rail-link rail-avatar" data-tooltip={userEmail ? `${userName} · ${userEmail}` : userName}>
+          <div className="rail-link rail-avatar" data-tooltip={userEmail ? `${userName} · ${userEmail}` : userName} aria-label={userEmail ? `${userName} · ${userEmail}` : userName}>
             {userImage ? (
               <img src={userImage} alt="" aria-hidden="true" className="sidebar-avatar" />
             ) : (
@@ -120,42 +125,42 @@ export function DrawerNav({
           </div>
         )}
         <div className="sidebar-scroll">
-          <Link href="/notes" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Mis notas">
+          <Link href="/notes" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Mis notas" aria-label="Mis notas">
             <FileText size={18} />
           </Link>
-          <Link href="/references" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Mis referencias">
+          <Link href="/references" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Mis referencias" aria-label="Mis referencias">
             <AtSign size={18} />
           </Link>
-          <Link href="/" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Proyectos">
+          <Link href="/" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Proyectos" aria-label="Proyectos">
             <FileText size={18} />
           </Link>
-          <Link href="/sectors" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Sectores">
+          <Link href="/sectors" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Sectores" aria-label="Sectores">
             <Layers size={18} />
           </Link>
-          <Link href="/groups" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Grupos">
+          <Link href="/groups" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Grupos" aria-label="Grupos">
             <Users size={18} />
           </Link>
-          <Link href="/board" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Vista de tareas">
+          <Link href="/board" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Vista de tareas" aria-label="Vista de tareas">
             <LayoutDashboard size={18} />
           </Link>
-          <Link href="/reminders" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Recordatorios">
+          <Link href="/reminders" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Recordatorios" aria-label="Recordatorios">
             <Calendar size={18} />
           </Link>
-          <Link href="/settings" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Asistentes conectados">
+          <Link href="/settings" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Asistentes conectados" aria-label="Asistentes conectados">
             <Bot size={18} />
           </Link>
           {isSuperAdmin && (
-            <Link href="/admin" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Administración">
+            <Link href="/admin" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Administración" aria-label="Administración">
               <Settings size={18} />
             </Link>
           )}
         </div>
         <div className="sidebar-footer">
-          <div className="rail-link" data-tooltip="Vence hoy">
+          <div className="rail-link" data-tooltip="Vence hoy" aria-label="Vence hoy">
             <DueTodayBell />
           </div>
           <ThemeToggle mini />
-          <div className="rail-link" data-tooltip="Salir">
+          <div className="rail-link" data-tooltip="Salir" aria-label="Salir">
             {logoutButton}
           </div>
         </div>
@@ -266,9 +271,12 @@ export function DrawerNav({
                     }
                   />
                   {it.name}
-                  {base === "/sectors" && "group" in it && (it as SectorItem).group && (
+                  {base === "/sectors" && "scope" in it && (it as SectorItem).scope.type !== "PERSONAL" && (
                     <span className="muted" style={{ fontSize: "var(--text-xs)", marginLeft: 4 }}>
-                      · {(it as SectorItem).group!.name}
+                      -{" "}
+                      {(it as SectorItem).scope.type === "GROUP"
+                        ? (it as SectorItem).scope.groupName
+                        : "Global"}
                     </span>
                   )}
                 </Link>
