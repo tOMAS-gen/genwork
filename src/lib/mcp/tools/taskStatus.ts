@@ -12,9 +12,15 @@ import { logMcpActivity } from "@/lib/mcp/activity";
 /** Mismo criterio de permisos que `src/app/api/task-statuses/route.ts` (feature 042). */
 async function resolveScopeAndAuthorize(
   ctx: McpAuth,
-  params: { groupId?: string; ownerId?: string; sectorId?: string },
+  params: { groupId?: string; ownerId?: string; sectorId?: string; global?: boolean },
   requireWrite: boolean,
 ): Promise<StatusScope> {
+  if (params.global) {
+    if (requireWrite && ctx.userContext.globalRole !== "SUPERADMIN") {
+      throw forbidden("Solo el administrador del sistema administra los estados globales");
+    }
+    return { global: true };
+  }
   if (params.sectorId) {
     const sector = await prisma.sector.findUnique({ where: { id: params.sectorId } });
     if (!sector) throw notFound("Sector no encontrado");
@@ -40,6 +46,7 @@ const scopeInputShape = {
   groupId: z.string().uuid().optional(),
   ownerId: z.string().uuid().optional(),
   sectorId: z.string().uuid().optional(),
+  global: z.boolean().optional(),
 };
 
 export function registerTaskStatusTools(server: McpServer, ctx: McpAuth): void {
@@ -49,13 +56,16 @@ export function registerTaskStatusTools(server: McpServer, ctx: McpAuth): void {
       title: "Listar conjunto de estados",
       description:
         "Lista el conjunto de estados (Pendiente/En curso/Finalizado, etc.) aplicable a un sector, " +
-        "grupo o espacio personal (feature 042). Indicá exactamente uno de groupId/ownerId/sectorId.",
+        "grupo, espacio personal o al conjunto global (feature 042). Indicá exactamente uno de " +
+        "groupId/ownerId/sectorId/global.",
       inputSchema: scopeInputShape,
     },
-    async ({ groupId, ownerId, sectorId }) => {
+    async ({ groupId, ownerId, sectorId, global }) => {
       try {
-        if (!groupId && !ownerId && !sectorId) throw badRequest("Indicá groupId, ownerId o sectorId");
-        const scope = await resolveScopeAndAuthorize(ctx, { groupId, ownerId, sectorId }, false);
+        if (!groupId && !ownerId && !sectorId && !global) {
+          throw badRequest("Indicá groupId, ownerId, sectorId o global");
+        }
+        const scope = await resolveScopeAndAuthorize(ctx, { groupId, ownerId, sectorId, global }, false);
         const { inherited, statuses } = await listApplicableSet(scope);
         return toolSuccess(`${statuses.length} estado(s) encontrado(s).`, {
           inherited,
@@ -78,8 +88,9 @@ export function registerTaskStatusTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Crear estado",
       description:
-        "Crea un estado nuevo (tipo IN_PROGRESS o FINAL) en el conjunto de un sector, grupo o espacio " +
-        "personal (feature 042). Un conjunto solo puede tener un estado FINAL.",
+        "Crea un estado nuevo (tipo IN_PROGRESS o FINAL) en el conjunto de un sector, grupo, espacio " +
+        "personal o el conjunto global (feature 042). Indicá exactamente uno de " +
+        "groupId/ownerId/sectorId/global. Un conjunto solo puede tener un estado FINAL.",
       inputSchema: {
         ...scopeInputShape,
         name: z.string().trim().min(1).max(80),
@@ -87,10 +98,12 @@ export function registerTaskStatusTools(server: McpServer, ctx: McpAuth): void {
         type: z.enum(["IN_PROGRESS", "FINAL"]),
       },
     },
-    async ({ groupId, ownerId, sectorId, name, color, type }) => {
+    async ({ groupId, ownerId, sectorId, global, name, color, type }) => {
       try {
-        if (!groupId && !ownerId && !sectorId) throw badRequest("Indicá groupId, ownerId o sectorId");
-        const scope = await resolveScopeAndAuthorize(ctx, { groupId, ownerId, sectorId }, true);
+        if (!groupId && !ownerId && !sectorId && !global) {
+          throw badRequest("Indicá groupId, ownerId, sectorId o global");
+        }
+        const scope = await resolveScopeAndAuthorize(ctx, { groupId, ownerId, sectorId, global }, true);
 
         const status = await createStatus(scope, { name, color: normalizeHex(color)!, type });
 
