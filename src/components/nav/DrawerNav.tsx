@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   Archive,
   AtSign,
   BookTemplate,
+  Bot,
   Calendar,
   ChevronRight,
   FileText,
@@ -23,6 +25,7 @@ import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 import { useCloseMobileDrawer, useDrawerMini } from "@/components/nav/Shell";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface Item {
   id: string;
@@ -78,13 +81,27 @@ export function DrawerNav({
   const [openWorks, setOpenWorks] = useState(true);
   const [openSectors, setOpenSectors] = useState(false);
   const [openGroups, setOpenGroups] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const closeMobileDrawer = useCloseMobileDrawer();
   const mini = useDrawerMini();
+  const pathname = usePathname();
+  /** Coincidencia por pathname (sin query): alcanza para saber en qué
+   *  proyecto/sector/grupo o sección estás parado. */
+  const isActive = useCallback(
+    (href: string) => {
+      const path = href.split("?")[0];
+      if (path === "/") return pathname === "/";
+      return pathname === path || pathname.startsWith(`${path}/`);
+    },
+    [pathname],
+  );
 
   const load = useCallback(() => {
-    void api<WorkItem[]>("/api/works").then(setWorks).catch(() => {});
-    void api<SectorItem[]>("/api/sectors").then(setSectors).catch(() => {});
-    void api<GroupItem[]>("/api/groups").then(setGroups).catch(() => {});
+    void Promise.allSettled([
+      api<WorkItem[]>("/api/works").then(setWorks).catch(() => {}),
+      api<SectorItem[]>("/api/sectors").then(setSectors).catch(() => {}),
+      api<GroupItem[]>("/api/groups").then(setGroups).catch(() => {}),
+    ]).then(() => setLoaded(true));
   }, []);
 
   useEffect(load, [load]);
@@ -123,6 +140,9 @@ export function DrawerNav({
           </Link>
           <Link href="/reminders" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Recordatorios">
             <Calendar size={18} />
+          </Link>
+          <Link href="/settings" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Asistentes conectados">
+            <Bot size={18} />
           </Link>
           {isSuperAdmin && (
             <Link href="/admin" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Administración">
@@ -196,7 +216,7 @@ export function DrawerNav({
           <div className="nav-sublist" id={sublistId} role="group" aria-label={label}>
             {label === "Proyectos" && (
               <>
-                <Link href="/" onClick={closeMobileDrawer}>
+                <Link href="/" className={isActive("/") ? "nav-active" : ""} onClick={closeMobileDrawer}>
                   <LayoutGrid size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
                   Todos los proyectos
                 </Link>
@@ -227,8 +247,15 @@ export function DrawerNav({
                     : base === "/groups" && "color" in it
                       ? (it as GroupItem).color
                       : null;
+              const itemHref = `${base}/${it.id}`;
               return (
-                <Link key={it.id} href={`${base}/${it.id}`} title={it.name} onClick={closeMobileDrawer}>
+                <Link
+                  key={it.id}
+                  href={itemHref}
+                  title={it.name}
+                  className={isActive(itemHref) ? "nav-active" : ""}
+                  onClick={closeMobileDrawer}
+                >
                   <ItemIcon
                     size={14}
                     className={color ? "color-badge" : ""}
@@ -247,7 +274,14 @@ export function DrawerNav({
                 </Link>
               );
             })}
-            {items.length === 0 && <span className="muted" style={{ padding: "var(--space-1) var(--space-2)" }}>—</span>}
+            {items.length === 0 && !loaded && (
+              <span style={{ display: "block", padding: "var(--space-1) var(--space-2)" }}>
+                <Skeleton variant="text" width="70%" />
+              </span>
+            )}
+            {items.length === 0 && loaded && (
+              <span className="muted" style={{ padding: "var(--space-1) var(--space-2)" }}>—</span>
+            )}
             {items.length > CAP && (
               <Link href={href} className="muted" onClick={closeMobileDrawer}>
                 +{items.length - CAP} más…
@@ -276,7 +310,7 @@ export function DrawerNav({
       )}
       <div className="sidebar-scroll">
         <Link
-          className="nav"
+          className={`nav${isActive("/notes") ? " nav-active" : ""}`}
           href="/notes"
           onClick={closeMobileDrawer}
           style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -284,7 +318,7 @@ export function DrawerNav({
           <FileText size={16} className="muted" /> Mis notas
         </Link>
         <Link
-          className="nav"
+          className={`nav${isActive("/references") ? " nav-active" : ""}`}
           href="/references"
           onClick={closeMobileDrawer}
           style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -296,7 +330,7 @@ export function DrawerNav({
           {group("Sectores", "/sectors", openSectors, setOpenSectors, sectors, "/sectors", Layers)}
           {group("Grupos", "/groups", openGroups, setOpenGroups, groups, "/groups", Users)}
           <Link
-            className="nav"
+            className={`nav${isActive("/board") ? " nav-active" : ""}`}
             href="/board"
             onClick={closeMobileDrawer}
             style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -304,16 +338,24 @@ export function DrawerNav({
             <LayoutDashboard size={16} className="muted" /> Vista de tareas
           </Link>
           <Link
-            className="nav"
+            className={`nav${isActive("/reminders") ? " nav-active" : ""}`}
             href="/reminders"
             onClick={closeMobileDrawer}
             style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
           >
             <Calendar size={16} className="muted" /> Recordatorios
           </Link>
+          <Link
+            className={`nav${isActive("/settings") ? " nav-active" : ""}`}
+            href="/settings"
+            onClick={closeMobileDrawer}
+            style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
+          >
+            <Bot size={16} className="muted" /> Asistentes conectados
+          </Link>
           {isSuperAdmin && (
             <Link
-              className="nav"
+              className={`nav${isActive("/admin") ? " nav-active" : ""}`}
               href="/admin"
               onClick={closeMobileDrawer}
               style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -324,7 +366,7 @@ export function DrawerNav({
         </div>
       </div>
       <div className="sidebar-footer">
-        <DueTodayBell />
+        <DueTodayBell label="Vence hoy" />
         <ThemeToggle />
         {logoutButton}
       </div>

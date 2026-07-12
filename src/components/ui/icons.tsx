@@ -68,4 +68,5 @@ export {
   Bell,
   ChevronLeft,
   Clock,
+  Bot,
 } from "lucide-react";
