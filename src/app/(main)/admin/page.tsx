@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
-import { Shield, HardDrive, Users, Tag, Layers } from "@/components/ui/icons";
+import { Shield, HardDrive, Users, Tag, Layers, AlertCircle } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Administración" };
 
@@ -56,6 +56,15 @@ export default async function AdminHome() {
             <div>
               <div><strong>Estados de producción</strong></div>
               <span className="muted">Configurar las etapas de producción para los proyectos del grupo</span>
+            </div>
+          </div>
+        </Link>
+        <Link className="project-card" href="/admin/errors">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <AlertCircle size={20} />
+            <div>
+              <div><strong>Errores</strong></div>
+              <span className="muted">Errores capturados automáticamente, listos para revisar y corregir</span>
             </div>
           </div>
         </Link>
