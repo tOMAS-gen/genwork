@@ -1,0 +1,40 @@
+# work.gen.net.ar - MODO DEV: backend redirigido a la notebook vía túnel SSH
+# inverso (deploy/dev-tunnel-up.sh, corrido en la notebook). Reemplaza el
+# original mientras developeás. Para volver: cp work.gen.net.ar.conf encima
+# de este archivo en /etc/nginx/sites-available/ y `nginx -s reload`.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name work.gen.net.ar;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name work.gen.net.ar;
+
+    ssl_certificate /etc/letsencrypt/live/work.gen.net.ar/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/work.gen.net.ar/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    access_log /var/log/nginx/work_access.log;
+    error_log /var/log/nginx/work_error.log;
+
+    location / {
+        # 127.0.0.1:18010 = extremo local del túnel SSH inverso abierto por
+        # la notebook (GatewayPorts no -> solo localhost del server).
+        proxy_pass http://127.0.0.1:18010;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

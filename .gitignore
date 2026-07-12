@@ -38,3 +38,4 @@ tsconfig.tsbuildinfo
 
 # Herramientas locales
 .impeccable/
+.superpowers/
