@@ -6,10 +6,17 @@ Tipo: feature — nuevo scope en modelo existente (`TaskStatus`), sin migración
 ## Problema
 
 `TaskStatus` (feature 042) vive en 3 scopes: grupo, personal (`ownerId`) y override
-de sector. Cuando una tarea no cae en ninguno de esos tres (p. ej. sector sin
-conjunto propio, o work sin grupo/personal con set propio),
-`resolveApplicableStatusSet` devuelve `[]` — la tarea queda sin estados
-aplicables. No existe un conjunto de organización que cubra ese vacío.
+de sector. Con feature 044 (sectores globales, ya mergeada — ver
+`specs/044-sectores-globales/`), `resolveApplicableStatusSet` resuelve así:
+
+1. Sector EXEC con conjunto propio → ese.
+2. Sector EXEC sin conjunto propio → cae al conjunto del grupo/personal del
+   `Work` de la tarea.
+3. Sin sector EXEC → conjunto del grupo/personal del `Work`.
+
+Si el `Work` tampoco tiene grupo/personal con set propio, el resultado es
+`[]` — la tarea queda sin estados aplicables. No existe un conjunto de
+organización que cubra ese hueco.
 
 Se pide un 4° scope, **global**, definido solo por el SUPERADMIN, que actúa como
 fallback de última instancia cuando ni el sector, ni el grupo/personal de la
@@ -24,24 +31,29 @@ scope global.
 
 - `StatusScope`: agregar variant `{ global: true }`.
 - `scopeColumns`: nuevo caso → `{ groupId: null, ownerId: null, sectorId: null }`.
-- `scopeOfStatus`: si `groupId`/`ownerId`/`sectorId` del `TaskStatus` son los 3
-  `null` → devuelve `{ global: true }`.
+- `scopeOfStatus`: hoy asume que si no es `groupId` ni `ownerId`, ES
+  `sectorId` (`return { sectorId: status.sectorId as string }`). Ajustar: si
+  `groupId`/`ownerId`/`sectorId` son los 3 `null` → devuelve
+  `{ global: true }`; si no, mantiene el fallback a `sectorId` como hoy.
 - `createStatus`/`updateStatus`/`deleteStatus`: sin cambios, ya operan sobre
   `StatusScope` genérico.
 
 ### 2. Resolución — `src/lib/domain/tasks/statusResolution.ts`
 
 `resolveApplicableStatusSet` gana un fallback final: si el resultado de la
-resolución por sector o por grupo/personal es vacío, se filtran de
-`allStatuses` los estados con `groupId === null && ownerId === null &&
+lógica actual (sector propio → grupo/personal del Work) es vacío, se filtran
+de `allStatuses` los estados con `groupId === null && ownerId === null &&
 sectorId === null` (el conjunto global) y se devuelven esos (ordenados por
 `sortOrder`).
 
-Orden de prioridad final:
+Orden de prioridad final (2 y 3 ya existen, no cambian; se agrega 4):
 1. Override de sector (conjunto propio del sector EXEC).
-2. Grupo/personal del scope de la tarea (sector sin override, o work sin
-   sector EXEC).
-3. Conjunto global (fallback de organización).
+2. Grupo/personal del `Work` (sector sin override, o sin sector EXEC).
+3. *(nuevo)* Conjunto global — fallback cuando 1 y 2 no dieron resultado.
+
+Implementación: en vez de `return []`/`return sortByOrder(byGroupOrOwner(...))`
+directo, cada punto de salida vacío cae a un helper
+`globalFallback(statuses)` que filtra los 3 campos `null`.
 
 `initialStatus`/`finalStatus`/`reassignOnSectorChange` no cambian: operan
 sobre el `applicableSet` ya resuelto, sea cual sea su origen.
@@ -67,6 +79,12 @@ if (params.global) {
 
 `createSchema` (POST) y el body de PATCH/DELETE en `[id]/route.ts` suman
 `global: z.boolean().optional()` junto a `groupId`/`ownerId`/`sectorId`.
+
+Mismo ajuste, mismo criterio, en `src/lib/mcp/tools/taskStatus.ts`
+(`resolveScopeAndAuthorize` ahí es una copia intencional de la de la API REST,
+según su propio comentario de cabecera) — agrega `global` a `scopeInputShape`
+y a las tools `taskStatus.list`/`taskStatus.create` para no romper la paridad
+API↔MCP que ya documenta ese archivo.
 
 ### 4. UI — `src/app/(main)/admin/task-statuses/page.tsx`
 
