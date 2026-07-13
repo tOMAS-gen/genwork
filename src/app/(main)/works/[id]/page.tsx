@@ -1,6 +1,23 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/components/ui/useApi";
 import { DocEditor } from "@/components/editor/DocEditor";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
@@ -45,6 +62,49 @@ interface WorkFull {
 }
 
 /**
+ * Fila arrastrable de la lista de tareas (feature 052, T005/T006): el handle
+ * visual y el estilo de "arrastrando" viven en `TaskItem` (variant "list"), acá
+ * solo se conecta `useSortable` y se le pasan `attributes`/`listeners` como
+ * `dragHandleProps` — así el arrastre se activa desde el ícono del handle, no
+ * desde toda la fila, y clicks en checkbox/select/texto/borrar no se ven afectados.
+ */
+function SortableTaskRow({
+  task,
+  workId,
+  editable,
+  onChanged,
+}: {
+  task: TaskDto;
+  workId: string;
+  editable: boolean;
+  onChanged: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        touchAction: "none",
+      }}
+    >
+      <TaskItem
+        task={task}
+        context={{ workId }}
+        canToggle={editable}
+        onChanged={onChanged}
+        dragHandleProps={{ attributes, listeners }}
+        isDragging={isDragging}
+      />
+    </div>
+  );
+}
+
+/**
  * Página del proyecto como hoja estilo Notion (FR-104): título grande, descripción,
  * documento fluido sin cajas, sección Tareas tipo bloc de notas. Acciones en menú ⋮.
  */
@@ -86,6 +146,63 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
     [id, load, toast]
   );
 
+  // Sensores de dnd-kit (feature 052, T005): PointerSensor con umbral de distancia
+  // para que un click simple sobre la casilla/selector/texto de una tarea no se
+  // interprete como el inicio de un arrastre; KeyboardSensor para accesibilidad.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  /**
+   * Llama al PATCH de reorder (T003) con el array completo de IDs ya reordenado
+   * y reconcilia el estado optimista con la respuesta (o revierte en error).
+   */
+  const commitReorder = useCallback(
+    (reordered: TaskDto[], previousTasks: TaskDto[]) => {
+      void api<TaskDto[]>(`/api/works/${id}/tasks/reorder`, {
+        method: "PATCH",
+        body: JSON.stringify({ orderedTaskIds: reordered.map((t) => t.id) }),
+      })
+        .then((tasks) => {
+          setWork((latest) => (latest ? { ...latest, tasks } : latest));
+        })
+        .catch((err) => {
+          // Revertimos el optimismo; si el conflicto es porque el conjunto de
+          // tareas cambió mientras se reordenaba (409 TASK_SET_CHANGED), además
+          // refrescamos desde el servidor y avisamos al usuario (contrato T005).
+          setWork((latest) => (latest ? { ...latest, tasks: previousTasks } : latest));
+          const status = (err as { status?: number }).status;
+          if (status === 409) {
+            toast("El orden cambió mientras se reordenaba la tarea; se actualizó la lista", "error");
+            load();
+          } else {
+            toast("Error al reordenar las tareas", "error");
+          }
+        });
+    },
+    [id, load, toast],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      setWork((current) => {
+        if (!current) return current;
+        const oldIndex = current.tasks.findIndex((t) => t.id === active.id);
+        const newIndex = current.tasks.findIndex((t) => t.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return current;
+
+        const previousTasks = current.tasks;
+        const reordered = arrayMove(previousTasks, oldIndex, newIndex);
+        commitReorder(reordered, previousTasks);
+        return { ...current, tasks: reordered };
+      });
+    },
+    [commitReorder],
+  );
 
   if (!work) {
     return (
@@ -270,15 +387,34 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           {editable && <TaskListEditor context={{ workId: id }} onCreated={load} />}
           {taskView === "list" ? (
             <div style={{ marginTop: "var(--space-1)" }}>
-              {work.tasks.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  context={{ workId: id }}
-                  canToggle={editable}
-                  onChanged={load}
-                />
-              ))}
+              {editable ? (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext
+                    items={work.tasks.map((t) => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {work.tasks.map((task) => (
+                      <SortableTaskRow
+                        key={task.id}
+                        task={task}
+                        workId={id}
+                        editable={editable}
+                        onChanged={load}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+              ) : (
+                work.tasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    context={{ workId: id }}
+                    canToggle={editable}
+                    onChanged={load}
+                  />
+                ))
+              )}
               {work.tasks.length === 0 && !editable && (
                 <p className="muted">Sin tareas.</p>
               )}

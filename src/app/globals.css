@@ -529,6 +529,55 @@ textarea:focus {
   align-items: stretch;
 }
 
+/* Drag handle (feature 052, T006): agrega un carril fijo a la izquierda de la
+   fila; el ícono se posiciona ahí sin participar del flex de .task-row, así la
+   casilla/texto quedan alineados igual que en filas sin handle (no se toca el
+   cálculo de calc(28px + ...) que usan .task-description-panel/.task-edit-description). */
+.task.task-has-handle {
+  position: relative;
+  padding-left: 22px;
+}
+
+.task-drag-handle {
+  position: absolute;
+  left: 3px;
+  top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  touch-action: none;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.task-drag-handle:hover {
+  background: var(--hover-soft);
+  color: var(--text);
+}
+
+/* Estado "arrastrando" (feature 052, T006): la fila se eleva como tarjeta
+   flotante sobre el resto del listado — fondo, sombra y radio son los mismos
+   tokens que usan otras superficies elevadas (menús, diálogos). */
+.task.task-dragging {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-md);
+  border-bottom-color: transparent;
+}
+
+.task.task-dragging .task-drag-handle {
+  cursor: grabbing;
+}
+
 .task-row {
   display: flex;
   align-items: flex-start;

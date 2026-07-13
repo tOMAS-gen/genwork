@@ -23,7 +23,7 @@ import {
   type TaskRef,
   type UserContext,
 } from "@/lib/domain/permissions";
-import { conflict, forbidden, notFound } from "@/server/api";
+import { ApiError, conflict, forbidden, notFound } from "@/server/api";
 import { emit } from "@/server/events";
 import type { Prisma, Sector, Task, TaskLink, TaskStatus, User, Work, Group } from "@prisma/client";
 
@@ -365,6 +365,45 @@ async function nextPosition(workId: string | null, homeSectorId: string | null):
     _max: { position: true },
   });
   return (result._max.position ?? -1) + 1;
+}
+
+/**
+ * Reordena manualmente las tareas de un Trabajo (feature 052, FR-001/FR-003).
+ *
+ * Recibe la lista COMPLETA y ordenada de `taskId` del Trabajo y reasigna
+ * `position = índice` (0..N-1) a cada tarea dentro de una única transacción
+ * (renumeración densa, research.md §1). Valida que `orderedTaskIds` coincide
+ * EXACTAMENTE con las tareas actuales de `workId` (mismo tamaño, mismos IDs, sin
+ * duplicados): si difiere — p. ej. se creó o borró una tarea durante el drag —
+ * lanza `TASK_SET_CHANGED` (409) SIN aplicar ningún cambio. El endpoint (T003)
+ * mapea este error a HTTP 409. La reasignación es total, no incremental: no se
+ * asume nada del `position` anterior (FR-006: `nextPosition()` sigue devolviendo
+ * `max + 1` intacto tras reordenar).
+ */
+export async function reorderTasks(workId: string, orderedTaskIds: string[]): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.task.findMany({ where: { workId }, select: { id: true } });
+
+    const orderedSet = new Set(orderedTaskIds);
+    const matches =
+      orderedTaskIds.length === current.length &&
+      orderedSet.size === orderedTaskIds.length && // sin duplicados
+      current.every((t) => orderedSet.has(t.id));
+
+    if (!matches) {
+      throw new ApiError(
+        409,
+        "TASK_SET_CHANGED",
+        "El conjunto de tareas cambió mientras reordenabas; recargá y volvé a intentar",
+      );
+    }
+
+    await Promise.all(
+      orderedTaskIds.map((id, index) =>
+        tx.task.update({ where: { id }, data: { position: index } }),
+      ),
+    );
+  });
 }
 
 export async function saveTask(

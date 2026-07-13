@@ -69,4 +69,7 @@ export {
   ChevronLeft,
   Clock,
   Bot,
+  Share2,
+  Copy,
+  GripVertical,
 } from "lucide-react";

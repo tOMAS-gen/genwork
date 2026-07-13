@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/core";
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { X, Calendar } from "@/components/ui/icons";
+import { X, Calendar, GripVertical } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
@@ -171,6 +172,8 @@ export function TaskItem({
   canToggle,
   onChanged,
   variant = "list",
+  dragHandleProps,
+  isDragging = false,
 }: {
   task: TaskDto;
   context: { workId?: string; sectorId?: string };
@@ -178,6 +181,14 @@ export function TaskItem({
   onChanged: () => void;
   /** "board": la columna ya indica el estado — sin selector, solo un menú para mover a otra. */
   variant?: "list" | "board";
+  /**
+   * Feature 052 (T006): `attributes`/`listeners` de `useSortable` (dnd-kit), pasados
+   * por el `SortableTaskRow` de `works/[id]/page.tsx` (T005). Si no vienen (lista
+   * de solo lectura, tablero, u otros usos de `TaskItem`), no se muestra el handle.
+   */
+  dragHandleProps?: { attributes: DraggableAttributes; listeners: DraggableSyntheticListeners };
+  /** Feature 052 (T006): true mientras esta tarea se está arrastrando — aplica el estilo de elevación. */
+  isDragging?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
@@ -308,8 +319,24 @@ export function TaskItem({
   const hasDescription = !!(task.description && task.description.trim());
 
   return (
-    <div className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""}`}>
+    <div
+      className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
+    >
       <div className="task-row">
+        {/* Drag handle (feature 052, T006): solo en variant "list" y cuando el
+            padre (SortableTaskRow) pasa attributes/listeners de useSortable —
+            así el arrastre se activa desde este ícono, no desde toda la fila. */}
+        {variant === "list" && dragHandleProps && (
+          <button
+            type="button"
+            className="task-drag-handle"
+            aria-label={`Arrastrar para reordenar "${task.displayText}"`}
+            {...dragHandleProps.attributes}
+            {...dragHandleProps.listeners}
+          >
+            <GripVertical size={15} />
+          </button>
+        )}
         {/* Casilla de acceso rápido (feature 042): permanece visible durante la
             edición, sin salto de altura de fila. En el tablero no se muestra: los
             3 puntos ya cubren el cambio de estado (columna = estado). */}
