@@ -5,6 +5,7 @@ import { api } from "@/components/ui/useApi";
 import { useToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { McpSetupGuide } from "@/components/settings/McpSetupGuide";
 
 interface McpConnectionSummary {
   id: string;
@@ -171,6 +172,8 @@ export function McpConnectionsPanel() {
           ))}
         </ul>
       )}
+
+      <McpSetupGuide token={revealedToken} />
 
       <AdminActivitySection />
     </section>

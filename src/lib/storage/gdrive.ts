@@ -33,10 +33,14 @@ export class GoogleDriveProvider implements StorageProvider {
   constructor(private cfg: GoogleDriveConfig) {}
 
   private async token(): Promise<string> {
+    // Operación interactiva (FR-011): si hay credencial propia del usuario, se
+    // autentica con SU refresh token en vez del admin. El client_id/secret siguen
+    // siendo los de la app (config base).
+    const refreshToken = this.cfg.userCredential?.gdriveRefreshToken ?? this.cfg.refreshToken;
     return getAccessToken({
       clientId: this.cfg.clientId,
       clientSecret: this.cfg.clientSecret,
-      refreshToken: this.cfg.refreshToken,
+      refreshToken,
     });
   }
 
@@ -213,6 +217,134 @@ export class GoogleDriveProvider implements StorageProvider {
     return out;
   }
 
+  async createFolder(input: { folderPath: string; name: string }): Promise<{ path: string }> {
+    const parentId = input.folderPath || this.rootParent();
+    const safe = input.name.replace(/'/g, "\\'");
+    const listQuery: Record<string, string> = {
+      q: `name = '${safe}' and '${parentId}' in parents and trashed = false`,
+      includeItemsFromAllDrives: "true",
+      fields: "files(id,name)",
+      pageSize: "1",
+    };
+    if (this.useSharedDrive()) {
+      listQuery.corpora = "drive";
+      listQuery.driveId = this.cfg.sharedDriveId!;
+    }
+    // Drive permite nombres duplicados por defecto; el chequeo de colisión es
+    // responsabilidad nuestra (contracts/files-crud-and-identity.md → 409 ALREADY_EXISTS).
+    const existing = (await this.api("GET", "/files", { query: listQuery })) as { files?: DriveFile[] };
+    if (existing.files && existing.files.length > 0) {
+      throw Object.assign(
+        new Error(`Ya existe un elemento llamado "${input.name}" en esa carpeta`),
+        { code: "ALREADY_EXISTS" },
+      );
+    }
+
+    const created = (await this.api("POST", "/files", {
+      body: { name: input.name, mimeType: FOLDER_MIME, parents: [parentId] },
+      query: { fields: "id" },
+    })) as DriveFile;
+    return { path: created.id };
+  }
+
+  /**
+   * FR-003: elimina un archivo o carpeta. Drive borra recursivamente el
+   * contenido de una carpeta al borrar su fileId, sin recorrer el árbol.
+   */
+  async delete(path: string): Promise<void> {
+    try {
+      await this.api("DELETE", `/files/${encodeURIComponent(path)}`);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("HTTP 404")) {
+        throw Object.assign(new Error(`No existe "${path}"`), { code: "NOT_FOUND" });
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * FR-004/FR-010: comparte un archivo o carpeta creando un permiso vía Drive
+   * Permissions API v3. `path` es el fileId de Drive (mismo criterio que
+   * createFolder/delete).
+   *
+   * - LINK: permiso público de lectura (`type: "anyone"`). Drive NO soporta
+   *   password nativo en el link; si viene `password` se ignora. Si viene
+   *   `expiresAt`, se envía como `expirationTime` (RFC3339). El `linkUrl` se
+   *   obtiene del `webViewLink` del archivo.
+   * - INTERNAL: permiso de lectura para un usuario concreto (`targetIdentity`
+   *   como email de Google del destinatario).
+   *
+   * `providerShareId` codifica AMBOS valores necesarios para revocar en Drive
+   * (`"${fileId}:${permissionId}"`), porque `unshare` recibe solo ese id según
+   * la firma de la interfaz y la Permissions API necesita fileId + permissionId.
+   */
+  async share(input: {
+    path: string;
+    mode: "LINK" | "INTERNAL";
+    password?: string;
+    expiresAt?: Date;
+    targetIdentity?: string;
+  }): Promise<{ providerShareId: string; linkUrl?: string }> {
+    const fileId = input.path;
+
+    if (input.mode === "LINK") {
+      const body: Record<string, unknown> = { type: "anyone", role: "reader" };
+      // Drive no soporta password nativo en el link → se ignora (ver JSDoc).
+      if (input.expiresAt) body.expirationTime = input.expiresAt.toISOString();
+
+      const perm = (await this.api(
+        "POST",
+        `/files/${encodeURIComponent(fileId)}/permissions`,
+        { body },
+      )) as { id: string };
+
+      const file = (await this.api("GET", `/files/${encodeURIComponent(fileId)}`, {
+        query: { fields: "webViewLink" },
+      })) as { webViewLink?: string };
+
+      return {
+        providerShareId: `${fileId}:${perm.id}`,
+        linkUrl: file.webViewLink,
+      };
+    }
+
+    // INTERNAL: destinatario concreto por email de Google.
+    const body: Record<string, unknown> = {
+      type: "user",
+      role: "reader",
+      emailAddress: input.targetIdentity,
+    };
+    if (input.expiresAt) body.expirationTime = input.expiresAt.toISOString();
+
+    const perm = (await this.api(
+      "POST",
+      `/files/${encodeURIComponent(fileId)}/permissions`,
+      { body },
+    )) as { id: string };
+
+    return { providerShareId: `${fileId}:${perm.id}` };
+  }
+
+  /**
+   * FR-004/FR-010: revoca un acceso compartido. `providerShareId` codifica
+   * `"${fileId}:${permissionId}"` (ver `share`). Idempotente: un 404 (permiso
+   * ya inexistente) se trata como éxito.
+   */
+  async unshare(providerShareId: string): Promise<void> {
+    const sep = providerShareId.indexOf(":");
+    const fileId = sep >= 0 ? providerShareId.slice(0, sep) : providerShareId;
+    const permissionId = sep >= 0 ? providerShareId.slice(sep + 1) : "";
+    try {
+      await this.api(
+        "DELETE",
+        `/files/${encodeURIComponent(fileId)}/permissions/${encodeURIComponent(permissionId)}`,
+      );
+    } catch (err) {
+      // 404 = el permiso ya no existe → idempotente.
+      if (!String((err as Error).message).includes("HTTP 404")) throw err;
+    }
+  }
+
   async moveFolder(from: string, to: string): Promise<void> {
     // `from` y `to` son folderIds: mueve el folder `from` para que su parent sea `to`.
     const info = (await this.api("GET", `/files/${from}`, {
@@ -236,6 +368,12 @@ export class GoogleDriveProvider implements StorageProvider {
       // 404 = ya no existe → idempotente
       if (!String((err as Error).message).includes("HTTP 404")) throw err;
     }
+  }
+
+  async listGroupMembers(input: { storageGroupId: string }): Promise<{ storageUserId: string }[]> {
+    // Google Drive no tiene concepto de "grupo" con membresía consultable: el acceso lo intermedia la plataforma.
+    void input;
+    throw new Error("Google Drive no soporta auditoría de miembros de grupo");
   }
 
   async test(): Promise<{ ok: boolean; detail: string }> {

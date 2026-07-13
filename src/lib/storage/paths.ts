@@ -3,7 +3,7 @@ function sanitizeSegment(name: string): string {
 }
 
 export function formatFolderName(seq: number, name: string): string {
-  return `${String(seq).padStart(3, "0")}-${sanitizeSegment(name)}`;
+  return `${String(seq).padStart(3, "0")}-${sanitizeSegment(name)}`.toLowerCase();
 }
 
 export function computeArchivePath(currentPath: string, direction: "archive" | "unarchive"): string {

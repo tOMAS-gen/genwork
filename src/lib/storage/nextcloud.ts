@@ -21,13 +21,50 @@ function sanitizeSegment(name: string): string {
   return name.replace(/[\\/:*?"<>|]/g, "-").trim();
 }
 
+/**
+ * Error reconocible para FR-001: `createFolder` es una acción explícita del
+ * usuario ("crear carpeta nueva"), a diferencia de `ensureDir` (interno,
+ * idempotente) no debe ser un no-op silencioso si el nombre ya existe en ese
+ * nivel. La capa de API (contracts/files-crud-and-identity.md) mapea esto a
+ * `409 ALREADY_EXISTS` chequeando `err.code`.
+ */
+export class StorageAlreadyExistsError extends Error {
+  code = "ALREADY_EXISTS" as const;
+  constructor(message = "Ya existe un archivo o carpeta con ese nombre en esta ubicación") {
+    super(message);
+    this.name = "StorageAlreadyExistsError";
+  }
+}
+
+/**
+ * Error reconocible para FR-003: `delete` sobre un `path` inexistente no debe
+ * ser un no-op silencioso. La capa de API (contracts/files-crud-and-identity.md)
+ * mapea esto a `404 NOT_FOUND` chequeando `err.code`.
+ */
+export class StorageNotFoundError extends Error {
+  code = "NOT_FOUND" as const;
+  constructor(message = "El archivo o carpeta no existe") {
+    super(message);
+    this.name = "StorageNotFoundError";
+  }
+}
+
 export class NextcloudProvider implements StorageProvider {
   private dav: WebDAVClient;
+  /**
+   * Usuario/clave con los que se autentican las llamadas WebDAV/OCS. Si la config
+   * trae `userCredential` (operación interactiva, FR-011) se opera "as user" con
+   * su login + app password; si no, se usa la cuenta admin (uso de sistema).
+   */
+  private authUser: string;
+  private authPassword: string;
 
   constructor(private cfg: NextcloudConfig) {
-    this.dav = createClient(`${cfg.url.replace(/\/$/, "")}/remote.php/dav/files/${cfg.adminUser}`, {
-      username: cfg.adminUser,
-      password: cfg.adminPassword,
+    this.authUser = cfg.userCredential?.nextcloudLoginName ?? cfg.adminUser;
+    this.authPassword = cfg.userCredential?.nextcloudAppPassword ?? cfg.adminPassword;
+    this.dav = createClient(`${cfg.url.replace(/\/$/, "")}/remote.php/dav/files/${this.authUser}`, {
+      username: this.authUser,
+      password: this.authPassword,
     });
   }
 
@@ -44,7 +81,7 @@ export class NextcloudProvider implements StorageProvider {
         Accept: "application/json",
         Authorization:
           "Basic " +
-          Buffer.from(`${this.cfg.adminUser}:${this.cfg.adminPassword}`).toString("base64"),
+          Buffer.from(`${this.authUser}:${this.authPassword}`).toString("base64"),
         ...(body ? { "Content-Type": "application/x-www-form-urlencoded" } : {}),
       },
       body: body ? new URLSearchParams(body).toString() : undefined,
@@ -79,7 +116,7 @@ export class NextcloudProvider implements StorageProvider {
     }
   }
 
-  private async share(path: string, withWho: string, shareType: number): Promise<void> {
+  private async shareWith(path: string, withWho: string, shareType: number): Promise<void> {
     const { data } = await this.ocs("POST", "/ocs/v2.php/apps/files_sharing/api/v1/shares", {
       path,
       shareType: String(shareType),
@@ -121,7 +158,7 @@ export class NextcloudProvider implements StorageProvider {
     }
     const folderPath = `/genwork/${sanitizeSegment(input.groupName)}`;
     await this.ensureDir(folderPath);
-    await this.share(folderPath, storageGroupId, SHARE_TYPE_GROUP);
+    await this.shareWith(folderPath, storageGroupId, SHARE_TYPE_GROUP);
     return { storageGroupId, storageFolderId: folderPath };
   }
 
@@ -148,6 +185,22 @@ export class NextcloudProvider implements StorageProvider {
     }
   }
 
+  async listGroupMembers(input: { storageGroupId: string }): Promise<{ storageUserId: string }[]> {
+    const { data } = await this.ocs(
+      "GET",
+      `/ocs/v2.php/cloud/groups/${encodeURIComponent(input.storageGroupId)}`,
+    );
+    const code = this.ocsStatusCode(data);
+    if (code !== null && code !== 100 && code !== 200) {
+      throw new Error(`Nextcloud listGroupMembers failed (${code})`);
+    }
+    const users = (data as { ocs?: { data?: { users?: unknown } } })?.ocs?.data?.users;
+    if (!Array.isArray(users)) return [];
+    return users
+      .filter((user): user is string => typeof user === "string")
+      .map((storageUserId) => ({ storageUserId }));
+  }
+
   async createWorkFolder(input: {
     scope: { groupName: string } | { personalStorageUserId: string };
     workName: string;
@@ -160,7 +213,7 @@ export class NextcloudProvider implements StorageProvider {
     } else {
       const base = `/genwork-personal/${sanitizeSegment(input.scope.personalStorageUserId)}`;
       await this.ensureDir(base);
-      await this.share(base, input.scope.personalStorageUserId, SHARE_TYPE_USER);
+      await this.shareWith(base, input.scope.personalStorageUserId, SHARE_TYPE_USER);
       folderPath = `${base}/${work}`;
       await this.ensureDir(folderPath);
     }
@@ -207,6 +260,112 @@ export class NextcloudProvider implements StorageProvider {
       lastModified: f.lastmod,
       mimeType: f.mime ?? (f.type === "directory" ? "httpd/unix-directory" : "application/octet-stream"),
     }));
+  }
+
+  /**
+   * FR-001: crea una carpeta hija dentro de `folderPath`. A diferencia de
+   * `ensureDir`, NO es idempotente: si ya existe un archivo o carpeta con ese
+   * nombre en ese nivel, falla con `StorageAlreadyExistsError` (código
+   * `ALREADY_EXISTS`) en vez de no-opear en silencio.
+   */
+  async createFolder(input: { folderPath: string; name: string }): Promise<{ path: string }> {
+    const name = sanitizeSegment(input.name);
+    const path = `${input.folderPath}/${name}`;
+    if (await this.dav.exists(path)) {
+      throw new StorageAlreadyExistsError(`Ya existe "${name}" en esta carpeta`);
+    }
+    try {
+      await this.dav.createDirectory(path);
+    } catch (err) {
+      // 405 = ya existe (carrera con otro pedido concurrente): sigue siendo
+      // un conflicto explícito, no se traga el error como en ensureDir.
+      if (await this.dav.exists(path)) {
+        throw new StorageAlreadyExistsError(`Ya existe "${name}" en esta carpeta`);
+      }
+      throw err;
+    }
+    return { path };
+  }
+
+  /**
+   * FR-003: elimina un archivo o carpeta (recursivo si es carpeta — Nextcloud
+   * borra el árbol completo del lado del servidor en una sola llamada WebDAV,
+   * no hace falta recorrerlo a mano). Si `path` no existe, falla con
+   * `StorageNotFoundError` (código `NOT_FOUND`) en vez de no-opear en silencio.
+   */
+  async delete(path: string): Promise<void> {
+    if (!(await this.dav.exists(path))) {
+      throw new StorageNotFoundError(`No existe "${path}"`);
+    }
+    await this.dav.deleteFile(path);
+  }
+
+  /**
+   * FR-004/FR-010: comparte un archivo o carpeta vía OCS Share API.
+   * - `mode === "LINK"` → link público (`shareType` 3), con `password`/`expireDate`
+   *   opcionales; devuelve `{ providerShareId, linkUrl }`.
+   * - `mode === "INTERNAL"` → compartir con un usuario Nextcloud (`shareType` 0);
+   *   `targetIdentity` debe venir ya resuelto como el `nextcloudLoginName` del
+   *   destinatario (responsabilidad del caller). Devuelve `{ providerShareId }`.
+   * El `id` OCS devuelto es el `providerShareId` que luego consume `unshare`.
+   */
+  async share(input: {
+    path: string;
+    mode: "LINK" | "INTERNAL";
+    password?: string;
+    expiresAt?: Date;
+    targetIdentity?: string;
+  }): Promise<{ providerShareId: string; linkUrl?: string }> {
+    const SHARE_TYPE_LINK = 3;
+    const body: Record<string, string> = {
+      path: input.path,
+      shareType: String(input.mode === "LINK" ? SHARE_TYPE_LINK : SHARE_TYPE_USER),
+    };
+    if (input.mode === "INTERNAL") {
+      if (!input.targetIdentity) {
+        throw new Error("Nextcloud share INTERNAL requiere targetIdentity");
+      }
+      body.shareWith = input.targetIdentity;
+    }
+    if (input.password) body.password = input.password;
+    if (input.expiresAt) body.expireDate = input.expiresAt.toISOString().slice(0, 10);
+
+    const { data } = await this.ocs(
+      "POST",
+      "/ocs/v2.php/apps/files_sharing/api/v1/shares",
+      body,
+    );
+    const code = this.ocsStatusCode(data);
+    if (code !== null && code !== 100 && code !== 200) {
+      throw new Error(`Nextcloud share failed (${code}) for ${input.path}`);
+    }
+    const shareData = (data as { ocs?: { data?: { id?: unknown; url?: string } } })?.ocs?.data;
+    const providerShareId = shareData?.id != null ? String(shareData.id) : null;
+    if (!providerShareId) {
+      throw new Error(`Nextcloud share sin id para ${input.path}`);
+    }
+    return {
+      providerShareId,
+      ...(input.mode === "LINK" && shareData?.url ? { linkUrl: shareData.url } : {}),
+    };
+  }
+
+  /**
+   * FR-004/FR-010: revoca un acceso compartido por su `providerShareId` (el `id`
+   * OCS devuelto por `share`). Idempotente: si el share ya no existe (404), se
+   * trata como éxito y no se lanza error.
+   */
+  async unshare(providerShareId: string): Promise<void> {
+    const { status, data } = await this.ocs(
+      "DELETE",
+      `/ocs/v2.php/apps/files_sharing/api/v1/shares/${encodeURIComponent(providerShareId)}`,
+    );
+    const code = this.ocsStatusCode(data);
+    // 100/200 revocado; 404 (HTTP u OCS) ya no existe → idempotente
+    if (status === 404 || code === 404) return;
+    if (code !== null && code !== 100 && code !== 200) {
+      throw new Error(`Nextcloud unshare failed (${code}) for ${providerShareId}`);
+    }
   }
 
   async moveFolder(from: string, to: string): Promise<void> {

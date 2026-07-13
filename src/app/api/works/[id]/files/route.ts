@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
-import { notFound, withApi } from "@/server/api";
+import { ApiError, notFound, withApi } from "@/server/api";
 import { requireSession } from "@/server/auth";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { NextcloudProvider } from "@/lib/storage/nextcloud";
+import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
+import { StorageIdentityMissingError } from "@/lib/storage/identity";
 
 async function getWorkWithAccess(userId: string, id: string) {
   const ctx = await getUserContext(userId);
@@ -72,4 +74,74 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       { status: 503 },
     );
   }
+});
+
+/**
+ * Elimina un archivo o carpeta (recursivo si es carpeta) dentro del Work (FR-003).
+ * Deniega antes de tocar el proveedor (FR-005) y confina el `path` recibido del
+ * cliente dentro de la carpeta del Work (FR-007). Si el proveedor activo no
+ * implementa `delete`, responde 501 `STORAGE_OP_NOT_SUPPORTED` (FR-008).
+ */
+export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
+  const session = await requireSession();
+  const { id } = await params;
+
+  const { work } = await assertWorkAccess(session.user.id, id, "operate");
+
+  if (!work.nextcloudFolderPath) {
+    throw notFound("Sin carpeta de archivos configurada");
+  }
+
+  const { searchParams } = new URL(req.url);
+  const subpath = searchParams.get("path");
+  const fullPath = confineWorkPath(work.nextcloudFolderPath, subpath);
+
+  if (fullPath === work.nextcloudFolderPath.replace(/\/+$/, "")) {
+    throw new ApiError(400, "INVALID_PATH", "No se puede eliminar la carpeta raíz del trabajo");
+  }
+
+  let storage;
+  try {
+    storage = await getStorageProvider(session.user.id);
+  } catch (err) {
+    if (err instanceof StorageIdentityMissingError) {
+      throw new ApiError(424, "STORAGE_IDENTITY_MISSING", err.message, {
+        linkUrl: "/settings",
+      });
+    }
+    throw err;
+  }
+
+  if (!storage) {
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
+      { status: 503 },
+    );
+  }
+
+  if (typeof storage.delete !== "function") {
+    return NextResponse.json(
+      {
+        error: {
+          code: "STORAGE_OP_NOT_SUPPORTED",
+          message: "El proveedor de almacenamiento activo no soporta eliminar archivos",
+        },
+      },
+      { status: 501 },
+    );
+  }
+
+  try {
+    await storage.delete(fullPath);
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code === "NOT_FOUND") {
+      throw notFound("El archivo o carpeta no existe");
+    }
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Nextcloud no disponible" } },
+      { status: 503 },
+    );
+  }
+
+  return new NextResponse(null, { status: 204 });
 });

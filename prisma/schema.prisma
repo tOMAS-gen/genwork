@@ -55,6 +55,11 @@ enum ArchiveStatus {
   FAILED
 }
 
+enum ShareMode {
+  LINK
+  INTERNAL
+}
+
 enum JobKind {
   CREATE_USER
   CREATE_GROUP_FOLDER
@@ -64,6 +69,7 @@ enum JobKind {
   DELETE_WORK_FOLDER
   MOVE_WORK_FOLDER
   RENAME_WORK_FOLDER
+  AUDIT_GROUP_PERMISSIONS
 }
 
 enum JobStatus {
@@ -111,6 +117,9 @@ model User {
   createdReminders   Reminder[]         @relation("ReminderCreator")
   reminderDeliveries ReminderDelivery[]
   errorLogs          ErrorLog[]
+  storageIdentities  StorageIdentity[]
+  createdFileShares  FileShare[]        @relation("FileShareCreator")
+  targetFileShares   FileShare[]        @relation("FileShareTarget")
 }
 
 model AccessConfig {
@@ -175,6 +184,7 @@ model Sector {
   homeTasks    Task[]        @relation("TaskHomeSector")
   originTasks  Task[]        @relation("TaskOriginSector")
   taskStatuses TaskStatus[]
+  fileShares   FileShare[]
 
   // Ámbito (feature 046): un sector pertenece a un Grupo (groupId), a un espacio
   // Personal (ownerId) o al conjunto Global (ambos null). Unicidad por ámbito:
@@ -232,6 +242,7 @@ model Work {
   labels      WorkLabel[]
   favorites   UserFavorite[]
   mcpActivity McpActivityLog[]
+  fileShares  FileShare[]
 
   @@unique([groupId, name])
   @@unique([ownerId, name])
@@ -376,6 +387,68 @@ model ArchiveRecord {
   createdAt    DateTime      @default(now())
 }
 
+/// Credencial propia de un usuario en el proveedor de almacenamiento activo
+/// (feature 051). Usada para ejecutar operaciones de archivos interactivas
+/// impersonando la identidad real del usuario en vez de la cuenta admin
+/// global. Acotada a usuarios individuales (sin identidad propia de sector).
+model StorageIdentity {
+  id                      String              @id @default(uuid())
+  userId                  String
+  provider                StorageProviderKind
+  nextcloudLoginName      String?
+  nextcloudAppPasswordEnc String?
+  gdriveRefreshTokenEnc   String?
+  linkedAt                DateTime            @default(now())
+  revokedAt               DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+/// Acceso puntual otorgado a un archivo/carpeta de la nube dentro de un Work
+/// (feature 051). mode = INTERNAL requiere targetUserId XOR targetSectorId;
+/// mode = LINK requiere linkUrl. Revocar no borra la fila (trazabilidad):
+/// setea revokedAt y llama al proveedor con providerShareId.
+model FileShare {
+  id              String    @id @default(uuid())
+  workId          String
+  path            String
+  mode            ShareMode
+  createdById     String
+  targetUserId    String?
+  targetSectorId  String?
+  providerShareId String
+  linkUrl         String?
+  linkPasswordEnc String?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  revokedAt       DateTime?
+
+  work         Work    @relation(fields: [workId], references: [id], onDelete: Cascade)
+  createdBy    User    @relation("FileShareCreator", fields: [createdById], references: [id])
+  targetUser   User?   @relation("FileShareTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  targetSector Sector? @relation(fields: [targetSectorId], references: [id], onDelete: Cascade)
+
+  @@index([workId])
+  @@index([targetUserId])
+  @@index([targetSectorId])
+}
+
+/// Estado efímero del Login Flow v2 de Nextcloud (feature 051, R1). Vincula el
+/// token de poll devuelto por Nextcloud al usuario que inició el flujo, para que
+/// el endpoint de poll pueda recuperar el `pollEndpoint` real y verificar que
+/// quien hace poll es el mismo usuario de la sesión. Se borra al vincularse o
+/// puede expirar (Nextcloud invalida el token pasado un tiempo).
+model NextcloudLoginFlow {
+  token        String   @id
+  pollEndpoint String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+}
+
 model ProvisioningJob {
   id        String    @id @default(uuid())
   kind      JobKind
@@ -424,17 +497,17 @@ model LabelValue {
 }
 
 model WorkLabel {
-  id      String     @id @default(uuid())
-  workId  String
-  keyId   String
-  valueId String
+  id        String     @id @default(uuid())
+  workId    String
+  keyId     String
+  valueId   String
   /// A lo sumo una fila con isPrimary=true por workId (ver índice único parcial en
   /// la migración): es la etiqueta que da el color al proyecto. El resto son
   /// "secundarias", sin restricción de una por clave.
-  isPrimary Boolean  @default(false)
-  work    Work       @relation(fields: [workId], references: [id], onDelete: Cascade)
-  key     LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
-  value   LabelValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
+  isPrimary Boolean    @default(false)
+  work      Work       @relation(fields: [workId], references: [id], onDelete: Cascade)
+  key       LabelKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  value     LabelValue @relation(fields: [valueId], references: [id], onDelete: Cascade)
 
   @@unique([workId, keyId, valueId])
 }

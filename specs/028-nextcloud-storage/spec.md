@@ -99,6 +99,7 @@ El sistema levanta una instancia de Nextcloud mediante contenedor Docker como pa
 - **FR-010**: La instancia de almacenamiento en la nube DEBE poder ejecutarse como contenedor Docker.
 - **FR-011**: Si la nube no está disponible, las operaciones de proyecto (crear, editar, etc.) DEBEN seguir funcionando; solo las operaciones de archivos se verán afectadas.
 - **FR-012**: GenWork NO gestiona archivos (subir, borrar, renombrar). Toda la gestión se hace desde Nextcloud (cliente de escritorio o interfaz web).
+> **Actualización (spec 051)**: Este FR-012 fue reemplazado — GenWork ahora SÍ gestiona archivos (crear, subir, descargar, eliminar, compartir) además de mostrarlos. Ver `specs/051-gestion-archivos-nube/spec.md`.
 - **FR-013**: Al crear un usuario en genwork, el sistema DEBE crear automáticamente la cuenta correspondiente en Nextcloud.
 - **FR-014**: Al crear un grupo de trabajo en genwork, el sistema DEBE crear el grupo correspondiente en Nextcloud y asignar los miembros.
 - **FR-015**: Al agregar o quitar un miembro de un grupo en genwork, el sistema DEBE reflejar el cambio en el grupo de Nextcloud.

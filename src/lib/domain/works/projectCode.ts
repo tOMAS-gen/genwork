@@ -11,7 +11,8 @@
  *   `FARMACIA_CENTRAL-23-MUEBLE_LIVING`
  *
  * Funciones puras, sin I/O. Es la única fuente de verdad del formato: se usa
- * tanto para mostrar el código en la UI como para nombrar la carpeta al crearla.
+ * únicamente para mostrar el código de referencia en UI/MCP. Nunca para nombrar
+ * carpetas Nextcloud (esas usan `folderSeq` como nombre).
  */
 
 /** Ámbito por defecto para proyectos sin grupo (espacio personal). */

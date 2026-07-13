@@ -7,10 +7,14 @@
 import { prisma } from "@/lib/db/client";
 import { getStorageProvider } from "./index";
 import { formatFolderName } from "./paths";
+import { permissionAudit } from "./permissionAudit";
 import type { JobKind, Prisma } from "@prisma/client";
 
 const MAX_ATTEMPTS = 10;
 const BASE_DELAY_MS = 5_000;
+// Reprogramación corta (igual al ciclo del ticker) para jobs cuya dependencia
+// asíncrona todavía no está lista — no consume presupuesto de intentos.
+const DEPENDENCY_RETRY_MS = 30_000;
 
 export type JobPayload =
   | { kind: "CREATE_USER"; userId: string; email: string; displayName: string }
@@ -26,7 +30,8 @@ export type JobPayload =
     }
   | { kind: "DELETE_WORK_FOLDER"; folderPath: string }
   | { kind: "MOVE_WORK_FOLDER"; workId: string; fromPath: string; toPath: string }
-  | { kind: "RENAME_WORK_FOLDER"; workId: string; fromPath: string; toPath: string };
+  | { kind: "RENAME_WORK_FOLDER"; workId: string; fromPath: string; toPath: string }
+  | { kind: "AUDIT_GROUP_PERMISSIONS"; groupId: string };
 
 export async function enqueue(payload: JobPayload): Promise<void> {
   await prisma.provisioningJob.create({
@@ -40,6 +45,13 @@ export async function enqueue(payload: JobPayload): Promise<void> {
 }
 
 class StorageUnavailableError extends Error {}
+/**
+ * El job depende de otro job asíncrono que todavía no terminó (p. ej. la
+ * carpeta del grupo o la cuenta Nextcloud del usuario aún no existen). NO es
+ * un fallo real: se reprograma con un `runAfter` corto sin consumir intentos
+ * (research.md R1). Distinto de un error genérico, que sí cuenta como intento.
+ */
+class DependencyNotReadyError extends Error {}
 
 async function runJob(payload: JobPayload): Promise<void> {
   const storage = await getStorageProvider();
@@ -71,8 +83,8 @@ async function runJob(payload: JobPayload): Promise<void> {
         prisma.group.findUniqueOrThrow({ where: { id: payload.groupId } }),
         prisma.user.findUniqueOrThrow({ where: { id: payload.userId } }),
       ]);
-      if (!group.nextcloudGroupId) throw new Error("Grupo sin carpeta Nextcloud aún (reintentar)");
-      if (!user.nextcloudUserId) throw new Error("Usuario sin cuenta Nextcloud aún (reintentar)");
+      if (!group.nextcloudGroupId) throw new DependencyNotReadyError("Grupo sin carpeta Nextcloud aún (reintentar)");
+      if (!user.nextcloudUserId) throw new DependencyNotReadyError("Usuario sin cuenta Nextcloud aún (reintentar)");
       const input = { storageGroupId: group.nextcloudGroupId, storageUserId: user.nextcloudUserId };
       if (payload.kind === "ADD_MEMBER") await storage.addMember(input);
       else await storage.removeMember(input);
@@ -118,6 +130,16 @@ async function runJob(payload: JobPayload): Promise<void> {
       });
       return;
     }
+    case "AUDIT_GROUP_PERMISSIONS": {
+      // Grupo borrado entre el encolado y la ejecución: nada que auditar
+      const group = await prisma.group.findUnique({ where: { id: payload.groupId } });
+      if (!group) return;
+      // Grupo todavía sin carpeta Nextcloud: nada que auditar todavía
+      if (!group.nextcloudGroupId) return;
+      const diff = await permissionAudit(payload.groupId, storage, group.nextcloudGroupId);
+      if (diff) throw new Error(diff);
+      return;
+    }
   }
 }
 
@@ -134,6 +156,33 @@ export async function processPending(): Promise<void> {
       });
       if (!job) break;
 
+      // Altas/bajas rápidas del mismo usuario en el mismo grupo: el job más
+      // reciente manda (spec.md Edge Cases). Si ya hay un ADD/REMOVE_MEMBER
+      // PENDING más nuevo para el mismo (groupId, userId), descartar este sin
+      // ejecutarlo para que no deje el estado final invertido.
+      if (job.kind === "ADD_MEMBER" || job.kind === "REMOVE_MEMBER") {
+        const { groupId, userId } = job.payload as { groupId: string; userId: string };
+        const newer = await prisma.provisioningJob.findFirst({
+          where: {
+            id: { not: job.id },
+            status: "PENDING",
+            kind: { in: ["ADD_MEMBER", "REMOVE_MEMBER"] },
+            createdAt: { gt: job.createdAt },
+            AND: [
+              { payload: { path: ["groupId"], equals: groupId } },
+              { payload: { path: ["userId"], equals: userId } },
+            ],
+          },
+        });
+        if (newer) {
+          await prisma.provisioningJob.update({
+            where: { id: job.id },
+            data: { status: "DONE", lastError: null },
+          });
+          continue;
+        }
+      }
+
       try {
         await runJob({ kind: job.kind, ...(job.payload as object) } as JobPayload);
         await prisma.provisioningJob.update({
@@ -141,6 +190,22 @@ export async function processPending(): Promise<void> {
           data: { status: "DONE", lastError: null },
         });
       } catch (err) {
+        // Dependencia asíncrona todavía no lista: reprogramar corto SIN
+        // incrementar attempts ni arriesgar FAILED prematuro (research.md R1).
+        // El conteo normal de intentos se retoma cuando la dependencia se
+        // resuelva y el fallo persista por otra razón.
+        if (err instanceof DependencyNotReadyError) {
+          await prisma.provisioningJob.update({
+            where: { id: job.id },
+            data: {
+              attempts: job.attempts,
+              status: "PENDING",
+              lastError: (err as Error).message,
+              runAfter: new Date(Date.now() + DEPENDENCY_RETRY_MS),
+            },
+          });
+          break; // dejar que el próximo tick lo retome
+        }
         const storageUnavailable = err instanceof StorageUnavailableError;
         const attempts = storageUnavailable ? MAX_ATTEMPTS : job.attempts + 1;
         const failed = storageUnavailable || attempts >= MAX_ATTEMPTS;
@@ -176,4 +241,44 @@ export function startQueueTicker(): void {
   if (ticker) return;
   ticker = setInterval(() => void processPending().catch(() => {}), 30_000);
   ticker.unref?.();
+}
+
+const AUDIT_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Encola un `AUDIT_GROUP_PERMISSIONS` por cada grupo con carpeta Nextcloud
+ * (`nextcloudGroupId` no nulo). No duplica: si ya hay un job `PENDING` de
+ * ese kind para el mismo grupo, lo salta (mismo criterio de idempotencia
+ * que `migrateWorkFolderNames`, ver folderNameMigration.ts).
+ */
+export async function enqueuePermissionAudits(): Promise<void> {
+  const groups = await prisma.group.findMany({
+    where: { nextcloudGroupId: { not: null } },
+    select: { id: true },
+  });
+
+  for (const group of groups) {
+    const existing = await prisma.provisioningJob.findFirst({
+      where: {
+        kind: "AUDIT_GROUP_PERMISSIONS",
+        status: "PENDING",
+        payload: { path: ["groupId"], equals: group.id },
+      },
+    });
+    if (existing) continue;
+
+    await enqueue({ kind: "AUDIT_GROUP_PERMISSIONS", groupId: group.id });
+  }
+}
+
+// Tick diario de auditoría de permisos (research.md R3, FR-008). Variable de
+// módulo separada de `ticker` — guard independiente contra doble arranque.
+let permissionAuditTicker: ReturnType<typeof setInterval> | null = null;
+export function startPermissionAuditTicker(): void {
+  if (permissionAuditTicker) return;
+  permissionAuditTicker = setInterval(
+    () => void enqueuePermissionAudits().catch(() => {}),
+    AUDIT_INTERVAL_MS,
+  );
+  permissionAuditTicker.unref?.();
 }

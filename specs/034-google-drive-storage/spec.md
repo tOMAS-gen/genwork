@@ -146,3 +146,5 @@ Las operaciones existentes de archivado de proyectos (mover la carpeta a archiva
 - Se reutiliza la arquitectura de almacenamiento conectable existente (interfaz de proveedor, panel de almacenamiento, cifrado de credenciales, cola de operaciones).
 - No hay un límite de tamaño de archivo explícito impuesto por la plataforma; rige el del proveedor.
 - Los Shared Drives requieren una cuenta de Google Workspace del administrador (no aplica a cuentas personales gratuitas).
+
+> **Nota (spec 051)**: Esta spec describe lectura, descarga y operaciones de ciclo de vida de proyectos (archivado, eliminación). La spec 051 agrega gestión completa de archivos (crear carpetas, subir, descargar, eliminar, compartir) tanto para Nextcloud como para Google Drive. Ver `specs/051-gestion-archivos-nube/spec.md`.

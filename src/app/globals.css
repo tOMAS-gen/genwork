@@ -4494,3 +4494,39 @@ dialog.dialog--overflow-visible {
 .rem-link-target {
   flex: 1;
 }
+
+/* Guía de conexión MCP por agente (settings) */
+
+.mcp-setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.mcp-setup .segmented {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.mcp-setup-snippet {
+  position: relative;
+}
+
+.mcp-setup-snippet pre {
+  background: var(--hover-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin: 0;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.mcp-setup-copy {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+}

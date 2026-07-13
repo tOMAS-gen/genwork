@@ -55,11 +55,32 @@ export interface StorageProvider {
   /** Lista un solo nivel de directorio (no recursivo, para el visor de archivos). */
   listShallow(folderPath: string, subpath?: string): Promise<StorageFileInfo[]>;
 
+  /** FR-001: crea una carpeta hija dentro del path indicado. */
+  createFolder(input: { folderPath: string; name: string }): Promise<{ path: string }>;
+
+  /** FR-003: elimina un archivo o carpeta; si es carpeta, recursivo. */
+  delete(path: string): Promise<void>;
+
+  /** FR-004/FR-010: comparte un archivo o carpeta por link o con identidad interna. */
+  share(input: {
+    path: string;
+    mode: "LINK" | "INTERNAL";
+    password?: string;
+    expiresAt?: Date;
+    targetIdentity?: string;
+  }): Promise<{ providerShareId: string; linkUrl?: string }>;
+
+  /** FR-004/FR-010: revoca un acceso compartido existente. */
+  unshare(providerShareId: string): Promise<void>;
+
   /** Mueve una carpeta (archivado/desarchivado). */
   moveFolder(from: string, to: string): Promise<void>;
 
   /** FR-032: borra la carpeta completa de un trabajo (eliminación definitiva). */
   deleteFolder(folderPath: string): Promise<void>;
+
+  /** FR-008: lista los storageUserId actualmente miembros de un grupo Nextcloud, para auditoría. */
+  listGroupMembers(input: { storageGroupId: string }): Promise<{ storageUserId: string }[]>;
 
   /** Prueba de conectividad para el módulo de conexión del panel admin. */
   test(): Promise<{ ok: boolean; detail: string }>;
@@ -69,6 +90,13 @@ export interface NextcloudConfig {
   url: string;
   adminUser: string;
   adminPassword: string;
+  /** Credencial propia de usuario, ya descifrada, para operaciones interactivas (FR-011). */
+  userCredential?: NextcloudUserCredential;
+}
+
+export interface NextcloudUserCredential {
+  nextcloudLoginName: string;
+  nextcloudAppPassword: string;
 }
 
 /** Config resuelta del proveedor Google Drive (feature 034). */
@@ -81,4 +109,14 @@ export interface GoogleDriveConfig {
   sharedDriveId?: string;
   /** Carpeta raíz dentro del Drive (Shared o Mi Drive). */
   rootFolderId?: string;
+  /** Credencial propia de usuario, ya descifrada, para operaciones interactivas (FR-011). */
+  userCredential?: GoogleDriveUserCredential;
 }
+
+export interface GoogleDriveUserCredential {
+  gdriveRefreshToken: string;
+}
+
+export type StorageUserCredential =
+  | ({ provider: "NEXTCLOUD" } & NextcloudUserCredential)
+  | ({ provider: "GDRIVE" } & GoogleDriveUserCredential);
