@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
-import { Archive, ArchiveRestore, BookTemplate, Trash2 } from "@/components/ui/icons";
+import { RenameDialog } from "@/components/ui/RenameDialog";
+import { Archive, ArchiveRestore, BookTemplate, Pencil, Trash2 } from "@/components/ui/icons";
 import { api } from "@/components/ui/useApi";
 import { useToast } from "@/components/ui/Toast";
 
@@ -12,14 +13,19 @@ export function ProjectMenu({
   workId,
   workName,
   workStatus,
+  canRename,
+  onRenamed,
 }: {
   workId: string;
   workName: string;
   workStatus: "ACTIVE" | "ARCHIVED";
+  canRename: boolean;
+  onRenamed?: () => void;
 }) {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   const { toast } = useToast();
@@ -77,6 +83,15 @@ export function ProjectMenu({
               }
             },
           },
+          ...(canRename
+            ? [
+                {
+                  label: "Renombrar…",
+                  icon: <Pencil size={16} />,
+                  onSelect: () => setRenameDialogOpen(true),
+                },
+              ]
+            : []),
           {
             label: "Archivar",
             icon: <Archive size={16} />,
@@ -99,6 +114,15 @@ export function ProjectMenu({
             icon: <ArchiveRestore size={16} />,
             onSelect: () => void unarchive(),
           },
+          ...(canRename
+            ? [
+                {
+                  label: "Renombrar…",
+                  icon: <Pencil size={16} />,
+                  onSelect: () => setRenameDialogOpen(true),
+                },
+              ]
+            : []),
           {
             label: "Eliminar definitivamente…",
             icon: <Trash2 size={16} />,
@@ -167,6 +191,25 @@ export function ProjectMenu({
           </button>
         </div>
       </Dialog>
+
+      <RenameDialog
+        open={renameDialogOpen}
+        onClose={() => setRenameDialogOpen(false)}
+        title="Renombrar proyecto"
+        label="proyecto"
+        initialName={workName}
+        onSave={async (name) => {
+          await api(`/api/works/${workId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ name }),
+          });
+          if (onRenamed) {
+            onRenamed();
+          } else {
+            router.refresh();
+          }
+        }}
+      />
     </>
   );
 }

@@ -32,14 +32,14 @@ async function getWorkWithAccess(userId: string, id: string, need: "read" | "ope
   // Sin acceso: 404, no filtra existencia (contrato)
   if (level === "none") throw notFound();
   if (need === "operate" && level !== "operate") throw forbidden();
-  return { work, ctx };
+  return { work, ctx, level };
 }
 
 /** Página completa del trabajo: doc + tareas + adjuntos (Principio III). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
   const session = await requireSession();
   const { id } = await params;
-  const { work } = await getWorkWithAccess(session.user.id, id, "read");
+  const { work, level } = await getWorkWithAccess(session.user.id, id, "read");
 
   const full = await prisma.work.findUnique({
     where: { id: work.id },
@@ -68,6 +68,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   const { labels, tasks, ...rest } = full;
   return NextResponse.json({
     ...rest,
+    access: level,
     // Código de referencia legible de la carpeta del proyecto (feature 035)
     code: buildProjectCode(full.group?.name ?? null, full.folderSeq, full.name),
     labels: labels.map((l) => ({

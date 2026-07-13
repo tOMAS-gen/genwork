@@ -41,6 +41,7 @@ interface WorkFull {
   stageId: string | null;
   stage: { id: string; name: string; color: string | null } | null;
   isTemplate: boolean;
+  access: "read" | "operate";
 }
 
 /**
@@ -162,6 +163,8 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
             workId={id}
             workName={work.name}
             workStatus={work.status}
+            canRename={work.access === "operate"}
+            onRenamed={load}
           />
         </div>
       </div>

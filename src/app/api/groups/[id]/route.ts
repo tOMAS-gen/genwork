@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { forbidden, notFound, withApi } from "@/server/api";
+import { conflict, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canManageGroup } from "@/lib/domain/permissions";
@@ -25,6 +25,12 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   if (!canManageGroup(ctx, id)) throw forbidden("Solo los administradores del grupo");
 
   const body = patchSchema.parse(await req.json());
+  if (body.name && body.name !== group.name) {
+    const dup = await prisma.group.findFirst({
+      where: { name: body.name, id: { not: id } },
+    });
+    if (dup) throw conflict(`Ya existe un grupo llamado "${body.name}"`);
+  }
   const data = {
     ...body,
     ...(body.color !== undefined ? { color: body.color === null ? null : normalizeHex(body.color) } : {}),

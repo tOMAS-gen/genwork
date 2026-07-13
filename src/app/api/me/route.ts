@@ -5,5 +5,8 @@ import { requireSession } from "@/server/auth";
 /** Identidad mínima del usuario autenticado, para filtros cliente (ej. "Mis proyectos"). */
 export const GET = withApi(async () => {
   const session = await requireSession();
-  return NextResponse.json({ id: session.user.id });
+  return NextResponse.json({
+    id: session.user.id,
+    globalRole: session.user.globalRole,
+  });
 });

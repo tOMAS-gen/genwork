@@ -9,7 +9,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
-import { Inbox, Trash2, Users } from "@/components/ui/icons";
+import { RenameDialog } from "@/components/ui/RenameDialog";
+import { Inbox, Pencil, Trash2, Users } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { LabelAdmin } from "@/components/works/LabelAdmin";
 import { ColorField } from "@/components/ui/ColorField";
@@ -45,7 +46,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [status, setStatus] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [globalRole, setGlobalRole] = useState<"SUPERADMIN" | "MEMBER" | "READER" | null>(null);
   const router = useRouter();
 
   usePageTitle(group?.name ?? null);
@@ -62,7 +65,12 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   useEffect(load, [load]);
 
   useEffect(() => {
-    void api<{ id: string }>("/api/me").then((me) => setCurrentUserId(me.id)).catch(() => {});
+    void api<{ id: string; globalRole: "SUPERADMIN" | "MEMBER" | "READER" }>("/api/me")
+      .then((me) => {
+        setCurrentUserId(me.id);
+        setGlobalRole(me.globalRole);
+      })
+      .catch(() => {});
   }, []);
 
   if (!group) {
@@ -127,6 +135,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   const isGroupAdmin =
     currentUserId !== null &&
     group.memberships.some((m) => m.user.id === currentUserId && m.role === "ADMIN");
+  // FR-002 (specs/049-renombrar-entidades): renombrar grupo también habilitado para SUPERADMIN global,
+  // aunque no tenga membership ADMIN en este grupo puntual.
+  const isSuperAdmin = globalRole === "SUPERADMIN";
 
   const togglePublicRead = async () => {
     try {
@@ -165,6 +176,15 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         </div>
         <Menu
           items={[
+            ...(isGroupAdmin || isSuperAdmin
+              ? [
+                  {
+                    label: "Renombrar…",
+                    icon: <Pencil size={16} />,
+                    onSelect: () => setRenaming(true),
+                  },
+                ]
+              : []),
             {
               label: "Eliminar grupo",
               icon: <Trash2 size={16} />,
@@ -294,6 +314,18 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </div>
+
+      <RenameDialog
+        open={renaming}
+        onClose={() => setRenaming(false)}
+        title="Renombrar grupo"
+        label="grupo"
+        initialName={group.name}
+        onSave={async (name) => {
+          await api(`/api/groups/${id}`, { method: "PATCH", body: JSON.stringify({ name }) });
+          load();
+        }}
+      />
 
       <Dialog
         open={confirmDelete}

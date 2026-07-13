@@ -10,9 +10,10 @@ import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
+import { RenameDialog } from "@/components/ui/RenameDialog";
 import { ColorField } from "@/components/ui/ColorField";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Trash2, Settings, List, LayoutGrid, CheckSquare } from "@/components/ui/icons";
+import { Trash2, Settings, Pencil, List, LayoutGrid, CheckSquare } from "@/components/ui/icons";
 import { TaskStatusSettings } from "@/components/admin/TaskStatusSettings";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 
@@ -43,7 +44,9 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const [view, setView] = useState<SectorView | null>(null);
   const [showStatusSettings, setShowStatusSettings] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [taskView, setTaskView] = useState<"list" | "board">("list");
+  const [me, setMe] = useState<{ id: string; globalRole: "SUPERADMIN" | "MEMBER" | "READER" } | null>(null);
   usePageTitle(view?.sector.name ?? null);
   const router = useRouter();
 
@@ -53,6 +56,12 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
 
   useEffect(load, [load]);
   useLiveRefresh(load, { sectorId: id });
+
+  useEffect(() => {
+    void api<{ id: string; globalRole: "SUPERADMIN" | "MEMBER" | "READER" }>("/api/me")
+      .then(setMe)
+      .catch(() => {});
+  }, []);
 
   if (!view) {
     return (
@@ -81,6 +90,7 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   }
 
   const canOperate = view.level === "operate";
+  const isSuperAdmin = me?.globalRole === "SUPERADMIN";
   const scopeLabel =
     view.sector.scope.type === "GROUP"
       ? view.sector.scope.groupName ?? "Grupo"
@@ -164,6 +174,15 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
                 icon: <Settings size={16} />,
                 onSelect: () => setShowStatusSettings((v) => !v),
               },
+              ...(isSuperAdmin
+                ? [
+                    {
+                      label: "Renombrar…",
+                      icon: <Pencil size={16} />,
+                      onSelect: () => setRenaming(true),
+                    },
+                  ]
+                : []),
               {
                 label: "Eliminar sector",
                 icon: <Trash2 size={16} />,
@@ -273,6 +292,18 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
           ))}
         </>
       )}
+
+      <RenameDialog
+        open={renaming}
+        onClose={() => setRenaming(false)}
+        title="Renombrar sector"
+        label="sector"
+        initialName={view.sector.name}
+        onSave={async (name) => {
+          await api(`/api/sectors/${id}`, { method: "PATCH", body: JSON.stringify({ name }) });
+          load();
+        }}
+      />
     </div>
   );
 }
