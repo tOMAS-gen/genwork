@@ -1349,6 +1349,26 @@ dialog.dialog--overflow-visible {
   padding: 0;
 }
 
+/* En la fila de alta de tarea (.notes-row), el textarea tiene padding
+   vertical (6px 0) para dar aire a la fila tipo bloc de notas, pero el
+   overlay que dibuja el texto resaltado nace con padding 0. Sin este ajuste
+   el texto visible del overlay queda 6px más arriba que el caret real del
+   textarea invisible. Se iguala el padding vertical del overlay al del
+   textarea (no al revés, para no correr el layout existente de la fila). */
+.notes-row .tag-highlight-overlay {
+  padding: 6px 0;
+}
+
+/* Igual que en .task-row: en .notes-row las etiquetas del overlay también
+   deben verse como texto plano, sin el padding/pill que agrega
+   .tag-highlight-overlay .tag-hl. Ese padding horizontal desplaza el texto
+   visible respecto del textarea invisible y descoloca el caret. */
+.notes-row .tag-highlight-overlay .tag-hl {
+  background: none;
+  border-radius: 0;
+  padding: 0;
+}
+
 .task-edit-input:focus {
   outline: none;
   box-shadow: none;
