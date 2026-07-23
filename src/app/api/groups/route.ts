@@ -39,14 +39,26 @@ export const POST = withApi(async (req) => {
   const existing = await prisma.group.findUnique({ where: { name } });
   if (existing) throw conflict(`Ya existe un grupo llamado "${name}"`);
 
-  const group = await prisma.group.create({
-    data: {
-      name,
-      color: color ?? null,
-      ownerId: session.user.id,
-      memberships: { create: { userId: session.user.id, role: "ADMIN" } },
-    },
+  const group = await prisma.$transaction(async (tx) => {
+    const createdGroup = await tx.group.create({
+      data: {
+        name,
+        color: color ?? null,
+        ownerId: session.user.id,
+        memberships: { create: { userId: session.user.id, role: "ADMIN" } },
+      },
+    });
+
+    await tx.taskStatus.createMany({
+      data: [
+        { name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS", sortOrder: 0, groupId: createdGroup.id },
+        { name: "Hecha", color: "#22c55e", type: "FINAL", sortOrder: 1, groupId: createdGroup.id },
+      ],
+    });
+
+    return createdGroup;
   });
+
   // FR-034: carpeta compartida del grupo en la mini nube
   await enqueue({ kind: "CREATE_GROUP_FOLDER", groupId: group.id, groupName: name });
   return NextResponse.json(group, { status: 201 });
