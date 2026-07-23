@@ -143,8 +143,31 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
         const existing = await prisma.group.findUnique({ where: { name } });
         if (existing) throw conflict(`Ya existe un grupo llamado "${name}"`);
 
-        const group = await prisma.group.create({
-          data: { name, ownerId: ctx.userId, memberships: { create: { userId: ctx.userId, role: "ADMIN" } } },
+        const group = await prisma.$transaction(async (tx) => {
+          const createdGroup = await tx.group.create({
+            data: { name, ownerId: ctx.userId, memberships: { create: { userId: ctx.userId, role: "ADMIN" } } },
+          });
+
+          await tx.taskStatus.createMany({
+            data: [
+              {
+                name: "Pendiente",
+                color: "#94a3b8",
+                type: "IN_PROGRESS",
+                sortOrder: 0,
+                groupId: createdGroup.id,
+              },
+              {
+                name: "Hecha",
+                color: "#22c55e",
+                type: "FINAL",
+                sortOrder: 1,
+                groupId: createdGroup.id,
+              },
+            ],
+          });
+
+          return createdGroup;
         });
         await enqueue({ kind: "CREATE_GROUP_FOLDER", groupId: group.id, groupName: name });
 

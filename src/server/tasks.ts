@@ -27,6 +27,39 @@ import { ApiError, conflict, forbidden, notFound } from "@/server/api";
 import { emit } from "@/server/events";
 import type { Prisma, Sector, Task, TaskLink, TaskStatus, User, Work, Group } from "@prisma/client";
 
+async function ensureDefaultStatusesForScope(
+  scope: TaskScopeRef,
+  db: DbClient = prisma,
+): Promise<void> {
+  const target = scope.workScope
+    ? {
+        groupId: scope.workScope.groupId,
+        ownerId: scope.workScope.ownerId,
+        sectorId: null,
+      }
+    : scope.execSector
+      ? {
+          groupId: null,
+          ownerId: null,
+          sectorId: scope.execSector.id,
+        }
+      : {
+          groupId: null,
+          ownerId: null,
+          sectorId: null,
+        };
+
+  const existing = await db.taskStatus.count({ where: target });
+  if (existing > 0) return;
+
+  await db.taskStatus.createMany({
+    data: [
+      { ...target, name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS", sortOrder: 0 },
+      { ...target, name: "Hecha", color: "#22c55e", type: "FINAL", sortOrder: 1 },
+    ],
+  });
+}
+
 export type TaskWithLinks = Task & {
   links: (TaskLink & { sector: Sector | null; user: Pick<User, "id" | "name"> | null })[];
   work: Pick<Work, "id" | "name"> | null;
@@ -116,8 +149,14 @@ export async function loadApplicableStatusSet(
   db: DbClient = prisma,
 ): Promise<TaskStatusRef[]> {
   const scope = await resolveStatusScope(workId, homeSectorId, execSectorIds, db);
-  const candidates = await fetchStatusCandidates(scope, db);
-  return resolveApplicableStatusSet(scope, candidates);
+  let candidates = await fetchStatusCandidates(scope, db);
+  let applicable = resolveApplicableStatusSet(scope, candidates);
+  if (applicable.length > 0) return applicable;
+
+  await ensureDefaultStatusesForScope(scope, db);
+  candidates = await fetchStatusCandidates(scope, db);
+  applicable = resolveApplicableStatusSet(scope, candidates);
+  return applicable;
 }
 
 export function scopeOf(entity: { groupId: string | null; ownerId: string | null }): Scope {
