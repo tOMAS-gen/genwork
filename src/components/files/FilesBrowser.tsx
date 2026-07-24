@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Upload, Folder, Download, Trash2, Share2, Copy, Check } from "@/components/ui/icons";
+import { Upload, Folder, Download, Trash2, Share2, Copy, Check, Clock } from "@/components/ui/icons";
 import { Dialog } from "@/components/ui/Dialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface StorageFileInfo {
   name: string;
@@ -17,7 +18,16 @@ interface StorageFileInfo {
 
 interface FilesResponse {
   files: StorageFileInfo[];
-  nextcloudUrl: string;
+  nextcloudUrl: string | null;
+  /**
+   * Presentes solo cuando el trabajo todavía no tiene carpeta creada
+   * (feature 054, T005): `folderEnabled=false` → sin habilitar;
+   * `folderEnabled=true` con `nextcloudUrl=null` y `files=[]` → carpeta
+   * habilitada pero el job `CREATE_WORK_FOLDER` todavía no terminó.
+   * Ausentes (undefined) cuando la carpeta ya existe → comportamiento actual.
+   */
+  folderEnabled?: boolean;
+  canEnableFolder?: boolean;
 }
 
 /** Acceso compartido de un archivo/carpeta puntual (FR-004/FR-010, T034). */
@@ -99,6 +109,12 @@ export function FilesBrowser({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [errorLinkUrl, setErrorLinkUrl] = useState<string | null>(null);
+  // --- Habilitación de carpeta bajo demanda (feature 054, T006) ---
+  const [folderEnabled, setFolderEnabled] = useState<boolean | undefined>(undefined);
+  const [canEnableFolder, setCanEnableFolder] = useState(false);
+  const [enabling, setEnabling] = useState(false);
+  const [enableError, setEnableError] = useState<string | null>(null);
+  const [enableErrorLinkUrl, setEnableErrorLinkUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -139,6 +155,8 @@ export function FilesBrowser({
       .then((data) => {
         setFiles(data.files);
         setNextcloudUrl(data.nextcloudUrl);
+        setFolderEnabled(data.folderEnabled);
+        setCanEnableFolder(data.canEnableFolder ?? false);
       })
       .catch((err) => {
         const identity = parseStorageIdentityError(err);
@@ -191,6 +209,36 @@ export function FilesBrowser({
     },
     [workId, currentPath, load],
   );
+
+  /** Habilita la carpeta de storage del proyecto (T004) y refresca el listado. */
+  const handleEnable = useCallback(async () => {
+    if (enabling) return;
+    setEnabling(true);
+    setEnableError(null);
+    setEnableErrorLinkUrl(null);
+    try {
+      await api<{ folderEnabled: boolean; folderCreated: boolean }>(
+        `/api/works/${workId}/files/enable`,
+        { method: "POST" },
+      );
+      load();
+    } catch (err) {
+      const identity = parseStorageIdentityError(err);
+      if (identity) {
+        setEnableError(STORAGE_IDENTITY_MESSAGE);
+        setEnableErrorLinkUrl(identity.linkUrl);
+      } else {
+        const status = (err as { status?: number }).status;
+        setEnableError(
+          status === 403
+            ? "Solo un administrador puede habilitar la carpeta de este proyecto"
+            : (err as Error).message || "No se pudo habilitar la carpeta",
+        );
+      }
+    } finally {
+      setEnabling(false);
+    }
+  }, [workId, enabling, load]);
 
   const createFolder = useCallback(
     async (name: string) => {
@@ -382,11 +430,15 @@ export function FilesBrowser({
   }, []);
 
   const pathParts = currentPath.split("/").filter(Boolean);
+  // Sin carpeta creada todavía (no habilitada, o habilitada pero el job de
+  // creación no terminó): oculta subida/nueva carpeta/breadcrumb (T006).
+  const folderPending = folderEnabled !== undefined;
 
   return (
     <div
       className={`file-explorer${dragging ? " file-explorer-dragging" : ""}`}
       onDragOver={(e) => {
+        if (folderPending) return;
         e.preventDefault();
         setDragging(true);
       }}
@@ -394,56 +446,58 @@ export function FilesBrowser({
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        if (e.dataTransfer.files.length) void handleUpload(e.dataTransfer.files);
+        if (!folderPending && e.dataTransfer.files.length) void handleUpload(e.dataTransfer.files);
       }}
     >
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          hidden
-          onChange={(e) => {
-            if (e.target.files?.length) void handleUpload(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
-          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-        >
-          <Upload size={16} />
-          {uploading ? "Subiendo…" : "Subir archivo"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => {
-            setNewFolderName("");
-            setNewFolderError(null);
-            setNewFolderLinkUrl(null);
-            setNewFolderOpen(true);
-          }}
-          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-        >
-          <Folder size={16} />
-          Nueva carpeta
-        </button>
-        {nextcloudUrl && (
-          <a href={nextcloudUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
-            Abrir en Nextcloud
-          </a>
-        )}
-      </div>
+      {!folderPending && (
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)", marginBottom: "var(--space-3)" }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => {
+              if (e.target.files?.length) void handleUpload(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Upload size={16} />
+            {uploading ? "Subiendo…" : "Subir archivo"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => {
+              setNewFolderName("");
+              setNewFolderError(null);
+              setNewFolderLinkUrl(null);
+              setNewFolderOpen(true);
+            }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Folder size={16} />
+            Nueva carpeta
+          </button>
+          {nextcloudUrl && (
+            <a href={nextcloudUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+              Abrir en Nextcloud
+            </a>
+          )}
+        </div>
+      )}
 
       {uploadError && (
         <p style={{ color: "var(--danger)", marginTop: 0 }}>{uploadError}</p>
       )}
 
-      {currentPath && (
+      {!folderPending && currentPath && (
         <div className="file-explorer-breadcrumb">
           <button type="button" onClick={() => setCurrentPath("")}>
             Raíz
@@ -479,9 +533,52 @@ export function FilesBrowser({
         <p style={{ color: "var(--danger)", margin: 0 }}>{error}</p>
       )}
 
-      {!loading && !error && files.length === 0 && <p className="muted">Sin archivos</p>}
+      {!loading && !error && folderEnabled === false && (
+        <div>
+          {canEnableFolder ? (
+            <EmptyState
+              icon={Folder}
+              title="Carpeta no habilitada"
+              description="Este proyecto todavía no tiene carpeta de archivos. Habilitala para poder subir, organizar y compartir documentos."
+              action={{
+                label: enabling ? "Habilitando…" : "Habilitar carpeta",
+                onClick: () => void handleEnable(),
+              }}
+            />
+          ) : (
+            <EmptyState
+              icon={Folder}
+              title="Carpeta no habilitada"
+              description="Pedile a un administrador del grupo (o al dueño, si es un proyecto personal) que habilite la carpeta de archivos."
+            />
+          )}
+          {enableError && enableErrorLinkUrl && (
+            <div style={{ textAlign: "center", marginTop: "var(--space-2)" }}>
+              <StorageIdentityNotice message={enableError} linkUrl={enableErrorLinkUrl} />
+            </div>
+          )}
+          {enableError && !enableErrorLinkUrl && (
+            <p style={{ color: "var(--danger)", textAlign: "center", marginTop: "var(--space-2)" }}>
+              {enableError}
+            </p>
+          )}
+        </div>
+      )}
 
-      {!loading && !error && files.length > 0 && (
+      {!loading && !error && folderEnabled === true && (
+        <EmptyState
+          icon={Clock}
+          title="Creando carpeta…"
+          description="La carpeta se está creando en el almacenamiento. Esto puede tardar unos segundos — volvé a intentar en breve."
+          action={{ label: "Actualizar", onClick: load }}
+        />
+      )}
+
+      {!loading && !error && folderEnabled === undefined && files.length === 0 && (
+        <p className="muted">Sin archivos</p>
+      )}
+
+      {!loading && !error && folderEnabled === undefined && files.length > 0 && (
         <div>
           {files.map((file) => (
             <div

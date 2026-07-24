@@ -10,6 +10,7 @@ import { registerLabelTools } from "@/lib/mcp/tools/labels";
 import { registerNoteTools } from "@/lib/mcp/tools/notes";
 import { registerReminderTools } from "@/lib/mcp/tools/reminders";
 import { registerFavoriteTools } from "@/lib/mcp/tools/favorites";
+import { registerGroupTools } from "@/lib/mcp/tools/groups";
 import { registerAdminTools } from "@/lib/mcp/tools/admin";
 import { registerTaskStatusTools } from "@/lib/mcp/tools/taskStatus";
 
@@ -34,6 +35,7 @@ export function createMcpServer(ctx: McpAuth): McpServer {
   registerNoteTools(server, ctx);
   registerReminderTools(server, ctx);
   registerFavoriteTools(server, ctx);
+  registerGroupTools(server, ctx);
   registerAdminTools(server, ctx);
   registerTaskStatusTools(server, ctx);
   return server;

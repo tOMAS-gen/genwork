@@ -26,6 +26,7 @@ export const DELETE = withApi<{ params: Promise<{ id: string; userId: string }> 
 
     await prisma.groupMembership.deleteMany({ where: { groupId: id, userId } });
     await enqueue({ kind: "REMOVE_MEMBER", groupId: id, userId });
+    await enqueue({ kind: "AUDIT_GROUP_PERMISSIONS", groupId: id });
     return new NextResponse(null, { status: 204 });
   },
 );

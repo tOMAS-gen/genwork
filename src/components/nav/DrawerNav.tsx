@@ -47,6 +47,7 @@ interface GroupItem extends Item {
 }
 
 interface WorkItem extends Item {
+  groupName?: string | null;
   labels: { keyName: string; color: string; isPrimary?: boolean }[];
 }
 
@@ -244,6 +245,8 @@ export function DrawerNav({
               </>
             )}
             {items.slice(0, CAP).map((it) => {
+              const workGroupName = base === "/works" && "groupName" in it ? (it as WorkItem).groupName : null;
+              const itemName = workGroupName ? `${workGroupName} — ${it.name}` : it.name;
               const color =
                 base === "/works" && "labels" in it
                   ? getProjectColor((it as WorkItem).labels)
@@ -257,9 +260,10 @@ export function DrawerNav({
                 <Link
                   key={it.id}
                   href={itemHref}
-                  title={it.name}
+                  title={itemName}
                   className={isActive(itemHref) ? "nav-active" : ""}
                   onClick={closeMobileDrawer}
+                  style={{ display: "flex", alignItems: "center", minWidth: 0 }}
                 >
                   <ItemIcon
                     size={14}
@@ -270,7 +274,9 @@ export function DrawerNav({
                         : { flexShrink: 0, verticalAlign: -2, marginRight: 4, background: "transparent" }
                     }
                   />
-                  {it.name}
+                  <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {itemName}
+                  </span>
                   {base === "/sectors" && "scope" in it && (it as SectorItem).scope.type !== "PERSONAL" && (
                     <span className="muted" style={{ fontSize: "var(--text-xs)", marginLeft: 4 }}>
                       -{" "}

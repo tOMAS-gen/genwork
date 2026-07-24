@@ -36,5 +36,6 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
     update: { role },
   });
   await enqueue({ kind: "ADD_MEMBER", groupId: id, userId: target.id });
+  await enqueue({ kind: "AUDIT_GROUP_PERMISSIONS", groupId: id });
   return NextResponse.json(membership, { status: 201 });
 });

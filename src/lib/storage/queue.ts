@@ -94,6 +94,10 @@ async function runJob(payload: JobPayload): Promise<void> {
       // Trabajo borrado antes de correr el job: no hay carpeta que crear
       const work = await prisma.work.findUnique({ where: { id: payload.workId } });
       if (!work) return;
+      // Defensa ante jobs viejos encolados antes del flujo de carpetas bajo
+      // demanda (research.md D10): sin habilitación explícita, no se crea
+      // carpeta.
+      if (!work.folderEnabledAt) return;
       const folderName = formatFolderName(work.folderSeq, payload.workName);
       let scope: { groupName: string } | { personalStorageUserId: string };
       if (payload.groupId) {
@@ -117,11 +121,22 @@ async function runJob(payload: JobPayload): Promise<void> {
       return;
     }
     case "DELETE_WORK_FOLDER": {
+      // Sin path no hay nada que borrar (job viejo/mal formado): skip limpio
+      // (research.md D10).
+      if (!payload.folderPath) return;
       await storage.deleteFolder(payload.folderPath);
       return;
     }
     case "MOVE_WORK_FOLDER":
     case "RENAME_WORK_FOLDER": {
+      // Work borrado o sin carpeta (nunca habilitada, o job viejo encolado
+      // antes de las carpetas bajo demanda): nada que mover/renombrar, sin
+      // llamar al provider (research.md D10, FR-008).
+      const work = await prisma.work.findUnique({
+        where: { id: payload.workId },
+        select: { nextcloudFolderPath: true },
+      });
+      if (!work?.nextcloudFolderPath) return;
       await storage.moveFolder(payload.fromPath, payload.toPath);
       // updateMany: si el trabajo fue borrado entre el enqueue y el job, no falla
       await prisma.work.updateMany({
