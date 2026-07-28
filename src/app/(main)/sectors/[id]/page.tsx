@@ -6,7 +6,7 @@ import { api } from "@/components/ui/useApi";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
-import { groupReferencesBySource } from "@/components/tasks/groupReferencesBySource";
+import { groupReferencesBySource, referenceTaskContext } from "@/components/tasks/groupReferencesBySource";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -294,7 +294,7 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
                 <TaskItem
                   key={task.id}
                   task={task}
-                  context={{ sectorId: id }}
+                  context={referenceTaskContext(group.header, id)}
                   canToggle={canOperate}
                   onChanged={load}
                 />

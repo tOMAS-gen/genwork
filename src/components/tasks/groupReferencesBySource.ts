@@ -58,3 +58,11 @@ export function groupReferencesBySource(tasks: TaskDto[]): ReferenceGroup[] {
 
   return [...groups.values()].sort((a, b) => a.sortName.localeCompare(b.sortName) || a.key.localeCompare(b.key));
 }
+
+export function referenceTaskContext(
+  header: ReferenceGroupHeader,
+  sectorId: string,
+): { sectorId: string; suppressWorkTag?: boolean } {
+  if (header.type === "work") return { sectorId, suppressWorkTag: true };
+  return { sectorId };
+}
