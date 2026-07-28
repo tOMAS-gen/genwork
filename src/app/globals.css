@@ -608,6 +608,38 @@ textarea:focus {
   text-decoration: line-through;
 }
 
+/* ---- Encabezado de grupo de tareas por proyecto (feature 055) ---- */
+.task-group-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--hover-soft);
+  overflow: hidden;
+}
+
+.task-group-header-link {
+  display: block;
+  min-width: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 150ms ease;
+}
+
+.task-group-header-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 /* ---- Panel de descripción de tarea (feature 021) ---- */
 .task-description-panel {
   margin: var(--space-1) 0 0 calc(28px + var(--space-2));

@@ -3,12 +3,15 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
-    include: ["tests/unit/**/*.test.ts", "src/**/__tests__/**/*.test.ts"],
+    include: ["tests/unit/**/*.test.{ts,tsx}", "src/**/__tests__/**/*.test.{ts,tsx}"],
     environment: "node",
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
+  },
+  esbuild: {
+    jsx: "automatic",
   },
 });
