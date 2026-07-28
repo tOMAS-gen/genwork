@@ -9,7 +9,7 @@ import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/ser
 
 const taskInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-  work: { select: { id: true, name: true, status: true } },
+  work: { select: { id: true, name: true, status: true, groupId: true, group: { select: { id: true, name: true } } } },
   homeSector: { select: { id: true, name: true } },
   labels: { include: { value: { include: { key: true } } } },
   status: true,
@@ -128,12 +128,26 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 
   // Split exec tasks: loose (no project) vs grouped by work
   const looseExec = allExec.filter((t) => t.workId === null);
-  const byWorkMap = new Map<string, { work: { id: string; name: string; status: string }; tasks: typeof allExec }>();
+  const byWorkMap = new Map<
+    string,
+    {
+      work: { id: string; name: string; status: string; group: { id: string; name: string } | null };
+      tasks: typeof allExec;
+    }
+  >();
   for (const t of allExec) {
     if (t.workId === null || !t.work) continue;
     let entry = byWorkMap.get(t.workId);
     if (!entry) {
-      entry = { work: { id: t.work.id, name: t.work.name, status: t.work.status }, tasks: [] };
+      entry = {
+        work: {
+          id: t.work.id,
+          name: t.work.name,
+          status: t.work.status,
+          group: t.work.group ? { id: t.work.group.id, name: t.work.group.name } : null,
+        },
+        tasks: [],
+      };
       byWorkMap.set(t.workId, entry);
     }
     entry.tasks.push(t);

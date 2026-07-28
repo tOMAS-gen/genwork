@@ -10,6 +10,7 @@ Mejorar la lista de tareas dentro de la vista de un sector (`src/app/(main)/sect
 
 **Approach**:
 - Reemplazar el `<h3>` sutil actual por un encabezado de grupo (`TaskGroupHeader`) que use tokens del design system (fondo suave, borde, tipografía diferenciada) y sea percibido claramente como separador de grupo.
+- Extender el endpoint `GET /api/sectors/:id/tasks` para devolver, junto con cada proyecto agrupado, el grupo al que pertenece (`work.group`), y mostrarlo en el encabezado con el formato "Grupo — Proyecto".
 - Extender el componente `TaskItem` para aceptar una prop opcional `suppressWorkTag`: cuando está dentro de un sector y bajo un grupo de proyecto, no renderiza el chip automático `/workName`; en el resto de vistas sigue comportándose igual.
 - No se toca la API `GET /api/sectors/:id/tasks` ni el modelo de datos: la agrupación `loose` / `byWork` ya existe y se aprovecha.
 - Se agregan tests unitarios para la lógica de supresión del tag y un test de componente/integración que verifica que el encabezado de grupo aparece y el chip de proyecto no.
@@ -20,7 +21,7 @@ Mejorar la lista de tareas dentro de la vista de un sector (`src/app/(main)/sect
 
 **Primary Dependencies**: React 19 client components, Next.js App Router, Tailwind CSS + tokens del design system (`src/app/globals.css`).
 
-**Storage**: Sin cambios de schema ni de API. PostgreSQL vía Prisma permanece igual.
+**Storage**: Sin cambios de schema. PostgreSQL vía Prisma permanece igual; el endpoint `GET /api/sectors/:id/tasks` expone el campo existente `Work.groupId` → `Group.name`.
 
 **Testing**: Vitest en env `node` (`vitest.config.ts`). Ubicación: `tests/unit/**` y `src/**/__tests__/**`.
 
@@ -31,7 +32,7 @@ Mejorar la lista de tareas dentro de la vista de un sector (`src/app/(main)/sect
 **Performance Goals**: Sin objetivos nuevos. El render de la lista de tareas del sector no debe degradarse; se reutilizan los datos ya devueltos por la API.
 
 **Constraints**:
-- No introducir nuevos endpoints ni cambiar contratos de API existentes.
+- No introducir nuevos endpoints; solo extender el payload existente de `GET /api/sectors/:id/tasks` con `work.group`.
 - No alterar el texto original de la tarea (`rawText`); solo controlar si el sistema inyecta un chip automático.
 - Mantener accesibilidad: el encabezado de grupo debe usar etiqueta semántica adecuada y no depender solo de color.
 - No cambiar la vista tablero (`TaskBoardView`) ni otras vistas donde las tareas no están agrupadas por proyecto.
@@ -75,15 +76,15 @@ specs/055-indicador-grupo-tareas/
 ```text
 src/
 ├── app/(main)/sectors/[id]/page.tsx        # (existente) — REEMPLAZAR <h3> por <TaskGroupHeader>
+├── app/api/sectors/[id]/tasks/route.ts     # (existente) — AGREGAR group al work de cada grupo byWork
 ├── components/tasks/
 │   ├── TaskItem.tsx                        # (existente) — AGREGAR prop suppressWorkTag y respetarla
 │   └── TaskGroupHeader.tsx                 # NUEVO — encabezado visual de grupo de proyecto
-├── components/tasks/__tests__/
-│   └── TaskGroupHeader.test.tsx            # NUEVO — render + contraste semántico
 └── app/globals.css                         # AGREGAR/EXTENDER clases .task-group-header si es necesario
 
 tests/unit/
-└── task-suppress-work-tag.test.ts          # NUEVO — lógica pura de supresión del tag automático
+├── task-suppress-work-tag.test.ts          # NUEVO — lógica pura de supresión del tag automático
+└── task-group-header.test.tsx              # NUEVO — render + grupo/proyecto + accesibilidad
 ```
 
 **Structure Decision**: Web application single-repo (Next.js App Router). Se reutilizan los componentes existentes; se crea un único componente visual reutilizable `TaskGroupHeader` bajo `src/components/tasks/` (mismo directorio que `TaskItem.tsx`) porque es una primitiva del dominio de tareas, no un primitivo UI genérico.
