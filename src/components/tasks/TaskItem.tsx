@@ -9,6 +9,7 @@ import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { X, Calendar, GripVertical } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
+import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
 import { TaskInlineEdit } from "./TaskInlineEdit";
@@ -176,7 +177,7 @@ export function TaskItem({
   isDragging = false,
 }: {
   task: TaskDto;
-  context: { workId?: string; sectorId?: string };
+  context: { workId?: string; sectorId?: string; suppressWorkTag?: boolean };
   canToggle: boolean;
   onChanged: () => void;
   /** "board": la columna ya indica el estado — sin selector, solo un menú para mover a otra. */
@@ -379,9 +380,7 @@ export function TaskItem({
             style={{ flex: 1, cursor: canEditText ? "text" : "default" }}
             onClick={handleTextClick}
           >
-            {context.sectorId && task.work && !parseTags(task.rawText).tags.some(
-              (t) => t.symbol === "/" && normalizeTagName(t.name) === normalizeTagName(task.work!.name),
-            ) && (
+            {shouldShowAutoWorkTag(task, context) && task.work && (
               <Link className="tag tag-work" href={`/works/${task.work.id}`}>
                 /{task.work.name}
               </Link>

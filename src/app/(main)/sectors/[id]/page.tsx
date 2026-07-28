@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/components/ui/useApi";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -245,12 +246,12 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
           ))}
           {view.byWork.map((group) => (
             <div key={group.work.id} className="mt-2">
-              <h3 className="mb-1 text-[0.85rem] text-muted">{group.work.name}</h3>
+              <TaskGroupHeader work={group.work} />
               {group.tasks.map((task) => (
                 <TaskItem
                   key={task.id}
                   task={task}
-                  context={{ sectorId: id }}
+                  context={{ sectorId: id, suppressWorkTag: true }}
                   canToggle={canOperate}
                   onChanged={load}
                 />
