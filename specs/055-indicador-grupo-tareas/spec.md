@@ -20,7 +20,7 @@ Un miembro del equipo entra a la vista de un sector y ve las tareas organizadas 
 
 **Acceptance Scenarios**:
 
-1. **Given** un sector con tareas de múltiples proyectos de distintos grupos, **When** el usuario abre la vista del sector, **Then** las tareas aparecen agrupadas bajo un indicador visual distintivo que muestra el grupo y el nombre del proyecto correspondiente a cada grupo (formato "Grupo — Proyecto").
+1. **Given** un sector con tareas de múltiples proyectos de distintos grupos, **When** el usuario abre la vista del sector, **Then** las tareas aparecen agrupadas bajo un indicador visual distintivo alineado a la derecha que muestra el nombre del proyecto y el grupo correspondiente (formato "Proyecto — Grupo").
 2. **Given** un proyecto que no pertenece a ningún grupo (proyecto personal), **When** se muestra como encabezado de grupo en la vista de sector, **Then** el indicador muestra solo el nombre del proyecto, sin separador ni nombre de grupo.
 3. **Given** un sector con tareas sueltas (sin proyecto asignado), **When** el usuario abre la vista del sector, **Then** esas tareas aparecen en una sección separada o bajo un indicador que las distingue de las tareas agrupadas por proyecto.
 4. **Given** un grupo de tareas de un proyecto en la vista de sector, **When** el usuario escanea la lista, **Then** el grupo y el nombre del proyecto son visibles como encabezado del grupo y no necesita leer el texto de cada tarea para saber a qué proyecto y grupo pertenecen.
@@ -58,7 +58,7 @@ En la vista de un sector, las tareas que pertenecen a un proyecto ya se muestran
 
 ### Functional Requirements
 
-- **FR-001**: En la vista de un sector, las tareas que pertenecen al mismo proyecto DEBEN agruparse visualmente bajo un indicador de grupo que muestre el nombre del proyecto y, cuando el proyecto pertenezca a un grupo, el nombre de ese grupo (formato "Grupo — Proyecto").
+- **FR-001**: En la vista de un sector, las tareas que pertenecen al mismo proyecto DEBEN agruparse visualmente bajo un indicador de grupo alineado a la derecha que muestre el nombre del proyecto y, cuando el proyecto pertenezca a un grupo, el nombre de ese grupo (formato "Proyecto — Grupo").
 - **FR-002**: El indicador de grupo DEBE ser visualmente distintivo (por ejemplo, encabezado con fondo, borde, tipografía diferenciada o chip/badge prominente) para que el usuario lo perciba como separador de grupo y no como una tarea más.
 - **FR-003**: Las tareas sueltas (sin proyecto asignado) DEBEN aparecer en una sección separada con su propio indicador o mantener el comportamiento actual de lista suelta, sin mezclarse con los grupos de proyecto.
 - **FR-004**: Dentro de la vista de sector, las tareas agrupadas por proyecto NO DEBEN mostrar el chip o prefijo `/NombreDelProyecto` generado automáticamente por el sistema.

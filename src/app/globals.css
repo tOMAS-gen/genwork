@@ -612,6 +612,7 @@ textarea:focus {
 .task-group-header {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
   margin-top: var(--space-3);
   margin-bottom: var(--space-1);
@@ -629,6 +630,7 @@ textarea:focus {
   font-weight: 600;
   color: var(--text);
   text-decoration: none;
+  text-align: right;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

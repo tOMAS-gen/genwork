@@ -15,12 +15,12 @@ interface TaskGroupHeaderProps {
  * tipografía diferenciada y truncamiento con ellipsis para nombres largos.
  */
 export function TaskGroupHeader({ work }: TaskGroupHeaderProps) {
-  const label = work.group ? `${work.group.name} — ${work.name}` : work.name;
+  const label = work.group ? `${work.name} — ${work.group.name}` : work.name;
   return (
     <div
       className="task-group-header"
       title={label}
-      aria-label={work.group ? `Grupo: ${work.group.name}. Proyecto: ${work.name}` : `Proyecto: ${work.name}`}
+      aria-label={work.group ? `Proyecto: ${work.name}. Grupo: ${work.group.name}` : `Proyecto: ${work.name}`}
     >
       <Link href={`/works/${work.id}`} className="task-group-header-link">
         {label}
