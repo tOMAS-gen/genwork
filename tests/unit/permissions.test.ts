@@ -98,16 +98,27 @@ describe("accessSector — permiso por sector suelto (FR-022)", () => {
   });
 });
 
-describe("canToggle — regla 5 (FR-011)", () => {
+describe("canToggle — regla 5 (FR-011 / feature 056)", () => {
   it("operar el work habilita completar", () => {
     const u = user({ memberGroupIds: new Set(["g1"]) });
     expect(canToggle(u, emptyTask({ workScope: groupScope("g1") }))).toBe(true);
   });
 
-  it("EXEC habilita, REF no", () => {
+  it("EXEC habilita completar", () => {
     const u = user({ grantedSectorIds: new Set(["s1"]) });
     const s1 = sectorRef("s1");
     expect(canToggle(u, emptyTask({ execSectors: [s1] }))).toBe(true);
+  });
+
+  it("REF habilita completar cuando el usuario opera ese sector", () => {
+    const u = user({ grantedSectorIds: new Set(["s1"]) });
+    const s1 = sectorRef("s1");
+    expect(canToggle(u, emptyTask({ refSectors: [s1] }))).toBe(true);
+  });
+
+  it("REF no habilita completar cuando el usuario solo lee ese sector", () => {
+    const u = user({ readerGroupIds: new Set(["g1"]) });
+    const s1 = sectorRef("s1", { groupId: "g1" });
     expect(canToggle(u, emptyTask({ refSectors: [s1] }))).toBe(false);
   });
 
@@ -142,11 +153,11 @@ describe("canAddress — regla 7 (FR-038): direccionar ≠ acceder", () => {
 });
 
 describe("taskAccess — regla 8 (FR-042): visibilidad puntual por referencia", () => {
-  it("REF a sector da read a quien opera ese sector, sin acceso al work", () => {
+  it("REF a sector da operate a quien opera ese sector (feature 056), sin acceso al work", () => {
     const u = user({ grantedSectorIds: new Set(["s9"]) });
     const t = emptyTask({ workScope: groupScope("g1"), refSectors: [sectorRef("s9")] });
-    expect(taskAccess(u, t)).toBe("read");
-    expect(canToggle(u, t)).toBe(false);
+    expect(taskAccess(u, t)).toBe("operate");
+    expect(canToggle(u, t)).toBe(true);
   });
 
   it("REF a usuario da read a ese usuario", () => {

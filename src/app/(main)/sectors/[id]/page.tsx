@@ -279,15 +279,15 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
         <>
           <h2 className="mt-7">Referencias</h2>
           <p className="text-[13px] text-muted">
-            Tareas de otros sectores que necesitan aporte de #{view.sector.name}; se completan en
-            su sector de ejecución.
+            Tareas de otros sectores que necesitan aporte de #{view.sector.name}; podés completarlas
+            desde aquí si tenés permiso.
           </p>
           {view.refs.map((task) => (
             <TaskItem
               key={task.id}
               task={task}
               context={{ sectorId: id }}
-              canToggle={false}
+              canToggle={canOperate}
               onChanged={load}
             />
           ))}

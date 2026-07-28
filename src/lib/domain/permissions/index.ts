@@ -93,8 +93,8 @@ export function accessSector(user: UserContext, sector: SectorRef): Access {
 }
 
 /**
- * Regla 5 (FR-011): completar exige operar el work O algún sector EXEC.
- * Los REF nunca habilitan completar.
+ * Regla 5 (FR-011 / feature 056): completar exige operar el work, el sector
+ * hogar, algún sector EXEC o algún sector REF.
  */
 export function canToggle(user: UserContext, task: TaskRef): boolean {
   if (user.globalRole === "READER") return false;
@@ -102,7 +102,8 @@ export function canToggle(user: UserContext, task: TaskRef): boolean {
 
   if (task.workScope && access(user, task.workScope) === "operate") return true;
   if (task.homeSector && accessSector(user, task.homeSector) === "operate") return true;
-  return task.execSectors.some((s) => accessSector(user, s) === "operate");
+  if (task.execSectors.some((s) => accessSector(user, s) === "operate")) return true;
+  return task.refSectors.some((s) => accessSector(user, s) === "operate");
 }
 
 /**

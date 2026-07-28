@@ -121,7 +121,7 @@ Vínculos tipados tarea↔sector/usuario (Principio II, FR-007):
 |---|---|---|
 | taskId + targetType + targetId + type | PK compuesta | |
 | targetType | enum `SECTOR\|USER` | `EXEC` solo admite SECTOR; `REF` admite SECTOR o USER (FR-041) |
-| type | enum `EXEC\|REF` | `EXEC` = `#` (ejecución, habilita completar desde ese sector, FR-011); `REF` = `@` (necesita aporte de: solo lectura para el referenciado, FR-040/042) |
+| type | enum `EXEC\|REF` | `EXEC` = `#` (ejecución, habilita completar desde ese sector, FR-011); `REF` = `@` (referencia; habilita completar si el usuario opera el sector referenciado, feature 056; de lo contrario solo lectura, FR-040/042) |
 
 Restricción de ámbito: el sector o usuario vinculado debe pertenecer al mismo ámbito que la
 tarea (assumption de spec: sin referencias cruzadas entre grupos en v1; usuarios = miembros o
