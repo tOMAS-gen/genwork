@@ -7,6 +7,7 @@ import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector, canCreateSector, type Scope } from "@/lib/domain/permissions";
 import { assignSectorColor } from "@/lib/domain/sectors/colorAssign";
+import { isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
 
 type SectorScope =
   | { type: "GROUP"; groupId: string; groupName?: string }
@@ -60,20 +61,22 @@ export const GET = withApi(async () => {
     return m;
   };
 
+  // feature 054: definición única de "no finalizada" vive en
+  // src/lib/domain/tasks/unfinishedCount.ts para evitar drift entre endpoints.
   for (const task of looseTasks) {
     if (!task.sectorId) continue;
     const m = ensure(task.sectorId);
     m.total += 1;
-    if (task.status.type === "FINAL") m.done += 1;
-    else m.pending += 1;
+    if (isTaskUnfinished({ id: "", status: task.status })) m.pending += 1;
+    else m.done += 1;
   }
 
   for (const link of execLinks) {
     if (!link.sectorId) continue;
     const m = ensure(link.sectorId);
     m.total += 1;
-    if (link.task.status.type === "FINAL") m.done += 1;
-    else m.pending += 1;
+    if (isTaskUnfinished({ id: "", status: link.task.status })) m.pending += 1;
+    else m.done += 1;
   }
 
   const withMetrics = visible.map((s) => {
