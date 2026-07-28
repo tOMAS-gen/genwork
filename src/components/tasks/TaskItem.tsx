@@ -23,20 +23,22 @@ export interface TaskDto {
   /** Conjunto de estados aplicable a esta tarea (feature 042, FR-011). */
   statusOptions: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL"; sortOrder: number }[];
   workId: string | null;
-  work: { id: string; name: string } | null;
+  work: { id: string; name: string; status?: string; group?: { id: string; name: string } | null } | null;
   /** Origen de la tarea y, si fue adoptada por el proyecto, cuándo (FR-401). */
   originType: "WORK" | "SECTOR";
   adoptedAt: string | null;
-  homeSector: { id: string; name: string } | null;
+  homeSector: { id: string; name: string; group?: { id: string; name: string } | null } | null;
   /** Etiquetas de proyecto asignadas a la tarea (feature 032): una por clave. */
   labels: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
   links: {
     type: "EXEC" | "REF";
     targetType: "SECTOR" | "USER";
-    sector: { id: string; name: string } | null;
+    sector: { id: string; name: string; group?: { id: string; name: string } | null } | null;
     user: { id: string; name: string } | null;
   }[];
   description: string | null;
+  /** Per-task completion eligibility (feature 057): true when the user operates a relevant REF sector. */
+  canToggle?: boolean;
 }
 
 type InlineMark =

@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+coverage/
+
+# Source control
+.git/
+.gitignore
+
+# Env
+.env*
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/
+
+# Specs / local tooling
+.specify/
+specs/
+tests/
+deploy/.env
+storage/archives/
+
+# Config files not needed as package metadata
+.prettierrc
+eslint.config.mjs
+tsconfig.tsbuildinfo

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+dist/
+build/
+coverage/
+
+# Lockfiles
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Env
+.env*
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/
+
+# Generated
+tsconfig.tsbuildinfo

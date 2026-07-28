@@ -31,6 +31,7 @@ Thumbs.db
 *.tmp
 *.swp
 .idea/
+.vscode/
 
 # Archivos temporales de export
 storage/archives/
