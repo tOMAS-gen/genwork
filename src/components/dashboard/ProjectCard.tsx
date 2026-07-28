@@ -12,6 +12,7 @@ export interface DashboardWork {
   name: string;
   description: string | null;
   groupId: string | null;
+  groupName: string | null;
   group: { id: string; name: string } | null;
   createdById: string;
   createdAt: string;

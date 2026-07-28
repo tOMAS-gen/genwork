@@ -2198,11 +2198,23 @@ dialog.dialog--overflow-visible {
   padding: 0 30px 0 12px;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--text-secondary, var(--muted));
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+/* Variante toggle: pill que es un <button> por sí mismo (p. ej. filtro por
+   grupo, multi-select) en vez de <label> + <select> invisible — sin flecha. */
+.filter-pill-toggle {
+  padding: 0 12px;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.filter-pill-toggle::after {
+  content: none;
 }
 
 .filter-pill::after {

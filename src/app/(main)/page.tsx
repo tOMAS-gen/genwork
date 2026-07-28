@@ -28,6 +28,11 @@ interface SectorOption {
   name: string;
 }
 
+interface GroupOption {
+  id: string;
+  name: string;
+}
+
 /** Aplica en AND los filtros del dashboard sobre la lista de proyectos. */
 function filterProjects(
   works: DashboardWork[],
@@ -47,6 +52,10 @@ function filterProjects(
     }
 
     if (filters.labelValueId && !work.labels.some((l) => l.valueId === filters.labelValueId)) {
+      return false;
+    }
+
+    if (filters.groupIds.length > 0 && (!work.groupId || !filters.groupIds.includes(work.groupId))) {
       return false;
     }
 
@@ -114,12 +123,14 @@ function HomePageContent() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [newIsTemplate, setNewIsTemplate] = useState(false);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [filters, setFilters] = useState<DashboardFilters>({
     text: "",
     sectorId: "",
     labelValueId: "",
     status: "",
+    groupIds: [],
   });
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortBy>("recent");
@@ -138,6 +149,9 @@ function HomePageContent() {
       .catch(() => {})
       .finally(() => setLoading(false));
     void api<SectorOption[]>("/api/sectors").then(setSectors).catch(() => {});
+    void api<GroupOption[]>("/api/groups")
+      .then((gs) => setGroups(gs.map((g) => ({ id: g.id, name: g.name }))))
+      .catch(() => {});
     void api<{ id: string }>("/api/me").then((me) => setCurrentUserId(me.id)).catch(() => {});
   }, [queryStatus, queryFilterKind]);
 
@@ -275,6 +289,7 @@ function HomePageContent() {
       <FilterBar
         sectors={sectors}
         labelKeys={labelKeys}
+        groups={groups}
         onFilterChange={setFilters}
         viewMode={viewMode}
         onViewModeChange={setViewMode}

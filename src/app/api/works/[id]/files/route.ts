@@ -6,7 +6,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { NextcloudProvider } from "@/lib/storage/nextcloud";
-import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
+import { assertWorkAccess, canEnableWorkFolder, confineWorkPath } from "@/lib/storage/access-check";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
 
 async function getWorkWithAccess(userId: string, id: string) {
@@ -28,10 +28,19 @@ async function getWorkWithAccess(userId: string, id: string) {
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   const session = await requireSession();
   const { id } = await params;
-  const { work } = await getWorkWithAccess(session.user.id, id);
+  const { work, ctx } = await getWorkWithAccess(session.user.id, id);
+
+  const folderEnabled = work.folderEnabledAt != null;
+  const canEnableFolder = canEnableWorkFolder(ctx, work);
 
   if (!work.nextcloudFolderPath) {
-    return NextResponse.json({ files: [], nextcloudUrl: null, folderSeq: work.folderSeq });
+    return NextResponse.json({
+      files: [],
+      nextcloudUrl: null,
+      folderSeq: work.folderSeq,
+      folderEnabled,
+      canEnableFolder,
+    });
   }
 
   const { searchParams } = new URL(req.url);

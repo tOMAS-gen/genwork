@@ -8,14 +8,31 @@ export interface DashboardFilters {
   sectorId: string;
   labelValueId: string;
   status: string;
+  /** Grupos seleccionados para filtrar (US3, FR-010): multi-select, [] = todos. */
+  groupIds: string[];
 }
+
+export const EMPTY_DASHBOARD_FILTERS: DashboardFilters = {
+  text: "",
+  sectorId: "",
+  labelValueId: "",
+  status: "",
+  groupIds: [],
+};
 
 type ViewMode = "grid" | "list";
 type SortBy = "recent" | "name" | "progress";
 
+export interface GroupOption {
+  id: string;
+  name: string;
+}
+
 interface FilterBarProps {
   sectors: { id: string; name: string }[];
   labelKeys: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
+  /** Grupos visibles para el usuario (US3, FR-010), ya cargados en el dashboard. */
+  groups: GroupOption[];
   onFilterChange: (filters: DashboardFilters) => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
@@ -26,24 +43,41 @@ interface FilterBarProps {
 export function FilterBar({
   sectors,
   labelKeys,
+  groups,
   onFilterChange,
   viewMode,
   onViewModeChange,
   sortBy,
   onSortByChange,
 }: FilterBarProps) {
-  const [filters, setFilters] = useState<DashboardFilters>({
-    text: "",
-    sectorId: "",
-    labelValueId: "",
-    status: "",
-  });
+  const [filters, setFilters] = useState<DashboardFilters>(EMPTY_DASHBOARD_FILTERS);
 
   function update(partial: Partial<DashboardFilters>) {
     const next = { ...filters, ...partial };
     setFilters(next);
     onFilterChange(next);
   }
+
+  function toggleGroup(groupId: string) {
+    const active = filters.groupIds.includes(groupId);
+    update({
+      groupIds: active
+        ? filters.groupIds.filter((id) => id !== groupId)
+        : [...filters.groupIds, groupId],
+    });
+  }
+
+  function clearFilters() {
+    setFilters(EMPTY_DASHBOARD_FILTERS);
+    onFilterChange(EMPTY_DASHBOARD_FILTERS);
+  }
+
+  const hasActiveFilters =
+    !!filters.text ||
+    !!filters.sectorId ||
+    !!filters.labelValueId ||
+    !!filters.status ||
+    filters.groupIds.length > 0;
 
   const activeLabelColor =
     labelKeys.find((l) => l.valueId === filters.labelValueId)?.color ?? null;
@@ -124,6 +158,31 @@ export function FilterBar({
             <option value="completed">Completado</option>
           </select>
         </label>
+
+        {groups.length > 0 && (
+          <div role="group" aria-label="Filtrar por grupo" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            {groups.map((group) => {
+              const active = filters.groupIds.includes(group.id);
+              return (
+                <button
+                  key={group.id}
+                  type="button"
+                  className={`filter-pill filter-pill-toggle${active ? " is-active" : ""}`}
+                  aria-pressed={active}
+                  onClick={() => toggleGroup(group.id)}
+                >
+                  {group.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {hasActiveFilters && (
+          <button type="button" className="filter-clear" onClick={clearFilters}>
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       <div className="toolbar-right">

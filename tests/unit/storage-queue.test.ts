@@ -29,9 +29,15 @@ const mocks = vi.hoisted(() => ({
   provisioningJobUpdate: vi.fn(),
   groupFindUniqueOrThrow: vi.fn(),
   userFindUniqueOrThrow: vi.fn(),
+  workFindUnique: vi.fn(),
+  workUpdate: vi.fn(),
+  workUpdateMany: vi.fn(),
   getStorageProvider: vi.fn(),
   addMember: vi.fn(),
   removeMember: vi.fn(),
+  createWorkFolder: vi.fn(),
+  deleteFolder: vi.fn(),
+  moveFolder: vi.fn(),
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -45,6 +51,11 @@ vi.mock("@/lib/db/client", () => ({
     },
     user: {
       findUniqueOrThrow: (...args: unknown[]) => mocks.userFindUniqueOrThrow(...args),
+    },
+    work: {
+      findUnique: (...args: unknown[]) => mocks.workFindUnique(...args),
+      update: (...args: unknown[]) => mocks.workUpdate(...args),
+      updateMany: (...args: unknown[]) => mocks.workUpdateMany(...args),
     },
   },
 }));
@@ -91,6 +102,9 @@ beforeEach(() => {
   mocks.getStorageProvider.mockResolvedValue({
     addMember: mocks.addMember,
     removeMember: mocks.removeMember,
+    createWorkFolder: mocks.createWorkFolder,
+    deleteFolder: mocks.deleteFolder,
+    moveFolder: mocks.moveFolder,
   });
   mocks.provisioningJobUpdate.mockResolvedValue(undefined);
 });
@@ -158,6 +172,99 @@ describe("processPending — ADD_MEMBER/REMOVE_MEMBER vs. dependencia todavía n
     // por dependencia no lista debe ser corta (del orden del ciclo del
     // ticker, ~30s) — acotamos holgadamente a 1 minuto.
     expect(runAfter.getTime() - NOW.getTime()).toBeLessThanOrEqual(60_000);
+  });
+});
+
+describe("processPending — jobs de carpeta de work sin carpeta habilitada/creada (D10)", () => {
+  it("MOVE_WORK_FOLDER con work sin nextcloudFolderPath → DONE sin mover en el provider", async () => {
+    const job = makeJob({
+      kind: "MOVE_WORK_FOLDER",
+      payload: {
+        kind: "MOVE_WORK_FOLDER",
+        workId: "work-1",
+        fromPath: "old/path",
+        toPath: "new/path",
+      },
+    });
+    queueSingleJob(job);
+    mocks.workFindUnique.mockResolvedValue({ nextcloudFolderPath: null });
+
+    await processPending();
+
+    expect(mocks.moveFolder).not.toHaveBeenCalled();
+    expect(mocks.workUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.provisioningJobUpdate).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: { status: "DONE", lastError: null },
+    });
+  });
+
+  it("RENAME_WORK_FOLDER con work sin nextcloudFolderPath → DONE sin renombrar en el provider", async () => {
+    const job = makeJob({
+      kind: "RENAME_WORK_FOLDER",
+      payload: {
+        kind: "RENAME_WORK_FOLDER",
+        workId: "work-1",
+        fromPath: "old/name",
+        toPath: "new/name",
+      },
+    });
+    queueSingleJob(job);
+    mocks.workFindUnique.mockResolvedValue({ nextcloudFolderPath: null });
+
+    await processPending();
+
+    expect(mocks.moveFolder).not.toHaveBeenCalled();
+    expect(mocks.workUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.provisioningJobUpdate).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: { status: "DONE", lastError: null },
+    });
+  });
+
+  it("DELETE_WORK_FOLDER con folderPath vacío → DONE sin borrar en el provider", async () => {
+    const job = makeJob({
+      kind: "DELETE_WORK_FOLDER",
+      payload: { kind: "DELETE_WORK_FOLDER", folderPath: "" },
+    });
+    queueSingleJob(job);
+
+    await processPending();
+
+    expect(mocks.deleteFolder).not.toHaveBeenCalled();
+    expect(mocks.provisioningJobUpdate).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: { status: "DONE", lastError: null },
+    });
+  });
+
+  it("CREATE_WORK_FOLDER con folderEnabledAt null → DONE sin crear carpeta en el provider", async () => {
+    const job = makeJob({
+      kind: "CREATE_WORK_FOLDER",
+      payload: {
+        kind: "CREATE_WORK_FOLDER",
+        workId: "work-1",
+        workName: "Proyecto",
+        groupId: "group-1",
+        ownerUserId: null,
+      },
+    });
+    queueSingleJob(job);
+    mocks.workFindUnique.mockResolvedValue({
+      id: "work-1",
+      folderSeq: 7,
+      folderEnabledAt: null,
+      nextcloudFolderPath: null,
+    });
+
+    await processPending();
+
+    expect(mocks.createWorkFolder).not.toHaveBeenCalled();
+    expect(mocks.workUpdate).not.toHaveBeenCalled();
+    expect(mocks.provisioningJobUpdate).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: { status: "DONE", lastError: null },
+    });
   });
 });
 

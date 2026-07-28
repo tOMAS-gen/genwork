@@ -6,9 +6,7 @@ import { badRequest, conflict, forbidden, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
-import { enqueue } from "@/lib/storage/queue";
 import { cloneTasksFromTemplate } from "@/lib/domain/works/cloneFromTemplate";
-import { buildProjectCode } from "@/lib/domain/works/projectCode";
 
 export const GET = withApi(async (req) => {
   const session = await requireWriter();
@@ -16,11 +14,12 @@ export const GET = withApi(async (req) => {
   const url = new URL(req.url);
   const status = url.searchParams.get("status") === "ARCHIVED" ? "ARCHIVED" : "ACTIVE";
   const filter = url.searchParams.get("filter");
+  const groupId = z.string().uuid().optional().parse(url.searchParams.get("groupId") ?? undefined);
 
   const where: Prisma.WorkWhereInput =
     filter === "templates"
-      ? { isTemplate: true, status: "ACTIVE" }
-      : { status, isTemplate: false };
+      ? { isTemplate: true, status: "ACTIVE", ...(groupId ? { groupId } : {}) }
+      : { status, isTemplate: false, ...(groupId ? { groupId } : {}) };
 
   const works = await prisma.work.findMany({
     where,
@@ -96,6 +95,9 @@ export const GET = withApi(async (req) => {
     const total = w._count.tasks;
     return {
       ...w,
+      // 054-T002: grupo explícito en el payload (null en proyectos personales)
+      groupId: w.groupId,
+      groupName: w.group?.name ?? null,
       taskCounts: { done, total },
       // feature 054: pendingCount = tareas cuyo status NO es FINAL. Se deriva de
       // total - done porque `taskCounts.total` cubre todas las tareas del work
@@ -169,18 +171,5 @@ export const POST = withApi(async (req) => {
   // Código de referencia (feature 035): la carpeta del proyecto en el
   // almacenamiento se nombra con GRUPO-SEQ-PROYECTO para que coincida con el
   // código visible en la plataforma y sea ubicable en el Drive/Nextcloud.
-  const groupName = scope.groupId
-    ? (await prisma.group.findUnique({ where: { id: scope.groupId }, select: { name: true } }))?.name ?? null
-    : null;
-  const code = buildProjectCode(groupName, work.folderSeq, name);
-
-  await enqueue({
-    kind: "CREATE_WORK_FOLDER",
-    workId: work.id,
-    workName: code,
-    groupId: scope.groupId,
-    ownerUserId: scope.ownerId,
-  });
-
   return NextResponse.json(work, { status: 201 });
 });

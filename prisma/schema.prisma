@@ -226,6 +226,7 @@ model Work {
   dueDate             DateTime?
   folderSeq           Int        @default(autoincrement())
   nextcloudFolderPath String?
+  folderEnabledAt     DateTime?
   createdById         String
   createdAt           DateTime   @default(now())
 

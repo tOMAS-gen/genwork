@@ -172,18 +172,6 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
           include: { group: { select: { id: true, name: true, publicRead: true } } },
         });
 
-        const groupName = scope.groupId
-          ? (await prisma.group.findUnique({ where: { id: scope.groupId }, select: { name: true } }))?.name ?? null
-          : null;
-        const code = buildProjectCode(groupName, work.folderSeq, name);
-        await enqueue({
-          kind: "CREATE_WORK_FOLDER",
-          workId: work.id,
-          workName: code,
-          groupId: scope.groupId,
-          ownerUserId: scope.ownerId,
-        });
-
         await logMcpActivity({
           connectionId: ctx.connectionId,
           userId: ctx.userId,

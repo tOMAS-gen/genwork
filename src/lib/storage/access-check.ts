@@ -15,7 +15,7 @@ import { prisma } from "@/lib/db/client";
 import { ApiError, forbidden } from "@/server/api";
 import { notFound } from "@/server/api";
 import { getUserContext } from "@/server/user-context";
-import { access, type Access } from "@/lib/domain/permissions";
+import { access, type Access, type UserContext } from "@/lib/domain/permissions";
 
 /** Nivel de acceso mínimo requerido por la operación. */
 export type RequiredAccess = "read" | "operate";
@@ -76,6 +76,23 @@ export async function assertWorkAccess(
     },
     level,
   };
+}
+
+/**
+ * Guard de habilitación de la carpeta de storage de un trabajo (feature 054, D4).
+ *
+ * Puede habilitar: SUPERADMIN, ADMIN del grupo del work (`GroupMembership.role
+ * = ADMIN`), o el dueño si el work es personal (`groupId` null → `ownerId`).
+ * Función pura sobre el `UserContext` ya cargado — la reutilizan el endpoint
+ * `POST /api/works/[id]/files/enable` y el `canEnableFolder` del GET de files.
+ */
+export function canEnableWorkFolder(
+  ctx: UserContext,
+  work: { groupId: string | null; ownerId: string | null },
+): boolean {
+  if (ctx.globalRole === "SUPERADMIN") return true;
+  if (work.groupId) return ctx.adminGroupIds.has(work.groupId);
+  return work.ownerId != null && work.ownerId === ctx.id;
 }
 
 /** Error 400 con el código de contrato `INVALID_PATH` (FR-007). */
