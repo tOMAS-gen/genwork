@@ -1,9 +1,5 @@
 ---
-description: Detect the full model catalog available to the current AI agent, classify models by capability, and write the models.json file required by all other Spec Kit commands.
-handoffs:
-  - label: Create Specification
-    agent: speckit.specify
-    prompt: Define what you want to build now that models are configured...
+description: Detect the agent hosting this conversation, discover its actually configured models from first-party runtime evidence, classify them into 5 complexity levels using live OpenRouter data (benchmark, speed, cost, context), and write models.json.
 ---
 
 ## User Input
@@ -12,87 +8,275 @@ handoffs:
 $ARGUMENTS
 ```
 
-You **MUST** consider the user input before proceeding (if not empty). The user may pass overrides such as `--global` (write to the user-level file instead of the project), a manual model list, or explicit role assignments (e.g. "manager=X", "high=Y,Z").
+You **MUST** consider the user input before proceeding (if not empty). Supported overrides include `--global`, pasted model-picker output, a manual model list, and explicit assignments such as `manager=X`, `n5=X,Y`, `n4=A,B`, `n3=C,D`, `n2=E,F`, or `n1=G,H`.
 
 ## Goal
 
-Produce a `models.json` file describing **every model available to the agent currently running this command**, classified by complexity tier. This file is a prerequisite: all other Spec Kit commands (except `/speckit.constitution`) refuse to run without it.
+Create a `models.json` containing only models that the agent hosting **this conversation** can select now, plus a verified execution route for each assigned model. Classify every discovered model into one of **5 complexity levels** using live OpenRouter data (never a static table — recalculate every run), and assign an ordered candidate chain to every level: the first model is the primary executor and the remaining models are alternatives used when a model is unavailable, rate-limited, out of usage/tokens, or exceeds its context limit.
 
-- Project-level file: `.specify/models.json` (default; wins when both exist)
-- Global file: `~/.specify/models.json` (written when the user passes `--global`; used as fallback by other commands)
+- Project file: `.specify/models.json` (default and highest precedence)
+- User file: `~/.specify/models.json` (with `--global`; fallback for other commands)
+
+Every other Spec Kit command except `/speckit.constitution` requires this file.
 
 ## Execution Steps
 
-### 1. Identify the running agent
+### 1. Establish where the conversation is running
 
-Determine which AI agent/CLI is executing this command (e.g. Claude Code, GitHub Copilot, Codex CLI, Cursor, Gemini CLI, Qwen Code, opencode, Windsurf...). State it explicitly. If the agent runs behind a gateway/proxy (custom `ANTHROPIC_BASE_URL`, LiteLLM, OpenRouter, etc.), note that too — the catalog must reflect what THIS session can actually select, which is what the agent's own model picker shows.
+Determine these facts before discovering any model:
 
-### 2. Enumerate the FULL model catalog
+1. **Project root**: resolve the current working directory and locate the nearest project root containing `.specify/` or the repository root where `.specify/` will be created.
+2. **Runtime agent**: identify the exact application or CLI hosting this conversation from runtime/system context, available tools, process/environment evidence, or explicit user input.
+3. **Installed Spec Kit integration**: if `<project-root>/.specify/integration.json` exists, read its active integration. Record it separately from the runtime agent. It indicates where Spec Kit commands were installed; it does **not** prove which agent is hosting this conversation.
+4. **Provider route**: identify any configured gateway, proxy, provider, or custom base URL used by this session without exposing credentials.
 
-Collect **every** selectable model, not just the well-known ones. There may be dozens (60+ behind some gateways). In priority order:
+If runtime evidence conflicts with `.specify/integration.json`, use the **runtime agent** for model discovery and report the mismatch. If the runtime agent cannot be identified reliably, STOP and ask the user which agent/CLI is hosting the conversation. Do not infer it from command-file syntax, folder names, or the installed integration alone.
 
-1. **Programmatic discovery** — if the agent exposes its model list programmatically and you have permission to query it (e.g. a gateway `${BASE_URL}/v1/models` endpoint when a custom base URL + model discovery is configured), fetch it and use the complete list.
-2. **Agent knowledge** — if the agent knows its own selectable models (the set offered by its model picker / `--model` flag), enumerate them all, including variants (thinking / no-thinking, extended context like `[1m]`, fast modes, specialized models such as review- or plan-tuned ones).
-3. **Ask the user** — if neither works, ask the user to paste the output of their agent's model picker (e.g. `/model` in Claude Code, the model dropdown in Copilot). Do NOT guess or invent models.
+### 2. Discover configured models from the runtime agent
 
-For each model record the attributes you can determine (omit unknowns rather than inventing them):
+Do **not** derive a catalog from the agent name, provider name, executable name, public vendor documentation, memory, or commonly available models. A model is eligible only when first-party evidence shows that this runtime can select it.
 
-- `id` — the exact string usable to select the model (for subagents / `--model`)
-- `thinking` — whether it is a reasoning/thinking variant
-- `context` — context window if known (e.g. `200k`, `1M`)
-- `tier` — your capability judgment: `max` | `high` | `medium` | `low`
-- `note` — anything special (fast mode, review-specialized, extended context...)
+Use the strongest available discovery mechanism in this order:
 
-### 3. Classify by complexity
+1. Invoke the runtime agent's native model-list command, API, or picker through the tools exposed by the host and capture the result.
+2. Query the configured gateway's model endpoint only when runtime configuration proves that this session uses that gateway. Treat the returned identifiers as selectable only if the agent supports gateway discovery.
+3. Observe the runtime agent's actual model picker. If it is an interactive chat command or UI that cannot be invoked by the agent itself, ask the user to open it and paste or share the complete output.
+4. Accept an explicit model list supplied by the user and record the source as `user_provided`.
 
-Assign roles using these rules:
+Rules:
 
-- **`manager`** — the single most capable model available (prefer thinking + largest context). The manager ONLY defines the main idea, specification and plan. It never implements tasks.
-- **`by_complexity` map** — which model(s) implement tasks of each complexity level:
-  - `high` — complex logic, architecture-heavy tasks, large refactors → most capable *non-manager-reserved* tier (thinking models).
-  - `medium` — standard implementation, code edits, tests → balanced models.
-  - `low` — docs, renames, config, mechanical chores → fastest/cheapest models.
-  - Optional extra keys for specialized models (e.g. `review` for a review-tuned model).
-- **`max`-tier models are used in very few cases**: reserve them for the `manager` role and, at most, exceptionally hard `high` tasks. Do NOT map the whole `high` tier to a `max` model — prefer the next tier down.
-- Apply any explicit user overrides from the arguments; user choices always win.
+- A help page showing only a `--model` option is not a model catalog.
+- Do not execute an interactive slash command as a shell command.
+- Do not substitute a vendor's public `/v1/models` response for the agent's configured picker.
+- Preserve exact selectable IDs, including provider prefixes and variants.
+- Capture the discovery command/mechanism and enough non-secret evidence to explain the result.
+- If no trustworthy list can be obtained, STOP and request the picker output. Never create `models.json` from guesses.
 
-### 4. Confirm with the user
+For each discovered model, record only supported facts:
 
-Show a compact table: catalog size, manager, and the by_complexity mapping. Ask the user to confirm or adjust before writing. Skip confirmation only if the user passed explicit assignments covering manager and all three complexity levels.
+- `id`: exact selectable model identifier (required)
+- `provider`: provider or gateway namespace when shown
+- `context`: context window when shown
+- `reasoning`: reasoning/thinking capability when shown
+- `availability`: relevant usage, quota, or access restriction when shown
+- `note`: selectable variant or specialization shown by the source
+- `tier`: derived level (`5`, `4`, `3`, `2`, or `1`) assigned in the next step; this is an assessment, not discovery evidence
+
+### 3. Classify models into 5 levels with OpenRouter data
+
+Classify every discovered model into 5 complexity levels using **live data from OpenRouter**. Never use a static table, never rank from model names alone — recalculate every run. This classification is CLI-agnostic; the incorporation into each CLI happens in step 4.
+
+**3.1 Fetch model data (3 lightweight JSON calls, no browser, no scraping):**
+
+| Data | Endpoint | Field used |
+|---|---|---|
+| Price + context | `https://openrouter.ai/api/v1/models` | `pricing.prompt` / `pricing.completion`, `context_length` |
+| Intelligence | `https://openrouter.ai/api/frontend/v1/rankings/benchmarks` | `data.aaData.percentilesBySlug[slug].intelligence` (Artificial Analysis percentile 0-100) |
+| Speed | `https://openrouter.ai/api/frontend/v1/rankings/performance` | `p50_throughput` (tok/s), `p50_latency` (ms) |
+
+If an endpoint is unreachable, fall back to model metadata from discovery plus explicit user guidance, and record that data-driven classification was degraded.
+
+**3.2 Match each discovered model to its OpenRouter slug:**
+
+- Normalize: strip provider prefixes, variant suffixes (`-review`, `-highspeed`, `-thinking`, `-free`), date suffixes (`-20251001`), and leading `~`.
+- Variants inherit the base model's data.
+- Keep a small manual alias table for slugs that differ (e.g. `kimi-latest` → the current flagship slug it points to).
+- Do not rank opaque or unfamiliar model IDs from their names alone. If a model has no OpenRouter match and no benchmark, apply the unmeasured rule below; ask the user when evidence cannot support any classification.
+
+**3.3 Compute per model:**
+
+- `intel`: intelligence percentile (0-100). It is **relative** — it drops as newer better models appear.
+- `speed`: best `p50_throughput` across providers.
+- `price blend`: `0.75 × input price + 0.25 × output price` (agentic usage is input-dominated).
+- `cost-benefit`: `intel ÷ max(blend, 0.05)`.
+
+**3.4 Assign the level by benchmark** (capability defines the ceiling of what the model can solve):
+
+- **N5 (critical)**: intel ≥ 94 — full architecture, irreversible decisions, security. Used rarely.
+- **N4 (complex)**: intel 85–93 — design decisions, large features, non-obvious debugging.
+- **N3 (moderate)**: intel 60–84 — the workhorse; most real work lands here.
+- **N2 (simple)**: intel 40–59 — single-file changes, obvious bugs, mechanical work.
+- **N1 (trivial)**: intel < 40 — direct questions, lookups, formatting.
+- **Unmeasured models** (no benchmark): price ≤ $0.30/M → N1; fast (>100 tok/s) and < $1/M → N2; otherwise N3.
+
+**3.5 Order each level's list:**
+
+- Order candidates within a level by cost-benefit, preferring ~1M context. Beware high cost-benefit with low benchmark: cheap does not help if the model cannot solve the task.
+- Prefer alternatives with an independent provider/quota route when capability is adequate, so exhausting one model's allowance does not exhaust every fallback.
+- Keep each fallback capable of completing that level. Never add a weak model merely to make the list longer.
+
+Assignment rules:
+
+- `manager`: the communicator/orchestrator model — the single entry point. It receives every command, classifies each task/step's level (1-5) itself, and delegates. It NEVER implements; classifying is part of its communicator role. Choose the strongest model for specification, planning, decomposition, and orchestration.
+- Each level maps to an **ordered non-empty list**: primary first, then alternatives in fallback order.
+- Reserve the manager from implementation when enough other models exist. Small catalogs may reuse the same model across roles and levels.
+- Apply explicit user assignments after validating that every assigned ID exists in the discovered catalog.
+
+Before writing, show the detected environment, discovery evidence, catalog, proposed manager, and ordered candidates for each level (N1-N5), including the benchmark percentile, blended price, and cost-benefit behind each classification. Ask the user to confirm or adjust the assignments. Skip this confirmation only when the user already supplied complete explicit assignments for `manager`, `n5`, `n4`, `n3`, `n2`, and `n1`.
+
+### 4. Resolve and verify an executor for every assigned model
+
+Discover execution capabilities from the **runtime**, not from the product name. Inspect the task/subagent tool schemas and agent configuration already loaded by the host. Never assume that a model picker implies programmatic per-task model selection.
+
+All task execution must remain inside the agent or CLI hosting this conversation. A model connected to OpenCode must run through OpenCode; a model connected to Claude Code must run through Claude Code; and so on. Never launch another agent CLI, and never start a second process of the current CLI, to execute a task or fallback. Native model commands may be used only to inspect the current host's configured catalog.
+
+Each assigned model must resolve to one of these executor modes:
+
+- `native_subagent`: the runtime can invoke a named subagent whose loaded configuration pins the exact model.
+- `current_session`: the current conversation is already running that exact model, but cannot select it for a separate worker.
+- `manual`: no verified programmatic route exists; the user must switch/select the model and continue manually.
+
+When the runtime supports named agents whose configuration pins an exact model (agent definition files, JSON agent entries, or an equivalent mechanism), you MUST propose creating them for every assigned model that lacks a matching agent. `manual` is allowed only when no such configuration mechanism exists or the user explicitly declines creation. Marking every executor `manual` while a pinned-agent mechanism exists violates this contract: it silently disables autonomous dispatch and the ordered fallback chain.
+
+Use the following runtime-specific procedure. These are verification branches, not claims that every installed version supports the feature:
+
+#### OpenCode
+
+1. Read the merged OpenCode configuration and inspect project/global agents. A subagent is selectable only when its definition has `mode: subagent` (or `all`) and `model: <exact provider/model-id>`.
+2. Inspect the task tool schema exposed to this conversation. If it accepts only `subagent_type` and not `model`, select a configured agent name; do not claim direct model selection.
+3. For each candidate without a matching agent, you MUST propose a stable agent such as `speckit-n3-1` or `speckit-n5-1` in `.opencode/agents/<name>.md`, with `mode: subagent`, the exact `model`, a concise description, and only the permissions needed for implementation. Do not skip this step and record `manual` instead; `manual` is only acceptable here when the user explicitly declines agent creation.
+4. Ask before creating or updating OpenCode agent files. Preserve unrelated configuration. After writing, mark the executor `pending_restart`; OpenCode loads configuration at startup, so tell the user to restart and rerun `/speckit.models` to verify it before marking it `verified`.
+
+#### Claude Code
+
+1. Inspect the runtime task/subagent schema and configured agents. Use `native_subagent` only if the task call can select a named agent that pins the exact model or explicitly accepts the exact model.
+2. Do not start another `claude` process to execute work. If the loaded task interface cannot select the model, use `current_session` for the active model and `manual` for alternatives.
+3. Do not treat `/model` as a shell command. It may be used interactively to inspect or switch the current host only.
+
+#### Codex CLI
+
+1. Inspect the task/subagent capabilities exposed inside the current Codex session and any native agent configuration already loaded by it.
+2. Do not use `codex exec` or start another Codex process to execute work.
+3. A skill invocation alone does not prove that a spawned task can change models. Without native per-task selection, use `current_session` or `manual`.
+
+#### Gemini CLI, Qwen Code, Kiro CLI, Goose, and other CLI agents
+
+1. Inspect only the native task/subagent interface and agent configuration exposed inside the current host session.
+2. A native model-list command may provide catalog evidence, but it does not prove per-task model selection.
+3. Never start another CLI process to execute a task. Without native per-task selection, use `current_session` for the active model or `manual` for alternatives.
+
+#### GitHub Copilot, Cursor, and agents with both IDE and CLI surfaces
+
+1. Use only the execution surface hosting this conversation. Models connected to an IDE session must not be executed by launching its companion CLI.
+2. Use a runtime-native named agent pinned to the model when the host exposes one.
+3. If only the model dropdown is available, use `manual` and record the UI action required.
+
+#### IDE-only or unknown agents
+
+1. Inspect the runtime's actual subagent/task interface and project agent configuration.
+2. If there is no verified per-task selector, do not create guessed config files or commands. Use `current_session` only for the exact active model and `manual` for other picker entries.
+3. Ask the user for vendor-specific instructions only when they want automation that the runtime cannot demonstrate.
+
+#### Coverage of built-in Spec Kit integrations
+
+Apply the branches above to every built-in integration. The registry's `requires_cli` value only controls installation checks; it is a starting hint, not proof of model selection or dispatch support.
+
+- CLI-hosted integrations: `agy` (Antigravity), `amp`, `auggie`, `claude`, `codebuddy`, `codex`, `devin`, `droid`, `forge`, `gemini`, `goose`, `grok`, `hermes`, `junie`, `kimi`, `kiro-cli`, `omp`, `opencode`, `pi`, `qodercli`, `qwen`, `rovodev`, `shai`, `tabnine`, `vibe`, and `zcode`. For each one, discover its connected models through its native picker/configuration, then inspect the task/subagent API available inside the current session. Do not spawn the CLI as a worker.
+- IDE-hosted integrations: `bob`, `cline`, `copilot`, `cursor-agent`, `firebender`, `kilocode`, `lingma`, `trae`, and `zed`. Inspect the host's native task/agent API and configured named agents. Never hand work to a companion CLI.
+- `generic`: rely entirely on runtime evidence and user-provided execution instructions; never infer a command from the integration key.
+- Whether the host itself is an IDE or CLI does not change the rule: implementation stays inside that host. If native per-task model selection is unavailable, use `current_session` or `manual`.
+
+Verification and safety rules:
+
+- Ask before creating agent configuration or running a native verification task that may consume paid quota.
+- Verification prompts must be minimal, read-only, and contain no project secrets.
+- `verified: true` requires a successful probe in the current environment. Configuration written during this run but not loaded yet is `verified: false` with `status: pending_restart`.
+- A `manual` executor is valid but cannot be used for autonomous fallback.
+- Every model appearing in `by_complexity` must have an executor entry, even when its mode is `manual`.
 
 ### 5. Write models.json
 
-Write to `.specify/models.json` (or `~/.specify/models.json` with `--global`), creating the directory if needed:
+Write `.specify/models.json`, or `~/.specify/models.json` with `--global`, creating its parent directory when needed:
 
 ```json
 {
   "version": 1,
-  "agent": "<agent name>",
-  "detected_at": "<YYYY-MM-DD>",
-  "source": "gateway /v1/models | agent picker | user-provided",
+  "runtime": {
+    "agent": "<runtime agent>",
+    "integration": "<active Spec Kit integration or null>",
+    "project_root": "<absolute project root>",
+    "provider_route": "<direct, gateway name/base URL, or unknown>"
+  },
+  "discovery": {
+    "source": "agent_command | agent_picker | gateway_endpoint | user_provided",
+    "mechanism": "<command, API, or UI used>",
+    "detected_at": "<ISO-8601 timestamp>"
+  },
   "catalog": [
-    { "id": "<model id>", "thinking": true, "context": "200k", "tier": "high", "note": "" }
+    {
+      "id": "<exact selectable model id>",
+      "provider": "<provider if known>",
+      "context": "<context if known>",
+      "reasoning": true,
+      "tier": "<5 | 4 | 3 | 2 | 1>",
+      "intel": "<benchmark percentile 0-100 or null>",
+      "blend_price": "<0.75*input + 0.25*output $/M or null>",
+      "availability": "<restriction if known>",
+      "note": "<variant or specialization if known>"
+    }
   ],
   "manager": "<model id>",
   "by_complexity": {
-    "high": ["<model id>"],
-    "medium": ["<model id>"],
-    "low": ["<model id>"]
+    "5": ["<primary>", "<fallback 1>", "<fallback 2>"],
+    "4": ["<primary>", "<fallback 1>"],
+    "3": ["<primary>", "<fallback 1>"],
+    "2": ["<primary>", "<fallback 1>"],
+    "1": ["<primary>", "<fallback 1>"]
+  },
+  "executors": {
+    "<model id>": {
+      "mode": "native_subagent",
+      "agent": "speckit-high-1",
+      "verified": true,
+      "status": "ready"
+    },
+    "<other model id>": {
+      "mode": "manual",
+      "instructions": "Select <other model id> in this host's native model picker, then continue with the saved handoff.",
+      "verified": true,
+      "status": "manual_only"
+    }
   }
 }
 ```
 
-Validation before writing:
-- `manager` and every id in `by_complexity` MUST exist in `catalog`.
-- `high`, `medium`, `low` MUST each have at least one model (they may repeat a model if the catalog is small — even a single-model catalog is valid: that model fills every role).
+Omit unknown optional model fields instead of filling them with guesses.
 
-### 6. Completion report
+Validate before writing:
 
-Output:
-- Path of the written file and whether it is project or global scope
-- Catalog size (total models detected)
-- Manager model and one-line rationale
-- The by_complexity mapping
-- Reminder: other Spec Kit commands will now use this file; re-run `/speckit.models` whenever the available models change.
+- `runtime.agent`, `discovery.source`, and `discovery.mechanism` are non-empty.
+- `catalog` is non-empty and contains unique exact IDs.
+- Every catalog entry has one valid `tier`: `5`, `4`, `3`, `2`, or `1`.
+- `manager` and every ID in `by_complexity` exist in `catalog`.
+- `5`, `4`, `3`, `2`, and `1` each contain at least one model and no duplicate IDs. When the catalog is too small to fill every level with a distinct model, reuse capable models across levels rather than leaving a level empty.
+- Every assigned ID has exactly one `executors` entry with mode `native_subagent`, `current_session`, or `manual`.
+- A `native_subagent` executor has a non-empty `agent` and is not autonomous unless `verified` is true and `status` is `ready`.
+- A `current_session` executor matches the model currently hosting the conversation.
+- A `manual` executor has non-empty native picker/switch instructions and uses `status: manual_only`.
+- The target contains valid JSON after writing.
 
-Context for model detection: $ARGUMENTS
+### 6. Fallback contract used by implementation
+
+The list order is the complete dispatch policy; no separate load-balancing strategy is implied.
+
+1. The manager (communicator) classifies each task/step's level (1-5) using the level criteria, then looks up that level's ordered list.
+2. Start each task with the first candidate for its level.
+3. Resolve the candidate's executor. Dispatch automatically only when it is `native_subagent` with `verified: true` and `status: ready`, or when it is the matching `current_session` executor.
+4. On a model-level availability failure (connection failure, usage/token exhaustion, rate limit, unavailable model, provider outage, or context limit), preserve the task state and retry with the next candidate that has a ready executor.
+5. Pass the next candidate the original task plus the latest verified progress, changed files, test results, and remaining work so it continues rather than blindly restarting.
+6. Never retry the same failed candidate in a loop. If the next candidate is `manual`, pause with exact switch/continuation instructions. Stop after the ordered list is exhausted and report every attempted model and failure.
+7. Do not hide code/test failures by switching models. Diagnose ordinary implementation failures normally; fallback is for model availability/capacity failures.
+
+### 7. Completion report
+
+Report:
+
+- Written path and project/global scope
+- Runtime agent, installed integration, and any mismatch
+- Discovery source and mechanism
+- Number of models discovered
+- Manager (communicator) and rationale
+- Primary and ordered alternatives for every level N1-N5, with the benchmark percentile and cost-benefit behind each classification
+- Executor mode and verification state for every assigned model
+- Configuration files created, restart requirements, and any manual-only fallback
+- Reminder to rerun `/speckit.models` whenever agent configuration or model availability changes (benchmark percentiles are relative — classification must be recalculated, never cached as a static table)
