@@ -58,10 +58,12 @@ de conexión de genwork.
 2. Abrir sector Metalúrgica → aparecen tareas de ambos trabajos con su trabajo de origen.
 3. Completar una desde el sector → en el trabajo aparece completada (misma tarea). Con la vista
    del trabajo abierta en otra ventana/usuario, el cambio se ve en vivo sin recargar (FR-036).
-4. La tarea `#Compras @Metalurgica` aparece en Metalúrgica en el apartado **Referencias**
-   (solo lectura, sin casilla): Metalúrgica debe aportar, Compras la completa (FR-040).
+4. La tarea `#Compras @Metalurgica` aparece en Metalúrgica en el apartado **Referencias**;
+   si opero Metalúrgica puedo completarla desde ahí (feature 056). Si no opero el sector,
+   aparece como solo lectura: Compras la completa (FR-040).
 4b. Crear `Pasar planos #Metalurgica @cuenta2` → la cuenta 2 la ve en su apartado personal
-   "Mis referencias" aunque no tenga acceso al trabajo (FR-041/042); no puede completarla.
+   "Mis referencias" aunque no tenga acceso al trabajo (FR-041/042); solo puede completarla
+   si opera el sector personal (feature 056).
 5. Desde Metalúrgica crear `Pasar diseño /Tina` → se guarda en Tina vinculada a Metalúrgica.
 
 ### US4 — Filtros transversales (caso ferretería)

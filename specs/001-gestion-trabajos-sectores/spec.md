@@ -182,8 +182,8 @@ verificar que aparece completada dentro de su trabajo.
 3. **Given** la vista del sector Metalúrgica, **When** creo la tarea `Armar estructura /Tina`,
    **Then** la tarea se guarda en el trabajo Tina con el vínculo `#Metalurgica` al sector actual.
 4. **Given** una tarea `#Compras @Metalurgica`, **When** abro el sector Metalúrgica, **Then** la
-   veo como referencia/relacionada pero NO puedo completarla desde ahí (se completa en Compras,
-   su sector de ejecución).
+   veo como referencia/relacionada y puedo completarla desde ahí porque opero ese sector
+   (feature 056); si no opero el sector, aparece como solo lectura.
 
 ---
 

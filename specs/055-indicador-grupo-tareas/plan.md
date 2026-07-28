@@ -10,7 +10,7 @@ Mejorar la lista de tareas dentro de la vista de un sector (`src/app/(main)/sect
 
 **Approach**:
 - Reemplazar el `<h3>` sutil actual por un encabezado de grupo (`TaskGroupHeader`) que use tokens del design system (fondo suave, borde, tipografía diferenciada) y sea percibido claramente como separador de grupo.
-- Extender el endpoint `GET /api/sectors/:id/tasks` para devolver, junto con cada proyecto agrupado, el grupo al que pertenece (`work.group`), y mostrarlo en el encabezado alineado a la derecha con el formato "Proyecto — Grupo".
+- Extender el endpoint `GET /api/sectors/:id/tasks` para devolver, junto con cada proyecto agrupado, el grupo al que pertenece (`work.group`), y mostrarlo en el encabezado alineado a la izquierda con el formato "Proyecto — Grupo".
 - Extender el componente `TaskItem` para aceptar una prop opcional `suppressWorkTag`: cuando está dentro de un sector y bajo un grupo de proyecto, no renderiza el chip automático `/workName`; en el resto de vistas sigue comportándose igual.
 - No se toca la API `GET /api/sectors/:id/tasks` ni el modelo de datos: la agrupación `loose` / `byWork` ya existe y se aprovecha.
 - Se agregan tests unitarios para la lógica de supresión del tag y un test de componente/integración que verifica que el encabezado de grupo aparece y el chip de proyecto no.

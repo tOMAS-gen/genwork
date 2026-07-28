@@ -607,9 +607,7 @@ export async function setTaskStatus(
   const task = await getTaskOrThrow(taskId);
   const ref = await toTaskRef(task);
   if (!canToggle(ctx, ref)) {
-    throw forbidden(
-      "Esta tarea se completa desde su sector de ejecución (#) o su trabajo, no desde una referencia",
-    );
+    throw forbidden("No tenés permiso para cambiar el estado de esta tarea");
   }
 
   const execSectorIds = task.links
