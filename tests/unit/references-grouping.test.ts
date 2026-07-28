@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { groupReferencesBySource } from "@/components/tasks/groupReferencesBySource";
+import { groupReferencesBySource, referenceTaskContext } from "@/components/tasks/groupReferencesBySource";
 import type { TaskDto } from "@/components/tasks/TaskItem";
 
 const GROUP_A = { id: "group-a", name: "Grupo A" };
@@ -112,5 +112,20 @@ describe("groupReferencesBySource", () => {
 
     expect(groups).toHaveLength(2);
     expect(groups.map((g) => g.key)).toEqual(["sector:s1", "sector:s2"]);
+  });
+});
+
+describe("referenceTaskContext", () => {
+  it("work: returns sectorId with suppressWorkTag true", () => {
+    const header = { type: "work", work: { id: "work-1", name: "ProyectoAlfa", group: null } } as const;
+    const result = referenceTaskContext(header, "sector-1");
+    expect(result).toEqual({ sectorId: "sector-1", suppressWorkTag: true });
+  });
+
+  it("sector: returns sectorId without suppressWorkTag", () => {
+    const header = { type: "sector", sector: { id: "sector-2", name: "SectorB", group: null } } as const;
+    const result = referenceTaskContext(header, "sector-1");
+    expect(result).toEqual({ sectorId: "sector-1" });
+    expect(result.suppressWorkTag).toBeUndefined();
   });
 });
