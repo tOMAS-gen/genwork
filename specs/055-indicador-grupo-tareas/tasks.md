@@ -81,6 +81,18 @@
 
 ---
 
+## Phase 6: Convergence — Mostrar grupo del proyecto en el encabezado
+
+**Purpose**: El encabezado de grupo debe mostrar también el grupo al que pertenece el proyecto, no solo el nombre del proyecto.
+
+- [x] T013 [C:medium->9router/cx/gpt-5.4] Extender `GET /api/sectors/:id/tasks` en `src/app/api/sectors/[id]/tasks/route.ts` para incluir `work.group` (`id`, `name`) en cada grupo `byWork`
+- [x] T014 [C:low->9router/cc/claude-haiku-4-5-20251001] Actualizar el tipo `SectorView` en `src/app/(main)/sectors/[id]/page.tsx` para reflejar `work.group`
+- [x] T015 [C:medium->9router/cx/gpt-5.4] Actualizar `TaskGroupHeader` en `src/components/tasks/TaskGroupHeader.tsx` para mostrar "Grupo — Proyecto" cuando el proyecto tenga grupo, y solo el proyecto cuando no
+- [x] T016 [P] [C:low->9router/cc/claude-haiku-4-5-20251001] Actualizar tests de `TaskGroupHeader` para cubrir proyecto con grupo y proyecto personal sin grupo
+- [x] T017 [C:medium->9router/cx/gpt-5.4] Actualizar `spec.md`, `plan.md` y `data-model.md` para documentar que el encabezado incluye el grupo del proyecto
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

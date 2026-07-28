@@ -12,16 +12,21 @@ No changes to entities, schema, or persisted data.
 
 ## Derived data
 
-The feature only consumes the existing `byWork` array returned by the sector tasks endpoint. Each group already contains:
+The feature consumes the existing `byWork` array returned by the sector tasks endpoint, extended with the project's group. Each group now contains:
 
 ```ts
 {
-  work: { id: string; name: string; status: string };
+  work: {
+    id: string;
+    name: string;
+    status: string;
+    group: { id: string; name: string } | null;
+  };
   tasks: Task[];
 }
 ```
 
-No new derived fields, aggregations, or relationships are required.
+No new derived fields, aggregations, or relationships are required beyond exposing `Work.groupId` → `Group.name`.
 
 ## Validation note
 

@@ -31,7 +31,7 @@ interface SectorView {
     };
   };
   loose: TaskDto[];
-  byWork: { work: { id: string; name: string; status: string }; tasks: TaskDto[] }[];
+  byWork: { work: { id: string; name: string; status: string; group: { id: string; name: string } | null }; tasks: TaskDto[] }[];
   refs: TaskDto[];
   metrics: { total: number; done: number };
   level: "read" | "operate";

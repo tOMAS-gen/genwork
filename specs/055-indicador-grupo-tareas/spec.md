@@ -10,20 +10,21 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Ver claramente a qué proyecto pertenece cada grupo de tareas en un sector (Priority: P1)
+### User Story 1 - Ver claramente a qué proyecto y grupo pertenece cada grupo de tareas en un sector (Priority: P1)
 
-Un miembro del equipo entra a la vista de un sector y ve las tareas organizadas por proyecto. Cada grupo de tareas debe tener un indicador visual claro que muestre el nombre del proyecto al que pertenecen, de modo que el usuario identifique el ámbito de esas tareas sin tener que leer el cuerpo de cada tarea ni deducirlo por contexto.
+Un miembro del equipo entra a la vista de un sector y ve las tareas organizadas por proyecto. Cada grupo de tareas debe tener un indicador visual claro que muestre el nombre del proyecto al que pertenecen **y el grupo al que pertenece ese proyecto**, de modo que el usuario identifique el ámbito completo de esas tareas sin tener que leer el cuerpo de cada tarea ni deducirlo por contexto.
 
-**Why this priority**: Es la razón principal del pedido. Hoy las tareas ya se agrupan por proyecto, pero el separador actual es demasiado sutil y no se percibe como un encabezado de grupo; esto fuerza a leer tarea por tarea para saber de qué proyecto vienen.
+**Why this priority**: Es la razón principal del pedido. Hoy las tareas ya se agrupan por proyecto, pero el separador actual es demasiado sutil y no se percibe como un encabezado de grupo; además no indica el grupo del proyecto. Esto fuerza a leer tarea por tarea para saber de qué proyecto y grupo vienen.
 
-**Independent Test**: Entrar a la vista de un sector que tenga tareas de al menos dos proyectos distintos y verificar que cada bloque de tareas muestra un encabezado o indicador que identifica claramente al proyecto.
+**Independent Test**: Entrar a la vista de un sector que tenga tareas de al menos dos proyectos distintos, pertenecientes a distintos grupos, y verificar que cada grupo tiene un encabezado o indicador que identifica claramente al grupo y al proyecto.
 
 **Acceptance Scenarios**:
 
-1. **Given** un sector con tareas de múltiples proyectos, **When** el usuario abre la vista del sector, **Then** las tareas aparecen agrupadas bajo un indicador visual distintivo que muestra el nombre del proyecto correspondiente a cada grupo.
-2. **Given** un sector con tareas sueltas (sin proyecto asignado), **When** el usuario abre la vista del sector, **Then** esas tareas aparecen en una sección separada o bajo un indicador que las distingue de las tareas agrupadas por proyecto.
-3. **Given** un grupo de tareas de un proyecto en la vista de sector, **When** el usuario escanea la lista, **Then** el nombre del proyecto es visible como encabezado del grupo y no necesita leer el texto de cada tarea para saber a qué proyecto pertenecen.
-4. **Given** un proyecto con nombre largo, **When** se muestra como encabezado de grupo, **Then** el nombre se trunca o ajusta sin romper el layout ni ocultar otras tareas del grupo.
+1. **Given** un sector con tareas de múltiples proyectos de distintos grupos, **When** el usuario abre la vista del sector, **Then** las tareas aparecen agrupadas bajo un indicador visual distintivo alineado a la derecha que muestra el nombre del proyecto y el grupo correspondiente (formato "Proyecto — Grupo").
+2. **Given** un proyecto que no pertenece a ningún grupo (proyecto personal), **When** se muestra como encabezado de grupo en la vista de sector, **Then** el indicador muestra solo el nombre del proyecto, sin separador ni nombre de grupo.
+3. **Given** un sector con tareas sueltas (sin proyecto asignado), **When** el usuario abre la vista del sector, **Then** esas tareas aparecen en una sección separada o bajo un indicador que las distingue de las tareas agrupadas por proyecto.
+4. **Given** un grupo de tareas de un proyecto en la vista de sector, **When** el usuario escanea la lista, **Then** el grupo y el nombre del proyecto son visibles como encabezado del grupo y no necesita leer el texto de cada tarea para saber a qué proyecto y grupo pertenecen.
+5. **Given** un proyecto o grupo con nombre largo, **When** se muestra como encabezado de grupo, **Then** el nombre se trunca o ajusta sin romper el layout ni ocultar otras tareas del grupo.
 
 ---
 
@@ -57,7 +58,7 @@ En la vista de un sector, las tareas que pertenecen a un proyecto ya se muestran
 
 ### Functional Requirements
 
-- **FR-001**: En la vista de un sector, las tareas que pertenecen al mismo proyecto DEBEN agruparse visualmente bajo un indicador de grupo que muestre el nombre del proyecto.
+- **FR-001**: En la vista de un sector, las tareas que pertenecen al mismo proyecto DEBEN agruparse visualmente bajo un indicador de grupo alineado a la derecha que muestre el nombre del proyecto y, cuando el proyecto pertenezca a un grupo, el nombre de ese grupo (formato "Proyecto — Grupo").
 - **FR-002**: El indicador de grupo DEBE ser visualmente distintivo (por ejemplo, encabezado con fondo, borde, tipografía diferenciada o chip/badge prominente) para que el usuario lo perciba como separador de grupo y no como una tarea más.
 - **FR-003**: Las tareas sueltas (sin proyecto asignado) DEBEN aparecer en una sección separada con su propio indicador o mantener el comportamiento actual de lista suelta, sin mezclarse con los grupos de proyecto.
 - **FR-004**: Dentro de la vista de sector, las tareas agrupadas por proyecto NO DEBEN mostrar el chip o prefijo `/NombreDelProyecto` generado automáticamente por el sistema.
