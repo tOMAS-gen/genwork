@@ -26,6 +26,12 @@ import { getProjectColor } from "@/lib/domain/works/projectColor";
 import { useCloseMobileDrawer, useDrawerMini } from "@/components/nav/Shell";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Badge } from "@/components/ui/Badge";
+import {
+  sortByPendingDesc,
+  sumPending,
+  type SortableItem,
+} from "@/lib/nav/drawerSort";
 
 interface Item {
   id: string;
@@ -40,14 +46,38 @@ interface SectorItem extends Item {
     groupName?: string;
     ownerId?: string;
   };
+  /** feature 054: contador de tareas no finalizadas del sector. */
+  metrics?: { total: number; done: number; pending: number };
 }
 
 interface GroupItem extends Item {
   color: string | null;
+  /** feature 054: suma de tareas no finalizadas de los sectores del grupo. */
+  pendingCount?: number;
 }
 
 interface WorkItem extends Item {
   labels: { keyName: string; color: string; isPrimary?: boolean }[];
+  /** feature 054: contador de tareas no finalizadas del proyecto. */
+  pendingCount?: number;
+}
+
+/**
+ * feature 054: proyecta cada tipo de ítem a { id, name, pendingCount } para
+ * poder ordenarlos y sumarlos con los helpers puros de drawerSort.
+ */
+function pendingOf(item: Item | WorkItem | SectorItem | GroupItem): number {
+  if ("metrics" in item && item.metrics) return item.metrics.pending;
+  if ("pendingCount" in item && typeof item.pendingCount === "number") {
+    return item.pendingCount;
+  }
+  return 0;
+}
+
+function toSortable(
+  item: Item | WorkItem | SectorItem | GroupItem,
+): SortableItem {
+  return { id: item.id, name: item.name, pendingCount: pendingOf(item) };
 }
 
 const CAP = 10;
@@ -179,13 +209,25 @@ export function DrawerNav({
     href: string,
     open: boolean,
     setOpen: (v: boolean) => void,
-    items: (Item | WorkItem | SectorItem)[],
+    items: (Item | WorkItem | SectorItem | GroupItem)[],
     base: string,
     icon: React.ComponentType<{ size?: number; className?: string }>,
   ) => {
     const ItemIcon = sublistIcon(base);
     const Icon = icon;
     const sublistId = `nav-sublist-${base.replace(/\W/g, "")}`;
+
+    // feature 054: ordenar por tareas no finalizadas (desc) con desempate
+    // alfabético; total de sección se calcula sobre TODOS los items visibles
+    // al usuario (no solo el top CAP).
+    const sortableSnapshot = items.map(toSortable);
+    const sortedSortable = sortByPendingDesc(sortableSnapshot);
+    const orderedIds = new Map(sortedSortable.map((s, i) => [s.id, i]));
+    const sortedItems = [...items].sort(
+      (a, b) => (orderedIds.get(a.id) ?? 0) - (orderedIds.get(b.id) ?? 0),
+    );
+    const sectionTotal = sumPending(sortableSnapshot);
+
     return (
       <div>
         <div
@@ -205,6 +247,12 @@ export function DrawerNav({
           <ChevronRight size={15} className="chev" />
           <Icon size={16} className="muted" />
           <span style={{ flex: 1 }}>{label}</span>
+          <Badge
+            count={sectionTotal}
+            ariaLabelSingular={`${label}: 1 tarea no finalizada`}
+            ariaLabelPlural={`${label}: tareas no finalizadas`}
+            className="badge-inline-end"
+          />
           <Link
             href={href}
             onClick={(e) => {
@@ -212,7 +260,7 @@ export function DrawerNav({
               closeMobileDrawer();
             }}
             className="muted"
-            style={{ fontSize: "var(--text-xs)" }}
+            style={{ fontSize: "var(--text-xs)", marginLeft: 6 }}
           >
             ver todos
           </Link>
@@ -243,7 +291,7 @@ export function DrawerNav({
                 </Link>
               </>
             )}
-            {items.slice(0, CAP).map((it) => {
+            {sortedItems.slice(0, CAP).map((it) => {
               const color =
                 base === "/works" && "labels" in it
                   ? getProjectColor((it as WorkItem).labels)
@@ -253,6 +301,7 @@ export function DrawerNav({
                       ? (it as GroupItem).color
                       : null;
               const itemHref = `${base}/${it.id}`;
+              const itemPending = pendingOf(it);
               return (
                 <Link
                   key={it.id}
@@ -279,20 +328,23 @@ export function DrawerNav({
                         : "Global"}
                     </span>
                   )}
+                  {/* feature 054: badge de tareas no finalizadas por ítem
+                      (oculto si == 0 por el propio componente) */}
+                  <Badge count={itemPending} className="badge-inline-end" />
                 </Link>
               );
             })}
-            {items.length === 0 && !loaded && (
+            {sortedItems.length === 0 && !loaded && (
               <span style={{ display: "block", padding: "var(--space-1) var(--space-2)" }}>
                 <Skeleton variant="text" width="70%" />
               </span>
             )}
-            {items.length === 0 && loaded && (
+            {sortedItems.length === 0 && loaded && (
               <span className="muted" style={{ padding: "var(--space-1) var(--space-2)" }}>—</span>
             )}
-            {items.length > CAP && (
+            {sortedItems.length > CAP && (
               <Link href={href} className="muted" onClick={closeMobileDrawer}>
-                +{items.length - CAP} más…
+                +{sortedItems.length - CAP} más…
               </Link>
             )}
           </div>

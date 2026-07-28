@@ -91,13 +91,23 @@ export const GET = withApi(async (req) => {
     labelsByWorkId.set(l.workId, list);
   }
 
-  const result = visible.map((w) => ({
-    ...w,
-    taskCounts: { done: doneByWorkId.get(w.id) ?? 0, total: w._count.tasks },
-    labels: labelsByWorkId.get(w.id) ?? [],
-    sectorIds: sectorIdsByWorkId.get(w.id) ?? [],
-    isFavorite: favoriteWorkIds.has(w.id),
-  }));
+  const result = visible.map((w) => {
+    const done = doneByWorkId.get(w.id) ?? 0;
+    const total = w._count.tasks;
+    return {
+      ...w,
+      taskCounts: { done, total },
+      // feature 054: pendingCount = tareas cuyo status NO es FINAL. Se deriva de
+      // total - done porque `taskCounts.total` cubre todas las tareas del work
+      // (isTemplate se excluye en el `where` inicial) y `done` cuenta las FINAL.
+      // Redundancia intencional con taskCounts para dejar en el contrato un
+      // único campo canónico para el consumo del drawer (CI-W-1..CI-W-2).
+      pendingCount: Math.max(0, total - done),
+      labels: labelsByWorkId.get(w.id) ?? [],
+      sectorIds: sectorIdsByWorkId.get(w.id) ?? [],
+      isFavorite: favoriteWorkIds.has(w.id),
+    };
+  });
 
   return NextResponse.json(result);
 });

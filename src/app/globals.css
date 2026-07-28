@@ -4530,3 +4530,37 @@ dialog.dialog--overflow-visible {
   top: var(--space-2);
   right: var(--space-2);
 }
+
+/* ── Badge numérico reutilizable (feature 054) ────────────────────────────────
+   Contador pill para el drawer y otras superficies que exponen "cantidad".
+   Reglas: se oculta cuando count === 0 (el propio componente devuelve null);
+   número compactado a "999+" para volúmenes altos.
+   Basado en .design-system/components.md:72-75 (pill radius, sizes sm/lg). */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1;
+  background: var(--hover-soft, var(--surface));
+  color: var(--muted);
+  border: 1px solid var(--border);
+  min-width: 18px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.badge-sm {
+  font-size: 11px;
+  padding: 1px 5px;
+  min-width: 16px;
+}
+
+.badge-inline-end {
+  margin-left: auto;
+}
+

@@ -1,162 +1,157 @@
 <!--
 Sync Impact Report
-- Version change: 1.4.0 → 1.5.0
-- Modified sections: "Semántica de Etiquetado y Reglas de Dominio" > "Reglas de dominio no
-  negociables" — la regla de la feature 044 ("los sectores son un catálogo global, los crea
-  y administra exclusivamente SUPERADMIN") se REDISTRIBUYE: la creación pasa a depender del
-  ámbito (Grupo/Personal/Global) del sector — SUPERADMIN o el ADMIN de ese grupo crean uno de
-  Grupo, cualquier usuario crea uno Personal, solo SUPERADMIN crea uno Global. La
-  ADMINISTRACIÓN de un sector ya creado (renombrar/recolorear/eliminar/otorgar acceso) NO
-  cambia: sigue 100% exclusiva de SUPERADMIN, sin excepción por ámbito — decisión explícita
-  del usuario en specs/046-sectores-ambito/ que diferencia este caso del ya resuelto para
-  TaskStatus en specs/045-permisos-ambito-estados/ (donde el ADMIN de grupo sí administra su
-  propio conjunto). No es uno de los Core Principles I-V, pero sí una regla de dominio que
-  vuelve a distribuir algo que 044 había centralizado → bump MINOR (mismo criterio que los
-  cambios previos: no redefine un Core Principle de forma incompatible, pero sí redistribuye
-  materialmente una guía existente).
-- Added sections: n/a
-- Removed sections: n/a
-- Templates:
-  - ✅ .specify/templates/plan-template.md — sin cambios requeridos (gate genérico, no hardcodea principios)
-  - ✅ .specify/templates/spec-template.md — sin cambios requeridos
-  - ✅ .specify/templates/tasks-template.md — sin cambios requeridos
-  - ✅ specs/046-sectores-ambito/* — motivador de este cambio; ya alineado con la nueva redacción
-- Follow-up TODOs: ninguno.
+==================
+Version change: (unfilled template) → 1.0.0
+Rationale: Initial ratification. MAJOR (1.0.0) because this establishes the
+governance baseline for the first time; there is no prior versioned constitution
+to compare against.
+
+Principles defined (all NEW — first ratification):
+- I. Information at a Glance (NON-NEGOTIABLE UX)
+- II. Opinionated over Flexible
+- III. Spec-Driven Delivery (NON-NEGOTIABLE)
+- IV. Design System Consistency
+- V. Accessibility & Inclusion (WCAG AA — NON-NEGOTIABLE)
+- VI. Test-Backed Changes
+- VII. Perceived Speed & Observability
+
+Added sections:
+- Additional Constraints (stack + operational rules)
+- Development Workflow (Spec Kit gates + review cadence)
+- Governance (versioning, amendments, compliance)
+
+Removed sections: none (template was empty).
+
+Templates requiring updates:
+- ✅ .specify/templates/plan-template.md — verified; Constitution Check placeholder is
+  compatible; downstream plans MUST cite the principle IDs above.
+- ✅ .specify/templates/spec-template.md — verified; scope and requirement sections
+  align with Principles I, II, IV, V.
+- ✅ .specify/templates/tasks-template.md — verified; task categorization already
+  covers Setup / Tests / Core / Integration / Polish which map to Principles III, VI, VII.
+- ⚠ Spec Kit command files (.opencode/commands/speckit.*.md) — no changes required
+  by this ratification; agent-generic wording preserved. Re-check on future MINOR/MAJOR bumps.
+- ⚠ README.md — none present at repo root; PRODUCT.md and DESIGN.md remain the
+  runtime guidance references and are consistent with this constitution.
+
+Deferred / TODO items:
+- RATIFICATION_DATE: set to 2026-07-28 (today) since no earlier adoption record
+  exists in the repository. Adjust if an earlier date is discovered.
 -->
 
 # genwork Constitution
 
-genwork es un gestor de trabajos y tareas para talleres/empresas con múltiples sectores
-operativos. Cada trabajo pertenece a un cliente y sus tareas se clasifican y consultan
-simultáneamente por trabajo y por sector mediante etiquetado inline.
-
 ## Core Principles
 
-### I. Tarea única, múltiples vistas
+### I. Information at a Glance (NON-NEGOTIABLE UX)
+The state of a project, sector, group, or task MUST be understandable without
+clicking. Cards, drawers, and list headers MUST surface the numbers, colors, and
+dates that answer "what is pending, what is on time, what needs me". Counters
+(e.g. unfinished tasks) MUST appear on every aggregation level where users make
+scanning decisions — global titles, per-project titles, per-sector titles, and
+per-group titles — and MUST reflect the same source of truth to avoid contradictions
+between views. Rationale: The product exists to eliminate the "let me ask what's
+pending" conversation; hidden information defeats the product.
 
-Toda tarea es UNA sola entidad en el sistema, sin importar desde dónde se creó o desde
-cuántas vistas se vea. Las etiquetas la hacen visible en la vista del trabajo (`/`) y en
-las vistas de sector (`#`, `@`), pero nunca la duplican.
+### II. Opinionated over Flexible
+When two UX paths are viable, choose one and remove the other. Fewer options,
+clearer flow. New features MUST NOT introduce user-facing configuration for
+behavior the product can decide itself (e.g. sort order, grouping strategy) unless
+a clarify-phase decision explicitly justifies the toggle. Rationale: Genwork
+differentiates from Jira/Monday.com by refusing to become a lienzo en blanco.
 
-- Completar una tarea desde cualquier vista la marca completada en TODAS las vistas.
-- Editar el texto o las etiquetas de una tarea se refleja en todas las vistas.
-- Está PROHIBIDO cualquier diseño que copie tareas entre vistas o requiera sincronización
-  manual entre ellas.
+### III. Spec-Driven Delivery (NON-NEGOTIABLE)
+Every feature MUST flow through the Spec Kit phases: constitution → specify →
+clarify → plan → checklist → tasks → analyze → implement → converge. Tasks MUST
+carry `[C:complexity->model]` labels per `.specify/models.json`. Skipping clarify
+or analyze is prohibited even when the change looks small; use `--bypass` only to
+skip the implementation confirmation gate, never the quality gates. Rationale:
+The repo already has 50+ specs; consistency of process is what keeps the codebase
+navigable.
 
-Rationale: el valor central del producto es ver el mismo universo de tareas desde el ángulo
-del cliente o del sector sin inconsistencias. Una duplicación rompe la confianza en el sistema.
+### IV. Design System Consistency
+All UI work MUST use tokens and components defined in `DESIGN.md` and the
+`design-system/` and `.design-system/` folders: Inter typography, the fixed rem
+scale, the 4px spacing base, the 10-color palette, and the semantic tokens for
+color/border/shadow. New visual primitives (badges, counters, indicators) MUST
+either reuse an existing pattern or be added to the design system first, then
+consumed. Ad-hoc styles inside feature components are prohibited. Rationale:
+"Consistencia sobre sorpresa" — the same vocabulary in every screen.
 
-### II. Etiquetado inline como interfaz primaria
+### V. Accessibility & Inclusion (WCAG AA — NON-NEGOTIABLE)
+Every change MUST preserve or improve: 4.5:1 minimum contrast for text,
+keyboard navigability for all interactive elements, visible focus states,
+correct roles/labels for icon-only controls, and `prefers-reduced-motion`
+respect. Both light and dark themes MUST remain functional. Counters and status
+indicators MUST NOT rely on color alone (pair color with number or icon).
+Rationale: The user base works long shifts in workshop/office environments;
+accessibility is baseline, not a nice-to-have.
 
-Las tareas se clasifican escribiendo símbolos dentro del propio texto de la tarea, mientras
-se escribe. No se exigen formularios ni menús para clasificar.
+### VI. Test-Backed Changes
+Every feature that alters data derivation, sorting, aggregation, or a public
+API MUST land with automated tests. Vitest is the standard runner
+(`vitest.config.ts` present). At minimum: (a) unit tests for pure derivation
+functions (counts, sorts, filters), (b) contract tests for any API route that
+changes shape, and (c) a component/interaction test when the change affects an
+ordering or visibility rule that a user would notice. Purely cosmetic changes
+covered by the design system are exempt. Rationale: Aggregation logic is where
+silent regressions hide; tests are the only defense.
 
-- `/nombre` vincula la tarea a un trabajo/cliente (destino: se guarda y vive en ese trabajo).
-- `#nombre` asigna la tarea a un sector de trabajo (pertenencia: el sector donde se ejecuta).
-- `@nombre` referencia un sector o un usuario cuyo aporte se necesita para completar la tarea
-  (mención: crea vínculo filtrable y visible para el referenciado, NO transfiere pertenencia ni
-  habilita completar).
-- `$nombre` etiqueta la tarea con una etiqueta de proyecto (LabelKey/LabelValue de ámbito grupo
-  o global); es clasificatoria y filtrable, NO cambia dónde se ejecuta ni se completa la tarea.
-- El parser DEBE reconocer estas etiquetas en línea y convertirlas en vínculos navegables
-  y filtrables.
-- Una tarea puede combinar los tres símbolos (ej.: `Comprar perfiles de hierro #Compras
-  @Metalurgica /Tina`).
+### VII. Perceived Speed & Observability
+Interactions MUST feel immediate: skeletons for loads >150ms, optimistic UI
+where safe, transitions 150–250ms. Server work that computes aggregates MUST
+be efficient (single query or memoized) and MUST be observable via the existing
+error-logging pathway (spec 041). Regressions in perceived speed on the
+drawer, dashboard, or project detail views are treated as bugs. Rationale: The
+brand is "práctico, limpio, directo"; slow feels neither.
 
-Rationale: la captura rápida con símbolos es lo que permite clasificar sin fricción; si
-clasificar cuesta, el sistema deja de usarse.
+## Additional Constraints
 
-### III. Trabajo = Documentación + Tareas
+- **Stack**: Next.js (App Router) + TypeScript strict + Prisma + Tailwind + Vitest.
+  New runtime dependencies require justification in the plan's Constitution Check.
+- **Data model**: Prisma migrations MUST be additive when possible; destructive
+  migrations require an explicit note in the spec and a rollback plan.
+- **Deployment**: Docker-based; CI (spec 029) MUST pass before merge.
+- **Storage of files**: Follow specs 028/034/051 (Nextcloud / Google Drive) for
+  external file placement; do not introduce new storage backends without a spec.
+- **Auth**: Google OAuth compliance rules from spec 038 MUST be honored.
+- **Localization**: Product copy is Spanish (Argentina). Keep user-facing strings
+  in Spanish; keep code identifiers in English.
 
-Todo trabajo/proyecto tiene exactamente dos secciones que conviven en una misma página:
+## Development Workflow
 
-1. **Documentación** (arriba): página libre estilo Notion para descripción, notas,
-   presupuestos, imágenes, archivos, diseños, medidas e instrucciones.
-2. **Tareas** (abajo): checklist operativa del trabajo.
-
-Ninguna feature puede separar estas secciones en lugares distintos ni exigir navegar fuera
-del trabajo para ver su información o su avance.
-
-Rationale: el trabajo es la unidad de venta y ejecución; información y seguimiento operativo
-deben leerse juntos, en un único lugar.
-
-### IV. Completado binario, estados configurables
-
-Todo estado de tarea pertenece a exactamente uno de dos TIPOS: **en curso** (no completada)
-o **final** (completada). Ese invariante binario de completado no se negocia; lo que se
-permite configurar es el nombre, el color y la cantidad de estados dentro del tipo "en curso".
-
-- Cada conjunto de estados (el general de la organización, o el propio de un sector que lo
-  adaptó) DEBE tener exactamente un estado de tipo "final" (equivalente a "Realizada"/"Hecha").
-- Puede haber uno o varios estados de tipo "en curso", con nombre y color propios definidos
-  por la organización o por el sector (ej.: "Pendiente", "En proceso", "En consulta").
-- Se completa asignando el estado "final" mediante un selector; al completarse se diferencia
-  visualmente (tachada o similar) y PERMANECE en el historial del trabajo; nunca se borra
-  automáticamente. Volver de "final" a cualquier estado "en curso" deshace ese registro.
-- La tarea se completa donde se EJECUTA (su sector de pertenencia `#`), no en los sectores
-  que solo la referencian (`@`).
-
-Rationale: el usuario necesita ver de un vistazo qué falta y qué se hizo, y conservar el
-registro de lo realizado por trabajo — ese invariante binario no cambia. Lo que sí varía entre
-organizaciones es cómo llaman a las etapas antes de terminar (asignación, revisión, consulta);
-nombrarlas y colorearlas da flexibilidad real sin romper la simplicidad del seguimiento.
-
-### V. Simplicidad primero (YAGNI)
-
-Empezar con lo mínimo que entrega valor: trabajos, tareas, etiquetas y filtros.
-
-- Toda complejidad agregada (nuevas entidades, patrones, capas, servicios) DEBE justificarse
-  en la sección Complexity Tracking del plan correspondiente.
-- Ante dos diseños válidos, se elige el más simple de mantener por una sola persona.
-
-Rationale: proyecto personal/laboral de un solo desarrollador; la complejidad no justificada
-mata el avance.
-
-## Semántica de Etiquetado y Reglas de Dominio
-
-| Símbolo | Nombre      | Significado                                   | Efecto                                             |
-|---------|-------------|-----------------------------------------------|----------------------------------------------------|
-| `/`     | Trabajo     | Cliente/trabajo al que pertenece la tarea     | La tarea se guarda y aparece en ese trabajo         |
-| `#`     | Sector      | Sector operativo donde se ejecuta la tarea    | La tarea aparece en la vista de ese sector          |
-| `@`     | Referencia  | Sector o usuario cuyo aporte necesita la tarea | Vínculo filtrable, visible para el referenciado; NO define dónde se completa |
-| `$`     | Etiqueta    | Etiqueta de proyecto (grupo/global) que clasifica la tarea | Vínculo filtrable; NO define dónde se ejecuta/completa |
-
-Reglas de dominio no negociables:
-
-- Los sectores de trabajo (ej.: Metalúrgica, Compras) pertenecen a uno de tres ámbitos —
-  un Grupo, el espacio Personal de un usuario, o Global (ninguno de los dos anteriores).
-  La CREACIÓN se distribuye por ámbito: SUPERADMIN o el ADMIN de ese grupo crean un sector
-  de Grupo; cualquier usuario crea uno Personal para sí mismo; solo SUPERADMIN crea uno
-  Global. La ADMINISTRACIÓN (renombrar, recolorear, eliminar, otorgar/quitar acceso vía
-  SectorGrant) de un sector ya creado sigue reservada exclusivamente a SUPERADMIN, sin
-  excepción por ámbito. Un sector de Grupo es vista agregadora de tareas de ese grupo; uno
-  Personal, del usuario dueño; uno Global, de toda la organización sin importar el grupo.
-- Filtrar es transversal: desde un sector se puede filtrar por trabajo, por otro sector
-  referenciado, o por estado (ej.: en Compras, filtrar `@Metalurgica` para ver qué comprar
-  en la ferretería).
-- Crear una tarea desde una vista de sector con `/trabajo` la guarda en ese trabajo con el
-  vínculo al sector actual.
-
-## Flujo de Desarrollo
-
-- Todo desarrollo sigue el ciclo Spec Kit: `/speckit-specify` → `/speckit-plan` →
-  `/speckit-tasks` → `/speckit-implement`.
-- La lógica core de dominio (parser de etiquetas, resolución de vistas, estados y filtros)
-  DEBE tener tests automatizados antes de considerarse completa; la UI puede verificarse
-  manualmente.
-- El gate "Constitution Check" de cada plan DEBE validar contra los Principios I–V; toda
-  violación se documenta en Complexity Tracking o se rediseña.
-- El stack tecnológico se decide y documenta en el primer plan de implementación; una vez
-  elegido, cambiarlo requiere enmienda a la constitution.
+- **Branching**: One feature = one branch, named `NNN-slug` matching the spec
+  folder in `specs/`.
+- **Spec Kit gates**: `clarify` and `analyze` are mandatory. `checklist` failures
+  MUST be fixed at the source (spec/plan), not silenced.
+- **Reviews**: Any change touching aggregation, ordering, permissions, or shared
+  UI primitives requires review from a reviewer familiar with the affected spec
+  area. Reviewers verify constitution compliance, not just code style.
+- **Model dispatch**: Task complexity labels MUST route to the model tiers in
+  `.specify/models.json`. `tier: "max"` models are reserved for the manager role
+  and exceptional cases; do not use them as the default implementer.
+- **Definition of done**: spec + plan + tasks committed; implement phase green;
+  converge reports converged; tests added per Principle VI; no CRITICAL findings
+  in analyze.
 
 ## Governance
 
-- Esta constitution prevalece sobre cualquier otra práctica del repositorio.
-- Enmiendas: se proponen editando este archivo vía `/speckit-constitution`, documentando el
-  cambio en el Sync Impact Report y actualizando la versión.
-- Versionado semántico: MAJOR = quitar/redefinir principios de forma incompatible; MINOR =
-  agregar principio o sección, o ampliar guía materialmente; PATCH = aclaraciones y redacción.
-- Cumplimiento: todo plan y toda revisión de implementación verifican los Principios I–V;
-  la complejidad debe justificarse siempre.
+- This constitution supersedes ad-hoc conventions. In case of conflict with an
+  older spec, the constitution wins and the spec MUST be updated.
+- **Amendments** require: (a) a PR that edits this file, (b) a Sync Impact
+  Report at the top of the file, (c) propagation to `.specify/templates/*` and
+  affected Spec Kit command files when semantics change, and (d) a version bump
+  per the rules below.
+- **Versioning** (semver):
+  - MAJOR: removal or redefinition of a principle, or backward-incompatible
+    governance change.
+  - MINOR: new principle, new mandatory section, or materially expanded rule.
+  - PATCH: wording, typo, clarification, or non-semantic refinement.
+- **Compliance review**: Every PR description MUST state which principles were
+  touched and how they were honored. Reviewers MUST reject PRs that silently
+  regress a NON-NEGOTIABLE principle.
+- **Runtime guidance**: `PRODUCT.md` (product intent) and `DESIGN.md` (visual
+  language) are the two runtime companions to this constitution. Keep all three
+  consistent on every amendment.
 
-**Version**: 1.5.0 | **Ratified**: 2026-07-02 | **Last Amended**: 2026-07-12
+**Version**: 1.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-07-28
