@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { api } from "@/components/ui/useApi";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { AtSign } from "@/components/ui/icons";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
+import { groupReferencesBySource } from "@/components/tasks/groupReferencesBySource";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -16,7 +17,7 @@ export default function ReferencesPage() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    void api<TaskDto[]>("/api/me/references?state=PENDING")
+    void api<TaskDto[]>("/api/me/references?type=IN_PROGRESS")
       .then(setTasks)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -25,16 +26,7 @@ export default function ReferencesPage() {
   useEffect(load, [load]);
   useLiveRefresh(load);
 
-  const groups = useMemo(() => {
-    const map = new Map<string, { name: string; workId: string | null; tasks: TaskDto[] }>();
-    for (const task of tasks) {
-      const key = task.work?.id ?? "__sin-proyecto__";
-      const name = task.work?.name ?? "Sin proyecto";
-      if (!map.has(key)) map.set(key, { name, workId: task.work?.id ?? null, tasks: [] });
-      map.get(key)!.tasks.push(task);
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [tasks]);
+  const groups = useMemo(() => groupReferencesBySource(tasks), [tasks]);
 
   return (
     <div className="sheet">
@@ -61,22 +53,18 @@ export default function ReferencesPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
             {groups.map((group) => (
-              <section key={group.workId ?? "sin-proyecto"}>
-                <h2 style={{ fontSize: "var(--text-lg)", margin: "0 0 var(--space-2)" }}>
-                  {group.workId ? (
-                    <Link href={`/works/${group.workId}`} style={{ color: "inherit" }}>
-                      {group.name}
-                    </Link>
-                  ) : (
-                    group.name
-                  )}
-                </h2>
+              <section key={group.key}>
+                {group.header.type === "work" ? (
+                  <TaskGroupHeader work={group.header.work} />
+                ) : (
+                  <TaskGroupHeader sector={group.header.sector} />
+                )}
                 {group.tasks.map((task) => (
                   <TaskItem
                     key={task.id}
                     task={task}
                     context={{}}
-                    canToggle={false}
+                    canToggle={task.canToggle ?? false}
                     onChanged={load}
                   />
                 ))}

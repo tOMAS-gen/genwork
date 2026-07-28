@@ -6,6 +6,7 @@ import { api } from "@/components/ui/useApi";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
+import { groupReferencesBySource } from "@/components/tasks/groupReferencesBySource";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -282,14 +283,23 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
             Tareas de otros sectores que necesitan aporte de #{view.sector.name}; podés completarlas
             desde aquí si tenés permiso.
           </p>
-          {view.refs.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              context={{ sectorId: id }}
-              canToggle={canOperate}
-              onChanged={load}
-            />
+          {groupReferencesBySource(view.refs).map((group) => (
+            <div key={group.key} className="mt-2">
+              {group.header.type === "work" ? (
+                <TaskGroupHeader work={group.header.work} />
+              ) : (
+                <TaskGroupHeader sector={group.header.sector} />
+              )}
+              {group.tasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  context={{ sectorId: id }}
+                  canToggle={canOperate}
+                  onChanged={load}
+                />
+              ))}
+            </div>
           ))}
         </>
       )}

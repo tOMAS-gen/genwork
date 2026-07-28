@@ -10,7 +10,7 @@ import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/ser
 const taskInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
   work: { select: { id: true, name: true, status: true, groupId: true, group: { select: { id: true, name: true } } } },
-  homeSector: { select: { id: true, name: true } },
+  homeSector: { select: { id: true, name: true, group: { select: { id: true, name: true } } } },
   labels: { include: { value: { include: { key: true } } } },
   status: true,
 } as const;

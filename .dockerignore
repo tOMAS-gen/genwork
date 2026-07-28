@@ -1,12 +1,16 @@
 node_modules
 .next
+out
+dist
 .git
+.gitignore
 .env*
 !.env.example
 storage
 deploy/.env
 *.log
 .DS_Store
+Thumbs.db
 .claude
 .design-system
 .impeccable
@@ -14,3 +18,7 @@ deploy/.env
 specs
 tests
 coverage
+.dockerignore
+Dockerfile*
+.vscode/
+.idea/

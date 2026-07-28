@@ -3,7 +3,8 @@
 import Link from "next/link";
 
 interface TaskGroupHeaderProps {
-  work: { id: string; name: string; status: string; group: { id: string; name: string } | null };
+  work?: { id: string; name: string; status?: string; group: { id: string; name: string } | null };
+  sector?: { id: string; name: string; group: { id: string; name: string } | null };
 }
 
 /**
@@ -14,15 +15,21 @@ interface TaskGroupHeaderProps {
  * el proyecto y el nombre del proyecto, con fondo suave, borde sutil,
  * tipografía diferenciada y truncamiento con ellipsis para nombres largos.
  */
-export function TaskGroupHeader({ work }: TaskGroupHeaderProps) {
-  const label = work.group ? `${work.name} — ${work.group.name}` : work.name;
+export function TaskGroupHeader({ work, sector }: TaskGroupHeaderProps) {
+  const source = work ?? sector;
+  if (!source) return null;
+
+  const typeLabel = work ? "Proyecto" : "Sector";
+  const label = source.group ? `${source.name} — ${source.group.name}` : source.name;
+  const href = work ? `/works/${work.id}` : `/sectors/${sector!.id}`;
+
   return (
     <div
       className="task-group-header"
       title={label}
-      aria-label={work.group ? `Proyecto: ${work.name}. Grupo: ${work.group.name}` : `Proyecto: ${work.name}`}
+      aria-label={source.group ? `${typeLabel}: ${source.name}. Grupo: ${source.group.name}` : `${typeLabel}: ${source.name}`}
     >
-      <Link href={`/works/${work.id}`} className="task-group-header-link">
+      <Link href={href} className="task-group-header-link">
         {label}
       </Link>
     </div>
