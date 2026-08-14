@@ -18,6 +18,7 @@ function user(partial: Partial<UserContext> = {}): UserContext {
     adminGroupIds: new Set(),
     grantedSectorIds: new Set(),
     readerGroupIds: new Set(),
+    clientWorkIds: new Set(),
     ...partial,
   };
 }

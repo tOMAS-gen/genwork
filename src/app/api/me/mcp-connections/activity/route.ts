@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 
 /**
  * Actividad administrativa (sin `workId`) originada vía MCP por el usuario
@@ -9,7 +9,7 @@ import { requireSession } from "@/server/auth";
  * pestaña "Actividad" de cada proyecto (FR-010).
  */
 export const GET = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const entries = await prisma.mcpActivityLog.findMany({
     where: { userId: session.user.id, workId: null },
     orderBy: { createdAt: "desc" },

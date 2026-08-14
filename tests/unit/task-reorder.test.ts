@@ -147,6 +147,7 @@ const ctx: UserContext = {
   adminGroupIds: new Set(),
   grantedSectorIds: new Set(),
   readerGroupIds: new Set(),
+  clientWorkIds: new Set(),
 };
 
 function orderedIds() {

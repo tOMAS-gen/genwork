@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { taskAccess } from "@/lib/domain/permissions";
 import { getTaskOrThrow, getTaskStatusHistory, toTaskRef } from "@/server/tasks";
@@ -7,7 +7,7 @@ import { notFound, withApi } from "@/server/api";
 
 /** GET /api/tasks/[id]/status-changes — historial de estado de una tarea (US4). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const ctx = await getUserContext(session.user.id);
   const { id } = await params;
 

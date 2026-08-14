@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
 import { applyTaskFilters, type TaskFilters } from "@/lib/domain/views/filters";
@@ -51,7 +51,7 @@ function withFlatLabels<T extends { labels: { keyId: string; valueId: string; va
  * `refs` = apartado de referencias (FR-040, solo lectura). Filtros combinables (FR-013).
  */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const sector = await prisma.sector.findUnique({

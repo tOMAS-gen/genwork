@@ -61,6 +61,7 @@ function makeCtx(overrides: Partial<UserContext> = {}): UserContext {
     adminGroupIds: new Set<string>(),
     grantedSectorIds: new Set<string>(),
     readerGroupIds: new Set<string>(),
+    clientWorkIds: new Set<string>(),
     ...overrides,
   };
 }

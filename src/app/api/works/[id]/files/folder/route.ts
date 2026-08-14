@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ApiError, badRequest, conflict, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
 import { getStorageProvider } from "@/lib/storage";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
@@ -16,7 +16,7 @@ import { StorageIdentityMissingError } from "@/lib/storage/identity";
  * Contrato: specs/051-gestion-archivos-nube/contracts/files-crud-and-identity.md
  */
 export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const { work } = await assertWorkAccess(session.user.id, id, "operate");

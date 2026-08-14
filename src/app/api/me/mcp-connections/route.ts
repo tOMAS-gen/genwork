@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { badRequest, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { hashMcpToken } from "@/server/mcp-auth";
 
 const createSchema = z.object({
@@ -14,7 +14,7 @@ function generateToken(): string {
 }
 
 export const GET = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const connections = await prisma.mcpConnection.findMany({
     where: { userId: session.user.id },
     select: { id: true, label: true, createdAt: true, lastUsedAt: true, revokedAt: true },
@@ -24,7 +24,7 @@ export const GET = withApi(async () => {
 });
 
 export const POST = withApi(async (req) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const body = createSchema.safeParse(await req.json());
   if (!body.success) throw badRequest(body.error.issues[0]?.message ?? "Datos inválidos");
 

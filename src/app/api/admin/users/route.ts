@@ -6,7 +6,10 @@ import { requireSuperAdmin } from "@/server/guards";
 
 export const GET = withApi(async () => {
   await requireSuperAdmin();
+  // Feature 059: los clientes externos tienen su propio panel (/admin/clients) y
+  // no se administran acá; mezclarlos confundiría los roles internos con los externos.
   const users = await prisma.user.findMany({
+    where: { globalRole: { not: "CLIENT" } },
     include: { readerGrants: { include: { group: { select: { id: true, name: true } } } } },
     orderBy: { email: "asc" },
   });
@@ -26,6 +29,11 @@ export const PUT = withApi(async (req) => {
 
   const target = await prisma.user.findUnique({ where: { id: userId } });
   if (target?.globalRole === "SUPERADMIN") throw conflict("El super-admin no cambia de rol");
+  // Feature 059: convertir un cliente externo en usuario interno desde acá saltearía
+  // la lista de correos habilitados. Se administra en el panel de clientes.
+  if (target?.globalRole === "CLIENT") {
+    throw conflict("Las cuentas de cliente se administran en el panel de clientes");
+  }
 
   const user = await prisma.user.update({ where: { id: userId }, data: { globalRole } });
   return NextResponse.json(user);

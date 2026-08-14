@@ -11,6 +11,9 @@ enum GlobalRole {
   SUPERADMIN
   MEMBER
   READER
+  // Feature 059: cliente externo. No obtiene acceso por ámbito en ningún caso;
+  // su única vía de lectura es el ClientWorkGrant explícito por proyecto.
+  CLIENT
 }
 
 enum AccessMode {
@@ -91,6 +94,9 @@ model User {
   globalRole      GlobalRole @default(MEMBER)
   nextcloudUserId String?
   createdAt       DateTime   @default(now())
+  /// Feature 059: primer ingreso efectivo. Distingue un cliente invitado que
+  /// todavía no entró (null) de uno activo, sin heurísticas sobre createdAt.
+  firstLoginAt    DateTime?
 
   memberships        GroupMembership[]
   ownedGroups        Group[]            @relation("GroupOwner")
@@ -120,6 +126,8 @@ model User {
   storageIdentities  StorageIdentity[]
   createdFileShares  FileShare[]        @relation("FileShareCreator")
   targetFileShares   FileShare[]        @relation("FileShareTarget")
+  clientGrants       ClientWorkGrant[]  @relation("ClientGrants")
+  issuedClientGrants ClientWorkGrant[]  @relation("ClientGrantsIssued")
 }
 
 model AccessConfig {
@@ -215,6 +223,27 @@ model ReaderGrant {
   @@id([userId, groupId])
 }
 
+/// Feature 059: otorgamiento explícito de lectura de UN proyecto a UN cliente
+/// externo (FR-005). El alcance del portal es por proyecto y nunca por grupo:
+/// no existe equivalente de ReaderGrant acá, a propósito.
+model ClientWorkGrant {
+  userId      String
+  workId      String
+  /// Quién otorgó el acceso. Nullable + SetNull para que el rastro de auditoría
+  /// sobreviva al borrado del administrador (mismo criterio que Task.lastEditedById).
+  grantedById String?
+  createdAt   DateTime @default(now())
+
+  user      User  @relation("ClientGrants", fields: [userId], references: [id], onDelete: Cascade)
+  work      Work  @relation(fields: [workId], references: [id], onDelete: Cascade)
+  grantedBy User? @relation("ClientGrantsIssued", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@id([userId, workId])
+  // La PK indexa (userId, workId); "qué clientes ven ESTE proyecto" filtra solo
+  // por workId y necesita su propio índice.
+  @@index([workId])
+}
+
 model Work {
   id                  String     @id @default(uuid())
   name                String
@@ -241,9 +270,10 @@ model Work {
   attachments Attachment[]
   archive     ArchiveRecord?
   labels      WorkLabel[]
-  favorites   UserFavorite[]
-  mcpActivity McpActivityLog[]
-  fileShares  FileShare[]
+  favorites    UserFavorite[]
+  mcpActivity  McpActivityLog[]
+  fileShares   FileShare[]
+  clientGrants ClientWorkGrant[]
 
   @@unique([groupId, name])
   @@unique([ownerId, name])

@@ -35,6 +35,9 @@ vi.mock("@/lib/db/client", () => ({
     readerGrant: {
       findMany: vi.fn(async () => []),
     },
+    clientWorkGrant: {
+      findMany: vi.fn(async () => []),
+    },
     taskStatus: {
       findMany: vi.fn(async ({ where }: { where: Partial<TaskStatus> }) =>
         statuses.filter(

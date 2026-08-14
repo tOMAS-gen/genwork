@@ -53,12 +53,23 @@ class StorageUnavailableError extends Error {}
  */
 class DependencyNotReadyError extends Error {}
 
-async function runJob(payload: JobPayload): Promise<void> {
+/** Exportada para poder testear el caso de cliente externo (feature 059, FR-007). */
+export async function runJob(payload: JobPayload): Promise<void> {
   const storage = await getStorageProvider();
   if (!storage) throw new StorageUnavailableError("Storage no configurado");
 
   switch (payload.kind) {
     case "CREATE_USER": {
+      // Feature 059 (FR-007): un cliente externo no tiene carpeta propia en la
+      // nube. Por construcción nunca llega acá (su fila se crea desde el panel de
+      // administración, no desde el callback de ingreso), pero el job es idempotente
+      // y encolable desde otro lado: se corta acá también.
+      const target = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { globalRole: true },
+      });
+      if (target?.globalRole === "CLIENT") return;
+
       const { storageUserId } = await storage.provisionUser(payload);
       await prisma.user.update({
         where: { id: payload.userId },

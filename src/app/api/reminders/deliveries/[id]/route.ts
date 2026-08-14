@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { forbidden, notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getSystemTimezone, zonedTimeToUtc, calDateInTz } from "@/lib/time/system-tz";
 
 const actionSchema = z.discriminatedUnion("action", [
@@ -15,7 +15,7 @@ const actionSchema = z.discriminatedUnion("action", [
  * Individual por usuario: no afecta a otros destinatarios (FR-018).
  */
 export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   const body = actionSchema.parse(await req.json());
 

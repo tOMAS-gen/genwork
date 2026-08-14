@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 
 /**
  * Inicia el Login Flow v2 de Nextcloud (feature 051, R1). Pide a Nextcloud un
@@ -27,7 +27,7 @@ const storageUnavailable = () =>
   );
 
 export const POST = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
 
   const baseUrl = await resolveNextcloudUrl();
   if (!baseUrl) return storageUnavailable();

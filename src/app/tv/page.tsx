@@ -10,6 +10,9 @@ import { BoardGrid } from "@/components/board/BoardGrid";
 export default async function TvPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  // Feature 059: esta vista muestra el tablero de todos los sectores visibles;
+  // un cliente externo no tiene nada que hacer acá.
+  if (session.user.globalRole === "CLIENT") redirect("/portal");
 
   return <BoardGrid />;
 }

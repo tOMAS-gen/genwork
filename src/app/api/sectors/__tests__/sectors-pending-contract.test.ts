@@ -40,6 +40,7 @@ vi.mock("@/server/user-context", () => ({
     adminGroupIds: new Set(authState.adminGroupIds),
     grantedSectorIds: new Set(authState.grantedSectorIds),
     readerGroupIds: new Set(),
+    clientWorkIds: new Set(),
   })),
 }));
 

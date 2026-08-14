@@ -4608,3 +4608,174 @@ dialog.dialog--overflow-visible {
   margin-left: auto;
 }
 
+
+/* ===========================================================================
+   Portal de cliente (feature 059)
+   Vista de solo lectura para clientes externos. Reusa los tokens y las clases
+   existentes (.project-card, .task, .tag, .label-chip); acá solo va el armazón
+   propio del portal y los ajustes de lectura de la tarea.
+   =========================================================================== */
+
+.portal-shell {
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.portal-brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Distintivo permanente: el cliente entiende qué está viendo sin hacer un clic. */
+.portal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.portal-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.portal-user {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.portal-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+.portal-back {
+  margin-bottom: var(--space-sm);
+}
+
+.portal-work-description {
+  color: var(--muted);
+  margin-bottom: var(--space-sm);
+}
+
+.portal-work-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.portal-work-stage,
+.portal-work-due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+/* La tarea del portal no tiene casilla ni controles, así que apila su contenido
+   en vez de alinearlo en una fila con acciones a la derecha. */
+.portal-task {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-xs);
+}
+
+.portal-task-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.portal-task-status {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.portal-task-description {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+}
+
+.portal-task-due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.portal-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.portal-activity-item {
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.portal-activity-task {
+  font-weight: 500;
+}
+
+.portal-activity-change {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--space-xs);
+  color: var(--muted);
+}
+
+.portal-activity-status-empty {
+  color: var(--muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.portal-activity-stamp {
+  display: block;
+  margin-top: var(--space-xs);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 640px) {
+  .portal-main {
+    padding: var(--space-md);
+  }
+  .portal-task-status {
+    margin-left: 0;
+  }
+}

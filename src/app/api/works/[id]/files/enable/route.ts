@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { forbidden, notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { canEnableWorkFolder } from "@/lib/storage/access-check";
@@ -22,7 +22,7 @@ import { enqueue } from "@/lib/storage/queue";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
 
 export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const ctx = await getUserContext(session.user.id);

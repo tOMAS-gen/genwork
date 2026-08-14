@@ -315,7 +315,13 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
   const refSectorIds = new Set<string>();
   const refUserIds = new Set<string>();
   if (grouped["@"].length > 0) {
-    const users = await prisma.user.findMany({ where: { globalRole: { not: "READER" } } });
+    // Feature 059 (FR-006): allowlist positiva de roles internos. Antes era la
+    // lista negra `{ not: "READER" }`, que dejaba entrar a todo rol futuro —un
+    // cliente externo habría sido mencionable con @ y la regla 8 le habría dado
+    // lectura de esa tarea.
+    const users = await prisma.user.findMany({
+      where: { globalRole: { in: ["SUPERADMIN", "MEMBER"] } },
+    });
     for (const name of grouped["@"]) {
       const s = findSector(name);
       if (s) {

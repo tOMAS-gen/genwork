@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
-import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle } from "@/components/ui/icons";
+import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle, Eye } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Administración" };
 
@@ -38,6 +38,15 @@ export default async function AdminHome() {
             <div>
               <div><strong>Usuarios y roles</strong></div>
               <span className="muted">Rol Lector para pantallas/TV y grupos habilitados</span>
+            </div>
+          </div>
+        </Link>
+        <Link className="project-card" href="/admin/clients">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <Eye size={20} />
+            <div>
+              <div><strong>Clientes</strong></div>
+              <span className="muted">Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada</span>
             </div>
           </div>
         </Link>

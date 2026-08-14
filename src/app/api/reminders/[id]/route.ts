@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { requireWriter } from "@/server/guards";
 import { deleteReminder, getReminderForUser, reminderInputSchema, updateReminder } from "@/server/reminders";
 
 /** GET /api/reminders/[id] — detalle (si es visible para el usuario). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   const { reminder, canMutate } = await getReminderForUser(session.user.id, id);
   return NextResponse.json({ reminder, canMutate });

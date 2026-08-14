@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 
 /** Notas personales del usuario autenticado, más recientes primero. */
 export const GET = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
 
   const notes = await prisma.note.findMany({
     where: { userId: session.user.id },
@@ -18,7 +18,7 @@ export const GET = withApi(async () => {
 
 /** Crea una nota vacía para el usuario autenticado. */
 export const POST = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
 
   const note = await prisma.note.create({
     data: { title: "", content: undefined, userId: session.user.id },

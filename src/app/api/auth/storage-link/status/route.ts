@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 
 /** GET /api/auth/storage-link/status — estado de vinculación del usuario para el provider activo. */
 export const GET = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
 
   const config = await prisma.accessConfig.findUnique({ where: { id: 1 } });
   const provider = config?.storageProvider ?? "NEXTCLOUD";

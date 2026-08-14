@@ -16,7 +16,17 @@ export const DEV_USERS: Record<string, { email: string; name: string; role: Glob
   admin: { email: "admin@test.local", name: "Admin de prueba", role: "SUPERADMIN" },
   miembro: { email: "miembro@test.local", name: "Miembro de prueba", role: "MEMBER" },
   lector: { email: "lector@test.local", name: "Lector de prueba (TV)", role: "READER" },
+  // Feature 059: el portal de cliente es exclusivo del rol CLIENT (los internos no
+  // entran), así que verificarlo en local exige una cuenta de cliente real.
+  cliente: { email: "cliente@test.local", name: "Cliente de prueba", role: "CLIENT" },
 };
+
+/**
+ * Cada cuánto se revalida el rol contra la base desde el token (feature 059).
+ * El callback jwt solo consultaba la base en el primer ingreso, así que un cambio
+ * de rol no se propagaba hasta que expiraba el token (30 días).
+ */
+const ROLE_SYNC_INTERVAL_MS = 60_000;
 
 declare module "next-auth" {
   interface Session {
@@ -79,7 +89,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
-        await prisma.user.update({ where: { email }, data: { image } });
+        // Feature 059: se marca el primer ingreso efectivo para distinguir un
+        // cliente invitado que todavía no entró de uno activo (FR-012). Solo la
+        // primera vez: después el valor no se toca.
+        await prisma.user.update({
+          where: { email },
+          data: { image, ...(existing.firstLoginAt ? {} : { firstLoginAt: new Date() }) },
+        });
         return true;
       }
 
@@ -106,6 +122,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name ?? email,
           globalRole: isBootstrap ? "SUPERADMIN" : "MEMBER",
           image,
+          firstLoginAt: new Date(),
         },
       });
       if (isBootstrap) {
@@ -138,7 +155,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.userId = dbUser.id;
           token.globalRole = dbUser.globalRole;
           token.image = dbUser.image ?? null;
+          token.roleSyncedAt = Date.now();
         }
+        return token;
+      }
+
+      // Feature 059: sin esto el rol queda congelado en el token durante toda su
+      // vida (30 días) y un cambio de rol no surte efecto nunca. Una consulta por
+      // clave primaria como mucho una vez por minuto y por sesión activa.
+      const syncedAt = typeof token.roleSyncedAt === "number" ? token.roleSyncedAt : 0;
+      if (token.userId && Date.now() - syncedAt > ROLE_SYNC_INTERVAL_MS) {
+        const fresh = await prisma.user.findUnique({
+          where: { id: token.userId as string },
+          select: { globalRole: true, image: true },
+        });
+        if (fresh) {
+          token.globalRole = fresh.globalRole;
+          token.image = fresh.image ?? null;
+        }
+        token.roleSyncedAt = Date.now();
       }
       return token;
     },

@@ -11,6 +11,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const isSuperAdmin = session.user.globalRole === "SUPERADMIN";
   const isReader = session.user.globalRole === "READER";
   if (isReader) redirect("/tv");
+  // Feature 059 (FR-014): la aplicación interna no es para clientes externos.
+  if (session.user.globalRole === "CLIENT") redirect("/portal");
 
   return (
     <Shell

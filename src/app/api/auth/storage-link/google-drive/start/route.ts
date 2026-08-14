@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { buildConsentUrl } from "@/lib/storage/google-auth";
 import { signLinkState } from "../state";
 
@@ -16,7 +16,7 @@ import { signLinkState } from "../state";
 const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 export async function GET(req: Request) {
-  const session = await requireSession();
+  const session = await requireInternal();
 
   const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? new URL(req.url).origin;
   const base = baseUrl.replace(/\/$/, "");

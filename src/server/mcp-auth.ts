@@ -56,5 +56,11 @@ export async function requireMcpConnection(req: Request): Promise<McpAuth> {
     .catch(() => {});
 
   const userContext = await getUserContext(connection.userId);
+
+  // Feature 059 (FR-004): un cliente externo no opera por MCP. El chequeo va acá y
+  // no solo en la emisión del token porque /api/mcp está exento del middleware:
+  // es la única puerta que no pasa por el gate del borde.
+  if (userContext.globalRole === "CLIENT") throw new McpAuthError();
+
   return { connectionId: connection.id, userId: connection.userId, userContext };
 }

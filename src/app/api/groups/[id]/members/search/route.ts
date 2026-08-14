@@ -21,7 +21,11 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   if (q.trim().length < 2) return NextResponse.json([]);
 
   const [candidates, memberships] = await Promise.all([
-    prisma.user.findMany({ select: { id: true, name: true, email: true } }),
+    // Feature 059 (FR-006): un cliente externo no es candidato a miembro de grupo.
+    prisma.user.findMany({
+      where: { globalRole: { in: ["SUPERADMIN", "MEMBER", "READER"] } },
+      select: { id: true, name: true, email: true },
+    }),
     prisma.groupMembership.findMany({ where: { groupId: id }, select: { userId: true } }),
   ]);
   const existingMemberIds = new Set(memberships.map((m) => m.userId));
