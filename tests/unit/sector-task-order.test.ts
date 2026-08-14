@@ -176,6 +176,7 @@ vi.mock("@/server/user-context", () => ({
     adminGroupIds: new Set(),
     grantedSectorIds: new Set(),
     readerGroupIds: new Set(),
+    clientWorkIds: new Set(),
   })),
 }));
 

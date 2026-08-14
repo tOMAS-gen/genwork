@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { badRequest, notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getStorageProvider } from "@/lib/storage";
 import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
@@ -8,7 +8,7 @@ import { Readable } from "node:stream";
 
 /** Descarga un archivo puntual de la carpeta del trabajo (FR-002, FR-005, FR-007). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   const { work } = await assertWorkAccess(session.user.id, id, "read");
 

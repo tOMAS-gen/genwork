@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { ApiError, notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
@@ -26,7 +26,7 @@ async function getWorkWithAccess(userId: string, id: string) {
 }
 
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   const { work, ctx } = await getWorkWithAccess(session.user.id, id);
 
@@ -92,7 +92,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
  * implementa `delete`, responde 501 `STORAGE_OP_NOT_SUPPORTED` (FR-008).
  */
 export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const { work } = await assertWorkAccess(session.user.id, id, "operate");

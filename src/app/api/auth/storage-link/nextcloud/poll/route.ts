@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { ApiError, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { encryptSecret } from "@/lib/crypto";
 
 /**
@@ -24,7 +24,7 @@ const bodySchema = z.object({ pollToken: z.string().min(1) });
 const expired = () => new ApiError(410, "EXPIRED", "El flujo de vinculación expiró, reintentá");
 
 export const POST = withApi(async (req) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { pollToken } = bodySchema.parse(await req.json());
 
   const flow = await prisma.nextcloudLoginFlow.findUnique({ where: { token: pollToken } });

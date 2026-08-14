@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { badRequest, notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { assertWorkAccess } from "@/lib/storage/access-check";
 import { normalizeEmail } from "@/lib/domain/access";
 
@@ -13,7 +13,7 @@ import { normalizeEmail } from "@/lib/domain/access";
  * archivos del trabajo (FR-005) — no es una búsqueda de usuarios abierta.
  */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   await assertWorkAccess(session.user.id, id, "operate");

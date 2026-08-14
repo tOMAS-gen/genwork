@@ -65,30 +65,45 @@ async function captureUnhandledError(err: unknown, req: Request, ctx: unknown): 
   }
 }
 
+/**
+ * Traduce un error conocido al contrato `{error:{code,message}}`; devuelve null si
+ * no lo reconoce (el llamador decide qué hacer con lo inesperado).
+ *
+ * Extraída de withApi en la feature 059 para los handlers que no pueden envolverse
+ * porque devuelven un stream en vez de JSON (los SSE): sin esto, un rechazo del
+ * guard salía como 500 en vez de 403.
+ */
+export function toApiErrorResponse(err: unknown): NextResponse | null {
+  if (err instanceof ApiError) {
+    return NextResponse.json(
+      { error: { code: err.code, message: err.message, ...err.extra } },
+      { status: err.status },
+    );
+  }
+  if (err instanceof ZodError) {
+    return NextResponse.json(
+      { error: { code: "INVALID_INPUT", message: err.issues[0]?.message ?? "Datos inválidos" } },
+      { status: 400 },
+    );
+  }
+  if ((err as { status?: number }).status === 401) {
+    return NextResponse.json(
+      { error: { code: "UNAUTHORIZED", message: "Iniciá sesión para continuar" } },
+      { status: 401 },
+    );
+  }
+  return null;
+}
+
 /** Envuelve un route handler con manejo uniforme de errores. */
 export function withApi<Ctx>(handler: Handler<Ctx>): Handler<Ctx> {
   return async (req, ctx) => {
     try {
       return await handler(req, ctx);
     } catch (err) {
-      if (err instanceof ApiError) {
-        return NextResponse.json(
-          { error: { code: err.code, message: err.message, ...err.extra } },
-          { status: err.status },
-        );
-      }
-      if (err instanceof ZodError) {
-        return NextResponse.json(
-          { error: { code: "INVALID_INPUT", message: err.issues[0]?.message ?? "Datos inválidos" } },
-          { status: 400 },
-        );
-      }
-      if ((err as { status?: number }).status === 401) {
-        return NextResponse.json(
-          { error: { code: "UNAUTHORIZED", message: "Iniciá sesión para continuar" } },
-          { status: 401 },
-        );
-      }
+      const known = toApiErrorResponse(err);
+      if (known) return known;
+
       console.error("API error:", err);
       await captureUnhandledError(err, req, ctx);
       return NextResponse.json(

@@ -13,6 +13,7 @@ import { RenameDialog } from "@/components/ui/RenameDialog";
 import { Inbox, Pencil, Trash2, Users } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { LabelAdmin } from "@/components/works/LabelAdmin";
+import { GroupClientsPanel } from "@/components/groups/GroupClientsPanel";
 import { ColorField } from "@/components/ui/ColorField";
 import { MemberSearchField, type MemberCandidate } from "@/components/groups/MemberSearchField";
 
@@ -260,6 +261,17 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           ))}
         </div>
       </div>
+
+      {/* Clientes externos del grupo (feature 059): agregar por correo y marcar qué
+          proyectos ve. Solo administradores; el servidor igualmente aplica el 403. */}
+      {isGroupAdmin && (
+        <div style={{ marginTop: "var(--space-5)" }}>
+          <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
+            Clientes del grupo
+          </h2>
+          <GroupClientsPanel groupId={id} />
+        </div>
+      )}
 
       {/* Etiquetas del grupo (solo administradores; el servidor igualmente aplica el 403) */}
       {isGroupAdmin && (

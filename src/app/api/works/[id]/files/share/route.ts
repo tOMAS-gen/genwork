@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { ShareMode } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 import { ApiError, badRequest, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
 import { getStorageProvider } from "@/lib/storage";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
@@ -18,7 +18,7 @@ interface ShareBody {
 }
 
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const { work } = await assertWorkAccess(session.user.id, id, "read");
@@ -83,7 +83,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
  * Contrato: specs/051-gestion-archivos-nube/contracts/files-crud-and-identity.md
  */
 export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const { work } = await assertWorkAccess(session.user.id, id, "operate");

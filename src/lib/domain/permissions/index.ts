@@ -3,8 +3,19 @@
  * Reglas 1–8 de specs/001-gestion-trabajos-sectores/data-model.md.
  */
 
-export type GlobalRole = "SUPERADMIN" | "MEMBER" | "READER";
+export type GlobalRole = "SUPERADMIN" | "MEMBER" | "READER" | "CLIENT";
 export type Access = "none" | "read" | "operate";
+
+/**
+ * Roles habilitados a mutar (feature 059). Allowlist positiva a propósito: un rol
+ * nuevo NO hereda permiso de escritura por omisión, hay que agregarlo acá a mano.
+ */
+const WRITER_ROLES: ReadonlySet<GlobalRole> = new Set<GlobalRole>(["SUPERADMIN", "MEMBER"]);
+
+/** ¿Este rol puede ejecutar mutaciones? (FR-003) */
+export function isWriterRole(role: GlobalRole): boolean {
+  return WRITER_ROLES.has(role);
+}
 
 /** Contexto del usuario ya resuelto desde la DB (una sola consulta al armarlo). */
 export interface UserContext {
@@ -18,6 +29,8 @@ export interface UserContext {
   grantedSectorIds: ReadonlySet<string>;
   /** Grupos habilitados a un rol Lector (ReaderGrant). */
   readerGroupIds: ReadonlySet<string>;
+  /** Proyectos otorgados a un cliente externo (ClientWorkGrant, feature 059). */
+  clientWorkIds: ReadonlySet<string>;
 }
 
 /**
@@ -33,6 +46,11 @@ export interface Scope {
 
 /** Un sector es un recurso con ámbito propio + su id (para el SectorGrant puntual). */
 export interface SectorRef extends Scope {
+  id: string;
+}
+
+/** Un proyecto: su ámbito + su id (para el ClientWorkGrant puntual, feature 059). */
+export interface WorkRef extends Scope {
   id: string;
 }
 
@@ -52,6 +70,14 @@ export interface TaskRef {
 
 /** Regla 1–4: acceso a un recurso por su ámbito (sin grants por sector). */
 export function access(user: UserContext, scope: Scope): Access {
+  // Feature 059 (FR-002): un CLIENT no obtiene acceso por ÁMBITO en ningún caso.
+  // Su única vía de lectura es el otorgamiento explícito por proyecto (accessWork).
+  // El corte va acá, en la raíz, por dos razones: deja denegadas sin tocarlas a las
+  // ~40 rutas que ya llaman access(), y neutraliza por composición accessSector,
+  // canToggle, canAddress y taskAccess. Incluye el ámbito Global (ambos null), que
+  // más abajo devuelve "operate" a todo rol que no sea READER.
+  if (user.globalRole === "CLIENT") return "none";
+
   if (user.globalRole === "SUPERADMIN") return "operate";
 
   // Ámbito personal (regla 3)
@@ -79,6 +105,42 @@ export function access(user: UserContext, scope: Scope): Access {
 }
 
 /**
+ * Acceso a un PROYECTO (feature 059). Para los roles internos delega en access()
+ * por ámbito; para un CLIENT devuelve "read" solo si existe el ClientWorkGrant
+ * sobre ESE proyecto (FR-005). Nunca devuelve "operate" para un CLIENT, bajo
+ * ninguna combinación de ámbito.
+ */
+export function accessWork(user: UserContext, work: WorkRef): Access {
+  if (user.globalRole === "CLIENT") {
+    return user.clientWorkIds.has(work.id) ? "read" : "none";
+  }
+  return access(user, work);
+}
+
+/** Gate del portal (FR-022): ¿este cliente tiene otorgado este proyecto? */
+export function canClientRead(user: UserContext, workId: string): boolean {
+  return user.globalRole === "CLIENT" && user.clientWorkIds.has(workId);
+}
+
+/**
+ * Quién decide qué clientes externos ven un proyecto (feature 059, FR-009).
+ *
+ * Mismo criterio que la administración de etiquetas (requireLabelAdmin): el
+ * super-admin, el dueño del ámbito personal, o un ADMIN del grupo. **Ser miembro
+ * del grupo no alcanza**: dar acceso a alguien de afuera es una decisión de
+ * administración del ámbito, no una operación cotidiana sobre el proyecto.
+ *
+ * Ámbito Global: exclusivo del super-admin, igual que canCreateSector.
+ */
+export function canManageClientAccess(user: UserContext, scope: Scope): boolean {
+  if (!isWriterRole(user.globalRole)) return false;
+  if (user.globalRole === "SUPERADMIN") return true;
+  if (scope.ownerId !== null) return scope.ownerId === user.id;
+  if (scope.groupId !== null) return user.adminGroupIds.has(scope.groupId);
+  return false;
+}
+
+/**
  * Acceso a un sector (feature 046): SUPERADMIN siempre opera; si no, el acceso
  * automático por ámbito (Grupo/Personal/Global) vía access(); si eso no basta, el
  * SectorGrant individual (FR-022) es la excepción puntual que otorga operate fuera
@@ -88,7 +150,10 @@ export function accessSector(user: UserContext, sector: SectorRef): Access {
   if (user.globalRole === "SUPERADMIN") return "operate";
   const base = access(user, sector);
   if (base === "operate") return base;
-  if (user.globalRole !== "READER" && user.grantedSectorIds.has(sector.id)) return "operate";
+  // Feature 059: allowlist de roles con escritura. Sin cambio semántico para los
+  // roles actuales (SUPERADMIN retornó arriba y READER queda igual de excluido);
+  // deniega a un CLIENT aunque alguien le creara un SectorGrant por error.
+  if (isWriterRole(user.globalRole) && user.grantedSectorIds.has(sector.id)) return "operate";
   return base;
 }
 
@@ -97,7 +162,7 @@ export function accessSector(user: UserContext, sector: SectorRef): Access {
  * hogar, algún sector EXEC o algún sector REF.
  */
 export function canToggle(user: UserContext, task: TaskRef): boolean {
-  if (user.globalRole === "READER") return false;
+  if (!isWriterRole(user.globalRole)) return false; // READER y CLIENT (feature 059)
   if (user.globalRole === "SUPERADMIN") return true;
 
   if (task.workScope && access(user, task.workScope) === "operate") return true;
@@ -112,7 +177,7 @@ export function canToggle(user: UserContext, task: TaskRef): boolean {
  * Opera sobre el ámbito del work, no sobre sectores; no otorga read/operate sobre él.
  */
 export function canAddress(user: UserContext, workScope: Scope): boolean {
-  if (user.globalRole === "READER") return false;
+  if (!isWriterRole(user.globalRole)) return false; // READER y CLIENT (feature 059)
   if (user.globalRole === "SUPERADMIN") return true;
 
   if (workScope.ownerId !== null) return workScope.ownerId === user.id;
@@ -125,6 +190,11 @@ export function canAddress(user: UserContext, workScope: Scope): boolean {
  * REF a sector → read para quien opera ese sector; REF a usuario → read para él.
  */
 export function taskAccess(user: UserContext, task: TaskRef): Access {
+  // Feature 059 (FR-006): un cliente no gana lectura de una tarea por estar
+  // referenciado con @. No debería poder ser referenciado (se lo excluye del
+  // resolver de menciones), pero la regla no depende de esa exclusión.
+  if (user.globalRole === "CLIENT") return "none";
+
   if (canToggle(user, task)) return "operate";
 
   const readable =
@@ -139,6 +209,7 @@ export function taskAccess(user: UserContext, task: TaskRef): Access {
 
 /** Regla 6 (FR-021): administrar grupo; quitar al owner está prohibido para todos. */
 export function canManageGroup(user: UserContext, groupId: string): boolean {
+  if (!isWriterRole(user.globalRole)) return false; // feature 059
   if (user.globalRole === "SUPERADMIN") return true;
   return user.adminGroupIds.has(groupId);
 }
@@ -153,6 +224,10 @@ export function canManageGroup(user: UserContext, groupId: string): boolean {
  * sigue siendo exclusiva de SUPERADMIN y no pasa por esta función.
  */
 export function canCreateSector(user: UserContext, scope: Scope): boolean {
+  // Feature 059: sin este corte, la rama de ámbito personal de abajo devuelve true
+  // para cualquier usuario con id propio —incluido un CLIENT y un READER—, y el
+  // gate HTTP no alcanzaba a frenarlo.
+  if (!isWriterRole(user.globalRole)) return false;
   if (user.globalRole === "SUPERADMIN") return true;
   if (scope.ownerId !== null) return scope.ownerId === user.id;
   if (scope.groupId !== null) return canManageGroup(user, scope.groupId);

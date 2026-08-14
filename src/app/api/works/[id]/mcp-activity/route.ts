@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 
 /** Actividad reciente de un proyecto originada vía MCP (FR-010). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
 
   const work = await prisma.work.findUnique({

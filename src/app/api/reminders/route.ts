@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { requireWriter } from "@/server/guards";
 import { createReminder, getVisibleReminders, reminderInputSchema, toRecurrenceRule } from "@/server/reminders";
 import { occurrencesBetween, toCalDate } from "@/lib/domain/reminders/recurrence";
@@ -21,7 +21,7 @@ export const POST = withApi(async (req) => {
  * para pintar el calendario (FR-013).
  */
 export const GET = withApi(async (req) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const url = new URL(req.url);
   const fromParam = url.searchParams.get("from");
   const toParam = url.searchParams.get("to");

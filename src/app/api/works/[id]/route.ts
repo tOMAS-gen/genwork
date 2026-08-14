@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { conflict, forbidden, notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
-import { requireWriter } from "@/server/guards";
-import { getUserContext } from "@/server/user-context";
-import { access } from "@/lib/domain/permissions";
+import { conflict, withApi } from "@/server/api";
+import { requireInternal, requireWriter } from "@/server/guards";
+import { getWorkWithAccess } from "@/server/works";
+import { canManageClientAccess } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { enqueue } from "@/lib/storage/queue";
 import { computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
@@ -14,32 +13,11 @@ import { labelScopeOf } from "@/lib/domain/labels/availability";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
 import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 
-async function getWorkWithAccess(userId: string, id: string, need: "read" | "operate") {
-  const ctx = await getUserContext(userId);
-  const work = await prisma.work.findUnique({
-    where: { id },
-    include: {
-      group: { select: { id: true, name: true, publicRead: true } },
-      stage: { select: { id: true, name: true, color: true } },
-    },
-  });
-  if (!work) throw notFound();
-  const level = access(ctx, {
-    groupId: work.groupId,
-    ownerId: work.ownerId,
-    groupPublicRead: work.group?.publicRead ?? false,
-  });
-  // Sin acceso: 404, no filtra existencia (contrato)
-  if (level === "none") throw notFound();
-  if (need === "operate" && level !== "operate") throw forbidden();
-  return { work, ctx, level };
-}
-
 /** Página completa del trabajo: doc + tareas + adjuntos (Principio III). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
-  const { work, level } = await getWorkWithAccess(session.user.id, id, "read");
+  const { work, ctx, level } = await getWorkWithAccess(session.user.id, id, "read");
 
   const full = await prisma.work.findUnique({
     where: { id: work.id },
@@ -69,6 +47,10 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   return NextResponse.json({
     ...rest,
     access: level,
+    // Feature 059: quién puede administrar el acceso de clientes externos a este
+    // proyecto. Es más estricto que `access`: operar el proyecto no alcanza, hace
+    // falta administrar su ámbito (ADMIN del grupo, dueño personal o super-admin).
+    canManageClients: canManageClientAccess(ctx, { groupId: work.groupId, ownerId: work.ownerId }),
     // Código de referencia legible de la carpeta del proyecto (feature 035)
     code: buildProjectCode(full.group?.name ?? null, full.folderSeq, full.name),
     labels: labels.map((l) => ({

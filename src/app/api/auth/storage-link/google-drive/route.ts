@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 
 /** DELETE /api/auth/storage-link/google-drive — desvincula la identidad Google Drive activa del usuario. */
 export const DELETE = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
 
   await prisma.storageIdentity.updateMany({
     where: {

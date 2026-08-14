@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
 
 /** Dashboard de estado por sector (FR-026): sectores visibles según permisos. */
 export const GET = withApi(async () => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const ctx = await getUserContext(session.user.id);
 
   const sectors = await prisma.sector.findMany({

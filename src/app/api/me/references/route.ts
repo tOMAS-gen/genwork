@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
 import { withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canToggle, type TaskRef } from "@/lib/domain/permissions";
 import { execSectorIdsOf, loadApplicableStatusSet, statusOptionDto } from "@/server/tasks";
@@ -97,7 +97,7 @@ type TaskWithPermissionData = {
  * opera el sector REF (feature 057).
  */
 export const GET = withApi(async (req) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const url = new URL(req.url);
   const statusId = url.searchParams.get("statusId");
   const type = url.searchParams.get("type");

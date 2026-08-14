@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
 import { notFound, withApi } from "@/server/api";
-import { requireSession } from "@/server/auth";
+import { requireInternal } from "@/server/guards";
 
 const select = { id: true, title: true, content: true, createdAt: true, updatedAt: true } as const;
 
@@ -15,7 +15,7 @@ async function getOwnNote(userId: string, id: string) {
 
 /** Nota individual (US1): solo accesible por su dueño. */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   const note = await getOwnNote(session.user.id, id);
   return NextResponse.json(note);
@@ -33,7 +33,7 @@ const patchSchema = z
 
 /** Autoguardado (US1): actualiza solo los campos enviados. */
 export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   await getOwnNote(session.user.id, id);
 
@@ -52,7 +52,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
 
 /** Elimina la nota del usuario autenticado. */
 export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
-  const session = await requireSession();
+  const session = await requireInternal();
   const { id } = await params;
   await getOwnNote(session.user.id, id);
 

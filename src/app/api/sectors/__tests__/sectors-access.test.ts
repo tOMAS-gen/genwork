@@ -62,6 +62,9 @@ vi.mock("@/lib/db/client", () => ({
     readerGrant: {
       findMany: vi.fn(async () => []),
     },
+    clientWorkGrant: {
+      findMany: vi.fn(async () => []),
+    },
     user: {
       findUniqueOrThrow: vi.fn(async ({ where: { id } }: { where: { id: string } }) => ({
         id,

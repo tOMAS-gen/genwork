@@ -31,8 +31,9 @@ import { StatusBar } from "@/components/works/StatusBar";
 import { InlineDescription } from "@/components/works/InlineDescription";
 import { FilesBrowser } from "@/components/files/FilesBrowser";
 import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
+import { ClientAccessPanel } from "@/components/works/ClientAccessPanel";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
-import { CheckSquare, Clock, FileText, Folder, List, LayoutGrid } from "@/components/ui/icons";
+import { CheckSquare, Clock, Eye, FileText, Folder, List, LayoutGrid } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -59,6 +60,8 @@ interface WorkFull {
   stage: { id: string; name: string; color: string | null } | null;
   isTemplate: boolean;
   access: "read" | "operate";
+  /** Feature 059: si este usuario administra el ámbito y puede dar acceso a clientes. */
+  canManageClients: boolean;
 }
 
 /**
@@ -113,7 +116,9 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   const [work, setWork] = useState<WorkFull | null>(null);
   usePageTitle(work?.name ?? null);
   const [docLoaded, setDocLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files" | "activity">("tasks");
+  const [activeTab, setActiveTab] = useState<
+    "tasks" | "docs" | "files" | "activity" | "clients"
+  >("tasks");
   const [taskView, setTaskView] = useState<"list" | "board">("list");
   const [codeCopied, setCodeCopied] = useState(false);
   const { toast } = useToast();
@@ -359,9 +364,12 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           { key: "docs", label: "Documentos", icon: FileText },
           { key: "files", label: "Archivos", icon: Folder },
           { key: "activity", label: "Actividad", icon: Clock },
+          // Feature 059: dar acceso a alguien de afuera es administración del ámbito
+          // (ADMIN del grupo, dueño personal o super-admin), no operación cotidiana.
+          ...(work.canManageClients ? [{ key: "clients", label: "Acceso cliente", icon: Eye }] : []),
         ]}
         activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files" | "activity")}
+        onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files" | "activity" | "clients")}
       />
 
       {activeTab === "tasks" && (
@@ -441,6 +449,10 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
       )}
 
       {activeTab === "activity" && <WorkActivityFeed workId={id} />}
+
+      {activeTab === "clients" && work.canManageClients && (
+        <ClientAccessPanel workId={id} groupId={work.groupId} />
+      )}
     </div>
   );
 }
