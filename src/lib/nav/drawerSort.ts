@@ -20,6 +20,13 @@ const nameCompare = new Intl.Collator("es", {
 }).compare;
 
 /**
+ * Comparador alfabético español (base sensitivity: los acentos se pliegan con
+ * su letra sin acentuar). Se exporta para que otras vistas que ordenan por
+ * nombre reusen este collator en vez de instanciar uno propio.
+ */
+export const compareNameEs = nameCompare;
+
+/**
  * Returns a NEW array (does not mutate input) with items ordered by:
  *   1. pendingCount descending
  *   2. name ascending (Spanish, base sensitivity) on ties

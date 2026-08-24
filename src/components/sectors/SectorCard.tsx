@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/Badge";
 
 export interface SectorCardData {
   id: string;
@@ -16,12 +17,6 @@ export interface SectorCardData {
 export function SectorCard({ sector }: { sector: SectorCardData }) {
   const { metrics } = sector;
   const pct = metrics.total > 0 ? Math.round((metrics.done / metrics.total) * 100) : 0;
-  const scopeLabel =
-    sector.scope.type === "GROUP"
-      ? sector.scope.groupName ?? ""
-      : sector.scope.type === "PERSONAL"
-        ? "Personal"
-        : "Global";
 
   return (
     <Link
@@ -41,12 +36,13 @@ export function SectorCard({ sector }: { sector: SectorCardData }) {
         >
           {sector.name.toUpperCase()}
         </span>
-        <span
-          className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-[var(--hover-soft)] px-2 py-0.5 text-xs font-semibold tracking-[0.03em] text-text"
-          title={`Ámbito: ${scopeLabel}`}
-        >
-          {scopeLabel}
-        </span>
+        {/* feature 060: el ámbito ya lo dice el encabezado de la sección, así
+            que este lugar pasa a mostrar lo que sirve para decidir: cuánto falta. */}
+        <Badge
+          count={metrics.pending}
+          ariaLabelSingular={`tarea pendiente en ${sector.name}`}
+          ariaLabelPlural={`tareas pendientes en ${sector.name}`}
+        />
       </div>
 
       {metrics.total > 0 ? (
