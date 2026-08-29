@@ -7,14 +7,15 @@ import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { X, Calendar, GripVertical } from "@/components/ui/icons";
-import { Menu } from "@/components/ui/Menu";
+import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
 import { effectiveDueDate } from "@/lib/domain/tasks/parentDueDate";
 import { TaskInlineEdit } from "./TaskInlineEdit";
-import { SubtaskList, subtaskProgressLabel, canFinishParent } from "./SubtaskList";
+import { SubtaskList, subtaskProgressLabel, canFinishParent, reparentMenuLabel } from "./SubtaskList";
+import { TaskMoveDialog } from "./TaskMoveDialog";
 
 /** 062-subtareas: fecha heredada de una hija — corto, sin año (mismo criterio que StatusBar/DueDateBadge). */
 const inheritedDueDateFormatter = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
@@ -218,6 +219,7 @@ export function TaskItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
+  const [moveOpen, setMoveOpen] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const nameSaveRef = useRef<(() => void) | null>(null);
 
@@ -266,6 +268,21 @@ export function TaskItem({
     if (!ok) return;
     await api(`/api/tasks/${task.id}`, { method: "DELETE" });
     onChanged();
+  };
+
+  /**
+   * "Sacar de …" (062-subtareas, Tarea 13): promueve la subtarea a raíz en el
+   * acto, sin diálogo — es el caso simétrico de "Mover bajo otra tarea…", que
+   * sí necesita elegir destino. Mismo canal de error que el resto de las
+   * acciones de esta fila (showToast); el backend ya valida todo lo demás.
+   */
+  const takeOutOfParent = async () => {
+    try {
+      await api(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ parentId: null }) });
+      onChanged();
+    } catch (err) {
+      showToast({ message: (err as Error).message });
+    }
   };
 
   const handleDescriptionChange = async (value: string) => {
@@ -359,6 +376,20 @@ export function TaskItem({
     : task.status.type === "FINAL"
       ? "Marcar como no terminada"
       : "Marcar como terminada";
+  // 062-subtareas (Tarea 13): reorganizar la jerarquía desde el menú — colgar
+  // una tarea raíz de otra ("Mover bajo otra tarea…") o sacar una subtarea de
+  // la suya ("Sacar de …"). Mismo permiso base que el resto de las acciones de
+  // esta fila (canToggle) — es una operación de estructura, no de texto, así
+  // que no depende de canEditText (eso es FR-402/403, sobre el rawText).
+  const reparentTask = { parentId: task.parentId ?? null, parentText: task.parentText ?? null };
+  const reparentItems: MenuItem[] = canToggle
+    ? [
+        {
+          label: reparentMenuLabel(reparentTask),
+          onSelect: () => (reparentTask.parentId ? void takeOutOfParent() : setMoveOpen(true)),
+        },
+      ]
+    : [];
   // Vencimiento heredado (Task 3): si la tarea no tiene fecha propia, hereda la
   // más próxima de una hija ABIERTA. El caso "fecha propia" ya se ve inline en
   // el rawText vía date-chip (renderInlineSegments) — acá solo hace falta
@@ -372,6 +403,7 @@ export function TaskItem({
   });
 
   return (
+    <>
     <div
       className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
     >
@@ -499,21 +531,27 @@ export function TaskItem({
             </select>
           </span>
         )}
-        {canToggle && variant === "board" && task.statusOptions.length > 1 && (
+        {/* 062-subtareas (Tarea 13): el mismo menú de "cambiar estado" (variant
+            board) suma ahora "Mover bajo otra tarea…"/"Sacar de …" — reusa el
+            único ⋮ que ya tiene la tarjeta en vez de agregar un segundo botón. */}
+        {canToggle && variant === "board" && (task.statusOptions.length > 1 || reparentItems.length > 0) && (
           <Menu
-            label={`Cambiar estado de "${task.displayText}"`}
-            items={task.statusOptions
-              .filter((s) => s.id !== task.status.id)
-              .map((s) => ({
-                label: s.name,
-                icon: (
-                  <span className="entity-color-dot" style={{ background: s.color }} aria-hidden="true" />
-                ),
-                // 062-subtareas (Tarea 12): mismo gate que el check/select de variant "list" —
-                // no ofrecer el estado FINAL como alcanzable si quedan hijas abiertas.
-                disabled: s.type === "FINAL" && !finishable,
-                onSelect: () => void changeStatus(s.id),
-              }))}
+            label={`Acciones de "${task.displayText}"`}
+            items={[
+              ...task.statusOptions
+                .filter((s) => s.id !== task.status.id)
+                .map((s) => ({
+                  label: s.name,
+                  icon: (
+                    <span className="entity-color-dot" style={{ background: s.color }} aria-hidden="true" />
+                  ),
+                  // 062-subtareas (Tarea 12): mismo gate que el check/select de variant "list" —
+                  // no ofrecer el estado FINAL como alcanzable si quedan hijas abiertas.
+                  disabled: s.type === "FINAL" && !finishable,
+                  onSelect: () => void changeStatus(s.id),
+                })),
+              ...reparentItems,
+            ]}
           />
         )}
         {canToggle && (
@@ -591,5 +629,15 @@ export function TaskItem({
         </div>
       )}
     </div>
+    {/* 062-subtareas (Tarea 13): mismo patrón que RenameDialog en sectors/[id]/page.tsx
+        — se monta siempre, controlado por `open`; el fetch de candidatas queda
+        adentro del propio diálogo, gateado por ese mismo `open`. */}
+    <TaskMoveDialog
+      open={moveOpen}
+      onClose={() => setMoveOpen(false)}
+      task={task}
+      onMoved={onChanged}
+    />
+    </>
   );
 }
