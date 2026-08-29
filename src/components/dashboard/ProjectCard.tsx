@@ -20,7 +20,9 @@ export interface DashboardWork {
   sectorIds: string[];
   isFavorite: boolean;
   isTemplate?: boolean;
-  _count: { tasks: number };
+  // 062-subtareas: `_count.tasks` (relation count crudo, sin regla de
+  // contenedor) sacado — la API ya no lo manda (ver src/app/api/works/route.ts)
+  // y nada de este componente lo leía; `taskCounts.total` es la fuente única.
   taskCounts: { done: number; total: number };
   labels: { keyId: string; keyName: string; isPrimary: boolean; valueId: string; valueName: string; color: string }[];
   stage: { id: string; name: string; color: string | null } | null;
