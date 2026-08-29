@@ -27,7 +27,6 @@ export const GET = withApi(async (req) => {
     include: {
       group: { select: { id: true, name: true, publicRead: true } },
       stage: { select: { id: true, name: true, color: true } },
-      _count: { select: { tasks: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -47,8 +46,9 @@ export const GET = withApi(async (req) => {
   // total, ni a pending, ni a done —; sus hijas ya viajan como filas propias
   // en el mismo findMany (heredan el `workId` del padre), así que alcanza con
   // saltear al contenedor (ver src/lib/domain/tasks/unfinishedCount.ts).
-  // Reemplaza el viejo `_count.tasks` (relation count crudo) + `groupBy` de
-  // FINAL: ninguno de los dos sabía distinguir un contenedor de una hoja.
+  // Reemplaza el viejo `_count.tasks` (relation count crudo, sacado del
+  // `include` de arriba porque ya no lo usa nadie) + `groupBy` de FINAL:
+  // ninguno de los dos sabía distinguir un contenedor de una hoja.
   const taskRows = await prisma.task.findMany({
     where: { workId: { in: workIds } },
     select: { workId: true, status: { select: { type: true } }, _count: { select: { subtasks: true } } },
