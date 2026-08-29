@@ -15,6 +15,7 @@ import {
   type TaskScopeRef,
   type TaskStatusRef,
 } from "@/lib/domain/tasks/statusResolution";
+import { deriveParentStatusId } from "@/lib/domain/tasks/parentStatus";
 import {
   canAddress,
   canToggle,
@@ -645,4 +646,69 @@ export async function setTaskStatus(
     sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
   });
   return updated;
+}
+
+/**
+ * Espejo padre ↔ subtareas (ver docs/superpowers/specs/2026-08-28-subtareas-design.md).
+ *
+ * Se invoca después de CUALQUIER operación sobre una hija: alta, cambio de estado,
+ * borrado, mover o promover. Corre dentro de la transacción de esa operación cuando
+ * se le pasa `db`, así dos usuarios cerrando hijas a la vez no se pisan.
+ *
+ * A propósito NO valida permisos sobre el padre: quien puede completar la hija
+ * dispara el cierre del padre aunque no opere el padre (caso delegación). La
+ * transición queda registrada en TaskStatusChange con el usuario que la gatilló.
+ */
+export async function syncParentStatus(
+  parentId: string,
+  actorId: string,
+  db: DbClient = prisma,
+): Promise<void> {
+  const parent = await db.task.findUnique({
+    where: { id: parentId },
+    include: { status: true, links: true },
+  });
+  if (!parent) return;
+
+  const children = await db.task.findMany({
+    where: { parentId },
+    select: { status: { select: { type: true } } },
+  });
+
+  const applicableSet = await loadApplicableStatusSet(
+    parent.workId,
+    parent.sectorId,
+    execSectorIdsOf(parent.links),
+    db,
+  );
+  const targetStatusId = deriveParentStatusId(children, parent.status, applicableSet);
+  if (!targetStatusId || targetStatusId === parent.statusId) return;
+
+  const target = applicableSet.find((s) => s.id === targetStatusId);
+  if (!target) return;
+
+  // Capturado ANTES del update: el padre no queda aislado de la escritura que
+  // sigue (misma tx, y hasta el mismo objeto en memoria si `db` es un mock de
+  // pruebas), así que leer `parent.statusId` después ya daría el valor nuevo.
+  const previousStatusId = parent.statusId;
+
+  await db.task.update({
+    where: { id: parentId },
+    data: applyStatusChange(target, actorId, new Date()),
+  });
+  await db.taskStatusChange.create({
+    data: {
+      taskId: parentId,
+      fromStatusId: previousStatusId,
+      toStatusId: targetStatusId,
+      changedById: actorId,
+    },
+  });
+
+  emit({
+    type: "task-changed",
+    taskId: parentId,
+    workId: parent.workId,
+    sectorIds: parent.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+  });
 }
