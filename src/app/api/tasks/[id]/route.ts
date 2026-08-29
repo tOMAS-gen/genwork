@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { conflict, forbidden, withApi } from "@/server/api";
+import { badRequest, conflict, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canToggle } from "@/lib/domain/permissions";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { parseTags } from "@/lib/domain/tags/parser";
-import { getTaskOrThrow, saveTask, toTaskRef } from "@/server/tasks";
+import { getTaskOrThrow, saveTask, syncParentStatus, toTaskRef } from "@/server/tasks";
 import { emit } from "@/server/events";
 
 const patchSchema = z.union([
+  z.object({
+    parentId: z.string().uuid().nullable(),
+  }),
   z.object({
     rawText: z.string().trim().min(1),
     editContext: z.enum(["work", "sector"]),
@@ -36,6 +39,58 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   if (!canToggle(ctx, await toTaskRef(task))) throw forbidden();
 
   const body = patchSchema.parse(await req.json());
+
+  if ("parentId" in body) {
+    const previousParentId = task.parentId;
+    const nextParentId = body.parentId;
+
+    if (nextParentId) {
+      if (nextParentId === id) throw badRequest("Una tarea no puede colgar de sí misma");
+
+      const parent = await prisma.task.findUnique({ where: { id: nextParentId } });
+      if (!parent) throw notFound("Tarea padre no encontrada");
+
+      // Un solo nivel de anidado: el destino no puede ser a su vez una subtarea.
+      if (parent.parentId) throw badRequest("Una subtarea no puede tener subtareas");
+
+      // Misma pertenencia que el padre (proyecto o sector home).
+      if (parent.workId !== task.workId || parent.sectorId !== task.sectorId) {
+        throw badRequest("La subtarea tiene que pertenecer al mismo proyecto o sector que el padre");
+      }
+
+      // La tarea que se mueve no puede arrastrar hijas propias abiertas (evita 2 niveles).
+      const openChildren = await prisma.task.count({
+        where: { parentId: id, status: { type: { not: "FINAL" } } },
+      });
+      if (openChildren > 0) {
+        throw badRequest("Sacá primero las subtareas de esta tarea antes de moverla");
+      }
+    }
+
+    const updated = await prisma.task.update({
+      where: { id },
+      data: { parentId: nextParentId },
+      include: {
+        links: { include: { sector: true, user: { select: { id: true, name: true } } } },
+        work: { select: { id: true, name: true, status: true } },
+        homeSector: { select: { id: true, name: true } },
+      },
+    });
+
+    // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o con
+    // todas terminadas) y el padre nuevo (una hija recién llegada puede reabrirlo).
+    if (previousParentId) await syncParentStatus(previousParentId, ctx.id);
+    if (nextParentId) await syncParentStatus(nextParentId, ctx.id);
+
+    emit({
+      type: "task-changed",
+      taskId: id,
+      workId: task.workId,
+      sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+    });
+
+    return NextResponse.json(updated);
+  }
 
   if ("description" in body) {
     const updated = await prisma.task.update({
