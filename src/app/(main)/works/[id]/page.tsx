@@ -33,6 +33,7 @@ import { FilesBrowser } from "@/components/files/FilesBrowser";
 import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
 import { ClientAccessPanel } from "@/components/works/ClientAccessPanel";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
+import { taskListProgress } from "@/lib/domain/works/taskListProgress";
 import { CheckSquare, Clock, Eye, FileText, Folder, List, LayoutGrid } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -248,7 +249,9 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const editable = work.status === "ACTIVE";
-  const doneCount = work.tasks.filter((t) => t.status.type === "FINAL").length;
+  // 062-subtareas (hallazgo Importante 4 de revisión): `work.tasks` son solo
+  // raíces (works/[id]/route.ts las anida); ver taskListProgress.ts.
+  const { done: doneCount, total: totalCount } = taskListProgress(work.tasks);
 
   return (
     <div className="sheet">
@@ -295,7 +298,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
 
       <StatusBar
         done={doneCount}
-        total={work.tasks.length}
+        total={totalCount}
         dueDate={work.dueDate}
         status={work.status}
         onDueDateChange={editable ? handleDueDateChange : undefined}

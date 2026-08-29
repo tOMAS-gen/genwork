@@ -39,6 +39,16 @@ export interface TaskDto {
   description: string | null;
   /** Per-task completion eligibility (feature 057): true when the user operates a relevant REF sector. */
   canToggle?: boolean;
+  /**
+   * 062-subtareas: total/hechas de hijas (GLOBAL, no solo lo visible en esta
+   * vista). `subtaskCount > 0` marca a la tarea como contenedora — su propio
+   * `status` es un espejo del de sus hijas y no debe sumar a un contador de
+   * progreso por separado (ver src/lib/domain/tasks/unfinishedCount.ts). El
+   * render anidado de las hijas queda para las Tareas 12/13; acá solo viajan
+   * los conteos porque works/[id]/route.ts ya los expone.
+   */
+  subtaskCount?: number;
+  subtaskDone?: number;
 }
 
 type InlineMark =
