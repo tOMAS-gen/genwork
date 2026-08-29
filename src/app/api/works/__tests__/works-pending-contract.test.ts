@@ -56,6 +56,8 @@ interface FakeTask {
   workId: string | null;
   sectorId: string | null;
   status: { type: "FINAL" | "IN_PROGRESS" };
+  /** 062-subtareas: cantidad de hijas. Default 0 (hoja) si se omite. */
+  subtaskCount?: number;
 }
 
 const db = vi.hoisted(() => ({
@@ -131,6 +133,19 @@ vi.mock("@/lib/db/client", () => ({
           }));
         },
       ),
+      // 062-subtareas: reemplaza el viejo `_count.tasks` + groupBy(FINAL) del
+      // endpoint real — cada fila trae `_count.subtasks` para que la ruta
+      // pueda saltear a los contenedores (ver unfinishedCount.ts).
+      findMany: vi.fn(async ({ where }: { where: { workId: { in: string[] } } }) => {
+        const workIds = where.workId.in;
+        return db.tasks
+          .filter((t) => t.workId != null && workIds.includes(t.workId))
+          .map((t) => ({
+            workId: t.workId,
+            status: t.status,
+            _count: { subtasks: t.subtaskCount ?? 0 },
+          }));
+      }),
     },
     userFavorite: {
       findMany: vi.fn(async () => []),
@@ -314,5 +329,33 @@ describe("GET /api/works — contract `pendingCount` (feature 054, CT-W-*)", () 
     expect(items.map((i: { id: string }) => i.id)).toEqual(["w-active"]);
     // and the archived work's tasks did not leak into any other item's count
     expect(items[0].pendingCount).toBe(0);
+  });
+
+  it("062-subtareas: un padre con subtareas no suma al pendingCount del proyecto (encontrado durante Tarea 11, no en el contrato 054 original)", async () => {
+    // 1 tarea contenedora abierta + 1 hija abierta + 1 tarea suelta abierta = 2 pendientes
+    db.works = [
+      {
+        id: "w1",
+        name: "Proyecto con subtareas",
+        status: "ACTIVE",
+        isTemplate: false,
+        groupId: null,
+        ownerId: null,
+        createdAt: new Date(),
+        group: null,
+        stage: null,
+        _count: { tasks: 3 },
+      },
+    ];
+    db.tasks = [
+      { id: "padre", workId: "w1", sectorId: null, status: { type: "IN_PROGRESS" }, subtaskCount: 1 },
+      { id: "hija", workId: "w1", sectorId: null, status: { type: "IN_PROGRESS" }, subtaskCount: 0 },
+      { id: "suelta", workId: "w1", sectorId: null, status: { type: "IN_PROGRESS" }, subtaskCount: 0 },
+    ];
+
+    const res = await GET(plainRequest(), undefined as never);
+    const items = await res.json();
+    expect(items[0].taskCounts).toEqual({ done: 0, total: 2 });
+    expect(items[0].pendingCount).toBe(2);
   });
 });

@@ -49,6 +49,8 @@ interface FakeTask {
   sectorId: string | null;
   workId: string | null;
   status: { type: "FINAL" | "IN_PROGRESS" };
+  /** 062-subtareas: cantidad de hijas. Default 0 (hoja) si se omite. */
+  subtaskCount?: number;
 }
 
 interface FakeTaskLink {
@@ -58,6 +60,8 @@ interface FakeTaskLink {
   task: {
     status: { type: "FINAL" | "IN_PROGRESS" };
     work: { isTemplate: boolean };
+    /** 062-subtareas: cantidad de hijas. Default 0 (hoja) si se omite. */
+    subtaskCount?: number;
   };
 }
 
@@ -98,12 +102,14 @@ vi.mock("@/lib/db/client", () => ({
           where: { sectorId?: { in: string[] }; workId?: null };
         }) => {
           const sectorIds = where.sectorId?.in ?? [];
-          return db.tasks.filter(
-            (t) =>
-              t.sectorId != null &&
-              sectorIds.includes(t.sectorId) &&
-              t.workId == null,
-          );
+          return db.tasks
+            .filter(
+              (t) =>
+                t.sectorId != null &&
+                sectorIds.includes(t.sectorId) &&
+                t.workId == null,
+            )
+            .map((t) => ({ ...t, _count: { subtasks: t.subtaskCount ?? 0 } }));
         },
       ),
     },
@@ -119,12 +125,17 @@ vi.mock("@/lib/db/client", () => ({
           };
         }) => {
           const sectorIds = where.sectorId.in;
-          return db.taskLinks.filter(
-            (l) =>
-              l.type === "EXEC" &&
-              sectorIds.includes(l.sectorId) &&
-              l.task.work.isTemplate === false,
-          );
+          return db.taskLinks
+            .filter(
+              (l) =>
+                l.type === "EXEC" &&
+                sectorIds.includes(l.sectorId) &&
+                l.task.work.isTemplate === false,
+            )
+            .map((l) => ({
+              ...l,
+              task: { ...l.task, _count: { subtasks: l.task.subtaskCount ?? 0 } },
+            }));
         },
       ),
     },
@@ -280,5 +291,22 @@ describe("GET /api/groups — contract `pendingCount` (feature 054, CT-G-*)", ()
     const res = await GET(plainRequest(), undefined as never);
     const items = await res.json();
     expect(items[0].pendingCount).toBe(1);
+  });
+
+  it("062-subtareas: un padre con subtareas no suma al pendingCount del grupo", async () => {
+    // 1 tarea contenedora abierta + 1 hija abierta + 1 tarea suelta abierta = 2 pendientes
+    db.groups = [
+      { id: "g1", name: "ACME", color: null, ownerId: null, memberships: [], _count: { works: 0 } },
+    ];
+    db.sectors = [{ id: "s1", groupId: "g1", ownerId: null }];
+    db.tasks = [
+      { id: "padre", sectorId: "s1", workId: null, status: { type: "IN_PROGRESS" }, subtaskCount: 1 },
+      { id: "hija", sectorId: "s1", workId: null, status: { type: "IN_PROGRESS" }, subtaskCount: 0 },
+      { id: "suelta", sectorId: "s1", workId: null, status: { type: "IN_PROGRESS" }, subtaskCount: 0 },
+    ];
+
+    const res = await GET(plainRequest(), undefined as never);
+    const items = await res.json();
+    expect(items[0].pendingCount).toBe(2);
   });
 });

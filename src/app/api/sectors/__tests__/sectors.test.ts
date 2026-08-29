@@ -101,6 +101,9 @@ vi.mock("@/lib/db/client", () => ({
 
 import { GET, POST } from "@/app/api/sectors/route";
 import { PATCH, DELETE } from "@/app/api/sectors/[id]/route";
+import { prisma } from "@/lib/db/client";
+
+const taskFindMany = prisma.task.findMany as unknown as ReturnType<typeof vi.fn>;
 
 function jsonRequest(method: string, body: unknown, url = "http://localhost/api/sectors") {
   return new Request(url, {
@@ -112,6 +115,22 @@ function jsonRequest(method: string, body: unknown, url = "http://localhost/api/
 
 function plainRequest(method: string, url: string) {
   return new Request(url, { method });
+}
+
+/**
+ * Carga el mock de `prisma.task.findMany` (tareas sueltas del sector) con filas
+ * que incluyen `_count.subtasks`, tal como lo consume el endpoint real (062-subtareas).
+ */
+function tasksInSector(
+  rows: { id: string; status: { type: "IN_PROGRESS" | "FINAL" }; subtaskCount: number }[],
+) {
+  taskFindMany.mockResolvedValue(
+    rows.map((r) => ({
+      sectorId: "sector-1",
+      status: r.status,
+      _count: { subtasks: r.subtaskCount },
+    })),
+  );
 }
 
 describe("POST /api/sectors — gate canCreateSector (T007 + ajuste post-044)", () => {
@@ -268,5 +287,49 @@ describe("POST/GET /api/sectors — sectores Globales (T016)", () => {
         }),
       ]),
     );
+  });
+});
+
+describe("GET /api/sectors — contenedores no duplican el contador (062-subtareas)", () => {
+  beforeEach(() => {
+    authState.userId = "user-1";
+    authState.role = "MEMBER";
+    authState.memberGroupIds = [];
+    authState.adminGroupIds = [];
+    authState.grantedSectorIds = [];
+    db.sectors = [
+      { id: "sector-1", name: "Ventas", color: null, groupId: null, ownerId: "user-1", group: null },
+    ];
+  });
+
+  it("un padre con subtareas no suma al contador del sector", async () => {
+    // 1 tarea contenedora abierta + 1 hija abierta + 1 tarea suelta abierta = 2 pendientes
+    tasksInSector([
+      { id: "padre", status: { type: "IN_PROGRESS" }, subtaskCount: 1 },
+      { id: "hija", status: { type: "IN_PROGRESS" }, subtaskCount: 0 },
+      { id: "suelta", status: { type: "IN_PROGRESS" }, subtaskCount: 0 },
+    ]);
+
+    const res = await GET(plainRequest("GET", "http://localhost/api/sectors"), undefined as never);
+    const [sector] = await res.json();
+    expect(sector.metrics.pending).toBe(2);
+    expect(sector.metrics.total).toBe(2);
+    expect(sector.metrics.done).toBe(0);
+  });
+
+  it("un padre con todas las hijas hechas no suma como 'hecha' él mismo (solo sus hijas)", async () => {
+    // El padre mirror-ea a FINAL cuando todas sus hijas están FINAL (parentStatus.ts).
+    // Si el padre sumara además de sus hijas, "done" quedaría en 2 (padre + hija) en
+    // vez de 1 (solo la hija).
+    tasksInSector([
+      { id: "padre", status: { type: "FINAL" }, subtaskCount: 1 },
+      { id: "hija", status: { type: "FINAL" }, subtaskCount: 0 },
+    ]);
+
+    const res = await GET(plainRequest("GET", "http://localhost/api/sectors"), undefined as never);
+    const [sector] = await res.json();
+    expect(sector.metrics.total).toBe(1);
+    expect(sector.metrics.done).toBe(1);
+    expect(sector.metrics.pending).toBe(0);
   });
 });

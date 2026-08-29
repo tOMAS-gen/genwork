@@ -35,7 +35,14 @@ export const GET = withApi(async () => {
         },
         include: {
           task: {
-            include: { work: { select: { name: true } }, status: true },
+            include: {
+              work: { select: { name: true } },
+              status: true,
+              // 062-subtareas: el tablero lista cada subtarea como tarjeta
+              // propia (excepción de la anidación), así que necesita
+              // `parentText` para la migaja de "tarea de: ...".
+              parent: { select: { id: true, displayText: true } },
+            },
           },
         },
         orderBy: { task: { position: "asc" } },
@@ -75,6 +82,10 @@ export const GET = withApi(async () => {
         },
         workName: l.task.work?.name ?? null,
         workColor: l.task.workId ? colorByWorkId.get(l.task.workId) ?? null : null,
+        // 062-subtareas: cada subtarea es su propia tarjeta acá (no se anida
+        // bajo el padre como en los demás listados); `parentText` arma la migaja.
+        parentId: l.task.parentId,
+        parentText: l.task.parent?.displayText ?? null,
       }));
       return {
         sector: { id: sector.id, name: sector.name, color: sector.color },

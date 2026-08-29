@@ -36,6 +36,10 @@ const mocks = vi.hoisted(() => ({
   getUserContext: vi.fn(),
   workFindMany: vi.fn(),
   taskGroupBy: vi.fn(),
+  // 062-subtareas: works/route.ts reemplazó el groupBy(FINAL) por un findMany
+  // con `_count.subtasks` (regla de contenedor); ningún fixture de este
+  // archivo involucra tareas, así que resuelve [] por defecto.
+  taskFindMany: vi.fn(),
   favoriteFindMany: vi.fn(),
   workLabelFindMany: vi.fn(),
 }));
@@ -56,6 +60,7 @@ vi.mock("@/lib/db/client", () => ({
     },
     task: {
       groupBy: (...args: unknown[]) => mocks.taskGroupBy(...args),
+      findMany: (...args: unknown[]) => mocks.taskFindMany(...args),
     },
     userFavorite: {
       findMany: (...args: unknown[]) => mocks.favoriteFindMany(...args),
@@ -132,6 +137,7 @@ beforeEach(() => {
   });
   mocks.getUserContext.mockResolvedValue(makeCtx());
   mocks.taskGroupBy.mockResolvedValue([]);
+  mocks.taskFindMany.mockResolvedValue([]);
   mocks.favoriteFindMany.mockResolvedValue([]);
   mocks.workLabelFindMany.mockResolvedValue([]);
 });

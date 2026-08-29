@@ -7,7 +7,7 @@ import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector, canCreateSector, type Scope } from "@/lib/domain/permissions";
 import { assignSectorColor } from "@/lib/domain/sectors/colorAssign";
-import { isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
+import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 
 type SectorScope =
   | { type: "GROUP"; groupId: string; groupName?: string }
@@ -43,11 +43,20 @@ export const GET = withApi(async () => {
     // Filtramos workId: null igual para blindar contra datos legacy y evitar doble conteo con EXEC.
     prisma.task.findMany({
       where: { sectorId: { in: sectorIds }, workId: null },
-      select: { sectorId: true, status: { select: { type: true } } },
+      select: {
+        sectorId: true,
+        status: { select: { type: true } },
+        _count: { select: { subtasks: true } },
+      },
     }),
     prisma.taskLink.findMany({
       where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: { isTemplate: false } } },
-      select: { sectorId: true, task: { select: { status: { select: { type: true } } } } },
+      select: {
+        sectorId: true,
+        task: {
+          select: { status: { select: { type: true } }, _count: { select: { subtasks: true } } },
+        },
+      },
     }),
   ]);
 
@@ -63,19 +72,28 @@ export const GET = withApi(async () => {
 
   // feature 054: definición única de "no finalizada" vive en
   // src/lib/domain/tasks/unfinishedCount.ts para evitar drift entre endpoints.
+  // 062-subtareas: un padre con hijas es contenedor (su estado es un espejo del
+  // de sus hijas, ver parentStatus.ts) y no suma NADA al contador — ni a total,
+  // ni a pending, ni a done. Sus hijas ya viajan como filas propias en el mismo
+  // findMany (heredan sectorId/workId del padre), así que solo hace falta saltear
+  // al contenedor: sus hijas se cuentan solas, sin duplicar el mismo trabajo.
   for (const task of looseTasks) {
     if (!task.sectorId) continue;
+    const subtaskCount = task._count.subtasks;
+    if (isContainerTask({ subtaskCount })) continue; // contenedor: no suma (ver unfinishedCount.ts)
     const m = ensure(task.sectorId);
     m.total += 1;
-    if (isTaskUnfinished({ id: "", status: task.status })) m.pending += 1;
+    if (countsTowardPending({ id: "", status: task.status, subtaskCount })) m.pending += 1;
     else m.done += 1;
   }
 
   for (const link of execLinks) {
     if (!link.sectorId) continue;
+    const subtaskCount = link.task._count.subtasks;
+    if (isContainerTask({ subtaskCount })) continue; // contenedor: no suma (ver unfinishedCount.ts)
     const m = ensure(link.sectorId);
     m.total += 1;
-    if (isTaskUnfinished({ id: "", status: link.task.status })) m.pending += 1;
+    if (countsTowardPending({ id: "", status: link.task.status, subtaskCount })) m.pending += 1;
     else m.done += 1;
   }
 
