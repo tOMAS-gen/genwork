@@ -107,6 +107,9 @@ vi.mock("@/lib/db/client", () => ({
           status: db.statuses.find((s) => s.id === data.statusId) ?? db.statuses[0],
         };
       }),
+      // Este dataset no modela subtareas (feature 062): ninguna tarea tiene hijas,
+      // así que el chequeo de hijas abiertas de setTaskStatus siempre da 0.
+      count: vi.fn(async () => 0),
     },
     work: {
       findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>

@@ -626,6 +626,22 @@ export async function setTaskStatus(
     throw conflict("Ese estado no pertenece al conjunto de estados aplicable a esta tarea");
   }
 
+  // El estado FINAL de un padre es derivado (espejo): sólo lo pone syncParentStatus
+  // cuando todas las hijas terminaron, nunca un clic manual sobre el padre. El corte
+  // es sólo en la frontera FINAL / no-FINAL: moverlo entre estados no-FINAL sigue libre.
+  if (newStatus.type === "FINAL") {
+    const openChildren = await prisma.task.count({
+      where: { parentId: taskId, status: { type: { not: "FINAL" } } },
+    });
+    if (openChildren > 0) {
+      throw new ApiError(
+        409,
+        "PARENT_HAS_OPEN_SUBTASKS",
+        `Faltan ${openChildren} subtarea(s) por finalizar`,
+      );
+    }
+  }
+
   const previousStatusId = task.statusId;
   const updated = await prisma.task.update({
     where: { id: taskId },
@@ -645,6 +661,11 @@ export async function setTaskStatus(
     workId: task.workId,
     sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
   });
+
+  // Una hija que cambia de estado puede cerrar (o reabrir) a su padre sin que
+  // nadie opere el padre directamente (caso delegación, ver syncParentStatus).
+  if (task.parentId) await syncParentStatus(task.parentId, ctx.id);
+
   return updated;
 }
 

@@ -44,6 +44,11 @@ vi.mock("@/lib/db/client", () => ({
         task.status = { id: data.statusId, type: data.statusId === "hecha" ? "FINAL" : "IN_PROGRESS" };
         return task;
       }),
+      // Lo usa setTaskStatus para contar hijas abiertas antes de dejar cerrar al padre
+      // a mano (Tarea 6). El resto de los tests de este archivo no lo tocan.
+      count: vi.fn(async ({ where }: { where: { parentId: string } }) =>
+        db.tasks.filter((t) => t.parentId === where.parentId && t.status.type !== "FINAL").length,
+      ),
     },
     work: {
       // workId="work-1" no resuelve a ningún work real del dataset: cae al
@@ -53,6 +58,12 @@ vi.mock("@/lib/db/client", () => ({
     },
     sector: {
       findUnique: vi.fn(async () => null),
+      // toTaskRef (permisos, no el conjunto de estados) la usa para resolver el sector
+      // hogar de la tarea que se está tocando directamente con setTaskStatus. Ámbito
+      // Global (sin groupId/ownerId propios) alcanza para lo que necesitan los tests.
+      findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
+        where.id.in.map((id) => ({ id, groupId: null, ownerId: null, group: null })),
+      ),
     },
     taskStatus: {
       findMany: vi.fn(async () => SET),
@@ -112,5 +123,69 @@ describe("syncParentStatus", () => {
     seedParent("IN_PROGRESS", []);
     await syncParentStatus("padre", "user-1");
     expect(db.statusChanges).toEqual([]);
+  });
+});
+
+describe("setTaskStatus con subtareas", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("rechaza finalizar un padre con hijas abiertas", async () => {
+    seedParent("IN_PROGRESS", ["FINAL", "IN_PROGRESS"]);
+    const { setTaskStatus } = await import("@/server/tasks");
+    const ctx = {
+      id: "user-1",
+      globalRole: "SUPERADMIN" as const,
+      memberGroupIds: new Set<string>(),
+      adminGroupIds: new Set<string>(),
+      grantedSectorIds: new Set<string>(),
+      readerGroupIds: new Set<string>(),
+      clientWorkIds: new Set<string>(),
+    };
+
+    await expect(setTaskStatus(ctx, "padre", "hecha")).rejects.toMatchObject({
+      status: 409,
+      code: "PARENT_HAS_OPEN_SUBTASKS",
+    });
+    // El padre no se tocó: sigue como antes de la llamada rechazada.
+    expect(db.tasks.find((t) => t.id === "padre")!.statusId).toBe("pendiente");
+  });
+
+  it("una hija delegada cierra al padre aunque el usuario no opere el padre", async () => {
+    seedParent("IN_PROGRESS", ["IN_PROGRESS"]);
+    // La hija vive en un sector que el usuario opera por grant; el padre está en un
+    // proyecto ajeno. El espejo NO valida permisos sobre el padre (ver syncParentStatus).
+    db.tasks.find((t) => t.id === "hija-0")!.sectorId = "sector-delegado";
+    const { setTaskStatus } = await import("@/server/tasks");
+    const ctx = {
+      id: "user-2",
+      globalRole: "MEMBER" as const,
+      memberGroupIds: new Set<string>(),
+      adminGroupIds: new Set<string>(),
+      grantedSectorIds: new Set(["sector-delegado"]),
+      readerGroupIds: new Set<string>(),
+      clientWorkIds: new Set<string>(),
+    };
+
+    await setTaskStatus(ctx, "hija-0", "hecha");
+
+    expect(db.tasks.find((t) => t.id === "padre")!.statusId).toBe("hecha");
+  });
+
+  it("permite mover el padre entre estados IN_PROGRESS", async () => {
+    seedParent("IN_PROGRESS", ["IN_PROGRESS"]);
+    const { setTaskStatus } = await import("@/server/tasks");
+    const ctx = {
+      id: "user-1",
+      globalRole: "SUPERADMIN" as const,
+      memberGroupIds: new Set<string>(),
+      adminGroupIds: new Set<string>(),
+      grantedSectorIds: new Set<string>(),
+      readerGroupIds: new Set<string>(),
+      clientWorkIds: new Set<string>(),
+    };
+
+    await expect(setTaskStatus(ctx, "padre", "pendiente")).resolves.toBeDefined();
   });
 });
