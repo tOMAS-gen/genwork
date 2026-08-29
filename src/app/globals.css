@@ -4225,6 +4225,19 @@ dialog.dialog--overflow-visible {
   margin: 4px 2px;
 }
 
+/* 062-subtareas (Tarea 13): envuelve cada tarjeta del tablero para poder
+   sumarle la migaja (parentBreadcrumb) debajo del `.task` sin tocar su layout
+   de fila — .task-board-card pasa a columna, la tarjeta en sí queda igual. */
+.task-board-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-board-breadcrumb {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+}
+
 
 /* ─── Recordatorios (feature 036) ──────────────────────────────────────────── */
 
