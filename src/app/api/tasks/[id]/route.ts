@@ -138,6 +138,12 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, 
   const task = await getTaskOrThrow(id);
   if (!canToggle(ctx, await toTaskRef(task))) throw forbidden();
 
+  // Contar y capturar el padre ANTES de borrar: el cascade de la FK (Task 4)
+  // se lleva las hijas junto con la tarea, así que después el conteo daría
+  // cero y ya no sabríamos a quién sincronizar.
+  const deletedSubtasks = await prisma.task.count({ where: { parentId: id } });
+  const parentId = task.parentId;
+
   await prisma.task.delete({ where: { id } });
   emit({
     type: "task-changed",
@@ -145,5 +151,10 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, 
     workId: task.workId,
     sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
   });
-  return new NextResponse(null, { status: 204 });
+
+  // Si esta tarea era una hija, borrarla puede haber sido la última pendiente:
+  // sincronizar al padre después del borrado para que se cierre solo.
+  if (parentId) await syncParentStatus(parentId, ctx.id);
+
+  return NextResponse.json({ deletedSubtasks });
 });

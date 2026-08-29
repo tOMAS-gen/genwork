@@ -94,14 +94,32 @@ vi.mock("@/lib/db/client", () => ({
           return t;
         },
       ),
-      count: vi.fn(async ({ where }: { where: { parentId: string; status: { type: { not: string } } } }) =>
-        db.tasks.filter((t) => t.parentId === where.parentId && t.status.type !== where.status.type.not).length,
+      count: vi.fn(
+        async ({
+          where,
+        }: {
+          where: { parentId: string; status?: { type: { not: string } } };
+        }) =>
+          db.tasks.filter(
+            (t) =>
+              t.parentId === where.parentId &&
+              (!where.status || t.status.type !== where.status.type.not),
+          ).length,
       ),
+      delete: vi.fn(async ({ where: { id } }: { where: { id: string } }) => {
+        const idx = db.tasks.findIndex((t) => t.id === id);
+        const [deleted] = db.tasks.splice(idx, 1);
+        // El cascade de la FK (onDelete: Cascade) se lleva las hijas junto con
+        // el padre; lo reproducimos acá para que el fixture quede consistente.
+        db.tasks = db.tasks.filter((t) => t.parentId !== id);
+        return deleted;
+      }),
     },
   },
 }));
 
-const { PATCH } = await import("@/app/api/tasks/[id]/route");
+const { PATCH, DELETE } = await import("@/app/api/tasks/[id]/route");
+const { syncParentStatus } = await import("@/server/tasks");
 
 function req(body: unknown) {
   return new Request("http://localhost/api/tasks/x", {
@@ -164,5 +182,22 @@ describe("PATCH /api/tasks/[id] con parentId", () => {
     const res = await PATCH(req({ parentId: OTRO_PADRE_ID }), params(PADRE_ID));
     expect(res.status).toBe(400);
     expect(db.tasks.find((t) => t.id === PADRE_ID)!.parentId).toBeNull();
+  });
+});
+
+function deleteReq() {
+  return new Request("http://localhost/api/tasks/x", { method: "DELETE" });
+}
+
+describe("DELETE con subtareas", () => {
+  it("borrar la última hija abierta sincroniza al padre", async () => {
+    const res = await DELETE(deleteReq(), params(HIJA_ID));
+    expect(res.status).toBe(200);
+    expect(syncParentStatus).toHaveBeenCalledWith(PADRE_ID, "user-1");
+  });
+
+  it("informa cuántas subtareas se borran junto al padre", async () => {
+    const res = await DELETE(deleteReq(), params(PADRE_ID));
+    expect(await res.json()).toMatchObject({ deletedSubtasks: 1 });
   });
 });
