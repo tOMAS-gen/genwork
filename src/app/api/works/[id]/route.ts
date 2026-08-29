@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 import { conflict, withApi } from "@/server/api";
 import { requireInternal, requireWriter } from "@/server/guards";
@@ -12,61 +11,7 @@ import { computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
 import { emit } from "@/server/events";
 import { labelScopeOf } from "@/lib/domain/labels/availability";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
-import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
-
-// 062-subtareas: shape base compartida por padre e hija (una subtarea no puede
-// tener sus propias subtareas, así que solo hace falta un nivel de `include`).
-const taskWithParentInclude = {
-  links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-  homeSector: { select: { id: true, name: true } },
-  work: { select: { id: true, name: true } },
-  labels: { include: { value: { include: { key: true } } } },
-  status: true,
-  parent: { select: { id: true, displayText: true } },
-} satisfies Prisma.TaskInclude;
-
-type ChildTaskRow = Prisma.TaskGetPayload<{ include: typeof taskWithParentInclude }>;
-
-/** DTO final de una tarea, con `subtasks` recursivo (mismo shape para padre e hija). */
-type WorkTaskDto = Omit<ChildTaskRow, "labels" | "parent"> & {
-  parentText: string | null;
-  statusOptions: ReturnType<typeof statusOptionDto>[];
-  labels: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
-  subtasks: WorkTaskDto[];
-  subtaskCount: number;
-  subtaskDone: number;
-};
-
-/**
- * Serializa una tarea al DTO del contrato — el MISMO mapper para el padre y sus
- * hijas (para que `TaskItem` las renderice igual): agrega `parentText`,
- * `statusOptions`, aplana `labels` y anida `subtasks` (recursión de un solo
- * nivel: las hijas se llaman con `subtasks: []` porque no pueden tener las suyas).
- */
-async function toTaskDto(task: ChildTaskRow, subtaskRows: ChildTaskRow[] = []): Promise<WorkTaskDto> {
-  const { labels: taskLabels, parent, ...rest } = task;
-  const applicable = await loadApplicableStatusSet(
-    task.workId,
-    task.sectorId,
-    execSectorIdsOf(task.links),
-  );
-  const subtasks = await Promise.all(subtaskRows.map((s) => toTaskDto(s)));
-  return {
-    ...rest,
-    parentText: parent?.displayText ?? null,
-    statusOptions: applicable.map(statusOptionDto),
-    labels: taskLabels.map((l) => ({
-      keyId: l.keyId,
-      keyName: l.value.key.name,
-      valueId: l.valueId,
-      valueName: l.value.name,
-      color: l.value.color,
-    })),
-    subtasks,
-    subtaskCount: subtasks.length,
-    subtaskDone: subtasks.filter((s) => s.status.type === "FINAL").length,
-  };
-}
+import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
 
 /** Página completa del trabajo: doc + tareas + adjuntos (Principio III). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
@@ -86,10 +31,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
         // sueltas a nivel raíz del listado.
         where: { parentId: null },
         orderBy: { position: "asc" },
-        include: {
-          ...taskWithParentInclude,
-          subtasks: { orderBy: { position: "asc" }, include: taskWithParentInclude },
-        },
+        include: rootTaskWithSubtasksInclude,
       },
       archive: true,
       labels: { include: { value: { include: { key: true } } } },

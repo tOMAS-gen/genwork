@@ -6,7 +6,8 @@ import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { emit } from "@/server/events";
-import { reorderTasks, loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
+import { reorderTasks } from "@/server/tasks";
+import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
 
 const reorderSchema = z.object({
   orderedTaskIds: z
@@ -47,38 +48,17 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
 
   emit({ type: "work-changed", workId: id });
 
+  // 062-subtareas (hallazgo Importante A de revisión): reorderTasks solo
+  // reordena raíces (parentId: null); la respuesta tiene que devolver el MISMO
+  // contrato que works/[id]/route.ts (raíces con hijas anidadas en `subtasks`,
+  // `parentText`/`subtaskCount`/`subtaskDone`) porque la página le pisa el
+  // estado a `work.tasks` con esta respuesta tal cual — devolver el shape
+  // plano viejo dejaba a las hijas como filas raíz y rompía el progreso.
   const tasks = await prisma.task.findMany({
-    where: { workId: id },
+    where: { workId: id, parentId: null },
     orderBy: { position: "asc" },
-    include: {
-      links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-      homeSector: { select: { id: true, name: true } },
-      work: { select: { id: true, name: true } },
-      labels: { include: { value: { include: { key: true } } } },
-      status: true,
-    },
+    include: rootTaskWithSubtasksInclude,
   });
 
-  return NextResponse.json(
-    await Promise.all(
-      tasks.map(async ({ labels, ...task }) => {
-        const applicable = await loadApplicableStatusSet(
-          task.workId,
-          task.sectorId,
-          execSectorIdsOf(task.links),
-        );
-        return {
-          ...task,
-          statusOptions: applicable.map(statusOptionDto),
-          labels: labels.map((l) => ({
-            keyId: l.keyId,
-            keyName: l.value.key.name,
-            valueId: l.valueId,
-            valueName: l.value.name,
-            color: l.value.color,
-          })),
-        };
-      }),
-    ),
-  );
+  return NextResponse.json(await Promise.all(tasks.map((task) => toTaskDto(task, task.subtasks))));
 });
