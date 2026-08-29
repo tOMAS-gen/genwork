@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { subtaskProgressLabel, canFinishParent, parentBreadcrumb, reparentMenuLabel } from "@/components/tasks/SubtaskList";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
+import { TaskMoveDialog } from "@/components/tasks/TaskMoveDialog";
 
 describe("progreso de subtareas", () => {
   it("muestra hechas sobre total", () => {
@@ -289,5 +290,56 @@ describe("TaskBoardView — subtareas como tarjetas propias (Tarea 13)", () => {
     );
 
     expect(html).not.toContain("↳");
+  });
+});
+
+/**
+ * Menú de reorganizar en variant "list" (Tarea 13, revisión — ruling del
+ * controlador): mover/sacar tiene que poder alcanzarse también desde la
+ * lista (proyecto/sector/referencias), no solo desde el tablero — ahí no hay
+ * Menu de cambio de estado (ya está el <select>), así que el ⋮ nuevo trae
+ * SOLO reparent. El popover en sí no se puede inspeccionar con renderToString
+ * (Menu lo porta a `document.body` solo si `typeof document !== "undefined"`,
+ * falso en este entorno sin jsdom) — pero el botón disparador, con su
+ * aria-label, sí queda en el HTML inicial.
+ */
+describe("Menu de reorganizar en variant list (Tarea 13, revisión)", () => {
+  it("una tarea raíz con permiso de edición ofrece el menú para reorganizar", () => {
+    const suelta = task({ id: "suelta", displayText: "Tarea suelta" });
+
+    const html = renderToString(
+      <TaskItem task={suelta} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
+    );
+
+    expect(html).toContain("Reorganizar");
+  });
+
+  it("sin permiso de edición (canToggle false) no se ofrece el menú", () => {
+    const suelta = task({ id: "suelta", displayText: "Tarea suelta", canToggle: false });
+
+    const html = renderToString(
+      <TaskItem task={suelta} context={{ workId: "w1" }} canToggle={false} onChanged={() => {}} />,
+    );
+
+    expect(html).not.toContain("Reorganizar");
+  });
+});
+
+/**
+ * TaskMoveDialog (Tarea 13, revisión — hallazgo Menor 2): el estado inicial
+ * (`candidates === null && !error`) es observable con renderToString sin
+ * jsdom — el fetch de candidatas vive en un `useEffect`, que SSR nunca corre,
+ * así que el diálogo queda clavado en "Cargando…".
+ */
+describe("TaskMoveDialog — estado inicial (Tarea 13, revisión)", () => {
+  it("mientras no resolvió candidatas, muestra 'Cargando…'", () => {
+    const tarea = task({ id: "t1", displayText: "Tarea a mover" });
+
+    const html = renderToString(
+      <TaskMoveDialog open={true} onClose={() => {}} task={tarea} onMoved={() => {}} />,
+    );
+
+    expect(html).toContain("Cargando…");
+    expect(html).toContain("Mover bajo otra tarea");
   });
 });

@@ -531,6 +531,15 @@ export function TaskItem({
             </select>
           </span>
         )}
+        {/* 062-subtareas (Tarea 13, revisión — ruling del controlador): "mover
+            bajo otra tarea"/"sacar de..." tiene que poder alcanzarse también en
+            "list" — es donde se trabaja habitualmente (proyecto/sector/referencias),
+            no solo desde el tablero. Acá no hay Menu de cambio de estado (ya
+            está el <select> de arriba) así que este ⋮ es nuevo y trae SOLO
+            reparent, sin duplicar el cambio de estado. */}
+        {canToggle && variant === "list" && reparentItems.length > 0 && (
+          <Menu label={`Reorganizar "${task.displayText}"`} items={reparentItems} />
+        )}
         {/* 062-subtareas (Tarea 13): el mismo menú de "cambiar estado" (variant
             board) suma ahora "Mover bajo otra tarea…"/"Sacar de …" — reusa el
             único ⋮ que ya tiene la tarjeta en vez de agregar un segundo botón. */}
@@ -631,7 +640,9 @@ export function TaskItem({
     </div>
     {/* 062-subtareas (Tarea 13): mismo patrón que RenameDialog en sectors/[id]/page.tsx
         — se monta siempre, controlado por `open`; el fetch de candidatas queda
-        adentro del propio diálogo, gateado por ese mismo `open`. */}
+        adentro del propio diálogo, gateado por ese mismo `open`. Revisión: ya no
+        es peso muerto en "list" — el ⋮ de reparent de esa variante también abre
+        este mismo diálogo con `setMoveOpen(true)` (ver reparentItems más arriba). */}
     <TaskMoveDialog
       open={moveOpen}
       onClose={() => setMoveOpen(false)}
