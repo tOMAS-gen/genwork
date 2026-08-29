@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { LayoutDashboard } from "@/components/ui/icons";
 import { progress } from "@/lib/domain/works/progress";
+import { columnProgress } from "@/components/board/columnProgress";
 
 interface BoardColumn {
   sector: { id: string; name: string; color: string | null };
@@ -16,6 +17,11 @@ interface BoardColumn {
     status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL" };
     workName: string | null;
     workColor: string | null;
+    parentId: string | null;
+    parentText: string | null;
+    /** 062-subtareas: total/hechas GLOBAL de hijas (mismo significado que en el resto de los listados). */
+    subtaskCount: number;
+    subtaskDone: number;
   }[];
 }
 
@@ -66,8 +72,10 @@ export function BoardGrid() {
   return (
     <div className="board-grid">
       {board.map((col) => {
-        const doneCount = col.tasks.filter((t) => t.status.type === "FINAL").length;
-        const total = col.tasks.length;
+        // 062-subtareas (hallazgo Importante 2 de revisión): una tarjeta
+        // contenedora no suma al progreso de la columna (mismo criterio que
+        // /api/sectors) — ver columnProgress.ts.
+        const { done: doneCount, total } = columnProgress(col.tasks);
         const prog = progress(doneCount, total);
         const colorClass = col.sector.color ? "color-chip" : "pc-name-pill-default";
 

@@ -27,6 +27,10 @@ vi.mock("@/server/user-context", () => ({
 const db = vi.hoisted(() => ({
   sectors: [{ id: "sector-1", name: "Ventas", color: "#000", groupId: null, ownerId: null, group: null }],
   links: [] as unknown[],
+  // 062-subtareas (hallazgo Importante 2 de revisión): hijas GLOBALES por
+  // padre — no todas aparecen como tarjeta propia en el tablero (solo las que
+  // tienen su propio vínculo EXEC), pero igual cuentan para `subtaskDone`.
+  allChildrenGlobal: [] as { parentId: string; status: { type: "IN_PROGRESS" | "FINAL" } }[],
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -39,6 +43,14 @@ vi.mock("@/lib/db/client", () => ({
     },
     workLabel: {
       findMany: vi.fn(async () => []),
+    },
+    task: {
+      // Inspecciona `where.parentId.in` de verdad (en vez de ignorarlo) para
+      // que el RED del arreglo sea honesto.
+      findMany: vi.fn(async ({ where }: { where: { parentId: { in: string[] } } }) => {
+        const parentIds = where.parentId.in;
+        return db.allChildrenGlobal.filter((c) => parentIds.includes(c.parentId));
+      }),
     },
   },
 }));
@@ -61,6 +73,7 @@ describe("GET /api/board — parentText en subtareas (062-subtareas, Tarea 11)",
           parent: { id: "padre", displayText: "Padre" },
           work: null,
           status: { id: "s1", name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS" },
+          _count: { subtasks: 0 },
         },
       },
       {
@@ -72,9 +85,11 @@ describe("GET /api/board — parentText en subtareas (062-subtareas, Tarea 11)",
           parent: null,
           work: null,
           status: { id: "s1", name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS" },
+          _count: { subtasks: 0 },
         },
       },
     ];
+    db.allChildrenGlobal = [];
   });
 
   it("una subtarea es su propia tarjeta y trae parentText con el texto del padre", async () => {
@@ -92,5 +107,43 @@ describe("GET /api/board — parentText en subtareas (062-subtareas, Tarea 11)",
     const suelta = tasks.find((t: { id: string }) => t.id === "suelta");
     expect(suelta.parentId).toBeNull();
     expect(suelta.parentText).toBeNull();
+  });
+
+  it("Importante 2 (revisión): cada tarjeta trae subtaskCount/subtaskDone GLOBALES", async () => {
+    // El padre también es su propia tarjeta acá (tiene EXEC propio a este
+    // sector) y es contenedor: 2 hijas en total, una de ellas ("hija", arriba)
+    // visible como tarjeta propia, la otra FINAL en otro lado (no es tarjeta
+    // acá pero cuenta para subtaskDone).
+    db.links = [
+      ...db.links,
+      {
+        task: {
+          id: "padre",
+          displayText: "Padre",
+          workId: null,
+          parentId: null,
+          parent: null,
+          work: null,
+          status: { id: "s1", name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS" },
+          _count: { subtasks: 2 },
+        },
+      },
+    ];
+    db.allChildrenGlobal = [
+      { parentId: "padre", status: { type: "IN_PROGRESS" } }, // "hija"
+      { parentId: "padre", status: { type: "FINAL" } }, // no es tarjeta acá
+    ];
+
+    const res = await GET(req(), undefined as never);
+    const body = await res.json();
+    const { tasks } = body[0];
+
+    const padreCard = tasks.find((t: { id: string }) => t.id === "padre");
+    expect(padreCard.subtaskCount).toBe(2);
+    expect(padreCard.subtaskDone).toBe(1);
+
+    const hijaCard = tasks.find((t: { id: string }) => t.id === "hija");
+    expect(hijaCard.subtaskCount).toBe(0);
+    expect(hijaCard.subtaskDone).toBe(0);
   });
 });
