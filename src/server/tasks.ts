@@ -458,6 +458,40 @@ export async function reorderTasks(workId: string, orderedTaskIds: string[]): Pr
   });
 }
 
+/**
+ * Reordena manualmente las subtareas de una tarea padre (Tarea 10): mismo
+ * contrato que `reorderTasks`, pero acotado a `parentId` en vez de `workId`
+ * (las hijas se ordenan entre ellas, `nextPosition` ya las separa de las
+ * tareas raíz). Recibe la lista COMPLETA y ordenada de `taskId` de las hijas
+ * y reasigna `position = índice` dentro de una única transacción. Si
+ * `orderedTaskIds` no coincide EXACTAMENTE con las hijas actuales (mismo
+ * tamaño, mismos IDs, sin duplicados), lanza `TASK_SET_CHANGED` (409) SIN
+ * aplicar ningún cambio.
+ */
+export async function reorderSubtasks(parentId: string, orderedTaskIds: string[]): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.task.findMany({ where: { parentId }, select: { id: true } });
+
+    const orderedSet = new Set(orderedTaskIds);
+    const matches =
+      orderedTaskIds.length === current.length &&
+      orderedSet.size === orderedTaskIds.length && // sin duplicados
+      current.every((t) => orderedSet.has(t.id));
+
+    if (!matches) {
+      throw new ApiError(
+        409,
+        "TASK_SET_CHANGED",
+        "El conjunto de subtareas cambió mientras reordenabas; recargá y volvé a intentar",
+      );
+    }
+
+    await Promise.all(
+      orderedTaskIds.map((id, index) => tx.task.update({ where: { id }, data: { position: index } })),
+    );
+  });
+}
+
 export async function saveTask(
   ctx: UserContext,
   input: ResolveInput & { taskId?: string; editMeta?: EditMeta },
