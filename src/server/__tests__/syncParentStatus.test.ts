@@ -13,8 +13,10 @@ const db = vi.hoisted(() => ({
     sectorId: string | null;
     status: { id: string; type: "IN_PROGRESS" | "FINAL" };
     links: [];
+    position?: number;
   }[],
   statusChanges: [] as { taskId: string; fromStatusId: string | null; toStatusId: string }[],
+  nextId: 0,
 }));
 
 const SET = [
@@ -49,20 +51,54 @@ vi.mock("@/lib/db/client", () => ({
       count: vi.fn(async ({ where }: { where: { parentId: string } }) =>
         db.tasks.filter((t) => t.parentId === where.parentId && t.status.type !== "FINAL").length,
       ),
+      // saveTask (Tarea 7): crea la subtarea y la agrega al dataset en memoria para
+      // que el syncParentStatus() que corre a continuación (misma llamada) la vea
+      // como hija nueva.
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const statusId = data.statusId as string;
+        const task = {
+          id: `nueva-${db.nextId++}`,
+          parentId: (data.parentId as string | null) ?? null,
+          statusId,
+          workId: (data.workId as string | null) ?? null,
+          sectorId: (data.sectorId as string | null) ?? null,
+          status: { id: statusId, type: (statusId === "hecha" ? "FINAL" : "IN_PROGRESS") as "IN_PROGRESS" | "FINAL" },
+          links: [] as [],
+          position: data.position as number,
+        };
+        db.tasks.push(task);
+        return task;
+      }),
+      // nextPosition (Tarea 7, feature 052): las hijas del mismo padre se ordenan
+      // entre ellas (where.parentId), separadas de las tareas raíz.
+      aggregate: vi.fn(async ({ where }: { where: { parentId: string | null; workId?: string | null } }) => {
+        const positions = db.tasks
+          .filter((t) => t.parentId === where.parentId)
+          .map((t) => t.position)
+          .filter((p): p is number => typeof p === "number");
+        return { _max: { position: positions.length ? Math.max(...positions) : null } };
+      }),
     },
     work: {
-      // workId="work-1" no resuelve a ningún work real del dataset: cae al
-      // fallback global de resolveApplicableStatusSet, que es lo que necesitan
-      // estos tests (SET no tiene groupId/ownerId propios).
-      findUnique: vi.fn(async () => null),
+      // saveTask (Tarea 7) necesita un work "real" para heredar contexto del padre a
+      // una subtarea (resolveTask exige que contextWorkId resuelva a algo). Devolverlo
+      // sin groupId/ownerId propios no cambia el resultado de resolveApplicableStatusSet
+      // frente al `null` anterior: en ambos casos cae al fallback global (SET no tiene
+      // groupId/ownerId propios), así que los 7 tests preexistentes siguen viendo lo mismo.
+      findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
+        id === "work-1" ? { id: "work-1", groupId: null, ownerId: null } : null,
+      ),
     },
     sector: {
       findUnique: vi.fn(async () => null),
-      // toTaskRef (permisos, no el conjunto de estados) la usa para resolver el sector
-      // hogar de la tarea que se está tocando directamente con setTaskStatus. Ámbito
-      // Global (sin groupId/ownerId propios) alcanza para lo que necesitan los tests.
-      findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
-        where.id.in.map((id) => ({ id, groupId: null, ownerId: null, group: null })),
+      // Dos formas de llamada: toTaskRef (permisos) pide `{ where: { id: { in } } }`
+      // para resolver los sectores de una tarea puntual; resolveTask (Tarea 7) llama
+      // sin argumentos para traer el catálogo completo de sectores del ámbito (#/@).
+      // Ninguno de los tres escenarios nuevos usa # ni @, así que [] alcanza.
+      findMany: vi.fn(async (args?: { where?: { id: { in: string[] } } }) =>
+        args?.where
+          ? args.where.id.in.map((id) => ({ id, groupId: null, ownerId: null, group: null }))
+          : [],
       ),
     },
     taskStatus: {
@@ -187,5 +223,43 @@ describe("setTaskStatus con subtareas", () => {
     };
 
     await expect(setTaskStatus(ctx, "padre", "pendiente")).resolves.toBeDefined();
+  });
+});
+
+describe("crear subtarea", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("la hija hereda proyecto y sector del padre, y reabre al padre finalizado", async () => {
+    seedParent("FINAL", ["FINAL"]);
+    const { saveTask } = await import("@/server/tasks");
+    const ctx = { id: "user-1", globalRole: "SUPERADMIN" as const, memberGroupIds: new Set<string>(), adminGroupIds: new Set<string>(), grantedSectorIds: new Set<string>(), readerGroupIds: new Set<string>(), clientWorkIds: new Set<string>() };
+
+    const hija = await saveTask(ctx, { rawText: "revisar con Ana", parentId: "padre" });
+
+    expect(hija.parentId).toBe("padre");
+    expect(hija.workId).toBe("work-1");
+    expect(db.tasks.find((t) => t.id === "padre")!.statusId).toBe("pendiente");
+  });
+
+  it("rechaza /proyecto en el texto de una subtarea", async () => {
+    seedParent("IN_PROGRESS", []);
+    const { saveTask } = await import("@/server/tasks");
+    const ctx = { id: "user-1", globalRole: "SUPERADMIN" as const, memberGroupIds: new Set<string>(), adminGroupIds: new Set<string>(), grantedSectorIds: new Set<string>(), readerGroupIds: new Set<string>(), clientWorkIds: new Set<string>() };
+
+    await expect(saveTask(ctx, { rawText: "revisar /otro-proyecto", parentId: "padre" })).rejects.toMatchObject({
+      code: "SUBTASK_WORK_TAG",
+    });
+  });
+
+  it("rechaza colgar una subtarea de otra subtarea", async () => {
+    seedParent("IN_PROGRESS", ["IN_PROGRESS"]);
+    const { saveTask } = await import("@/server/tasks");
+    const ctx = { id: "user-1", globalRole: "SUPERADMIN" as const, memberGroupIds: new Set<string>(), adminGroupIds: new Set<string>(), grantedSectorIds: new Set<string>(), readerGroupIds: new Set<string>(), clientWorkIds: new Set<string>() };
+
+    await expect(saveTask(ctx, { rawText: "nieta", parentId: "hija-0" })).rejects.toMatchObject({
+      status: 400,
+    });
   });
 });

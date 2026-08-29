@@ -8,6 +8,7 @@ type FakeTask = {
   statusId: string;
   workId: string | null;
   sectorId: string | null;
+  parentId: string | null;
   creatorId: string;
   completedAt: Date | null;
   completedById: string | null;
@@ -125,6 +126,7 @@ const db = vi.hoisted(() => {
     statusId: "todo",
     workId: "work-1",
     sectorId: null,
+    parentId: null,
     creatorId: "user-1",
     completedAt: null,
     completedById: null,

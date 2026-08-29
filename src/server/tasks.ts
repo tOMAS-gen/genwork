@@ -222,6 +222,8 @@ interface ResolveInput {
   rawText: string;
   contextWorkId?: string;
   contextSectorId?: string;
+  /** Subtarea (un solo nivel): id de la tarea padre de la que cuelga. */
+  parentId?: string;
 }
 
 interface Resolved {
@@ -400,16 +402,20 @@ interface EditMeta {
 }
 
 /**
- * Calcula la posición de inserción para una tarea nueva dentro de su scope
- * (trabajo, o sector cuando la tarea está suelta): MAX(position) + 1, o 0
- * si no hay tareas previas en ese scope.
+ * Posición de inserción dentro del scope: las subtareas se ordenan entre ellas
+ * (por parentId), no junto a las tareas raíz del proyecto (feature 052 + subtareas).
  */
-async function nextPosition(workId: string | null, homeSectorId: string | null): Promise<number> {
-  const where = workId ? { workId } : { workId: null, sectorId: homeSectorId };
-  const result = await prisma.task.aggregate({
-    where,
-    _max: { position: true },
-  });
+async function nextPosition(
+  workId: string | null,
+  homeSectorId: string | null,
+  parentId: string | null,
+): Promise<number> {
+  const where = parentId
+    ? { parentId }
+    : workId
+      ? { workId, parentId: null }
+      : { workId: null, sectorId: homeSectorId, parentId: null };
+  const result = await prisma.task.aggregate({ where, _max: { position: true } });
   return (result._max.position ?? -1) + 1;
 }
 
@@ -456,6 +462,26 @@ export async function saveTask(
   ctx: UserContext,
   input: ResolveInput & { taskId?: string; editMeta?: EditMeta },
 ): Promise<TaskWithLinks> {
+  // Subtarea (un solo nivel): hereda proyecto y sector home del padre, y no puede
+  // moverse a otro proyecto por texto — `/trabajo` en una hija se rechaza.
+  if (input.parentId) {
+    const parent = await prisma.task.findUnique({ where: { id: input.parentId } });
+    if (!parent) throw notFound("Tarea padre no encontrada");
+    if (parent.parentId) throw new ApiError(400, "SUBTASK_DEPTH", "Una subtarea no puede tener subtareas");
+    input = {
+      ...input,
+      contextWorkId: parent.workId ?? undefined,
+      contextSectorId: parent.workId ? undefined : (parent.sectorId ?? undefined),
+    };
+
+    // La hija no puede mudarse de proyecto por texto: `/trabajo` en una subtarea
+    // se rechaza en vez de ignorarse en silencio (Principio II).
+    const { tags } = parseTags(input.rawText);
+    if (tags.some((t) => t.symbol === "/")) {
+      throw new ApiError(400, "SUBTASK_WORK_TAG", "Una subtarea vive en el proyecto de su tarea padre: sacá el /proyecto del texto");
+    }
+  }
+
   const resolved = await resolveTask(ctx, input);
   const parsedDates = parseDates(input.rawText);
   const dueDate = parsedDates[0]?.iso ? new Date(parsedDates[0].iso) : null;
@@ -547,9 +573,10 @@ export async function saveTask(
           // Propiedad de edición (FR-401): origen según contexto de creación.
           originType: input.contextWorkId ? "WORK" : "SECTOR",
           originSectorId: input.contextWorkId ? null : (input.contextSectorId ?? null),
+          parentId: input.parentId ?? null,
           links: { create: linksData },
           labels: { create: labelsData },
-          position: await nextPosition(resolved.workId, resolved.homeSectorId),
+          position: await nextPosition(resolved.workId, resolved.homeSectorId, input.parentId ?? null),
         },
         include: taskInclude,
       });
@@ -579,6 +606,9 @@ export async function saveTask(
       ]),
     ],
   });
+
+  // Una hija nueva puede reabrir a un padre que ya estaba finalizado (Tarea 5).
+  if (input.parentId) await syncParentStatus(input.parentId, ctx.id);
 
   return task;
 }
