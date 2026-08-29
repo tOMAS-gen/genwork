@@ -420,6 +420,44 @@ async function nextPosition(
 }
 
 /**
+ * Núcleo común de reorder (Tarea 10, hallazgo de revisión #2): `reorderTasks`
+ * (feature 052, ámbito `workId`) y `reorderSubtasks` (ámbito `parentId`)
+ * comparten el mismo algoritmo — valida que `orderedTaskIds` coincide
+ * EXACTAMENTE con las tareas que matchean `where` (mismo tamaño, mismos IDs,
+ * sin duplicados) y, si no, lanza `TASK_SET_CHANGED` (409) SIN aplicar ningún
+ * cambio; si coincide, renumera de forma total y densa (`position = índice`)
+ * dentro de la transacción `tx`. `entityLabel` solo cambia el sustantivo del
+ * mensaje de error ("tareas" / "subtareas") para no perder ese detalle al
+ * factorizar.
+ */
+async function reorderTaskSet(
+  tx: Prisma.TransactionClient,
+  where: Prisma.TaskWhereInput,
+  orderedTaskIds: string[],
+  entityLabel: string,
+): Promise<void> {
+  const current = await tx.task.findMany({ where, select: { id: true } });
+
+  const orderedSet = new Set(orderedTaskIds);
+  const matches =
+    orderedTaskIds.length === current.length &&
+    orderedSet.size === orderedTaskIds.length && // sin duplicados
+    current.every((t) => orderedSet.has(t.id));
+
+  if (!matches) {
+    throw new ApiError(
+      409,
+      "TASK_SET_CHANGED",
+      `El conjunto de ${entityLabel} cambió mientras reordenabas; recargá y volvé a intentar`,
+    );
+  }
+
+  await Promise.all(
+    orderedTaskIds.map((id, index) => tx.task.update({ where: { id }, data: { position: index } })),
+  );
+}
+
+/**
  * Reordena manualmente las tareas de un Trabajo (feature 052, FR-001/FR-003).
  *
  * Recibe la lista COMPLETA y ordenada de `taskId` del Trabajo y reasigna
@@ -433,29 +471,7 @@ async function nextPosition(
  * `max + 1` intacto tras reordenar).
  */
 export async function reorderTasks(workId: string, orderedTaskIds: string[]): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const current = await tx.task.findMany({ where: { workId }, select: { id: true } });
-
-    const orderedSet = new Set(orderedTaskIds);
-    const matches =
-      orderedTaskIds.length === current.length &&
-      orderedSet.size === orderedTaskIds.length && // sin duplicados
-      current.every((t) => orderedSet.has(t.id));
-
-    if (!matches) {
-      throw new ApiError(
-        409,
-        "TASK_SET_CHANGED",
-        "El conjunto de tareas cambió mientras reordenabas; recargá y volvé a intentar",
-      );
-    }
-
-    await Promise.all(
-      orderedTaskIds.map((id, index) =>
-        tx.task.update({ where: { id }, data: { position: index } }),
-      ),
-    );
-  });
+  await prisma.$transaction((tx) => reorderTaskSet(tx, { workId }, orderedTaskIds, "tareas"));
 }
 
 /**
@@ -469,27 +485,7 @@ export async function reorderTasks(workId: string, orderedTaskIds: string[]): Pr
  * aplicar ningún cambio.
  */
 export async function reorderSubtasks(parentId: string, orderedTaskIds: string[]): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const current = await tx.task.findMany({ where: { parentId }, select: { id: true } });
-
-    const orderedSet = new Set(orderedTaskIds);
-    const matches =
-      orderedTaskIds.length === current.length &&
-      orderedSet.size === orderedTaskIds.length && // sin duplicados
-      current.every((t) => orderedSet.has(t.id));
-
-    if (!matches) {
-      throw new ApiError(
-        409,
-        "TASK_SET_CHANGED",
-        "El conjunto de subtareas cambió mientras reordenabas; recargá y volvé a intentar",
-      );
-    }
-
-    await Promise.all(
-      orderedTaskIds.map((id, index) => tx.task.update({ where: { id }, data: { position: index } })),
-    );
-  });
+  await prisma.$transaction((tx) => reorderTaskSet(tx, { parentId }, orderedTaskIds, "subtareas"));
 }
 
 export async function saveTask(

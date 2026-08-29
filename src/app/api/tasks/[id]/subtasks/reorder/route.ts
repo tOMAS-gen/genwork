@@ -14,8 +14,12 @@ const schema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, { message: "orderedTaskIds no puede tener IDs duplicados" }),
 });
 
-/** Reordena las subtareas de una tarea (mismo contrato que el reorder de proyecto). */
-export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
+/**
+ * Reordena las subtareas de una tarea (mismo contrato que el reorder de proyecto,
+ * `PATCH /api/works/[id]/tasks/reorder` — mismo verbo, para no tener dos verbos
+ * HTTP distintos para la misma operación de reorder).
+ */
+export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   const session = await requireWriter();
   const ctx = await getUserContext(session.user.id);
   const { id } = await params;
@@ -26,6 +30,14 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
   const { orderedTaskIds } = schema.parse(await req.json());
   await reorderSubtasks(id, orderedTaskIds);
 
-  emit({ type: "task-changed", taskId: id, workId: parent.workId, sectorIds: [] });
+  // sectorIds reales desde los links del padre (no [] hardcodeado): así una
+  // vista de sector abierta se refresca al reordenar hijas, igual que el resto
+  // de los emisores de "task-changed" (ver src/app/api/tasks/[id]/route.ts).
+  emit({
+    type: "task-changed",
+    taskId: id,
+    workId: parent.workId,
+    sectorIds: parent.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+  });
   return NextResponse.json({ ok: true });
 });
