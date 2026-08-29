@@ -35,7 +35,22 @@ function status(type: "IN_PROGRESS" | "FINAL") {
   return { name: type, color: "#000", type };
 }
 
-const padre = {
+interface FakeTask {
+  id: string;
+  parentId: string | null;
+  parent: { id: string; displayText: string } | null;
+  displayText: string;
+  rawText: string;
+  description: null;
+  dueDate: null;
+  position: number;
+  status: ReturnType<typeof status>;
+  links: [];
+  labels: [];
+  _count: { subtasks: number };
+}
+
+const padre: FakeTask = {
   id: "padre",
   parentId: null,
   parent: null,
@@ -50,7 +65,7 @@ const padre = {
   _count: { subtasks: 1 },
 };
 
-const hija = {
+const hija: FakeTask = {
   id: "hija",
   parentId: "padre",
   parent: { id: "padre", displayText: "Padre" },
@@ -65,7 +80,7 @@ const hija = {
   _count: { subtasks: 0 },
 };
 
-const suelta = {
+const suelta: FakeTask = {
   id: "suelta",
   parentId: null,
   parent: null,
@@ -80,8 +95,6 @@ const suelta = {
   _count: { subtasks: 0 },
 };
 
-const allTasks = [padre, hija, suelta];
-
 function makeWork() {
   return {
     id: "work-1",
@@ -93,22 +106,29 @@ function makeWork() {
     stage: null,
     labels: [],
     doc: { content: null },
-    tasks: allTasks,
   };
 }
 
-const db = vi.hoisted(() => ({ works: [] as Record<string, unknown>[], grants: [] as { userId: string; workId: string }[] }));
+const db = vi.hoisted(() => ({
+  works: [] as Record<string, unknown>[],
+  grants: [] as { userId: string; workId: string }[],
+  // 062-subtareas: reasignable por test (menor de revisión: escenario con
+  // hija FINAL) — antes era un const de módulo compartido entre todos.
+  allTasks: [] as FakeTask[],
+}));
 
 vi.mock("@/lib/db/client", () => ({
   prisma: {
     clientWorkGrant: {
+      // listClientWorks (listado): trae `tasks` FLAT (sin anidar, `_count.subtasks`
+      // por fila) — a diferencia de `work.findFirst` (detalle), que anida.
       findMany: vi.fn(async ({ where }: { where: { userId: string; work?: unknown } }) => {
         const rows = db.grants.filter((g) => g.userId === where.userId);
         if (!where.work) return rows.map((g) => ({ workId: g.workId }));
         return rows
           .map((g) => db.works.find((w) => w.id === g.workId))
           .filter((w): w is Record<string, unknown> => !!w)
-          .map((work) => ({ work }));
+          .map((work) => ({ work: { ...work, tasks: db.allTasks } }));
       }),
     },
     work: {
@@ -128,12 +148,12 @@ vi.mock("@/lib/db/client", () => ({
           const tasksSelect = select?.tasks;
           const rootFilterApplied = tasksSelect?.where?.parentId === null;
           const wantsSubtasks = !!tasksSelect?.select?.subtasks;
-          const rows = rootFilterApplied ? allTasks.filter((t) => t.parentId === null) : allTasks;
+          const rows = rootFilterApplied ? db.allTasks.filter((t) => t.parentId === null) : db.allTasks;
           return {
             ...work,
             tasks: rows.map((t) => ({
               ...t,
-              ...(wantsSubtasks ? { subtasks: allTasks.filter((s) => s.parentId === t.id) } : {}),
+              ...(wantsSubtasks ? { subtasks: db.allTasks.filter((s) => s.parentId === t.id) } : {}),
             })),
           };
         },
@@ -159,6 +179,7 @@ describe("Portal — un padre con subtareas no duplica el avance (062-subtareas,
     authState.clientWorkIds = ["work-1"];
     db.works = [makeWork()];
     db.grants = [{ userId: "client-1", workId: "work-1" }];
+    db.allTasks = [padre, hija, suelta];
   });
 
   it("listado: taskCounts no cuenta al contenedor (1 padre + 1 hija + 1 suelta abiertas = 2, no 3)", async () => {
@@ -183,5 +204,20 @@ describe("Portal — un padre con subtareas no duplica el avance (062-subtareas,
     expect(padreDto.subtaskCount).toBe(1);
 
     expect(body.taskCounts).toEqual({ done: 0, total: 2 });
+  });
+
+  it("menor de revisión: una hija FINAL hace que subtaskDone/taskCounts.done sean > 0", async () => {
+    db.allTasks = [padre, { ...hija, status: status("FINAL") }, suelta];
+
+    const listRes = await callList();
+    const listBody = await listRes.json();
+    expect(listBody[0].taskCounts).toEqual({ done: 1, total: 2 });
+
+    const detailRes = await callDetail("work-1");
+    const detailBody = await detailRes.json();
+    const padreDto = detailBody.tasks.find((t: { id: string }) => t.id === "padre");
+    expect(padreDto.subtaskDone).toBe(1);
+    expect(padreDto.subtasks[0].status.type).toBe("FINAL");
+    expect(detailBody.taskCounts).toEqual({ done: 1, total: 2 });
   });
 });

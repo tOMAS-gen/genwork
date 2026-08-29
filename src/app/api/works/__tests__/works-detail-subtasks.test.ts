@@ -197,4 +197,16 @@ describe("GET /api/works/[id] — subtareas anidadas (062-subtareas, Tarea 11)",
     expect(sueltaDto.parentId).toBeNull();
     expect(sueltaDto.parentText).toBeNull();
   });
+
+  it("menor de revisión: una hija FINAL hace que subtaskDone del padre sea > 0", async () => {
+    db.tasks = [padre, { ...hija, status: status("FINAL") }, suelta];
+
+    const res = await GET(req(), { params: Promise.resolve({ id: WORK_ID }) });
+    const body = await res.json();
+    const padreDto = body.tasks.find((t: { id: string }) => t.id === "padre");
+
+    expect(padreDto.subtaskCount).toBe(1);
+    expect(padreDto.subtaskDone).toBe(1);
+    expect(padreDto.subtasks[0].status.type).toBe("FINAL");
+  });
 });
