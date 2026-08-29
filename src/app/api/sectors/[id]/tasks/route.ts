@@ -82,12 +82,22 @@ async function withStatusOptions<
 
 /**
  * Aplana el include crudo de `labels` al shape del contrato (análogo a
- * works/[id]), agrega `parentText` y descarta el `_count` interno (solo sirve
- * para el cálculo de `metrics`, no es parte del contrato). Recursivo
- * (062-subtareas): cada hija de `subtasks` pasa por el MISMO aplanado.
+ * works/[id]), agrega `parentText` y descarta el `_count` interno crudo de
+ * Prisma. Recursivo (062-subtareas): cada hija de `subtasks` pasa por el
+ * MISMO aplanado.
+ *
+ * `subtaskCount`/`subtaskDone` son SIEMPRE el total GLOBAL de hijas de la
+ * tarea (hallazgo Importante 1 de revisión) — el mismo significado que en
+ * `works/[id]/route.ts` y `portal.ts`, para que un padre no muestre "0/3" acá
+ * y "2/3" en el proyecto. `subtaskCount` sale de `_count.subtasks` (ya viaja
+ * en la fila); `subtaskDone` sale de `doneByParentId` (query aparte, ver
+ * `GET`) porque Prisma no cuenta relaciones filtradas por status acá. Esto es
+ * DISTINTO del array `subtasks` (las hijas anidadas VISIBLES en esta página en
+ * particular, ver `nestByParent`) — pueden diferir en tamaño.
  */
 function withFlatLabels<
   T extends {
+    id: string;
     labels: { keyId: string; valueId: string; value: { name: string; color: string; key: { name: string } } }[];
     parent?: { id: string; displayText: string } | null;
     subtasks?: unknown[];
@@ -96,6 +106,7 @@ function withFlatLabels<
   },
 >(
   task: T,
+  doneByParentId: Map<string, number>,
 ): Omit<T, "labels" | "parent" | "subtasks" | "_count"> & {
   parentText: string | null;
   labels: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
@@ -104,9 +115,7 @@ function withFlatLabels<
   subtaskDone: number;
 } {
   const { labels, parent, subtasks: rawSubtasks, _count, ...rest } = task;
-  const subtasks: { status: { type: "IN_PROGRESS" | "FINAL" } }[] = rawSubtasks
-    ? (rawSubtasks as T[]).map((s) => withFlatLabels(s))
-    : [];
+  const subtasks = rawSubtasks ? (rawSubtasks as T[]).map((s) => withFlatLabels(s, doneByParentId)) : [];
   return {
     ...rest,
     parentText: parent?.displayText ?? null,
@@ -118,8 +127,8 @@ function withFlatLabels<
       color: l.value.color,
     })),
     subtasks,
-    subtaskCount: subtasks.length,
-    subtaskDone: subtasks.filter((s) => s.status.type === "FINAL").length,
+    subtaskCount: _count?.subtasks ?? 0,
+    subtaskDone: doneByParentId.get(task.id) ?? 0,
   };
 }
 
@@ -205,7 +214,17 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   const allExec = await withStatusOptions(
     nestByParent(applyTaskFilters(dedupe([...execLinks.map((l) => l.task), ...loose]), filters)),
   );
-  const execIds = new Set(allExec.map((t) => t.id));
+  // 062-subtareas (hallazgo Importante 3 de revisión): `allExec` ya viene
+  // anidado — una hija colgada de `padre.subtasks` no tiene su propio id en
+  // el nivel raíz. Si esa hija tiene ADEMÁS un REF al mismo sector, hay que
+  // igual excluirla de `refs` (si no, aparece dos veces en la misma página:
+  // una anidada bajo el padre en `exec`, otra suelta en `refs`).
+  const execIds = new Set(
+    allExec.flatMap((t) => [
+      t.id,
+      ...((t.subtasks as { id: string }[] | undefined) ?? []).map((s) => s.id),
+    ]),
+  );
   const refs = await withStatusOptions(
     nestByParent(
       applyTaskFilters(
@@ -266,6 +285,30 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     }
   }
 
+  // 062-subtareas (hallazgo Importante 1 de revisión): `subtaskCount`/
+  // `subtaskDone` del DTO son SIEMPRE el total GLOBAL de hijas (no solo las
+  // visibles en esta página) — mismo significado que en works/[id] y portal.
+  // `subtaskCount` ya viaja en `_count.subtasks`; para `subtaskDone` hace
+  // falta esta consulta aparte (Prisma no cuenta relaciones filtradas por
+  // status dentro de `_count`), acotada a los padres realmente presentes acá.
+  type WithSubtaskCount = { id: string; _count: { subtasks: number } };
+  const containerIds = [...allExec, ...refs]
+    .flatMap((t) => [t as WithSubtaskCount, ...((t.subtasks as WithSubtaskCount[] | undefined) ?? [])])
+    .filter((t) => isContainerTask({ subtaskCount: t._count.subtasks }))
+    .map((t) => t.id);
+  const doneChildren =
+    containerIds.length > 0
+      ? await prisma.task.findMany({
+          where: { parentId: { in: containerIds } },
+          select: { parentId: true, status: { select: { type: true } } },
+        })
+      : [];
+  const doneByParentId = new Map<string, number>();
+  for (const c of doneChildren) {
+    if (!c.parentId || c.status.type !== "FINAL") continue;
+    doneByParentId.set(c.parentId, (doneByParentId.get(c.parentId) ?? 0) + 1);
+  }
+
   return NextResponse.json({
     sector: {
       id: sector.id,
@@ -278,9 +321,12 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
           : { type: "GLOBAL" },
     },
     level,
-    loose: looseExec.map(withFlatLabels),
-    byWork: byWork.map((entry) => ({ ...entry, tasks: entry.tasks.map(withFlatLabels) })),
-    refs: refs.map(withFlatLabels),
+    loose: looseExec.map((t) => withFlatLabels(t, doneByParentId)),
+    byWork: byWork.map((entry) => ({
+      ...entry,
+      tasks: entry.tasks.map((t) => withFlatLabels(t, doneByParentId)),
+    })),
+    refs: refs.map((t) => withFlatLabels(t, doneByParentId)),
     metrics: { total: totalCount, done: doneCount },
   });
 });

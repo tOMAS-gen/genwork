@@ -118,6 +118,14 @@ const hijaDelegada = baseTask({
 const db = vi.hoisted(() => ({
   looseTasks: [] as ReturnType<typeof baseTask>[],
   execLinkTasks: [] as ReturnType<typeof baseTask>[],
+  // 062-subtareas (hallazgo Importante 3 de revisión): tareas con TaskLink
+  // REF a este sector — separado de `execLinkTasks`, antes siempre `[]`.
+  refLinkTasks: [] as ReturnType<typeof baseTask>[],
+  // 062-subtareas (hallazgo Importante 1 de revisión): hijas GLOBALES de
+  // cualquier padre, sin importar si son visibles en ESTA página — alimenta
+  // la consulta de `subtaskDone` (distinta de `looseTasks`/`execLinkTasks`,
+  // que solo traen lo relevante a este sector).
+  allChildrenGlobal: [] as ReturnType<typeof baseTask>[],
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -132,24 +140,32 @@ vi.mock("@/lib/db/client", () => ({
         group: null,
       })),
     },
-    // Los dos mocks INSPECCIONAN `where.task.parentId`/`where.parentId` reales
-    // (en vez de ignorarlos) para que el RED de la Regla 2 sea honesto contra
-    // la implementación vieja (que sí filtraba `parentId: null`).
+    // Los mocks INSPECCIONAN `where.task.parentId`/`where.parentId`/`where.sectorId`
+    // reales (en vez de ignorarlos) para que el RED de la Regla 2 sea honesto
+    // contra la implementación vieja (que sí filtraba `parentId: null`).
     taskLink: {
       findMany: vi.fn(
         async ({ where }: { where: { type: "EXEC" | "REF"; task?: { parentId?: null } } }) => {
-          if (where.type !== "EXEC") return [];
+          const source = where.type === "EXEC" ? db.execLinkTasks : db.refLinkTasks;
           const rows = "parentId" in (where.task ?? {})
-            ? db.execLinkTasks.filter((t) => t.parentId === null)
-            : db.execLinkTasks;
+            ? source.filter((t) => t.parentId === null)
+            : source;
           return rows.map((t) => ({ task: t }));
         },
       ),
     },
     task: {
-      findMany: vi.fn(async ({ where }: { where: { parentId?: null } }) => {
-        return "parentId" in where ? db.looseTasks.filter((t) => t.parentId === null) : db.looseTasks;
-      }),
+      findMany: vi.fn(
+        async ({ where }: { where: { sectorId?: string; parentId?: null | { in: string[] } } }) => {
+          // Consulta "loose" (home sector de este sector): trae `sectorId`.
+          if ("sectorId" in where) {
+            return "parentId" in where ? db.looseTasks.filter((t) => t.parentId === null) : db.looseTasks;
+          }
+          // Consulta nueva de `subtaskDone` (GET route.ts): `{ parentId: { in } }`.
+          const parentIds = (where.parentId as { in: string[] }).in;
+          return db.allChildrenGlobal.filter((t) => t.parentId && parentIds.includes(t.parentId));
+        },
+      ),
     },
   },
 }));
@@ -164,6 +180,8 @@ describe("GET /api/sectors/[id]/tasks — anidación y contador de contenedores 
   beforeEach(() => {
     db.looseTasks = [padre, hija, suelta];
     db.execLinkTasks = [];
+    db.refLinkTasks = [];
+    db.allChildrenGlobal = [hija];
   });
 
   it("Regla 1: las hijas viajan anidadas bajo su padre en `loose` cuando el padre TAMBIÉN está en la vista", async () => {
@@ -234,5 +252,96 @@ describe("GET /api/sectors/[id]/tasks — anidación y contador de contenedores 
     const body = await res.json();
     expect(body.metrics.total).toBe(0);
     expect(body.metrics.done).toBe(0);
+  });
+
+  it("Importante 1 (revisión): subtaskCount/subtaskDone son GLOBALES, no el conteo local de esta página", async () => {
+    // El padre tiene 3 hijas en TOTAL (_count.subtasks: 3), pero en esta
+    // página solo una es visible/anidada (home = sector-1); las otras dos
+    // viven en otro lado (otro sector/proyecto) — una FINAL, otra abierta.
+    // subtaskCount tiene que mostrar 3 (no 1) y subtaskDone tiene que contar
+    // la que está FINAL aunque no esté anidada acá.
+    const padreConMasHijas = baseTask({
+      id: "padre-3h",
+      sectorId: SECTOR_ID,
+      homeSector: { id: SECTOR_ID, name: "Ventas", group: null },
+      _count: { subtasks: 3 },
+    });
+    const hijaVisible = baseTask({
+      id: "hija-visible",
+      parentId: "padre-3h",
+      parent: { id: "padre-3h", displayText: "padre-3h" },
+      sectorId: SECTOR_ID,
+      homeSector: { id: SECTOR_ID, name: "Ventas", group: null },
+    });
+    const hijaFinalOtroLado = baseTask({
+      id: "hija-final-otro-lado",
+      parentId: "padre-3h",
+      status: status("FINAL"),
+    });
+    const hijaAbiertaOtroLado = baseTask({ id: "hija-abierta-otro-lado", parentId: "padre-3h" });
+
+    db.looseTasks = [padreConMasHijas, hijaVisible];
+    db.execLinkTasks = [];
+    db.allChildrenGlobal = [hijaVisible, hijaFinalOtroLado, hijaAbiertaOtroLado];
+
+    const res = await GET(req(), { params: Promise.resolve({ id: SECTOR_ID }) });
+    const body = await res.json();
+    const padreDto = body.loose.find((t: { id: string }) => t.id === "padre-3h");
+
+    expect(padreDto.subtaskCount).toBe(3); // global, no 1
+    expect(padreDto.subtaskDone).toBe(1); // 1 de las 3 está FINAL, aunque no sea visible acá
+    expect(padreDto.subtasks).toHaveLength(1); // lo anidado sigue siendo solo lo visible en esta página
+    expect(padreDto.subtasks[0].id).toBe("hija-visible");
+  });
+
+  it("una hija FINAL hace que subtaskDone del padre sea > 0 (no todos los escenarios dejan todo abierto)", async () => {
+    const padreConHijaFinal = baseTask({
+      id: "padre-hf",
+      sectorId: SECTOR_ID,
+      homeSector: { id: SECTOR_ID, name: "Ventas", group: null },
+      _count: { subtasks: 1 },
+    });
+    const hijaFinal = baseTask({
+      id: "hija-final",
+      parentId: "padre-hf",
+      parent: { id: "padre-hf", displayText: "padre-hf" },
+      sectorId: SECTOR_ID,
+      homeSector: { id: SECTOR_ID, name: "Ventas", group: null },
+      status: status("FINAL"),
+    });
+
+    db.looseTasks = [padreConHijaFinal, hijaFinal];
+    db.execLinkTasks = [];
+    db.allChildrenGlobal = [hijaFinal];
+
+    const res = await GET(req(), { params: Promise.resolve({ id: SECTOR_ID }) });
+    const body = await res.json();
+    const padreDto = body.loose.find((t: { id: string }) => t.id === "padre-hf");
+
+    expect(padreDto.subtaskCount).toBe(1);
+    expect(padreDto.subtaskDone).toBe(1);
+    expect(body.metrics.total).toBe(1); // solo la hija cuenta (el padre es contenedor)
+    expect(body.metrics.done).toBe(1); // la hija está FINAL
+  });
+
+  it("Importante 3 (revisión): una hija anidada bajo su padre en `exec` con REF propio al mismo sector no se repite en `refs`", async () => {
+    // padre + hija (la misma Regla 1: ambos home = sector-1, hija anidada bajo
+    // padre en `loose`/exec) — además, la hija tiene su PROPIO TaskLink REF a
+    // este mismo sector. Antes del arreglo, `execIds` solo tenía ids de nivel
+    // raíz (post-anidado) y la hija aparecía dos veces: anidada en `exec` Y
+    // suelta en `refs`.
+    db.refLinkTasks = [hija];
+
+    const res = await GET(req(), { params: Promise.resolve({ id: SECTOR_ID }) });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    // La hija sigue anidada bajo el padre en `loose` (exec).
+    const padreDto = body.loose.find((t: { id: string }) => t.id === "padre");
+    expect(padreDto.subtasks.map((s: { id: string }) => s.id)).toContain("hija");
+
+    // Pero NO aparece de nuevo, suelta, en `refs`.
+    const refIds = body.refs.map((t: { id: string }) => t.id);
+    expect(refIds).not.toContain("hija");
   });
 });
