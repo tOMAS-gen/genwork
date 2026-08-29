@@ -471,7 +471,15 @@ async function reorderTaskSet(
  * `max + 1` intacto tras reordenar).
  */
 export async function reorderTasks(workId: string, orderedTaskIds: string[]): Promise<void> {
-  await prisma.$transaction((tx) => reorderTaskSet(tx, { workId }, orderedTaskIds, "tareas"));
+  // 062-subtareas (hallazgo Crítico de revisión): las hijas heredan `workId`
+  // del padre, así que acotar solo por `workId` las incluía en el conjunto
+  // esperado — la UI (works/[id]/route.ts) solo manda las raíces, y el
+  // conjunto nunca coincidía: TASK_SET_CHANGED en cada arrastre. `parentId:
+  // null` deja el ámbito acotado a las tareas raíz del proyecto, igual que
+  // `reorderSubtasks` lo acota a `parentId` para las hijas de un padre.
+  await prisma.$transaction((tx) =>
+    reorderTaskSet(tx, { workId, parentId: null }, orderedTaskIds, "tareas"),
+  );
 }
 
 /**
@@ -494,8 +502,20 @@ export async function saveTask(
 ): Promise<TaskWithLinks> {
   // Subtarea (un solo nivel): hereda proyecto y sector home del padre, y no puede
   // moverse a otro proyecto por texto — `/trabajo` en una hija se rechaza.
+  //
+  // Ruling 2026-08-29 (revisión Tarea 11): si la hija no declara NINGÚN
+  // #sector propio, hereda los EXEC del padre. Sin esto, el caso por defecto
+  // (padre de proyecto con EXEC a un sector, hija sin # propio) deja un
+  // pendiente invisible: el padre es contenedor y no suma (regla de
+  // contenedor), y la hija tampoco aparece en ningún sector porque nunca tuvo
+  // vínculo propio. Si la hija SÍ declara uno o varios #sector, esos valen
+  // (delegación explícita) y no se agregan los del padre.
+  let inheritedExecSectorIds: string[] = [];
   if (input.parentId) {
-    const parent = await prisma.task.findUnique({ where: { id: input.parentId } });
+    const parent = await prisma.task.findUnique({
+      where: { id: input.parentId },
+      include: { links: { where: { type: "EXEC" } } },
+    });
     if (!parent) throw notFound("Tarea padre no encontrada");
     if (parent.parentId) throw new ApiError(400, "SUBTASK_DEPTH", "Una subtarea no puede tener subtareas");
     input = {
@@ -510,14 +530,24 @@ export async function saveTask(
     if (tags.some((t) => t.symbol === "/")) {
       throw new ApiError(400, "SUBTASK_WORK_TAG", "Una subtarea vive en el proyecto de su tarea padre: sacá el /proyecto del texto");
     }
+
+    if (!tags.some((t) => t.symbol === "#")) {
+      inheritedExecSectorIds = parent.links
+        .map((l) => l.sectorId)
+        .filter((id): id is string => id != null);
+    }
   }
 
   const resolved = await resolveTask(ctx, input);
   const parsedDates = parseDates(input.rawText);
   const dueDate = parsedDates[0]?.iso ? new Date(parsedDates[0].iso) : null;
 
+  // Unión con los EXEC heredados del padre (ver comentario arriba); Set porque
+  // el auto-EXEC al sector de contexto (FR-038) puede coincidir con uno heredado.
+  const execSectorIds = [...new Set([...resolved.execSectorIds, ...inheritedExecSectorIds])];
+
   const linksData = [
-    ...resolved.execSectorIds.map((sectorId) => ({
+    ...execSectorIds.map((sectorId) => ({
       type: "EXEC" as const,
       targetType: "SECTOR" as const,
       targetId: sectorId,
@@ -542,7 +572,7 @@ export async function saveTask(
   const applicableSet = await loadApplicableStatusSet(
     resolved.workId,
     resolved.homeSectorId,
-    resolved.execSectorIds,
+    execSectorIds,
   );
 
   // Al editar: si el sector/trabajo cambió de forma que el estado actual ya no
@@ -630,7 +660,7 @@ export async function saveTask(
     workId: task.workId,
     sectorIds: [
       ...new Set([
-        ...resolved.execSectorIds,
+        ...execSectorIds,
         ...resolved.refSectorIds,
         ...(resolved.homeSectorId ? [resolved.homeSectorId] : []),
       ]),

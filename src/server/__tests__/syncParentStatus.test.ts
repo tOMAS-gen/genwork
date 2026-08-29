@@ -12,7 +12,9 @@ const db = vi.hoisted(() => ({
     workId: string | null;
     sectorId: string | null;
     status: { id: string; type: "IN_PROGRESS" | "FINAL" };
-    links: [];
+    // 062-subtareas: antes tipado `[]` (tupla vacía); ahora acepta EXEC links
+    // reales de fixture para probar la herencia de la hija (ruling 2026-08-29).
+    links: { type: "EXEC" | "REF"; sectorId: string | null }[];
     position?: number;
   }[],
   statusChanges: [] as { taskId: string; fromStatusId: string | null; toStatusId: string }[],
@@ -22,6 +24,16 @@ const db = vi.hoisted(() => ({
 const SET = [
   { id: "pendiente", name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS" as const, sortOrder: 0, groupId: null, ownerId: null, sectorId: null },
   { id: "hecha", name: "Hecha", color: "#22c55e", type: "FINAL" as const, sortOrder: 1, groupId: null, ownerId: null, sectorId: null },
+];
+
+// 062-subtareas: catálogo de sectores para el escenario de herencia de EXEC
+// (ruling 2026-08-29) — permite que `#Marketing` en el texto de una hija
+// resuelva a un sector real, distinto del que ya tiene el padre.
+const SECTOR_VENTAS_ID = "sector-ventas";
+const SECTOR_MARKETING_ID = "sector-marketing";
+const SECTOR_CATALOG = [
+  { id: SECTOR_VENTAS_ID, name: "Ventas", groupId: null, ownerId: null, group: null },
+  { id: SECTOR_MARKETING_ID, name: "Marketing", groupId: null, ownerId: null, group: null },
 ];
 
 /**
@@ -34,8 +46,23 @@ const SET = [
 vi.mock("@/lib/db/client", () => ({
   prisma: {
     task: {
-      findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
-        db.tasks.find((t) => t.id === id) ?? null,
+      // 062-subtareas: si el `include` pide `links` filtrados por `type`
+      // (como hace saveTask para heredar los EXEC del padre), el mock filtra
+      // de verdad — así el test cae en RED si `saveTask` deja de pedir el
+      // filtro en vez de pasar por casualidad con `links` sin filtrar.
+      findUnique: vi.fn(
+        async ({
+          where: { id },
+          include,
+        }: {
+          where: { id: string };
+          include?: { links?: { where?: { type?: "EXEC" | "REF" } } };
+        }) => {
+          const t = db.tasks.find((x) => x.id === id);
+          if (!t) return null;
+          const linkType = include?.links?.where?.type;
+          return { ...t, links: linkType ? t.links.filter((l) => l.type === linkType) : t.links };
+        },
       ),
       findMany: vi.fn(async ({ where }: { where: { parentId: string } }) =>
         db.tasks.filter((t) => t.parentId === where.parentId),
@@ -53,22 +80,31 @@ vi.mock("@/lib/db/client", () => ({
       ),
       // saveTask (Tarea 7): crea la subtarea y la agrega al dataset en memoria para
       // que el syncParentStatus() que corre a continuación (misma llamada) la vea
-      // como hija nueva.
-      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-        const statusId = data.statusId as string;
-        const task = {
-          id: `nueva-${db.nextId++}`,
-          parentId: (data.parentId as string | null) ?? null,
-          statusId,
-          workId: (data.workId as string | null) ?? null,
-          sectorId: (data.sectorId as string | null) ?? null,
-          status: { id: statusId, type: (statusId === "hecha" ? "FINAL" : "IN_PROGRESS") as "IN_PROGRESS" | "FINAL" },
-          links: [] as [],
-          position: data.position as number,
-        };
-        db.tasks.push(task);
-        return task;
-      }),
+      // como hija nueva. 062-subtareas: también captura `data.links.create` (los
+      // TaskLink anidados) para poder afirmar sobre la herencia de EXEC.
+      create: vi.fn(
+        async ({
+          data,
+        }: {
+          data: Record<string, unknown> & {
+            links?: { create?: { type: "EXEC" | "REF"; sectorId: string | null }[] };
+          };
+        }) => {
+          const statusId = data.statusId as string;
+          const task = {
+            id: `nueva-${db.nextId++}`,
+            parentId: (data.parentId as string | null) ?? null,
+            statusId,
+            workId: (data.workId as string | null) ?? null,
+            sectorId: (data.sectorId as string | null) ?? null,
+            status: { id: statusId, type: (statusId === "hecha" ? "FINAL" : "IN_PROGRESS") as "IN_PROGRESS" | "FINAL" },
+            links: data.links?.create ?? [],
+            position: data.position as number,
+          };
+          db.tasks.push(task);
+          return task;
+        },
+      ),
       // nextPosition (Tarea 7, feature 052): las hijas del mismo padre se ordenan
       // entre ellas (where.parentId), separadas de las tareas raíz.
       aggregate: vi.fn(async ({ where }: { where: { parentId: string | null; workId?: string | null } }) => {
@@ -90,15 +126,16 @@ vi.mock("@/lib/db/client", () => ({
       ),
     },
     sector: {
-      findUnique: vi.fn(async () => null),
+      findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
+        SECTOR_CATALOG.find((s) => s.id === id) ?? null,
+      ),
       // Dos formas de llamada: toTaskRef (permisos) pide `{ where: { id: { in } } }`
-      // para resolver los sectores de una tarea puntual; resolveTask (Tarea 7) llama
-      // sin argumentos para traer el catálogo completo de sectores del ámbito (#/@).
-      // Ninguno de los tres escenarios nuevos usa # ni @, así que [] alcanza.
+      // para resolver los sectores de una tarea puntual; resolveTask llama sin
+      // argumentos para traer el catálogo completo de sectores del ámbito (#/@) —
+      // necesario desde 062-subtareas para el escenario de herencia de EXEC
+      // (`#Marketing` tiene que poder resolver a un sector real).
       findMany: vi.fn(async (args?: { where?: { id: { in: string[] } } }) =>
-        args?.where
-          ? args.where.id.in.map((id) => ({ id, groupId: null, ownerId: null, group: null }))
-          : [],
+        args?.where ? args.where.id.in.map((id) => ({ id, groupId: null, ownerId: null, group: null })) : SECTOR_CATALOG,
       ),
     },
     taskStatus: {
@@ -119,13 +156,17 @@ vi.mock("@/server/events", () => ({ emit: vi.fn() }));
 
 const { syncParentStatus } = await import("@/server/tasks");
 
-function seedParent(parentType: "IN_PROGRESS" | "FINAL", childTypes: ("IN_PROGRESS" | "FINAL")[]) {
+function seedParent(
+  parentType: "IN_PROGRESS" | "FINAL",
+  childTypes: ("IN_PROGRESS" | "FINAL")[],
+  parentLinks: { type: "EXEC" | "REF"; sectorId: string | null }[] = [],
+) {
   const parentStatusId = parentType === "FINAL" ? "hecha" : "pendiente";
   db.tasks = [
-    { id: "padre", parentId: null, statusId: parentStatusId, workId: "work-1", sectorId: null, status: { id: parentStatusId, type: parentType }, links: [] },
+    { id: "padre", parentId: null, statusId: parentStatusId, workId: "work-1", sectorId: null, status: { id: parentStatusId, type: parentType }, links: parentLinks },
     ...childTypes.map((type, i) => {
       const statusId = type === "FINAL" ? "hecha" : "pendiente";
-      return { id: `hija-${i}`, parentId: "padre", statusId, workId: "work-1", sectorId: null, status: { id: statusId, type }, links: [] as [] };
+      return { id: `hija-${i}`, parentId: "padre", statusId, workId: "work-1", sectorId: null, status: { id: statusId, type }, links: [] };
     }),
   ];
   db.statusChanges = [];
@@ -260,6 +301,52 @@ describe("crear subtarea", () => {
 
     await expect(saveTask(ctx, { rawText: "nieta", parentId: "hija-0" })).rejects.toMatchObject({
       status: 400,
+    });
+  });
+
+  describe("062-subtareas: herencia de EXEC (ruling 2026-08-29, revisión Tarea 11)", () => {
+    const ctx = {
+      id: "user-1",
+      globalRole: "SUPERADMIN" as const,
+      memberGroupIds: new Set<string>(),
+      adminGroupIds: new Set<string>(),
+      grantedSectorIds: new Set<string>(),
+      readerGroupIds: new Set<string>(),
+      clientWorkIds: new Set<string>(),
+    };
+
+    it("una hija sin # propio hereda los EXEC del padre", async () => {
+      // Padre de proyecto con EXEC a Ventas; sin esto, la hija no tendría
+      // NINGÚN vínculo con ningún sector y quedaría un pendiente invisible
+      // (el padre es contenedor y no suma; la hija no aparece en ningún lado).
+      seedParent("IN_PROGRESS", [], [{ type: "EXEC", sectorId: SECTOR_VENTAS_ID }]);
+      const { saveTask } = await import("@/server/tasks");
+
+      const hija = await saveTask(ctx, { rawText: "revisar con Ana", parentId: "padre" });
+
+      expect(hija.links).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: "EXEC", sectorId: SECTOR_VENTAS_ID })]),
+      );
+    });
+
+    it("una hija con #Marketing NO hereda los EXEC del padre — vale la delegación explícita", async () => {
+      seedParent("IN_PROGRESS", [], [{ type: "EXEC", sectorId: SECTOR_VENTAS_ID }]);
+      const { saveTask } = await import("@/server/tasks");
+
+      const hija = await saveTask(ctx, { rawText: "revisar con Ana #Marketing", parentId: "padre" });
+
+      const execSectorIds = hija.links.filter((l) => l.type === "EXEC").map((l) => l.sectorId);
+      expect(execSectorIds).toEqual([SECTOR_MARKETING_ID]);
+      expect(execSectorIds).not.toContain(SECTOR_VENTAS_ID);
+    });
+
+    it("un padre sin ningún EXEC propio deja a la hija sin heredar nada (no explota, `links` queda vacío)", async () => {
+      seedParent("IN_PROGRESS", [], []);
+      const { saveTask } = await import("@/server/tasks");
+
+      const hija = await saveTask(ctx, { rawText: "revisar con Ana", parentId: "padre" });
+
+      expect(hija.links.filter((l) => l.type === "EXEC")).toEqual([]);
     });
   });
 });

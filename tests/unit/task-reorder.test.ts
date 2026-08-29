@@ -241,4 +241,19 @@ describe("reorderTasks", () => {
     expect(new Set(db.tasks.map((task) => task.id))).toEqual(new Set(["task-a", "task-b", "task-c"]));
     expect(new Set(db.tasks.map((task) => task.position))).toEqual(new Set([0, 1, 2]));
   });
+
+  it("062-subtareas (hallazgo Crítico de revisión): una subtarea con el mismo workId no rompe el reorder de las tareas raíz", async () => {
+    // Las hijas heredan `workId` del padre (viven en el mismo proyecto), así
+    // que `reorderTasks` tiene que acotar por `parentId: null` además de
+    // `workId` — si no, el conjunto de raíces nunca coincide con lo que manda
+    // la UI (que solo lista raíces, src/app/api/works/[id]/route.ts) y CADA
+    // arrastre sale TASK_SET_CHANGED.
+    db.tasks.push(db.task({ id: "task-a-1", position: 0, parentId: "task-a" }));
+
+    await reorderTasks("work-1", ["task-c", "task-a", "task-b"]);
+
+    expect(positionById()).toMatchObject({ "task-a": 1, "task-b": 2, "task-c": 0 });
+    // La posición de la subtarea no se toca: el reorder de raíces no la incluye.
+    expect(positionById()["task-a-1"]).toBe(0);
+  });
 });
