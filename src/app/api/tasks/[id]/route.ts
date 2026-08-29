@@ -44,6 +44,15 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     const previousParentId = task.parentId;
     const nextParentId = body.parentId;
 
+    // Ruling 2026-08-29 (revisión Tarea 11, hallazgo Importante C): al colgar
+    // una tarea de un padre, si la tarea NO tiene ningún EXEC propio, hereda
+    // los del padre (si ya tiene los suyos, se respetan — delegación
+    // explícita). Sin esto queda el mismo "pendiente invisible" que el
+    // ruling anterior cerró para la creación: el padre pasa a ser
+    // contenedor y deja de contar, y la tarea colgada no cuenta en ningún
+    // sector. Al promover (`parentId: null`) no se toca ningún link.
+    let inheritedLinksData: { type: "EXEC"; targetType: "SECTOR"; targetId: string; sectorId: string }[] = [];
+
     if (nextParentId) {
       if (nextParentId === id) throw badRequest("Una tarea no puede colgar de sí misma");
 
@@ -65,11 +74,25 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
       if (openChildren > 0) {
         throw badRequest("Sacá primero las subtareas de esta tarea antes de moverla");
       }
+
+      const ownExecLinks = task.links.filter((l) => l.type === "EXEC");
+      if (ownExecLinks.length === 0) {
+        const parentExecLinks = await prisma.taskLink.findMany({
+          where: { taskId: nextParentId, type: "EXEC" },
+          select: { sectorId: true },
+        });
+        inheritedLinksData = parentExecLinks
+          .filter((l): l is { sectorId: string } => l.sectorId != null)
+          .map((l) => ({ type: "EXEC" as const, targetType: "SECTOR" as const, targetId: l.sectorId, sectorId: l.sectorId }));
+      }
     }
 
     const updated = await prisma.task.update({
       where: { id },
-      data: { parentId: nextParentId },
+      data: {
+        parentId: nextParentId,
+        ...(inheritedLinksData.length > 0 ? { links: { create: inheritedLinksData } } : {}),
+      },
       include: {
         links: { include: { sector: true, user: { select: { id: true, name: true } } } },
         work: { select: { id: true, name: true, status: true } },
@@ -86,7 +109,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
       type: "task-changed",
       taskId: id,
       workId: task.workId,
-      sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+      sectorIds: updated.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
     });
 
     return NextResponse.json(updated);

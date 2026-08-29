@@ -28,7 +28,10 @@ interface FakeTask {
   sectorId: string | null;
   statusId: string;
   status: FakeStatus;
-  links: [];
+  // 062-subtareas (hallazgo Importante C de revisión): antes tipado `[]`
+  // (tupla vacía); ahora acepta EXEC links reales de fixture para probar la
+  // herencia al colgar una tarea de un padre (ruling 2026-08-29).
+  links: { type: "EXEC" | "REF"; sectorId: string | null }[];
 }
 
 const PADRE_ID = randomUUID();
@@ -45,6 +48,11 @@ const HIJA_SECTOR_ID = randomUUID();
 const PADRE_OTRO_SECTOR_ID = randomUUID();
 const SECTOR_A = randomUUID();
 const SECTOR_B = randomUUID();
+const SECTOR_C = randomUUID();
+
+// 062-subtareas (hallazgo Importante C): tarea suelta de proyecto, sin padre,
+// para los escenarios de herencia de EXEC al colgarla de un padre.
+const TAREA_SUELTA_ID = randomUUID();
 
 const db = vi.hoisted(() => ({
   tasks: [] as FakeTask[],
@@ -88,9 +96,22 @@ vi.mock("@/lib/db/client", () => ({
         db.tasks.find((t) => t.id === id) ?? null,
       ),
       update: vi.fn(
-        async ({ where: { id }, data }: { where: { id: string }; data: { parentId: string | null } }) => {
+        async ({
+          where: { id },
+          data,
+        }: {
+          where: { id: string };
+          data: {
+            parentId: string | null;
+            links?: { create?: { type: "EXEC" | "REF"; sectorId: string | null }[] };
+          };
+        }) => {
           const t = db.tasks.find((x) => x.id === id)!;
           t.parentId = data.parentId;
+          // 062-subtareas (hallazgo Importante C): el `update` real AGREGA los
+          // links heredados (no los reemplaza) — a diferencia del reconstruye-
+          // desde-cero de `saveTask`, acá no hay `deleteMany`.
+          if (data.links?.create) t.links = [...t.links, ...data.links.create];
           return t;
         },
       ),
@@ -114,6 +135,21 @@ vi.mock("@/lib/db/client", () => ({
         db.tasks = db.tasks.filter((t) => t.parentId !== id);
         return deleted;
       }),
+    },
+    taskLink: {
+      // 062-subtareas (hallazgo Importante C): EXEC propios del padre, para
+      // que la tarea que se cuelga pueda heredarlos.
+      findMany: vi.fn(
+        async ({
+          where,
+        }: {
+          where: { taskId: string; type: "EXEC" | "REF" };
+        }) => {
+          const owner = db.tasks.find((t) => t.id === where.taskId);
+          if (!owner) return [];
+          return owner.links.filter((l) => l.type === where.type).map((l) => ({ sectorId: l.sectorId }));
+        },
+      ),
     },
   },
 }));
@@ -139,6 +175,7 @@ beforeEach(() => {
     { id: PADRE_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
     { id: HIJA_SECTOR_ID, parentId: PADRE_SECTOR_ID, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
     { id: PADRE_OTRO_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_B, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
+    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
   ];
 });
 
@@ -182,6 +219,43 @@ describe("PATCH /api/tasks/[id] con parentId", () => {
     const res = await PATCH(req({ parentId: OTRO_PADRE_ID }), params(PADRE_ID));
     expect(res.status).toBe(400);
     expect(db.tasks.find((t) => t.id === PADRE_ID)!.parentId).toBeNull();
+  });
+});
+
+describe("PATCH /api/tasks/[id] con parentId — herencia de EXEC al colgar (ruling 2026-08-29, hallazgo Importante C)", () => {
+  it("una tarea sin EXEC propio hereda los del padre al colgarla", async () => {
+    db.tasks.find((t) => t.id === PADRE_ID)!.links = [{ type: "EXEC", sectorId: SECTOR_C }];
+
+    const res = await PATCH(req({ parentId: PADRE_ID }), params(TAREA_SUELTA_ID));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.links).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "EXEC", sectorId: SECTOR_C })]),
+    );
+  });
+
+  it("una tarea CON EXEC propio no lo pierde ni suma el del padre (se respeta el suyo)", async () => {
+    db.tasks.find((t) => t.id === TAREA_SUELTA_ID)!.links = [{ type: "EXEC", sectorId: SECTOR_A }];
+    db.tasks.find((t) => t.id === PADRE_ID)!.links = [{ type: "EXEC", sectorId: SECTOR_C }];
+
+    const res = await PATCH(req({ parentId: PADRE_ID }), params(TAREA_SUELTA_ID));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const execSectorIds = body.links.filter((l: { type: string }) => l.type === "EXEC").map((l: { sectorId: string }) => l.sectorId);
+    expect(execSectorIds).toEqual([SECTOR_A]);
+    expect(execSectorIds).not.toContain(SECTOR_C);
+  });
+
+  it("promover a tarea independiente (parentId: null) no toca ningún link", async () => {
+    db.tasks.find((t) => t.id === HIJA_ID)!.links = [{ type: "EXEC", sectorId: SECTOR_A }];
+
+    const res = await PATCH(req({ parentId: null }), params(HIJA_ID));
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.links).toEqual([{ type: "EXEC", sectorId: SECTOR_A }]);
   });
 });
 
