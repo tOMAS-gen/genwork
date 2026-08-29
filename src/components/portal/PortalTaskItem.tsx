@@ -130,6 +130,17 @@ export function PortalTaskItem({ task }: { task: PortalTask }) {
           Entrega: {dueDateFormatter.format(due)}
         </p>
       )}
+
+      {/* 062-subtareas: solo lectura, sin acciones ni arrastre — el cliente ve
+          las hijas indentadas bajo su padre, nada más (mismo componente, es
+          hoja: `task.subtasks` de una hija siempre viene vacío). */}
+      {task.subtasks.length > 0 && (
+        <ul className="task-list portal-task-list portal-subtask-list">
+          {task.subtasks.map((subtask) => (
+            <PortalTaskItem key={subtask.id} task={subtask} />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }

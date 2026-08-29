@@ -4734,6 +4734,13 @@ dialog.dialog--overflow-visible {
   font-size: var(--text-xs);
 }
 
+/* 062-subtareas: hijas indentadas bajo su padre, solo lectura (sin casilla ni
+   arrastre en el portal — ver PortalTaskItem). */
+.portal-subtask-list {
+  margin: var(--space-xs) 0 0 var(--space-lg);
+  padding: 0;
+}
+
 .portal-activity {
   list-style: none;
   margin: 0;

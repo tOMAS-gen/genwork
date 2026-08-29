@@ -40,6 +40,14 @@ export interface PortalTask {
   status: { name: string; color: string; type: "IN_PROGRESS" | "FINAL" };
   links: PortalTaskLink[];
   labels: { valueName: string; color: string }[];
+  /** 062-subtareas: id de la tarea padre, o null si es de nivel raíz. */
+  parentId: string | null;
+  /** 062-subtareas: `displayText` del padre, o null (sin padre). */
+  parentText: string | null;
+  /** 062-subtareas: hijas anidadas — mismo shape, sin subtareas propias. */
+  subtasks: PortalTask[];
+  subtaskCount: number;
+  subtaskDone: number;
 }
 
 export interface PortalWorkDetail extends PortalWorkSummary {

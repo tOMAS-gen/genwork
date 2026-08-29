@@ -65,6 +65,33 @@ const PORTAL_WORK_FILTER = { status: "ACTIVE", isTemplate: false } as const;
 
 const LABEL_INCLUDE = { value: { include: { key: true } } } as const;
 
+/**
+ * 062-subtareas (hallazgo Importante 6 de revisión): shape compartida por
+ * padre e hija (una subtarea no puede tener sus propias subtareas, así que
+ * este mismo `select` sirve para ambos niveles — el padre lo usa con
+ * `subtasks` agregado, ver `getPortalWork`). Antes estaba copiado dos veces.
+ */
+const PORTAL_TASK_SELECT = {
+  id: true,
+  displayText: true,
+  rawText: true,
+  description: true,
+  dueDate: true,
+  position: true,
+  parentId: true,
+  parent: { select: { id: true, displayText: true } },
+  status: { select: { name: true, color: true, type: true } },
+  links: {
+    select: {
+      type: true,
+      targetType: true,
+      sector: { select: { name: true, color: true } },
+      user: { select: { name: true } },
+    },
+  },
+  labels: { include: LABEL_INCLUDE },
+} as const;
+
 function toLabelDtos(
   labels: readonly { isPrimary: boolean; value: { name: string; color: string } }[],
 ): PortalLabelDto[] {
@@ -170,47 +197,8 @@ export async function getPortalWork(workId: string): Promise<PortalWorkDetail | 
         where: { parentId: null },
         orderBy: { position: "asc" },
         select: {
-          id: true,
-          displayText: true,
-          rawText: true,
-          description: true,
-          dueDate: true,
-          position: true,
-          parentId: true,
-          parent: { select: { id: true, displayText: true } },
-          status: { select: { name: true, color: true, type: true } },
-          links: {
-            select: {
-              type: true,
-              targetType: true,
-              sector: { select: { name: true, color: true } },
-              user: { select: { name: true } },
-            },
-          },
-          labels: { include: LABEL_INCLUDE },
-          subtasks: {
-            orderBy: { position: "asc" },
-            select: {
-              id: true,
-              displayText: true,
-              rawText: true,
-              description: true,
-              dueDate: true,
-              position: true,
-              parentId: true,
-              parent: { select: { id: true, displayText: true } },
-              status: { select: { name: true, color: true, type: true } },
-              links: {
-                select: {
-                  type: true,
-                  targetType: true,
-                  sector: { select: { name: true, color: true } },
-                  user: { select: { name: true } },
-                },
-              },
-              labels: { include: LABEL_INCLUDE },
-            },
-          },
+          ...PORTAL_TASK_SELECT,
+          subtasks: { orderBy: { position: "asc" }, select: PORTAL_TASK_SELECT },
         },
       },
     },
