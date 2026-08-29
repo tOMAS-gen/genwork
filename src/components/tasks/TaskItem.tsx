@@ -351,6 +351,14 @@ export function TaskItem({
   const subtaskCounts = { subtaskDone: task.subtaskDone ?? 0, subtaskCount: task.subtaskCount ?? 0 };
   const progressLabel = subtaskProgressLabel(subtaskCounts);
   const finishable = canFinishParent(subtaskCounts);
+  // Revisión (hallazgo Importante 2): el motivo del bloqueo tiene que poder
+  // anunciarse (aria-label + title), no solo verse — se arma una vez acá para
+  // no duplicar la cadena entre los dos atributos que la usan más abajo.
+  const checkboxLabel = !finishable
+    ? "Faltan " + (subtaskCounts.subtaskCount - subtaskCounts.subtaskDone) + " subtareas"
+    : task.status.type === "FINAL"
+      ? "Marcar como no terminada"
+      : "Marcar como terminada";
   // Vencimiento heredado (Task 3): si la tarea no tiene fecha propia, hereda la
   // más próxima de una hija ABIERTA. El caso "fecha propia" ya se ve inline en
   // el rawText vía date-chip (renderInlineSegments) — acá solo hace falta
@@ -389,16 +397,23 @@ export function TaskItem({
           <input
             type="checkbox"
             checked={task.status.type === "FINAL"}
-            disabled={!finishable}
-            onChange={() => void quickToggleFinal()}
-            title={
-              !finishable
-                ? "Faltan " + (subtaskCounts.subtaskCount - subtaskCounts.subtaskDone) + " subtareas"
-                : task.status.type === "FINAL"
-                  ? "Marcar como no terminada"
-                  : "Marcar como terminada"
-            }
-            aria-label={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
+            // Revisión (hallazgo Importante 2): `disabled` nativo saca el control
+            // del orden de tabulación — quien navega con teclado nunca llegaría a
+            // escuchar el motivo. `aria-disabled` lo anuncia sin sacarlo del
+            // recorrido; el bloqueo real del toggle lo hace `onClick` (cubre mouse
+            // Y la barra espaciadora, que en un checkbox dispara "click" también),
+            // con `onChange` como resguardo adicional. Mismo patrón de capas que
+            // ya usa Menu.tsx (disabled + aria-disabled), pero sin el `disabled`
+            // nativo porque acá SÍ hace falta que siga siendo alcanzable por Tab.
+            aria-disabled={!finishable}
+            onClick={(e) => {
+              if (!finishable) e.preventDefault();
+            }}
+            onChange={() => {
+              if (finishable) void quickToggleFinal();
+            }}
+            title={checkboxLabel}
+            aria-label={checkboxLabel}
           />
         ) : !canToggle ? (
           <span className="muted" title="Se completa en su sector de ejecución">

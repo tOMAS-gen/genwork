@@ -72,7 +72,10 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
     expect(html).toContain("Hija uno");
   });
 
-  it("deshabilita el check mientras queden hijas abiertas, con el tooltip exacto", () => {
+  it("bloquea el check mientras queden hijas abiertas SIN sacarlo del tabulado (aria-disabled, no disabled nativo)", () => {
+    // Revisión — hallazgo Importante 2: `disabled` nativo saca el control del
+    // orden de Tab; acá tiene que seguir siendo alcanzable por teclado y
+    // anunciar el motivo por aria-label (title es solo el tooltip visual).
     const padre = task({
       id: "padre",
       displayText: "Tarea padre",
@@ -86,7 +89,11 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
     );
 
     expect(html).toContain("Faltan 2 subtareas");
-    expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*disabled/);
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).toContain('aria-label="Faltan 2 subtareas"');
+    // ningún <input> de esta fila lleva el atributo `disabled` nativo (que sí
+    // sacaría el checkbox del recorrido de Tab) — solo `aria-disabled`.
+    expect(html).not.toMatch(/<input[^>]* disabled/);
   });
 
   it("habilita el check cuando ya no quedan hijas abiertas", () => {
@@ -105,7 +112,8 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
       <TaskItem task={padre} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
     );
 
-    expect(html).not.toMatch(/<input[^>]*type="checkbox"[^>]*disabled/);
+    expect(html).toContain('aria-disabled="false"');
+    expect(html).not.toMatch(/<input[^>]* disabled/);
   });
 
   it("una hija no vuelve a ofrecer su propia lista de subtareas (un solo nivel)", () => {
@@ -136,6 +144,44 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
     );
 
     expect(html).not.toContain("subtask-list");
+  });
+
+  it("en modo solo lectura las hijas se listan planas, sin drag handle (mismo patrón que works/[id]/page.tsx)", () => {
+    // Revisión — hallazgo Importante 1: `canToggle=false` (sector en modo vista,
+    // proyecto no activo) no debe ofrecer un grip arrastrable — el backend lo
+    // rechazaría con 403, pero el affordance ya es engañoso por sí solo.
+    const padre = task({
+      id: "padre",
+      displayText: "Tarea padre",
+      canToggle: false,
+      subtaskCount: 1,
+      subtaskDone: 0,
+      subtasks: [task({ id: "hija1", displayText: "Hija uno", parentId: "padre" })],
+    });
+
+    const html = renderToString(
+      <TaskItem task={padre} context={{ workId: "w1" }} canToggle={false} onChanged={() => {}} />,
+    );
+
+    expect(html).toContain("Hija uno");
+    expect(html).not.toContain("task-drag-handle");
+    expect(html).not.toContain("Subtarea"); // tampoco el botón "+ Subtarea"
+  });
+
+  it("con permiso de edición, las hijas sí muestran el drag handle", () => {
+    const padre = task({
+      id: "padre",
+      displayText: "Tarea padre",
+      subtaskCount: 1,
+      subtaskDone: 0,
+      subtasks: [task({ id: "hija1", displayText: "Hija uno", parentId: "padre" })],
+    });
+
+    const html = renderToString(
+      <TaskItem task={padre} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
+    );
+
+    expect(html).toContain("task-drag-handle");
   });
 
   it("muestra el vencimiento heredado de una hija abierta, distinguido de una fecha propia", () => {

@@ -598,8 +598,10 @@ textarea:focus {
 }
 
 /* 062-subtareas (Tarea 12): casilla bloqueada mientras queden hijas abiertas
-   (evita el 409 PARENT_HAS_OPEN_SUBTASKS en vez de depender de ese error). */
-.task input[type="checkbox"]:disabled {
+   (evita el 409 PARENT_HAS_OPEN_SUBTASKS en vez de depender de ese error).
+   Revisión (hallazgo Importante 2): `[aria-disabled]`, no `:disabled` — el
+   control sigue siendo foco-alcanzable por teclado (ver TaskItem.tsx). */
+.task input[type="checkbox"][aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.5;
 }
