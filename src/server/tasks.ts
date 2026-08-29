@@ -510,10 +510,29 @@ export async function saveTask(
   // contenedor), y la hija tampoco aparece en ningún sector porque nunca tuvo
   // vínculo propio. Si la hija SÍ declara uno o varios #sector, esos valen
   // (delegación explícita) y no se agregan los del padre.
+  //
+  // Hallazgo Importante B (revisión Tarea 11): la herencia vivía SOLO cuando
+  // el llamador mandaba `parentId` explícito — que pasa al crear, pero NO al
+  // editar el texto de una hija ya existente (ni desde /api/tasks/[id] ni
+  // desde el MCP), y el `update` reconstruye los links desde cero. Resultado:
+  // la primera edición de texto sin `#` borraba el EXEC heredado en silencio.
+  // Arreglo centralizado acá (no en cada llamador): si es una edición
+  // (`input.taskId`) y no vino `parentId` explícito, se resuelve el padre
+  // ACTUAL de la tarea desde la base — así cualquier editor (UI, MCP, uno
+  // futuro) conserva la herencia sin tener que acordarse de mandar `parentId`.
+  let resolvedParentId = input.parentId;
+  if (input.taskId && resolvedParentId === undefined) {
+    const currentTask = await prisma.task.findUnique({
+      where: { id: input.taskId },
+      select: { parentId: true },
+    });
+    resolvedParentId = currentTask?.parentId ?? undefined;
+  }
+
   let inheritedExecSectorIds: string[] = [];
-  if (input.parentId) {
+  if (resolvedParentId) {
     const parent = await prisma.task.findUnique({
-      where: { id: input.parentId },
+      where: { id: resolvedParentId },
       include: { links: { where: { type: "EXEC" } } },
     });
     if (!parent) throw notFound("Tarea padre no encontrada");

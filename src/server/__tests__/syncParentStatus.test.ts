@@ -67,12 +67,28 @@ vi.mock("@/lib/db/client", () => ({
       findMany: vi.fn(async ({ where }: { where: { parentId: string } }) =>
         db.tasks.filter((t) => t.parentId === where.parentId),
       ),
-      update: vi.fn(async ({ where: { id }, data }: { where: { id: string }; data: { statusId: string } }) => {
-        const task = db.tasks.find((t) => t.id === id)!;
-        task.statusId = data.statusId;
-        task.status = { id: data.statusId, type: data.statusId === "hecha" ? "FINAL" : "IN_PROGRESS" };
-        return task;
-      }),
+      update: vi.fn(
+        async ({
+          where: { id },
+          data,
+        }: {
+          where: { id: string };
+          data: {
+            statusId: string;
+            links?: { create?: { type: "EXEC" | "REF"; sectorId: string | null }[] };
+          };
+        }) => {
+          const task = db.tasks.find((t) => t.id === id)!;
+          task.statusId = data.statusId;
+          task.status = { id: data.statusId, type: data.statusId === "hecha" ? "FINAL" : "IN_PROGRESS" };
+          // 062-subtareas (hallazgo Importante B de revisión): el `update` real
+          // reconstruye los links desde cero (`deleteMany` + `create`); el mock
+          // tiene que reflejar eso para poder afirmar que la herencia sobrevive
+          // a una edición de texto.
+          if (data.links?.create) task.links = data.links.create;
+          return task;
+        },
+      ),
       // Lo usa setTaskStatus para contar hijas abiertas antes de dejar cerrar al padre
       // a mano (Tarea 6). El resto de los tests de este archivo no lo tocan.
       count: vi.fn(async ({ where }: { where: { parentId: string } }) =>
@@ -347,6 +363,43 @@ describe("crear subtarea", () => {
       const hija = await saveTask(ctx, { rawText: "revisar con Ana", parentId: "padre" });
 
       expect(hija.links.filter((l) => l.type === "EXEC")).toEqual([]);
+    });
+
+    it("hallazgo Importante B (revisión Tarea 11): editar el texto de una hija (sin mandar parentId) conserva el EXEC heredado", async () => {
+      // La hija YA existe con el EXEC heredado (como si una edición anterior
+      // lo hubiera puesto ahí); el camino de edición real NO manda `parentId`
+      // (src/app/api/tasks/[id]/route.ts, src/lib/mcp/tools/tasks.ts) y el
+      // `update` reconstruye `links` desde cero — sin este arreglo, esta
+      // edición borraba el EXEC en silencio.
+      seedParent("IN_PROGRESS", ["IN_PROGRESS"], [{ type: "EXEC", sectorId: SECTOR_VENTAS_ID }]);
+      db.tasks.find((t) => t.id === "hija-0")!.links = [{ type: "EXEC", sectorId: SECTOR_VENTAS_ID }];
+      const { saveTask } = await import("@/server/tasks");
+
+      const editada = await saveTask(ctx, {
+        rawText: "texto editado, sin tag propio",
+        taskId: "hija-0",
+        contextWorkId: "work-1",
+      });
+
+      expect(editada.links).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: "EXEC", sectorId: SECTOR_VENTAS_ID })]),
+      );
+    });
+
+    it("hallazgo Importante B: editar con #Marketing propio reemplaza (no suma) al EXEC heredado", async () => {
+      seedParent("IN_PROGRESS", ["IN_PROGRESS"], [{ type: "EXEC", sectorId: SECTOR_VENTAS_ID }]);
+      db.tasks.find((t) => t.id === "hija-0")!.links = [{ type: "EXEC", sectorId: SECTOR_VENTAS_ID }];
+      const { saveTask } = await import("@/server/tasks");
+
+      const editada = await saveTask(ctx, {
+        rawText: "texto editado #Marketing",
+        taskId: "hija-0",
+        contextWorkId: "work-1",
+      });
+
+      const execSectorIds = editada.links.filter((l) => l.type === "EXEC").map((l) => l.sectorId);
+      expect(execSectorIds).toEqual([SECTOR_MARKETING_ID]);
+      expect(execSectorIds).not.toContain(SECTOR_VENTAS_ID);
     });
   });
 });
