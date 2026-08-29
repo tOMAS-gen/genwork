@@ -5,96 +5,32 @@ import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 import { conflict, forbidden, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
-import { accessSector, canCreateSector, type Scope } from "@/lib/domain/permissions";
+import { canCreateSector, type Scope } from "@/lib/domain/permissions";
 import { assignSectorColor } from "@/lib/domain/sectors/colorAssign";
-import { isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
-
-type SectorScope =
-  | { type: "GROUP"; groupId: string; groupName?: string }
-  | { type: "PERSONAL"; ownerId: string }
-  | { type: "GLOBAL" };
+import { listVisibleSectors } from "@/server/sectors";
 
 export const GET = withApi(async () => {
   const session = await requireWriter();
   const ctx = await getUserContext(session.user.id);
 
-  const sectors = await prisma.sector.findMany({
-    include: {
-      group: { select: { id: true, name: true, publicRead: true } },
-      _count: { select: { taskLinks: { where: { type: "EXEC" } } } },
-    },
-    orderBy: { name: "asc" },
-  });
+  // Ámbito, visibilidad y contadores viven en src/server/sectors.ts: misma
+  // fuente que usa la herramienta MCP `sector.list` (Principio VIII).
+  const sectors = await listVisibleSectors(ctx);
 
-  const visible = sectors.filter(
-    (s) =>
-      accessSector(ctx, {
-        id: s.id,
-        groupId: s.groupId,
-        ownerId: s.ownerId,
-        groupPublicRead: s.group?.publicRead ?? false,
-      }) !== "none",
+  // Shape estable de la respuesta: `group`/`owner`/`access` son detalle interno del
+  // helper y no viajan al cliente web (sí al MCP, que necesita el nombre del grupo).
+  return NextResponse.json(
+    sectors.map((s) => ({
+      id: s.id,
+      name: s.name,
+      color: s.color,
+      groupId: s.groupId,
+      ownerId: s.ownerId,
+      _count: s._count,
+      scope: s.scope,
+      metrics: s.metrics,
+    })),
   );
-
-  const sectorIds = visible.map((s) => s.id);
-
-  const [looseTasks, execLinks] = await Promise.all([
-    // sectorId (homeSector) solo se setea para tareas sueltas (sin work): ver src/server/tasks.ts.
-    // Filtramos workId: null igual para blindar contra datos legacy y evitar doble conteo con EXEC.
-    prisma.task.findMany({
-      where: { sectorId: { in: sectorIds }, workId: null },
-      select: { sectorId: true, status: { select: { type: true } } },
-    }),
-    prisma.taskLink.findMany({
-      where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: { isTemplate: false } } },
-      select: { sectorId: true, task: { select: { status: { select: { type: true } } } } },
-    }),
-  ]);
-
-  const metricsBySector = new Map<string, { total: number; done: number; pending: number }>();
-  const ensure = (sectorId: string) => {
-    let m = metricsBySector.get(sectorId);
-    if (!m) {
-      m = { total: 0, done: 0, pending: 0 };
-      metricsBySector.set(sectorId, m);
-    }
-    return m;
-  };
-
-  // feature 054: definición única de "no finalizada" vive en
-  // src/lib/domain/tasks/unfinishedCount.ts para evitar drift entre endpoints.
-  for (const task of looseTasks) {
-    if (!task.sectorId) continue;
-    const m = ensure(task.sectorId);
-    m.total += 1;
-    if (isTaskUnfinished({ id: "", status: task.status })) m.pending += 1;
-    else m.done += 1;
-  }
-
-  for (const link of execLinks) {
-    if (!link.sectorId) continue;
-    const m = ensure(link.sectorId);
-    m.total += 1;
-    if (isTaskUnfinished({ id: "", status: link.task.status })) m.pending += 1;
-    else m.done += 1;
-  }
-
-  const withMetrics = visible.map((s) => {
-    const { group, ...sector } = s;
-    const scope: SectorScope = s.groupId
-      ? { type: "GROUP", groupId: s.groupId, groupName: group?.name }
-      : s.ownerId
-        ? { type: "PERSONAL", ownerId: s.ownerId }
-        : { type: "GLOBAL" };
-
-    return {
-      ...sector,
-      scope,
-      metrics: metricsBySector.get(s.id) ?? { total: 0, done: 0, pending: 0 },
-    };
-  });
-
-  return NextResponse.json(withMetrics);
 });
 
 const createSchema = z.object({

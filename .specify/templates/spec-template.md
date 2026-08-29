@@ -98,6 +98,12 @@
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
 
+### Superficie de asistente (MCP) *(mandatory — Principle VIII)*
+
+- **AS-001**: Indicar qué parte de esta feature DEBE poder consultarse o ejecutarse desde un
+  asistente vía MCP, y qué parte no (con el motivo). "Ninguna" es una respuesta válida sólo si
+  queda escrita junto a su justificación; el detalle técnico se resuelve en `plan`.
+
 ### Key Entities *(include if feature involves data)*
 
 - **[Entity 1]**: [What it represents, key attributes without implementation]

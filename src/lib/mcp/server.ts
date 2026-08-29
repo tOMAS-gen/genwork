@@ -11,10 +11,37 @@ import { registerNoteTools } from "@/lib/mcp/tools/notes";
 import { registerReminderTools } from "@/lib/mcp/tools/reminders";
 import { registerFavoriteTools } from "@/lib/mcp/tools/favorites";
 import { registerGroupTools } from "@/lib/mcp/tools/groups";
+import { registerSectorTools } from "@/lib/mcp/tools/sectors";
 import { registerAdminTools } from "@/lib/mcp/tools/admin";
 import { registerTaskStatusTools } from "@/lib/mcp/tools/taskStatus";
 
 const SERVER_INFO = { name: "genwork", version: "1.0.0" };
+
+export type ToolRegistrar = (server: McpServer, ctx: McpAuth) => void;
+
+/**
+ * Registro único de módulos de herramientas. Está exportado a propósito: el
+ * guard de paridad (`tests/unit/mcp-tool-registry.test.ts`) lo recorre para
+ * comparar las herramientas realmente registradas contra el inventario
+ * documentado en `docs/mcp-tools.md` (Principio VIII: Paridad MCP). Toda
+ * capacidad nueva del producto se agrega acá, no sólo en la web.
+ */
+export const TOOL_REGISTRARS: readonly ToolRegistrar[] = [
+  registerConnectionTools,
+  registerWorkTools,
+  registerTaskTools,
+  registerDocTools,
+  registerAttachmentTools,
+  registerSearchTools,
+  registerLabelTools,
+  registerNoteTools,
+  registerReminderTools,
+  registerFavoriteTools,
+  registerGroupTools,
+  registerSectorTools,
+  registerAdminTools,
+  registerTaskStatusTools,
+];
 
 /**
  * Crea una instancia nueva de `McpServer` por request (modo stateless, ver
@@ -25,18 +52,6 @@ const SERVER_INFO = { name: "genwork", version: "1.0.0" };
  */
 export function createMcpServer(ctx: McpAuth): McpServer {
   const server = new McpServer(SERVER_INFO);
-  registerConnectionTools(server, ctx);
-  registerWorkTools(server, ctx);
-  registerTaskTools(server, ctx);
-  registerDocTools(server, ctx);
-  registerAttachmentTools(server, ctx);
-  registerSearchTools(server, ctx);
-  registerLabelTools(server, ctx);
-  registerNoteTools(server, ctx);
-  registerReminderTools(server, ctx);
-  registerFavoriteTools(server, ctx);
-  registerGroupTools(server, ctx);
-  registerAdminTools(server, ctx);
-  registerTaskStatusTools(server, ctx);
+  for (const register of TOOL_REGISTRARS) register(server, ctx);
   return server;
 }
