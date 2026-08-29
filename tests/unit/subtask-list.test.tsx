@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
-import { subtaskProgressLabel, canFinishParent } from "@/components/tasks/SubtaskList";
+import { subtaskProgressLabel, canFinishParent, parentBreadcrumb, reparentMenuLabel } from "@/components/tasks/SubtaskList";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 
 describe("progreso de subtareas", () => {
   it("muestra hechas sobre total", () => {
@@ -221,5 +222,72 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
     );
 
     expect(html).not.toContain("date-chip-inherited");
+  });
+});
+
+describe("migaja del tablero", () => {
+  it("una subtarea muestra de qué tarea cuelga", () => {
+    expect(parentBreadcrumb({ parentId: "p1", parentText: "Informe mensual" })).toBe("↳ Informe mensual");
+  });
+
+  it("una tarea raíz no muestra migaja", () => {
+    expect(parentBreadcrumb({ parentId: null, parentText: null })).toBeNull();
+  });
+});
+
+describe("reparentMenuLabel — texto del ítem de menú para mover/sacar (Tarea 13)", () => {
+  it("una tarea raíz ofrece 'Mover bajo otra tarea…'", () => {
+    expect(reparentMenuLabel({ parentId: null, parentText: null })).toBe("Mover bajo otra tarea…");
+  });
+
+  it("una subtarea ofrece 'Sacar de \"padre\"'", () => {
+    expect(reparentMenuLabel({ parentId: "p1", parentText: "Informe mensual" })).toBe(
+      'Sacar de "Informe mensual"',
+    );
+  });
+});
+
+/**
+ * TaskBoardView — tarjetas propias para las subtareas (Tarea 13): el endpoint
+ * anida las hijas bajo `subtasks` (mismo contrato que la lista), pero en el
+ * tablero cada hija tiene que aparecer como tarjeta suelta en la columna de
+ * SU PROPIO estado (no el del padre) — antes de esta tarea, una hija con
+ * subtasks nested nunca se veía en el tablero. Mismo patrón renderToString
+ * que el resto del archivo (sin jsdom).
+ */
+describe("TaskBoardView — subtareas como tarjetas propias (Tarea 13)", () => {
+  it("una hija anidada bajo el padre aparece como tarjeta propia, con la migaja de su padre", () => {
+    const padre = task({
+      id: "padre",
+      displayText: "Tarea padre",
+      subtaskCount: 1,
+      subtaskDone: 1,
+      subtasks: [
+        task({
+          id: "hija1",
+          displayText: "Hija uno",
+          parentId: "padre",
+          parentText: "Tarea padre",
+          status: final,
+        }),
+      ],
+    });
+
+    const html = renderToString(
+      <TaskBoardView tasks={[padre]} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
+    );
+
+    expect(html).toContain("Hija uno");
+    expect(html).toContain("↳ Tarea padre");
+  });
+
+  it("una tarea raíz sin padre no muestra migaja en su tarjeta", () => {
+    const suelta = task({ id: "suelta", displayText: "Tarea suelta" });
+
+    const html = renderToString(
+      <TaskBoardView tasks={[suelta]} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
+    );
+
+    expect(html).not.toContain("↳");
   });
 });

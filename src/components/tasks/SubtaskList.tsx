@@ -41,6 +41,22 @@ export function canFinishParent(task: { subtaskDone: number; subtaskCount: numbe
   return task.subtaskDone === task.subtaskCount;
 }
 
+/** Migaja de la tarjeta de una subtarea en el tablero (Tarea 13): de qué tarea cuelga. */
+export function parentBreadcrumb(task: { parentId: string | null; parentText: string | null }): string | null {
+  return task.parentId && task.parentText ? `↳ ${task.parentText}` : null;
+}
+
+/**
+ * Texto del ítem de menú para reorganizar la jerarquía (Tarea 13): una tarea
+ * raíz se puede colgar de otra; una subtarea se puede sacar de la suya. Los
+ * dos casos son mutuamente excluyentes (una tarea o es raíz o es hija, nunca
+ * las dos), así que un solo ítem alcanza por tarea.
+ */
+export function reparentMenuLabel(task: { parentId: string | null; parentText: string | null }): string {
+  if (task.parentId) return `Sacar de "${task.parentText ?? "su tarea padre"}"`;
+  return "Mover bajo otra tarea…";
+}
+
 /**
  * Fila arrastrable de una subtarea: mismo patrón que `SortableTaskRow` de
  * `works/[id]/page.tsx` (feature 052, T005/T006) — el handle visual y el estilo
