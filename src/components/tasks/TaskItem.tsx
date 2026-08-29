@@ -12,7 +12,12 @@ import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
+import { effectiveDueDate } from "@/lib/domain/tasks/parentDueDate";
 import { TaskInlineEdit } from "./TaskInlineEdit";
+import { SubtaskList, subtaskProgressLabel, canFinishParent } from "./SubtaskList";
+
+/** 062-subtareas: fecha heredada de una hija — corto, sin año (mismo criterio que StatusBar/DueDateBadge). */
+const inheritedDueDateFormatter = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
 
 export interface TaskDto {
   id: string;
@@ -49,6 +54,14 @@ export interface TaskDto {
    */
   subtaskCount?: number;
   subtaskDone?: number;
+  /** 062-subtareas (Tarea 12): id de la tarea padre — null/undefined en una tarea de nivel raíz. */
+  parentId?: string | null;
+  /** 062-subtareas: texto de la tarea padre (migaja "tarea de: …"); no se usa todavía en la Tarea 12. */
+  parentText?: string | null;
+  /** 062-subtareas: fecha propia de la tarea (Task 3); la mostrada puede heredarse de una hija abierta. */
+  dueDate?: string | null;
+  /** 062-subtareas (Tarea 12): hijas anidadas, serializadas con el MISMO mapper que el padre. */
+  subtasks?: TaskDto[];
 }
 
 type InlineMark =
@@ -331,6 +344,25 @@ export function TaskItem({
 
   const hasDescription = !!(task.description && task.description.trim());
 
+  // 062-subtareas (Tarea 12): progreso de hijas + gate de "se puede finalizar" —
+  // siempre con los conteos GLOBALES del DTO (subtaskCount/subtaskDone), nunca
+  // con el largo de `task.subtasks` (que puede no venir, o venir vacío en vistas
+  // que todavía no anidan hijas — ver comentario de subtaskCount en TaskDto).
+  const subtaskCounts = { subtaskDone: task.subtaskDone ?? 0, subtaskCount: task.subtaskCount ?? 0 };
+  const progressLabel = subtaskProgressLabel(subtaskCounts);
+  const finishable = canFinishParent(subtaskCounts);
+  // Vencimiento heredado (Task 3): si la tarea no tiene fecha propia, hereda la
+  // más próxima de una hija ABIERTA. El caso "fecha propia" ya se ve inline en
+  // el rawText vía date-chip (renderInlineSegments) — acá solo hace falta
+  // pintar algo cuando NO hay date-chip propio y la fecha viene prestada.
+  const effectiveDue = effectiveDueDate({
+    dueDate: task.dueDate ? new Date(task.dueDate) : null,
+    subtasks: (task.subtasks ?? []).map((s) => ({
+      dueDate: s.dueDate ? new Date(s.dueDate) : null,
+      status: { type: s.status.type },
+    })),
+  });
+
   return (
     <div
       className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
@@ -357,8 +389,15 @@ export function TaskItem({
           <input
             type="checkbox"
             checked={task.status.type === "FINAL"}
+            disabled={!finishable}
             onChange={() => void quickToggleFinal()}
-            title={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
+            title={
+              !finishable
+                ? "Faltan " + (subtaskCounts.subtaskCount - subtaskCounts.subtaskDone) + " subtareas"
+                : task.status.type === "FINAL"
+                  ? "Marcar como no terminada"
+                  : "Marcar como terminada"
+            }
             aria-label={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
           />
         ) : !canToggle ? (
@@ -387,18 +426,39 @@ export function TaskItem({
             />
           </>
         ) : (
-          <span
-            className="task-text"
-            style={{ flex: 1, cursor: canEditText ? "text" : "default" }}
-            onClick={handleTextClick}
-          >
-            {shouldShowAutoWorkTag(task, context) && task.work && (
-              <Link className="tag tag-work" href={`/works/${task.work.id}`}>
-                /{task.work.name}
-              </Link>
+          <>
+            <span
+              className="task-text"
+              style={{ flex: 1, cursor: canEditText ? "text" : "default" }}
+              onClick={handleTextClick}
+            >
+              {shouldShowAutoWorkTag(task, context) && task.work && (
+                <Link className="tag tag-work" href={`/works/${task.work.id}`}>
+                  /{task.work.name}
+                </Link>
+              )}
+              {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
+            </span>
+            {/* 062-subtareas (Tarea 12): progreso "hechas/total" junto al título — solo
+                cuando la tarea es contenedora (subtaskCount > 0). */}
+            {progressLabel && (
+              <span
+                className="badge badge-sm"
+                title={`${subtaskCounts.subtaskDone}/${subtaskCounts.subtaskCount} subtareas hechas`}
+              >
+                {progressLabel}
+              </span>
             )}
-            {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
-          </span>
+            {/* Vencimiento heredado (Task 3): la fecha PROPIA ya se ve inline en el texto
+                (date-chip de renderInlineSegments) — este badge atenuado solo aparece
+                cuando la tarea no tiene fecha propia y la toma prestada de una hija. */}
+            {effectiveDue?.inherited && (
+              <span className="date-chip date-chip-inherited" title="Vence por una subtarea">
+                <Calendar size={12} />
+                {inheritedDueDateFormatter.format(effectiveDue.date)}
+              </span>
+            )}
+          </>
         )}
         {/* Selector de estado: solo si hay más de 2 estados en el conjunto (si son
             solo Pendiente/Hecha, la casilla ya alcanza). En el tablero la columna ya
@@ -412,7 +472,12 @@ export function TaskItem({
               aria-label={`Estado de "${task.displayText}"`}
             >
               {task.statusOptions.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option
+                  key={s.id}
+                  value={s.id}
+                  disabled={s.type === "FINAL" && !finishable}
+                  title={s.type === "FINAL" && !finishable ? "Faltan subtareas por terminar" : undefined}
+                >
                   {s.name}
                 </option>
               ))}
@@ -429,6 +494,9 @@ export function TaskItem({
                 icon: (
                   <span className="entity-color-dot" style={{ background: s.color }} aria-hidden="true" />
                 ),
+                // 062-subtareas (Tarea 12): mismo gate que el check/select de variant "list" —
+                // no ofrecer el estado FINAL como alcanzable si quedan hijas abiertas.
+                disabled: s.type === "FINAL" && !finishable,
                 onSelect: () => void changeStatus(s.id),
               }))}
           />
@@ -445,6 +513,13 @@ export function TaskItem({
           </button>
         )}
       </div>
+      {/* 062-subtareas (Tarea 12): hijas anidadas — solo en variant "list" (el
+          tablero agrupa por estado, no tiene lugar para una lista anidada) y
+          solo para tareas de nivel raíz (una subtarea no puede tener las suyas,
+          ver taskDto.ts). */}
+      {variant === "list" && !task.parentId && (
+        <SubtaskList task={task} context={context} canToggle={canToggle} onChanged={onChanged} />
+      )}
       {editing && (
         <textarea
           ref={descRef}

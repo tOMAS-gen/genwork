@@ -597,6 +597,13 @@ textarea:focus {
   margin: 3px 0 0;
 }
 
+/* 062-subtareas (Tarea 12): casilla bloqueada mientras queden hijas abiertas
+   (evita el 409 PARENT_HAS_OPEN_SUBTASKS en vez de depender de ese error). */
+.task input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .task.done .task-text {
   text-decoration: line-through;
   color: var(--muted);
@@ -702,6 +709,37 @@ textarea:focus {
   .task-description-panel {
     transition: none;
   }
+}
+
+/* ---- Subtareas (062-subtareas, Tarea 12) ----
+   Mismo sangrado que .task-description-panel (calc(28px + --space-2)): las
+   hijas quedan alineadas bajo el texto del padre, no bajo la casilla. */
+.subtask-list {
+  margin-left: calc(28px + var(--space-2));
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border);
+}
+
+/* El campo de alta reusa `.notes-row` (mismo bloc de notas que TaskListEditor),
+   así que acá solo hace falta el botón "+ Subtarea" que lo abre. */
+.subtask-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 0;
+  padding: 5px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.subtask-add:hover {
+  background: var(--hover-soft);
+  color: var(--text);
 }
 
 .tag {
@@ -1753,6 +1791,13 @@ dialog.dialog--overflow-visible {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
+}
+
+/* 062-subtareas (Tarea 12): vencimiento heredado de una hija — mismo chip,
+   atenuado, para distinguirlo de una fecha propia (color a todo color). */
+.date-chip-inherited {
+  color: var(--muted);
+  opacity: 0.85;
 }
 
 .date-highlight {
