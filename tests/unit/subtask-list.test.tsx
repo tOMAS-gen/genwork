@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { renderToString } from "react-dom/server";
-import { subtaskProgressLabel, canFinishParent, parentBreadcrumb, reparentMenuLabel } from "@/components/tasks/SubtaskList";
+import {
+  subtaskProgressLabel,
+  canFinishParent,
+  parentBreadcrumb,
+  reparentMenuLabel,
+  deleteConfirmMessage,
+  canReorderSubtasks,
+} from "@/components/tasks/SubtaskList";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 import { TaskMoveDialog } from "@/components/tasks/TaskMoveDialog";
@@ -341,5 +348,42 @@ describe("TaskMoveDialog — estado inicial (Tarea 13, revisión)", () => {
 
     expect(html).toContain("Cargando…");
     expect(html).toContain("Mover bajo otra tarea");
+  });
+});
+
+describe("confirmación de borrado (revisión final, hallazgo Crítico)", () => {
+  it("una tarea sin subtareas conserva el texto de siempre", () => {
+    expect(deleteConfirmMessage({ subtaskCount: 0 })).toBe("¿Eliminar esta tarea?");
+    expect(deleteConfirmMessage({})).toBe("¿Eliminar esta tarea?");
+  });
+
+  it("avisa cuántas subtareas se eliminan junto con la tarea", () => {
+    expect(deleteConfirmMessage({ subtaskCount: 3 })).toBe(
+      "¿Eliminar esta tarea? También se eliminan sus 3 subtareas.",
+    );
+  });
+
+  it("usa el singular cuando hay una sola", () => {
+    expect(deleteConfirmMessage({ subtaskCount: 1 })).toBe(
+      "¿Eliminar esta tarea? También se elimina su subtarea.",
+    );
+  });
+});
+
+describe("gate de reordenamiento (revisión final, hallazgo Importante)", () => {
+  it("permite arrastrar cuando la vista ve todas las hijas", () => {
+    expect(canReorderSubtasks({ subtasks: [{}, {}, {}], subtaskCount: 3 })).toBe(true);
+  });
+
+  it("no permite arrastrar cuando la vista ve menos hijas de las que hay", () => {
+    // Caso real: un padre con 3 hijas, una delegada a otro sector con # propio,
+    // mirado desde la vista del sector del padre. El reorder mandaría 2 ids y el
+    // servidor los compararía contra 3 → 409 con un mensaje falso.
+    expect(canReorderSubtasks({ subtasks: [{}, {}], subtaskCount: 3 })).toBe(false);
+  });
+
+  it("no rompe cuando el DTO todavía no trae los contadores", () => {
+    expect(canReorderSubtasks({ subtasks: [{}, {}] })).toBe(true);
+    expect(canReorderSubtasks({})).toBe(true);
   });
 });

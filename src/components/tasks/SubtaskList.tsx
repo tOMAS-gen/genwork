@@ -41,6 +41,31 @@ export function canFinishParent(task: { subtaskDone: number; subtaskCount: numbe
   return task.subtaskDone === task.subtaskCount;
 }
 
+/**
+ * Texto de la confirmación de borrado (revisión final, hallazgo Crítico): si la
+ * tarea tiene subtareas, avisa cuántas se van con ella — el cascade de la FK las
+ * borra y no hay vuelta atrás.
+ */
+export function deleteConfirmMessage(task: { subtaskCount?: number }): string {
+  const count = task.subtaskCount ?? 0;
+  if (count === 0) return "¿Eliminar esta tarea?";
+  return count === 1
+    ? "¿Eliminar esta tarea? También se elimina su subtarea."
+    : `¿Eliminar esta tarea? También se eliminan sus ${count} subtareas.`;
+}
+
+/**
+ * El arrastre sólo se ofrece cuando la página ve TODAS las hijas (revisión
+ * final, hallazgo Importante): el reorder manda la lista completa y el servidor
+ * la compara contra todas las hijas del padre, así que en una vista donde falta
+ * alguna (una hija delegada a otro sector, por ejemplo) cada arrastre fallaría
+ * con "el orden cambió mientras reordenabas", que además sería mentira.
+ */
+export function canReorderSubtasks(task: { subtasks?: unknown[]; subtaskCount?: number }): boolean {
+  const visible = task.subtasks?.length ?? 0;
+  return visible === (task.subtaskCount ?? visible);
+}
+
 /** Migaja de la tarjeta de una subtarea en el tablero (Tarea 13): de qué tarea cuelga. */
 export function parentBreadcrumb(task: { parentId: string | null; parentText: string | null }): string | null {
   return task.parentId && task.parentText ? `↳ ${task.parentText}` : null;
@@ -290,6 +315,8 @@ export function SubtaskList({
   // orden ANTES de que responda el PATCH, y se resincroniza cada vez que el
   // padre entrega un array de hijas nuevo (después de un refetch real).
   const [subtasks, setSubtasks] = useState<TaskDto[]>(task.subtasks ?? []);
+  // Sólo se puede reordenar si esta vista ve todas las hijas (ver canReorderSubtasks).
+  const reorderable = canReorderSubtasks(task);
   useEffect(() => {
     setSubtasks(task.subtasks ?? []);
   }, [task.subtasks]);
@@ -347,7 +374,7 @@ export function SubtaskList({
           listan planas, sin handle ni DndContext, igual que hace esa página
           con la lista raíz cuando `editable` es false. */}
       {subtasks.length > 0 &&
-        (canToggle ? (
+        (canToggle && reorderable ? (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={subtasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               {subtasks.map((child) => (

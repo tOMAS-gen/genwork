@@ -14,7 +14,13 @@ import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
 import { effectiveDueDate } from "@/lib/domain/tasks/parentDueDate";
 import { TaskInlineEdit } from "./TaskInlineEdit";
-import { SubtaskList, subtaskProgressLabel, canFinishParent, reparentMenuLabel } from "./SubtaskList";
+import {
+  SubtaskList,
+  subtaskProgressLabel,
+  canFinishParent,
+  reparentMenuLabel,
+  deleteConfirmMessage,
+} from "./SubtaskList";
 import { TaskMoveDialog } from "./TaskMoveDialog";
 
 /** 062-subtareas: fecha heredada de una hija — corto, sin año (mismo criterio que StatusBar/DueDateBadge). */
@@ -260,7 +266,10 @@ export function TaskItem({
   };
 
   const remove = async () => {
-    const ok = await showConfirm("¿Eliminar esta tarea?", {
+    // 062-subtareas (revisión final, hallazgo Crítico): borrar un padre se lleva
+    // sus hijas por cascade de la FK. La confirmación tiene que decir cuántas,
+    // porque es pérdida irreversible con un clic.
+    const ok = await showConfirm(deleteConfirmMessage(task), {
       title: "Eliminar tarea",
       confirmLabel: "Eliminar",
       danger: true,

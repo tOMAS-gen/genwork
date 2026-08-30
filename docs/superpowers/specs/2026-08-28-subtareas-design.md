@@ -76,9 +76,13 @@ otro sector puede tener un conjunto de estados distinto al del padre (feature 04
 ### Punto de sincronización único
 
 `syncParentStatus(parentId, ctx)` en `src/server/tasks.ts`, invocado al crear, completar,
-reabrir, borrar, mover o promover una hija. Corre dentro de la misma transacción que la
-operación que lo dispara y lee las hijas ahí adentro (evita carreras entre dos usuarios
-cerrando hijas a la vez). Registra la transición en `TaskStatusChange` con el usuario que la
+reabrir, borrar, mover o promover una hija. **No** corre dentro de la transacción de esa
+operación: acepta un cliente de transacción, pero en la implementación ningún llamador se
+lo pasa, así que queda abierta una carrera si dos personas cierran las dos últimas hijas
+del mismo padre a la vez (el padre puede quedar abierto hasta el próximo cambio de estado).
+Hacerlo transaccional de verdad exige envolver cada operación completa en `$transaction` y
+quedó como mejora futura. Lo que sí está garantizado: la sincronización nunca relanza, así
+que un fallo suyo no convierte en error una escritura que ya se aplicó. Registra la transición en `TaskStatusChange` con el usuario que la
 gatilló, y emite `task-changed` también para el padre, para que las vistas abiertas vean el
 cierre automático por SSE.
 
@@ -161,7 +165,9 @@ Sin primitivas visuales nuevas (Principio IV):
 1. Contadores que se contradicen entre vistas (Principio I) → regla en un único módulo + test
    de regresión por endpoint que cuenta.
 2. Conjuntos de estados distintos entre padre e hija → comparar por `type`, nunca por id.
-3. Carreras al cerrar dos hijas a la vez → recálculo dentro de la transacción.
+3. Carreras al cerrar dos hijas a la vez → **sin mitigar**: la sincronización no corre en la
+   transacción de la operación (ver arriba). Se acepta para esta versión porque exige
+   simultaneidad exacta y se corrige sola en el siguiente cambio de estado del padre.
 4. `position` mezclando hijas con tareas raíz → `nextPosition()` considera `parentId`.
 5. Crecimiento del `TaskItem.tsx`, ya grande → extraer la lista de subtareas a su propio
    componente en vez de engordar el existente.
