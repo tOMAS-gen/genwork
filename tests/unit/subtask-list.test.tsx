@@ -387,3 +387,52 @@ describe("gate de reordenamiento (revisión final, hallazgo Importante)", () => 
     expect(canReorderSubtasks({})).toBe(true);
   });
 });
+
+describe("layout: las subtareas van DEBAJO del padre, no al costado", () => {
+  // El bug: `.task` es flex en fila y sólo pasa a columna con la clase
+  // `task-with-description`, que antes se agregaba únicamente al editar o al
+  // tener descripción. Una tarea con subtareas y sin descripción quedaba en
+  // fila, así que la lista de hijas se dibujaba en el lateral derecho.
+  const parent = (over: Partial<TaskDto> = {}): TaskDto =>
+    task({
+      id: "padre-1",
+      displayText: "Preparar informe mensual",
+      subtaskCount: 2,
+      subtaskDone: 1,
+      subtasks: [task({ id: "h1", displayText: "Juntar datos", parentId: "padre-1" })],
+      ...over,
+    });
+
+  it("una tarea con subtareas apila en columna aunque no tenga descripción ni esté en edición", () => {
+    const html = renderToString(
+      <TaskItem task={parent()} context={{}} canToggle onChanged={() => {}} />,
+    );
+    expect(html).toContain("task-with-description");
+    expect(html).toContain("subtask-list");
+  });
+
+  it("una tarea sin subtareas pero editable también apila (el campo de alta va debajo)", () => {
+    const html = renderToString(
+      <TaskItem
+        task={parent({ subtasks: [], subtaskCount: 0, subtaskDone: 0 })}
+        context={{}}
+        canToggle
+        onChanged={() => {}}
+      />,
+    );
+    expect(html).toContain("task-with-description");
+  });
+
+  it("una tarea sin subtareas y sin permiso de editar conserva el layout de fila", () => {
+    const html = renderToString(
+      <TaskItem
+        task={parent({ subtasks: [], subtaskCount: 0, subtaskDone: 0 })}
+        context={{}}
+        canToggle={false}
+        onChanged={() => {}}
+      />,
+    );
+    expect(html).not.toContain("task-with-description");
+    expect(html).not.toContain("subtask-list");
+  });
+});

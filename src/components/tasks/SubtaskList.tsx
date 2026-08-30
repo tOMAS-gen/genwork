@@ -134,12 +134,10 @@ function AddSubtaskInput({
   parentId,
   context,
   onCreated,
-  onCancel,
 }: {
   parentId: string;
   context: { workId?: string; sectorId?: string };
   onCreated: () => void;
-  onCancel: () => void;
 }) {
   const [text, setText] = useState("");
   const [unresolved, setUnresolved] = useState<{ symbol: string; name: string }[]>([]);
@@ -171,10 +169,7 @@ function AddSubtaskInput({
 
   const submit = async () => {
     const raw = text.trim();
-    if (!raw) {
-      onCancel();
-      return;
-    }
+    if (!raw) return;
     try {
       await api("/api/tasks", {
         method: "POST",
@@ -223,13 +218,8 @@ function AddSubtaskInput({
         <TagHighlightInput
           ref={inputRef}
           value={text}
-          placeholder="Nueva subtarea…  (#sector  @referencia  $etiqueta)"
-          autoFocus
+          placeholder="Escribí una subtarea y Enter…  (#sector  @referencia)"
           onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}
-          onBlur={() => {
-            if (unresolved.length > 0) return; // panel "crear lo que falta" visible: el blur no cancela
-            if (!text.trim()) onCancel();
-          }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" && suggestions.length > 0) {
               e.preventDefault();
@@ -246,7 +236,7 @@ function AddSubtaskInput({
             } else if (e.key === "Escape") {
               e.preventDefault();
               clear();
-              onCancel();
+              inputRef.current?.blur();
             }
           }}
         />
@@ -309,7 +299,6 @@ export function SubtaskList({
   canToggle: boolean;
   onChanged: () => void;
 }) {
-  const [adding, setAdding] = useState(false);
   // Estado optimista propio (revisión — hallazgo Menor/ruling): `task.subtasks`
   // es un prop, así que se copia a estado local para poder mostrar el nuevo
   // orden ANTES de que responda el PATCH, y se resincroniza cada vez que el
@@ -364,7 +353,8 @@ export function SubtaskList({
     commitReorder(reordered, previousSubtasks);
   };
 
-  if (subtasks.length === 0 && !adding && !canToggle) return null;
+  // Sin hijas y sin permiso de editar no hay nada que mostrar ni que agregar.
+  if (subtasks.length === 0 && !canToggle) return null;
 
   return (
     <div className="subtask-list">
@@ -393,22 +383,22 @@ export function SubtaskList({
             <TaskItem key={child.id} task={child} context={context} canToggle={canToggle} onChanged={onChanged} />
           ))
         ))}
-      {canToggle &&
-        (adding ? (
+      {/* Alta de subtarea: el MISMO campo que el bloc de tareas principales
+          (`.notes-row` con el ícono +), no un botón que hay que tocar primero —
+          agregar una subtarea y agregar una tarea son la misma acción y se
+          hacen igual. Se revela al pasar el mouse por la tarea o cuando algo de
+          adentro tiene foco (`:focus-within`), así una lista larga no se llena
+          de campos vacíos pero el campo sigue estando a un gesto de distancia.
+          Queda montado siempre para que el foco no se pierda al crear una. */}
+      {canToggle && (
+        <div className="subtask-add-row">
           <AddSubtaskInput
             parentId={task.id}
             context={context}
-            onCreated={() => {
-              setAdding(false);
-              onChanged();
-            }}
-            onCancel={() => setAdding(false)}
+            onCreated={onChanged}
           />
-        ) : (
-          <button type="button" className="subtask-add" onClick={() => setAdding(true)}>
-            <Plus size={14} /> Subtarea
-          </button>
-        ))}
+        </div>
+      )}
     </div>
   );
 }

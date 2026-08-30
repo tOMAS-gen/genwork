@@ -369,6 +369,16 @@ export function TaskItem({
   );
 
   const hasDescription = !!(task.description && task.description.trim());
+  /**
+   * ¿Esta fila muestra la lista de subtareas debajo? Solo en la lista (el tablero
+   * agrupa por estado) y solo en tareas raíz. Se calcula una vez porque manda dos
+   * cosas que tienen que ir juntas: montar `SubtaskList` y apilar `.task` en
+   * columna. Sin lo segundo, `.task` sigue siendo un flex en fila y las hijas se
+   * dibujan al costado derecho del padre en vez de debajo — que es exactamente lo
+   * que pasaba cuando la tarea no estaba en edición ni tenía descripción, los dos
+   * únicos casos que hasta ahora activaban el layout de columna.
+   */
+  const showsSubtasks = variant === "list" && !task.parentId && (canToggle || (task.subtasks?.length ?? 0) > 0);
 
   // 062-subtareas (Tarea 12): progreso de hijas + gate de "se puede finalizar" —
   // siempre con los conteos GLOBALES del DTO (subtaskCount/subtaskDone), nunca
@@ -414,7 +424,7 @@ export function TaskItem({
   return (
     <>
     <div
-      className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
+      className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing || showsSubtasks ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
     >
       <div className="task-row">
         {/* Drag handle (feature 052, T006): solo en variant "list" y cuando el
@@ -588,7 +598,7 @@ export function TaskItem({
           tablero agrupa por estado, no tiene lugar para una lista anidada) y
           solo para tareas de nivel raíz (una subtarea no puede tener las suyas,
           ver taskDto.ts). */}
-      {variant === "list" && !task.parentId && (
+      {showsSubtasks && (
         <SubtaskList task={task} context={context} canToggle={canToggle} onChanged={onChanged} />
       )}
       {editing && (
