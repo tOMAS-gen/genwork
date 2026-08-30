@@ -729,22 +729,23 @@ textarea:focus {
    larga no se llene de campos vacíos. `visibility` en vez de `display: none`
    mantiene el campo enfocable por teclado (Tab lo alcanza y ahí :focus-within
    lo revela), que es lo que se rompería ocultándolo del todo. */
+/* Alta de subtarea: atenuada mientras no se la usa, nunca oculta. Ocultarla del
+   todo (con `opacity: 0` o `height: 0`) traía dos problemas: con opacidad el
+   campo seguía capturando clics siendo invisible —se podía escribir a ciegas— y
+   con altura cero dejaba de ser alcanzable por teclado. Atenuar mantiene el
+   campo visible, enfocable y honesto sobre dónde está.
+
+   El realce se ancla a `.subtask-list`, NO a `.task`: cada subtarea es a su vez
+   un `TaskItem` con clase `.task`, así que `.task:hover` matcheaba también a la
+   hija y el campo cambiaba de estado según sobre qué fila estuviera el mouse. */
 .subtask-add-row {
-  opacity: 0;
+  opacity: 0.55;
   transition: opacity 150ms ease;
 }
 
-.task:hover .subtask-add-row,
-.task:focus-within .subtask-add-row,
-.subtask-add-row:focus-within {
+.subtask-list:hover .subtask-add-row,
+.subtask-list:focus-within .subtask-add-row {
   opacity: 1;
-}
-
-/* Sin hover (touch) el campo queda siempre visible: no hay gesto equivalente. */
-@media (hover: none) {
-  .subtask-add-row {
-    opacity: 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
