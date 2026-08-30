@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { badRequest, conflict, forbidden, notFound, withApi } from "@/server/api";
+import { conflict, forbidden, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canToggle } from "@/lib/domain/permissions";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { parseTags } from "@/lib/domain/tags/parser";
-import { getTaskOrThrow, saveTask, syncParentStatus, toTaskRef } from "@/server/tasks";
+import { getTaskOrThrow, saveTask, setTaskParent, syncParentStatus, toTaskRef } from "@/server/tasks";
 import { emit } from "@/server/events";
 
 const patchSchema = z.union([
@@ -44,61 +44,10 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     const previousParentId = task.parentId;
     const nextParentId = body.parentId;
 
-    // Ruling 2026-08-29 (revisión Tarea 11, hallazgo Importante C): al colgar
-    // una tarea de un padre, si la tarea NO tiene ningún EXEC propio, hereda
-    // los del padre (si ya tiene los suyos, se respetan — delegación
-    // explícita). Sin esto queda el mismo "pendiente invisible" que el
-    // ruling anterior cerró para la creación: el padre pasa a ser
-    // contenedor y deja de contar, y la tarea colgada no cuenta en ningún
-    // sector. Al promover (`parentId: null`) no se toca ningún link.
-    let inheritedLinksData: { type: "EXEC"; targetType: "SECTOR"; targetId: string; sectorId: string }[] = [];
-
-    if (nextParentId) {
-      if (nextParentId === id) throw badRequest("Una tarea no puede colgar de sí misma");
-
-      const parent = await prisma.task.findUnique({ where: { id: nextParentId } });
-      if (!parent) throw notFound("Tarea padre no encontrada");
-
-      // Un solo nivel de anidado: el destino no puede ser a su vez una subtarea.
-      if (parent.parentId) throw badRequest("Una subtarea no puede tener subtareas");
-
-      // Misma pertenencia que el padre (proyecto o sector home).
-      if (parent.workId !== task.workId || parent.sectorId !== task.sectorId) {
-        throw badRequest("La subtarea tiene que pertenecer al mismo proyecto o sector que el padre");
-      }
-
-      // La tarea que se mueve no puede arrastrar hijas propias abiertas (evita 2 niveles).
-      const openChildren = await prisma.task.count({
-        where: { parentId: id, status: { type: { not: "FINAL" } } },
-      });
-      if (openChildren > 0) {
-        throw badRequest("Sacá primero las subtareas de esta tarea antes de moverla");
-      }
-
-      const ownExecLinks = task.links.filter((l) => l.type === "EXEC");
-      if (ownExecLinks.length === 0) {
-        const parentExecLinks = await prisma.taskLink.findMany({
-          where: { taskId: nextParentId, type: "EXEC" },
-          select: { sectorId: true },
-        });
-        inheritedLinksData = parentExecLinks
-          .filter((l): l is { sectorId: string } => l.sectorId != null)
-          .map((l) => ({ type: "EXEC" as const, targetType: "SECTOR" as const, targetId: l.sectorId, sectorId: l.sectorId }));
-      }
-    }
-
-    const updated = await prisma.task.update({
-      where: { id },
-      data: {
-        parentId: nextParentId,
-        ...(inheritedLinksData.length > 0 ? { links: { create: inheritedLinksData } } : {}),
-      },
-      include: {
-        links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-        work: { select: { id: true, name: true, status: true } },
-        homeSector: { select: { id: true, name: true } },
-      },
-    });
+    // Núcleo de validación + herencia de EXEC + recálculo de `position`
+    // compartido con el MCP `task.setParent` (revisión final, hallazgo
+    // Importante 5 — antes era una copia literal de ~50 líneas acá y allá).
+    const updated = await setTaskParent(task, nextParentId);
 
     // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o con
     // todas terminadas) y el padre nuevo (una hija recién llegada puede reabrirlo).
@@ -161,10 +110,19 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, 
   const task = await getTaskOrThrow(id);
   if (!canToggle(ctx, await toTaskRef(task))) throw forbidden();
 
-  // Contar y capturar el padre ANTES de borrar: el cascade de la FK (Task 4)
-  // se lleva las hijas junto con la tarea, así que después el conteo daría
-  // cero y ya no sabríamos a quién sincronizar.
-  const deletedSubtasks = await prisma.task.count({ where: { parentId: id } });
+  // Traer y capturar el padre ANTES de borrar: el cascade de la FK (Task 4)
+  // se lleva las hijas junto con la tarea, así que después ya no podríamos ni
+  // contarlas ni saber a quién sincronizar. Revisión final (hallazgo
+  // Importante 6): también hace falta leer los sectores de esas hijas ACÁ —
+  // una hija delegada a otro sector (`#` propio, distinto del padre) queda
+  // como tarjeta fantasma en esa vista hasta que alguien la recargue si el
+  // `emit` de abajo no avisa también a esos sectores.
+  const children = await prisma.task.findMany({
+    where: { parentId: id },
+    select: { links: { select: { sectorId: true } } },
+  });
+  const childSectorIds = children.flatMap((c) => c.links.map((l) => l.sectorId).filter((s): s is string => s != null));
+  const deletedSubtasks = children.length;
   const parentId = task.parentId;
 
   await prisma.task.delete({ where: { id } });
@@ -172,7 +130,12 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, 
     type: "task-changed",
     taskId: id,
     workId: task.workId,
-    sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+    sectorIds: [
+      ...new Set([
+        ...task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+        ...childSectorIds,
+      ]),
+    ],
   });
 
   // Si esta tarea era una hija, borrarla puede haber sido la última pendiente:

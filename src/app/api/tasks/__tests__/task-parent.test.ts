@@ -9,11 +9,18 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
  * de /api/tasks), así que las tareas de prueba necesitan ids con forma de UUID
  * de verdad — no alcanza con strings arbitrarios como "padre"/"hija".
  *
- * @/server/tasks se mockea completo (no con importOriginal + spread): el
- * handler solo necesita getTaskOrThrow/toTaskRef para el gate de permisos
- * (canToggle corta en true para SUPERADMIN sin mirar el TaskRef) y
- * syncParentStatus como no-op — no hace falta reproducir la implementación
- * real ni encadenar sus dependencias (parser de tags, resolución de estados).
+ * @/server/tasks se mockea con importOriginal + spread (revisión final,
+ * hallazgo Importante 5): la validación de mover/promover vive ahora en
+ * `setTaskParent`, compartida con el MCP — así que ACÁ tiene que correr real
+ * para seguir probando esa lógica (400 por self-parent, por otra pertenencia,
+ * por hijas abiertas; herencia de EXEC; recálculo de `position`, hallazgo
+ * Importante 4). `nextPosition` también real (la llama `setTaskParent`
+ * internamente, misma módulo — mockearla aparte no la interceptaría). El
+ * resto (getTaskOrThrow/toTaskRef para el gate de permisos —canToggle corta
+ * en true para SUPERADMIN sin mirar el TaskRef—, syncParentStatus, saveTask)
+ * sigue mockeado como no-op: no hace falta reproducir esas implementaciones
+ * reales ni encadenar sus propias dependencias (parser de tags, resolución de
+ * estados, taskStatus/work/sector).
  */
 
 interface FakeStatus {
@@ -32,6 +39,10 @@ interface FakeTask {
   // (tupla vacía); ahora acepta EXEC links reales de fixture para probar la
   // herencia al colgar una tarea de un padre (ruling 2026-08-29).
   links: { type: "EXEC" | "REF"; sectorId: string | null }[];
+  // 062-subtareas (revisión final, hallazgo Importante 4): posición dentro de
+  // su ámbito de hermanas — necesaria para que `nextPosition` (real, la usa
+  // `setTaskParent`) tenga algo que agregar.
+  position: number;
 }
 
 const PADRE_ID = randomUUID();
@@ -78,22 +89,35 @@ vi.mock("@/server/user-context", () => ({
 
 vi.mock("@/server/events", () => ({ emit: vi.fn() }));
 
-vi.mock("@/server/tasks", () => ({
-  getTaskOrThrow: vi.fn(async (id: string) => {
-    const t = db.tasks.find((x) => x.id === id);
-    if (!t) throw new Error("Tarea no encontrada");
-    return t;
-  }),
-  toTaskRef: vi.fn(async () => ({})),
-  syncParentStatus: vi.fn(async () => {}),
-  saveTask: vi.fn(),
-}));
+vi.mock("@/server/tasks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/tasks")>();
+  return {
+    ...actual,
+    getTaskOrThrow: vi.fn(async (id: string) => {
+      const t = db.tasks.find((x) => x.id === id);
+      if (!t) throw new Error("Tarea no encontrada");
+      return t;
+    }),
+    toTaskRef: vi.fn(async () => ({})),
+    syncParentStatus: vi.fn(async () => {}),
+    saveTask: vi.fn(),
+    // setTaskParent y nextPosition quedan REALES (ver comentario de arriba).
+  };
+});
 
 vi.mock("@/lib/db/client", () => ({
   prisma: {
     task: {
       findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
         db.tasks.find((t) => t.id === id) ?? null,
+      ),
+      // 062-subtareas (revisión final, hallazgo Importante 6): DELETE lee las
+      // hijas ANTES de borrar (sectorIds del cascade); el mock las expone con
+      // el mismo shape que pide el select real (`links: { sectorId }`).
+      findMany: vi.fn(async ({ where }: { where: { parentId: string } }) =>
+        db.tasks
+          .filter((t) => t.parentId === where.parentId)
+          .map((t) => ({ links: t.links.map((l) => ({ sectorId: l.sectorId })) })),
       ),
       update: vi.fn(
         async ({
@@ -103,11 +127,15 @@ vi.mock("@/lib/db/client", () => ({
           where: { id: string };
           data: {
             parentId: string | null;
+            position?: number;
             links?: { create?: { type: "EXEC" | "REF"; sectorId: string | null }[] };
           };
         }) => {
           const t = db.tasks.find((x) => x.id === id)!;
           t.parentId = data.parentId;
+          // 062-subtareas (revisión final, hallazgo Importante 4): `setTaskParent`
+          // real ahora manda `position` en el mismo update.
+          if (data.position !== undefined) t.position = data.position;
           // 062-subtareas (hallazgo Importante C): el `update` real AGREGA los
           // links heredados (no los reemplaza) — a diferencia del reconstruye-
           // desde-cero de `saveTask`, acá no hay `deleteMany`.
@@ -126,6 +154,27 @@ vi.mock("@/lib/db/client", () => ({
               t.parentId === where.parentId &&
               (!where.status || t.status.type !== where.status.type.not),
           ).length,
+      ),
+      // 062-subtareas (revisión final, hallazgo Importante 4): la usa
+      // `nextPosition` (real) para calcular la posición dentro del nuevo
+      // ámbito de hermanas — hijas del padre nuevo, o raíces del proyecto/
+      // sector si se promueve.
+      aggregate: vi.fn(
+        async ({
+          where,
+        }: {
+          where: { parentId: string | null; workId?: string | null; sectorId?: string | null };
+        }) => {
+          const positions = db.tasks
+            .filter(
+              (t) =>
+                t.parentId === where.parentId &&
+                (where.workId === undefined || t.workId === where.workId) &&
+                (where.sectorId === undefined || t.sectorId === where.sectorId),
+            )
+            .map((t) => t.position);
+          return { _max: { position: positions.length ? Math.max(...positions) : null } };
+        },
       ),
       delete: vi.fn(async ({ where: { id } }: { where: { id: string } }) => {
         const idx = db.tasks.findIndex((t) => t.id === id);
@@ -168,14 +217,14 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
   db.tasks = [
-    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: PADRE_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: HIJA_SECTOR_ID, parentId: PADRE_SECTOR_ID, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: PADRE_OTRO_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_B, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
-    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [] },
+    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
+    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 1 },
+    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
+    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
+    { id: PADRE_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
+    { id: HIJA_SECTOR_ID, parentId: PADRE_SECTOR_ID, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
+    { id: PADRE_OTRO_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_B, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
+    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 2 },
   ];
 });
 

@@ -8,6 +8,7 @@ import {
   saveTask,
   toTaskRef,
   setTaskStatus,
+  setTaskParent,
   syncParentStatus,
   loadApplicableStatusSet,
   execSectorIdsOf,
@@ -408,60 +409,14 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         const task = await getTaskOrThrow(taskId);
         if (!canToggle(ctx.userContext, await toTaskRef(task))) throw forbidden();
 
-        // Réplica exacta de PATCH /api/tasks/[id] con { parentId } (Tarea 8):
-        // mismas validaciones y misma herencia de EXEC, para que mover una
-        // tarea por MCP o por drag-and-drop en la web deje el mismo resultado.
         const previousParentId = task.parentId;
-        let inheritedLinksData: { type: "EXEC"; targetType: "SECTOR"; targetId: string; sectorId: string }[] =
-          [];
 
-        if (nextParentId) {
-          if (nextParentId === taskId) throw badRequest("Una tarea no puede colgar de sí misma");
-
-          const parent = await prisma.task.findUnique({ where: { id: nextParentId } });
-          if (!parent) throw notFound("Tarea padre no encontrada");
-
-          // Un solo nivel de anidado: el destino no puede ser a su vez una subtarea.
-          if (parent.parentId) throw badRequest("Una subtarea no puede tener subtareas");
-
-          // Misma pertenencia que el padre (proyecto o sector home).
-          if (parent.workId !== task.workId || parent.sectorId !== task.sectorId) {
-            throw badRequest("La subtarea tiene que pertenecer al mismo proyecto o sector que el padre");
-          }
-
-          // La tarea que se mueve no puede arrastrar hijas propias abiertas (evita 2 niveles).
-          const openChildren = await prisma.task.count({
-            where: { parentId: taskId, status: { type: { not: "FINAL" } } },
-          });
-          if (openChildren > 0) {
-            throw badRequest("Sacá primero las subtareas de esta tarea antes de moverla");
-          }
-
-          const ownExecLinks = task.links.filter((l) => l.type === "EXEC");
-          if (ownExecLinks.length === 0) {
-            const parentExecLinks = await prisma.taskLink.findMany({
-              where: { taskId: nextParentId, type: "EXEC" },
-              select: { sectorId: true },
-            });
-            inheritedLinksData = parentExecLinks
-              .filter((l): l is { sectorId: string } => l.sectorId != null)
-              .map((l) => ({
-                type: "EXEC" as const,
-                targetType: "SECTOR" as const,
-                targetId: l.sectorId,
-                sectorId: l.sectorId,
-              }));
-          }
-        }
-
-        const updated = await prisma.task.update({
-          where: { id: taskId },
-          data: {
-            parentId: nextParentId,
-            ...(inheritedLinksData.length > 0 ? { links: { create: inheritedLinksData } } : {}),
-          },
-          include: taskInclude,
-        });
+        // Núcleo de validación + herencia de EXEC + recálculo de `position`
+        // compartido con PATCH /api/tasks/[id] (revisión final, hallazgo
+        // Importante 5 — antes era una copia literal de ~50 líneas acá y allá,
+        // para que mover una tarea por MCP o por drag-and-drop en la web deje
+        // el mismo resultado).
+        const updated = await setTaskParent(task, nextParentId);
 
         // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o
         // con todas terminadas) y el padre nuevo (una hija recién llegada puede

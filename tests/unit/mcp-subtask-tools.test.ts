@@ -16,13 +16,17 @@ import { notFound } from "@/server/api";
  * verificar paridad (self-parent, profundidad, misma pertenencia, hijas
  * abiertas, herencia de EXEC, sincronización de los dos padres).
  *
- * `@/server/tasks` se mockea completo (mismo criterio que task-parent.test.ts):
- * getTaskOrThrow/toTaskRef solo hacen falta para el gate de permisos
- * (canToggle corta en true para SUPERADMIN sin mirar el TaskRef real), y
- * syncParentStatus queda espiado como no-op. `saveTask` se mockea con un fake
- * mínimo que escribe en la misma "base" en memoria que usan las queries de
- * prisma, así `task.create` se puede verificar de punta a punta (DTO de
- * salida con parentId/subtaskCount reales, no solo "se llamó al mock").
+ * `@/server/tasks` se mockea con importOriginal + spread (revisión final,
+ * hallazgo Importante 5): la validación de `task.setParent` vive ahora en
+ * `setTaskParent`, compartida con `PATCH /api/tasks/[id]` — tiene que correr
+ * REAL acá para seguir probando esa paridad (mismo criterio que se aplicó en
+ * task-parent.test.ts). `nextPosition` también real (la llama `setTaskParent`
+ * internamente, mismo módulo). El resto (getTaskOrThrow/toTaskRef para el
+ * gate de permisos —canToggle corta en true para SUPERADMIN sin mirar el
+ * TaskRef real—, syncParentStatus espiado como no-op, y `saveTask` con un
+ * fake mínimo que escribe en la misma "base" en memoria que usan las queries
+ * de prisma, así `task.create` se puede verificar de punta a punta) sigue
+ * mockeado.
  */
 
 interface FakeStatus {
@@ -46,6 +50,10 @@ interface FakeTask {
   dueDate: Date | null;
   status: FakeStatus;
   links: FakeLink[];
+  // 062-subtareas (revisión final, hallazgo Importante 4): posición dentro de
+  // su ámbito de hermanas — la necesita `nextPosition` (real, la usa
+  // `setTaskParent`) para tener algo que agregar.
+  position: number;
 }
 
 interface FakeWork {
@@ -76,40 +84,46 @@ const db = vi.hoisted(() => ({
 vi.mock("@/server/events", () => ({ emit: vi.fn() }));
 vi.mock("@/lib/mcp/activity", () => ({ logMcpActivity: vi.fn(async () => {}) }));
 
-vi.mock("@/server/tasks", () => ({
-  getTaskOrThrow: vi.fn(async (id: string) => {
-    const t = db.tasks.find((x) => x.id === id);
-    if (!t) throw notFound("Tarea no encontrada");
-    return t;
-  }),
-  toTaskRef: vi.fn(async () => ({})),
-  syncParentStatus: vi.fn(async () => {}),
-  saveTask: vi.fn(
-    async (
-      _ctx: unknown,
-      input: { rawText: string; contextWorkId?: string; parentId?: string; taskId?: string },
-    ) => {
-      const id = input.taskId ?? randomUUID();
-      const task: FakeTask = {
-        id,
-        parentId: input.parentId ?? null,
-        workId: input.contextWorkId ?? null,
-        sectorId: null,
-        displayText: input.rawText,
-        dueDate: null,
-        status: IN_PROGRESS,
-        links: [],
-      };
-      const idx = db.tasks.findIndex((t) => t.id === id);
-      if (idx >= 0) db.tasks[idx] = task;
-      else db.tasks.push(task);
-      return task;
-    },
-  ),
-  setTaskStatus: vi.fn(),
-  loadApplicableStatusSet: vi.fn(async () => []),
-  execSectorIdsOf: vi.fn(() => []),
-}));
+vi.mock("@/server/tasks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/tasks")>();
+  return {
+    ...actual,
+    getTaskOrThrow: vi.fn(async (id: string) => {
+      const t = db.tasks.find((x) => x.id === id);
+      if (!t) throw notFound("Tarea no encontrada");
+      return t;
+    }),
+    toTaskRef: vi.fn(async () => ({})),
+    syncParentStatus: vi.fn(async () => {}),
+    saveTask: vi.fn(
+      async (
+        _ctx: unknown,
+        input: { rawText: string; contextWorkId?: string; parentId?: string; taskId?: string },
+      ) => {
+        const id = input.taskId ?? randomUUID();
+        const task: FakeTask = {
+          id,
+          parentId: input.parentId ?? null,
+          workId: input.contextWorkId ?? null,
+          sectorId: null,
+          displayText: input.rawText,
+          dueDate: null,
+          status: IN_PROGRESS,
+          links: [],
+          position: 0,
+        };
+        const idx = db.tasks.findIndex((t) => t.id === id);
+        if (idx >= 0) db.tasks[idx] = task;
+        else db.tasks.push(task);
+        return task;
+      },
+    ),
+    setTaskStatus: vi.fn(),
+    loadApplicableStatusSet: vi.fn(async () => []),
+    execSectorIdsOf: vi.fn(() => []),
+    // setTaskParent y nextPosition quedan REALES (ver comentario de arriba).
+  };
+});
 
 vi.mock("@/lib/db/client", () => ({
   prisma: {
@@ -141,10 +155,13 @@ vi.mock("@/lib/db/client", () => ({
           data,
         }: {
           where: { id: string };
-          data: { parentId?: string | null; links?: { create?: FakeLink[] } };
+          data: { parentId?: string | null; position?: number; links?: { create?: FakeLink[] } };
         }) => {
           const t = db.tasks.find((x) => x.id === id)!;
           if ("parentId" in data) t.parentId = data.parentId ?? null;
+          // 062-subtareas (revisión final, hallazgo Importante 4): `setTaskParent`
+          // real ahora manda `position` en el mismo update.
+          if (data.position !== undefined) t.position = data.position;
           if (data.links?.create) t.links = [...t.links, ...data.links.create];
           return t;
         },
@@ -159,6 +176,26 @@ vi.mock("@/lib/db/client", () => ({
             (t) =>
               t.parentId === where.parentId && (!where.status || t.status.type !== where.status.type.not),
           ).length,
+      ),
+      // 062-subtareas (revisión final, hallazgo Importante 4): la usa
+      // `nextPosition` (real) para calcular la posición dentro del nuevo
+      // ámbito de hermanas.
+      aggregate: vi.fn(
+        async ({
+          where,
+        }: {
+          where: { parentId: string | null; workId?: string | null; sectorId?: string | null };
+        }) => {
+          const positions = db.tasks
+            .filter(
+              (t) =>
+                t.parentId === where.parentId &&
+                (where.workId === undefined || t.workId === where.workId) &&
+                (where.sectorId === undefined || t.sectorId === where.sectorId),
+            )
+            .map((t) => t.position);
+          return { _max: { position: positions.length ? Math.max(...positions) : null } };
+        },
       ),
     },
     taskLink: {
