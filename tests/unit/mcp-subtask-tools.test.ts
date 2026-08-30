@@ -265,11 +265,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   db.works = [{ id: WORK_1, groupId: null, ownerId: "user-1", group: null }];
   db.tasks = [
-    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Padre", dueDate: null, status: IN_PROGRESS, links: [] },
-    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Otro padre", dueDate: null, status: IN_PROGRESS, links: [] },
-    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, displayText: "Hija", dueDate: null, status: IN_PROGRESS, links: [] },
-    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, displayText: "Ajena", dueDate: null, status: IN_PROGRESS, links: [] },
-    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Suelta", dueDate: null, status: IN_PROGRESS, links: [] },
+    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Padre", dueDate: null, status: IN_PROGRESS, links: [], position: 0 },
+    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Otro padre", dueDate: null, status: IN_PROGRESS, links: [], position: 1 },
+    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, displayText: "Hija", dueDate: null, status: IN_PROGRESS, links: [], position: 0 },
+    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, displayText: "Ajena", dueDate: null, status: IN_PROGRESS, links: [], position: 0 },
+    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Suelta", dueDate: null, status: IN_PROGRESS, links: [], position: 2 },
   ];
 });
 
@@ -291,6 +291,7 @@ describe("task.list — parentId, subtaskCount, subtaskDone", () => {
       dueDate: null,
       status: FINAL,
       links: [],
+      position: 1,
     });
     const handlers = tools();
     const result = await handlerOf(handlers, "task.list")({ workId: WORK_1 });
