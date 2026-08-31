@@ -307,33 +307,48 @@ describe("TaskBoardView — subtareas como tarjetas propias (Tarea 13)", () => {
 
 /**
  * Menú de reorganizar en variant "list" (Tarea 13, revisión — ruling del
- * controlador): mover/sacar tiene que poder alcanzarse también desde la
- * lista (proyecto/sector/referencias), no solo desde el tablero — ahí no hay
- * Menu de cambio de estado (ya está el <select>), así que el ⋮ nuevo trae
- * SOLO reparent. El popover en sí no se puede inspeccionar con renderToString
- * (Menu lo porta a `document.body` solo si `typeof document !== "undefined"`,
- * falso en este entorno sin jsdom) — pero el botón disparador, con su
- * aria-label, sí queda en el HTML inicial.
+ * controlador, luego revertido a pedido): en la lista NO hay menú ⋮. Mover una
+ * tarea bajo otra se hace arrastrando (soltar sobre una fila la cuelga, soltar
+ * en la franja de la lista de hijas la saca), así que el menú duplicaba la
+ * acción y ocupaba lugar en cada fila. El tablero sí lo conserva: ahí no hay
+ * arrastre entre columnas y es el único acceso.
  */
-describe("Menu de reorganizar en variant list (Tarea 13, revisión)", () => {
-  it("una tarea raíz con permiso de edición ofrece el menú para reorganizar", () => {
+describe("la lista no ofrece menú de reorganizar (se mueve arrastrando)", () => {
+  it("una tarea raíz en la lista no muestra el menú", () => {
     const suelta = task({ id: "suelta", displayText: "Tarea suelta" });
 
     const html = renderToString(
       <TaskItem task={suelta} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
     );
 
-    expect(html).toContain("Reorganizar");
+    expect(html).not.toContain("Reorganizar");
   });
 
-  it("sin permiso de edición (canToggle false) no se ofrece el menú", () => {
-    const suelta = task({ id: "suelta", displayText: "Tarea suelta", canToggle: false });
+  it("una subtarea tampoco lo muestra: se saca arrastrándola", () => {
+    const hija = task({ id: "hija", displayText: "Hija", parentId: "padre", parentText: "Padre" });
 
     const html = renderToString(
-      <TaskItem task={suelta} context={{ workId: "w1" }} canToggle={false} onChanged={() => {}} />,
+      <TaskItem task={hija} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
     );
 
     expect(html).not.toContain("Reorganizar");
+    expect(html).not.toContain("Sacar de");
+  });
+
+  it("el tablero sí conserva su menú, que ahí es el único acceso", () => {
+    const suelta = task({ id: "suelta", displayText: "Tarea suelta" });
+
+    const html = renderToString(
+      <TaskItem
+        task={suelta}
+        context={{ workId: "w1" }}
+        canToggle={true}
+        onChanged={() => {}}
+        variant="board"
+      />,
+    );
+
+    expect(html).toContain("Acciones de");
   });
 });
 

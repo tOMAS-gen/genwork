@@ -581,15 +581,11 @@ export function TaskItem({
             </select>
           </span>
         )}
-        {/* 062-subtareas (Tarea 13, revisión — ruling del controlador): "mover
-            bajo otra tarea"/"sacar de..." tiene que poder alcanzarse también en
-            "list" — es donde se trabaja habitualmente (proyecto/sector/referencias),
-            no solo desde el tablero. Acá no hay Menu de cambio de estado (ya
-            está el <select> de arriba) así que este ⋮ es nuevo y trae SOLO
-            reparent, sin duplicar el cambio de estado. */}
-        {canToggle && variant === "list" && reparentItems.length > 0 && (
-          <Menu label={`Reorganizar "${task.displayText}"`} items={reparentItems} />
-        )}
+        {/* En la lista NO hay menú ⋮: mover una tarea bajo otra (o sacarla) se
+            hace arrastrando — soltar sobre una fila la cuelga, soltar en la
+            franja de la lista de hijas la saca. El menú duplicaba esa acción y
+            ocupaba lugar en cada fila. En el tablero sí sigue, porque ahí no hay
+            arrastre entre columnas y es el único acceso. */}
         {/* 062-subtareas (Tarea 13): el mismo menú de "cambiar estado" (variant
             board) suma ahora "Mover bajo otra tarea…"/"Sacar de …" — reusa el
             único ⋮ que ya tiene la tarjeta en vez de agregar un segundo botón. */}
