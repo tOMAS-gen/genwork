@@ -729,6 +729,44 @@ textarea:focus {
    larga no se llene de campos vacíos. `visibility` en vez de `display: none`
    mantiene el campo enfocable por teclado (Tab lo alcanza y ahí :focus-within
    lo revela), que es lo que se rompería ocultándolo del todo. */
+/* Destino de anidado (062-subtareas): al arrastrar una tarea SOBRE otra, la fila
+   de destino se resalta para avisar que soltar ahí la va a colgar como subtarea,
+   en vez de reordenarla. Sin esto el gesto es adivinanza: reordenar y anidar se
+   verían igual. */
+.task-nest-target {
+  outline: 2px solid var(--primary, #3b82f6);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+  background: var(--hover-soft);
+}
+
+/* Franja para sacar una subtarea de su padre: reservada en el borde izquierdo de
+   la lista, invisible hasta que hay algo encima. */
+.subtask-unnest-zone {
+  height: 6px;
+  margin-bottom: 2px;
+  border-radius: var(--radius-sm);
+  transition: height 150ms ease, background 150ms ease;
+}
+
+.subtask-unnest-zone.is-over {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-2);
+  background: var(--hover-soft);
+  outline: 2px dashed var(--primary, #3b82f6);
+  outline-offset: -2px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subtask-unnest-zone {
+    transition: none;
+  }
+}
+
 /* Botón "+" para agregar subtarea: atenuado en reposo y pleno al pasar el mouse
    por la fila o al enfocarlo por teclado. No se oculta con `display: none` ni
    `opacity: 0` para que siga siendo alcanzable con Tab y no capture clics

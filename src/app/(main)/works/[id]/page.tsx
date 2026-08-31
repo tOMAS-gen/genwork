@@ -8,6 +8,7 @@ import {
   closestCenter,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -86,6 +87,17 @@ function SortableTaskRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
+  /**
+   * Zona de anidado (062-subtareas): además de ser ordenable, cada fila raíz es
+   * un destino donde soltar OTRA tarea para colgarla como subtarea. El id lleva
+   * el prefijo `nest:` para que `handleDragEnd` distinga las dos intenciones —
+   * soltar entre filas reordena, soltar sobre esta zona anida. Una subtarea no
+   * es destino: el anidado es de un solo nivel.
+   */
+  const { setNodeRef: setNestRef, isOver: isNestTarget } = useDroppable({
+    id: `nest:${task.id}`,
+    disabled: !editable || !!task.parentId,
+  });
 
   return (
     <div
@@ -96,14 +108,16 @@ function SortableTaskRow({
         touchAction: "none",
       }}
     >
-      <TaskItem
-        task={task}
-        context={{ workId }}
-        canToggle={editable}
-        onChanged={onChanged}
-        dragHandleProps={{ attributes, listeners }}
-        isDragging={isDragging}
-      />
+      <div ref={setNestRef} className={isNestTarget ? "task-nest-target" : undefined}>
+        <TaskItem
+          task={task}
+          context={{ workId }}
+          canToggle={editable}
+          onChanged={onChanged}
+          dragHandleProps={{ attributes, listeners }}
+          isDragging={isDragging}
+        />
+      </div>
     </div>
   );
 }
@@ -190,10 +204,40 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
     [id, load, toast],
   );
 
+  /**
+   * Cuelga una tarea de otra (o la promueve con `parentId: null`) reusando el
+   * mismo PATCH que el menú. El backend valida un solo nivel, misma pertenencia
+   * y que la tarea movida no tenga hijas abiertas, así que acá sólo hay que
+   * mostrar el error si lo rechaza.
+   */
+  const commitReparent = useCallback(
+    (taskId: string, parentId: string | null) => {
+      void api(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ parentId }),
+      })
+        .then(load)
+        .catch((err) => {
+          toast((err as Error).message, "error");
+          load();
+        });
+    },
+    [load, toast],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
+
+      // Soltar SOBRE una fila (zona `nest:`) cuelga la tarea de esa otra; soltar
+      // entre filas reordena, que es el comportamiento de siempre (feature 052).
+      const overId = String(over.id);
+      if (overId.startsWith("nest:")) {
+        const parentId = overId.slice("nest:".length);
+        if (parentId !== String(active.id)) commitReparent(String(active.id), parentId);
+        return;
+      }
 
       setWork((current) => {
         if (!current) return current;
@@ -207,7 +251,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
         return { ...current, tasks: reordered };
       });
     },
-    [commitReorder],
+    [commitReorder, commitReparent],
   );
 
   if (!work) {

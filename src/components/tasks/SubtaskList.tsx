@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   DndContext,
+  useDroppable,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
@@ -290,6 +291,24 @@ function AddSubtaskInput({
 }
 
 /**
+ * Franja para sacar una subtarea de su padre (062-subtareas): ocupa el borde
+ * izquierdo de la lista y sólo se pinta cuando hay algo encima, así no agrega
+ * ruido visual en reposo. Es el gesto inverso de soltar una tarea sobre otra.
+ */
+function UnnestZone({ parentId }: { parentId: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `unnest:${parentId}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`subtask-unnest-zone ${isOver ? "is-over" : ""}`}
+      aria-hidden="true"
+    >
+      {isOver ? "Soltar acá para sacar de la tarea" : null}
+    </div>
+  );
+}
+
+/**
  * Lista de subtareas de una tarea de nivel raíz (Tarea 12): progreso ya se
  * muestra en `TaskItem` junto al título — acá van las hijas (reusando
  * `TaskItem` para cada una, mismo mapper/DTO que el padre), el alta inline y
@@ -360,6 +379,20 @@ export function SubtaskList({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+    // Soltar en la franja "sacar" (borde izquierdo de la lista) promueve la hija
+    // a tarea principal — el gesto inverso de soltarla sobre otra para colgarla.
+    if (String(over.id) === `unnest:${task.id}`) {
+      void api(`/api/tasks/${String(active.id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ parentId: null }),
+      })
+        .then(onChanged)
+        .catch((err) => {
+          showToast({ message: (err as Error).message });
+          onChanged();
+        });
+      return;
+    }
     const oldIndex = subtasks.findIndex((t) => t.id === active.id);
     const newIndex = subtasks.findIndex((t) => t.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
@@ -382,6 +415,7 @@ export function SubtaskList({
       {subtasks.length > 0 &&
         (canToggle && reorderable ? (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <UnnestZone parentId={task.id} />
             <SortableContext items={subtasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               {subtasks.map((child) => (
                 <SortableSubtaskRow
