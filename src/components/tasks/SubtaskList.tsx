@@ -325,6 +325,7 @@ export function SubtaskList({
   onChanged,
   adding,
   onAddingChange,
+  expanded,
 }: {
   task: TaskDto;
   context: { workId?: string; sectorId?: string; suppressWorkTag?: boolean };
@@ -333,6 +334,8 @@ export function SubtaskList({
   /** El campo de alta lo abre el botón + de la fila del padre (`TaskItem`). */
   adding: boolean;
   onAddingChange: (open: boolean) => void;
+  /** Plegado desde la flecha de la fila del padre. */
+  expanded: boolean;
 }) {
   // Estado optimista propio (revisión — hallazgo Menor/ruling): `task.subtasks`
   // es un prop, así que se copia a estado local para poder mostrar el nuevo
@@ -412,7 +415,11 @@ export function SubtaskList({
           solo-lectura (sector en modo vista, proyecto no activo) las hijas se
           listan planas, sin handle ni DndContext, igual que hace esa página
           con la lista raíz cuando `editable` es false. */}
-      {subtasks.length > 0 &&
+      {/* Plegado: con la lista cerrada las hijas no se renderizan, pero el campo
+          de alta sigue disponible (el botón + despliega antes de abrirlo, así
+          nunca se crea una subtarea donde no se la ve). */}
+      {expanded &&
+        subtasks.length > 0 &&
         (canToggle && reorderable ? (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <UnnestZone parentId={task.id} />

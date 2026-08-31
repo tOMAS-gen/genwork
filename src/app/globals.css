@@ -729,6 +729,21 @@ textarea:focus {
    larga no se llene de campos vacíos. `visibility` en vez de `display: none`
    mantiene el campo enfocable por teclado (Tab lo alcanza y ahí :focus-within
    lo revela), que es lo que se rompería ocultándolo del todo. */
+/* Flecha para plegar/desplegar las subtareas. Ocupa el carril que dejó la
+   casilla en una tarea contenedora, así las hijas quedan alineadas bajo ella y
+   la fila no cambia de alto. Siempre visible (no depende del hover): es un
+   control de navegación, no una acción secundaria. */
+.task-subtasks-toggle {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  color: var(--muted);
+}
+
+.task-subtasks-toggle:hover {
+  color: var(--text);
+}
+
 /* Destino de anidado (062-subtareas): al arrastrar una tarea SOBRE otra, la fila
    de destino se resalta para avisar que soltar ahí la va a colgar como subtarea,
    en vez de reordenarla. Sin esto el gesto es adivinanza: reordenar y anidar se

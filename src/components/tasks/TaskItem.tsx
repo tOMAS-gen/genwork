@@ -6,7 +6,7 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { X, Calendar, GripVertical, Plus } from "@/components/ui/icons";
+import { X, Calendar, GripVertical, Plus, ChevronDown, ChevronRight } from "@/components/ui/icons";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
@@ -226,6 +226,9 @@ export function TaskItem({
   const [editing, setEditing] = useState(false);
   // Abre el campo de alta de subtarea desde el botón + de esta fila (062-subtareas).
   const [addingSubtask, setAddingSubtask] = useState(false);
+  // Plegado de la lista de hijas. Arranca abierto: al entrar a un proyecto se
+  // espera ver el trabajo pendiente, no tener que expandir cada tarea.
+  const [subtasksOpen, setSubtasksOpen] = useState(true);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
   const [moveOpen, setMoveOpen] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -457,6 +460,25 @@ export function TaskItem({
             derivado del de sus hijas, así que ofrecer un control que no se puede
             usar —y explicar por qué— es peor que no mostrarlo. En su lugar queda
             el progreso "1/3", que es la información real de esa fila. */}
+        {/* Flecha para plegar/desplegar las hijas (062-subtareas). Va en el lugar
+            que dejó la casilla —que un contenedor no lleva— así la fila no crece
+            y las hijas quedan alineadas bajo su control. */}
+        {isContainer && variant === "list" && (
+          <button
+            type="button"
+            className="icon-btn task-subtasks-toggle"
+            onClick={() => setSubtasksOpen((open) => !open)}
+            aria-expanded={subtasksOpen}
+            aria-label={
+              subtasksOpen
+                ? `Ocultar las subtareas de "${task.displayText}"`
+                : `Mostrar las ${subtaskCounts.subtaskCount} subtareas de "${task.displayText}"`
+            }
+            title={subtasksOpen ? "Ocultar subtareas" : "Mostrar subtareas"}
+          >
+            {subtasksOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+        )}
         {isContainer ? null : canToggle && variant === "list" ? (
           <input
             type="checkbox"
@@ -549,7 +571,10 @@ export function TaskItem({
             type="button"
             className="icon-btn task-add-subtask"
             style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
-            onClick={() => setAddingSubtask(true)}
+            onClick={() => {
+              setSubtasksOpen(true);
+              setAddingSubtask(true);
+            }}
             aria-label={`Agregar subtarea a "${task.displayText}"`}
             title="Agregar subtarea"
             tabIndex={editing ? -1 : 0}
@@ -633,6 +658,7 @@ export function TaskItem({
           onChanged={onChanged}
           adding={addingSubtask}
           onAddingChange={setAddingSubtask}
+          expanded={subtasksOpen}
         />
       )}
       {editing && (

@@ -456,3 +456,45 @@ describe("layout: las subtareas van DEBAJO del padre, no al costado", () => {
     expect(html).not.toContain("subtask-list");
   });
 });
+
+describe("plegar y desplegar las subtareas", () => {
+  const padre = task({
+    id: "padre",
+    displayText: "Preparar informe mensual",
+    subtaskCount: 2,
+    subtaskDone: 1,
+    subtasks: [task({ id: "h1", displayText: "Juntar datos", parentId: "padre" })],
+  });
+
+  it("una tarea contenedora ofrece la flecha, desplegada por defecto", () => {
+    const html = renderToString(
+      <TaskItem task={padre} context={{ workId: "w1" }} canToggle onChanged={() => {}} />,
+    );
+
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain("Ocultar las subtareas");
+    // Desplegada: la hija se ve.
+    expect(html).toContain("Juntar datos");
+  });
+
+  it("una tarea sin subtareas no ofrece la flecha", () => {
+    const sinHijas = task({ id: "sola", displayText: "Tarea sola" });
+
+    const html = renderToString(
+      <TaskItem task={sinHijas} context={{ workId: "w1" }} canToggle onChanged={() => {}} />,
+    );
+
+    expect(html).not.toContain("Ocultar las subtareas");
+    expect(html).not.toContain("Mostrar las");
+  });
+
+  it("el ícono de la flecha convive con el progreso, sin casilla propia", () => {
+    const html = renderToString(
+      <TaskItem task={padre} context={{ workId: "w1" }} canToggle onChanged={() => {}} />,
+    );
+
+    const filaPadre = html.slice(0, html.indexOf('class="subtask-list"'));
+    expect(filaPadre).toContain("1/2");
+    expect(filaPadre).not.toMatch(/<input[^>]*type="checkbox"/);
+  });
+});
