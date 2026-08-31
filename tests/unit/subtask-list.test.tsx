@@ -97,12 +97,17 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
       <TaskItem task={padre} context={{ workId: "w1" }} canToggle={true} onChanged={() => {}} />,
     );
 
-    expect(html).toContain("Faltan 2 subtareas");
-    expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain('aria-label="Faltan 2 subtareas"');
-    // ningún <input> de esta fila lleva el atributo `disabled` nativo (que sí
-    // sacaría el checkbox del recorrido de Tab) — solo `aria-disabled`.
-    expect(html).not.toMatch(/<input[^>]* disabled/);
+    // Una tarea contenedora no ofrece control de estado propio: su estado lo
+    // gobiernan las hijas. En vez de una casilla deshabilitada que hay que
+    // explicar, no hay casilla — queda el progreso, que es el dato real.
+    // Sólo la fila del padre (hasta que abre `.subtask-list`): las hijas SÍ
+    // llevan casilla, así que hay que mirar el tramo del padre, no el HTML entero.
+    const filaPadre = html.slice(0, html.indexOf('class="subtask-list"'));
+    expect(filaPadre).not.toMatch(/<input[^>]*type="checkbox"/);
+    expect(filaPadre).toContain("1/3");
+    expect(filaPadre).toContain("Agregar subtarea");
+    // La hija, en cambio, conserva su propio control de estado.
+    expect(html).toMatch(/<input[^>]*type="checkbox"/);
   });
 
   it("habilita el check cuando ya no quedan hijas abiertas", () => {

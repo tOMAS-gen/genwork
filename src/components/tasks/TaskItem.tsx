@@ -6,7 +6,7 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { X, Calendar, GripVertical } from "@/components/ui/icons";
+import { X, Calendar, GripVertical, Plus } from "@/components/ui/icons";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
@@ -224,6 +224,8 @@ export function TaskItem({
   isDragging?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  // Abre el campo de alta de subtarea desde el botón + de esta fila (062-subtareas).
+  const [addingSubtask, setAddingSubtask] = useState(false);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
   const [moveOpen, setMoveOpen] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
@@ -387,6 +389,13 @@ export function TaskItem({
   const subtaskCounts = { subtaskDone: task.subtaskDone ?? 0, subtaskCount: task.subtaskCount ?? 0 };
   const progressLabel = subtaskProgressLabel(subtaskCounts);
   const finishable = canFinishParent(subtaskCounts);
+  /**
+   * ¿Esta tarea es un contenedor? (062-subtareas). Con hijas, su estado lo
+   * gobiernan ellas: no lleva casilla ni selector de estado propio, sólo el
+   * progreso. Mostrar controles de estado que el backend va a rechazar (409
+   * PARENT_HAS_OPEN_SUBTASKS) es ofrecer algo que no se puede hacer.
+   */
+  const isContainer = subtaskCounts.subtaskCount > 0;
   // Revisión (hallazgo Importante 2): el motivo del bloqueo tiene que poder
   // anunciarse (aria-label + title), no solo verse — se arma una vez acá para
   // no duplicar la cadena entre los dos atributos que la usan más abajo.
@@ -443,8 +452,12 @@ export function TaskItem({
         )}
         {/* Casilla de acceso rápido (feature 042): permanece visible durante la
             edición, sin salto de altura de fila. En el tablero no se muestra: los
-            3 puntos ya cubren el cambio de estado (columna = estado). */}
-        {canToggle && variant === "list" ? (
+            3 puntos ya cubren el cambio de estado (columna = estado).
+            Una tarea CON subtareas no lleva casilla (062-subtareas): su estado es
+            derivado del de sus hijas, así que ofrecer un control que no se puede
+            usar —y explicar por qué— es peor que no mostrarlo. En su lugar queda
+            el progreso "1/3", que es la información real de esa fila. */}
+        {isContainer ? null : canToggle && variant === "list" ? (
           <input
             type="checkbox"
             checked={task.status.type === "FINAL"}
@@ -526,10 +539,28 @@ export function TaskItem({
             )}
           </>
         )}
+        {/* Agregar subtarea (062-subtareas): sólo el ícono, sin texto al lado — el
+            carril de controles de la fila ya es angosto y la acción se explica
+            sola con el `aria-label`. Se revela al pasar el mouse por la fila o al
+            enfocarla (`.task-add-subtask`, en globals.css), así una lista larga no
+            se llena de botones compitiendo por atención. */}
+        {showsSubtasks && canToggle && (
+          <button
+            type="button"
+            className="icon-btn task-add-subtask"
+            style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
+            onClick={() => setAddingSubtask(true)}
+            aria-label={`Agregar subtarea a "${task.displayText}"`}
+            title="Agregar subtarea"
+            tabIndex={editing ? -1 : 0}
+          >
+            <Plus size={15} />
+          </button>
+        )}
         {/* Selector de estado: solo si hay más de 2 estados en el conjunto (si son
             solo Pendiente/Hecha, la casilla ya alcanza). En el tablero la columna ya
             indica el estado — ahí se ofrece un menú para mover a otro en vez de selector. */}
-        {canToggle && variant === "list" && task.statusOptions.length > 2 && (
+        {canToggle && variant === "list" && !isContainer && task.statusOptions.length > 2 && (
           <span className="task-status-pill" style={{ "--c": task.status.color } as React.CSSProperties}>
             <select
               className="task-status-pill-select"
@@ -599,7 +630,14 @@ export function TaskItem({
           solo para tareas de nivel raíz (una subtarea no puede tener las suyas,
           ver taskDto.ts). */}
       {showsSubtasks && (
-        <SubtaskList task={task} context={context} canToggle={canToggle} onChanged={onChanged} />
+        <SubtaskList
+          task={task}
+          context={context}
+          canToggle={canToggle}
+          onChanged={onChanged}
+          adding={addingSubtask}
+          onAddingChange={setAddingSubtask}
+        />
       )}
       {editing && (
         <textarea

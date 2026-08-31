@@ -134,10 +134,12 @@ function AddSubtaskInput({
   parentId,
   context,
   onCreated,
+  onClose,
 }: {
   parentId: string;
   context: { workId?: string; sectorId?: string };
   onCreated: () => void;
+  onClose: () => void;
 }) {
   const [text, setText] = useState("");
   const [unresolved, setUnresolved] = useState<{ symbol: string; name: string }[]>([]);
@@ -169,7 +171,10 @@ function AddSubtaskInput({
 
   const submit = async () => {
     const raw = text.trim();
-    if (!raw) return;
+    if (!raw) {
+      onClose();
+      return;
+    }
     try {
       await api("/api/tasks", {
         method: "POST",
@@ -218,7 +223,13 @@ function AddSubtaskInput({
         <TagHighlightInput
           ref={inputRef}
           value={text}
+          autoFocus
           placeholder="Escribí una subtarea y Enter…  (#sector  @referencia)"
+          onBlur={() => {
+            // Cerrar al salir sólo si no quedó nada escrito ni un panel abierto:
+            // así un clic afuera no descarta texto a medio escribir.
+            if (unresolved.length === 0 && !text.trim()) onClose();
+          }}
           onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" && suggestions.length > 0) {
@@ -236,7 +247,7 @@ function AddSubtaskInput({
             } else if (e.key === "Escape") {
               e.preventDefault();
               clear();
-              inputRef.current?.blur();
+              onClose();
             }
           }}
         />
@@ -293,11 +304,16 @@ export function SubtaskList({
   context,
   canToggle,
   onChanged,
+  adding,
+  onAddingChange,
 }: {
   task: TaskDto;
   context: { workId?: string; sectorId?: string; suppressWorkTag?: boolean };
   canToggle: boolean;
   onChanged: () => void;
+  /** El campo de alta lo abre el botón + de la fila del padre (`TaskItem`). */
+  adding: boolean;
+  onAddingChange: (open: boolean) => void;
 }) {
   // Estado optimista propio (revisión — hallazgo Menor/ruling): `task.subtasks`
   // es un prop, así que se copia a estado local para poder mostrar el nuevo
@@ -390,12 +406,17 @@ export function SubtaskList({
           adentro tiene foco (`:focus-within`), así una lista larga no se llena
           de campos vacíos pero el campo sigue estando a un gesto de distancia.
           Queda montado siempre para que el foco no se pierda al crear una. */}
-      {canToggle && (
+      {/* El campo aparece sólo cuando se pidió agregar (botón + de la fila del
+          padre): tenerlo siempre a la vista en cada tarea era repetitivo y
+          agregaba ruido a listas largas. Al crear una subtarea queda abierto,
+          para poder cargar varias seguidas sin volver a tocar el +. */}
+      {canToggle && adding && (
         <div className="subtask-add-row">
           <AddSubtaskInput
             parentId={task.id}
             context={context}
             onCreated={onChanged}
+            onClose={() => onAddingChange(false)}
           />
         </div>
       )}
