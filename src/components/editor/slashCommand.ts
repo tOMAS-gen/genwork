@@ -32,6 +32,9 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
   },
 
   addProseMirrorPlugins() {
+    // Patrón estándar de Tiptap: los callbacks de Suggestion necesitan las opciones
+    // de la extensión, y `this` no está disponible dentro de esas closures.
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const extension = this;
 
     return [

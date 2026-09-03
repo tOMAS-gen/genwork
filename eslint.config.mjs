@@ -1,21 +1,23 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypescript from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// `eslint-config-next` exporta config estilo legacy (.eslintrc), no una función
-// de flat-config; FlatCompat es el puente oficial de Next.js para cargarla sin
-// pasar por la resolución de módulos que rompe con @rushstack/eslint-patch.
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
+// eslint-config-next 16 ya exporta flat-config (arrays de config objects), así que
+// no hace falta el puente FlatCompat que usábamos con la config legacy de la v15.
 const config = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     ignores: ["node_modules/**", ".next/**", "dist/**", "build/**", "coverage/**", "*.min.js"],
+  },
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  {
+    // Deuda técnica conocida: las reglas nuevas de `react-hooks` v6 (las del React
+    // Compiler) marcan ~40 usos previos a la migración a Next 16. Quedan en `warn`
+    // para no bloquear el lint mientras se migran componente por componente.
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/exhaustive-deps": "warn",
+    },
   },
 ];
 
