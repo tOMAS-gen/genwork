@@ -8,6 +8,8 @@ import {
   saveTask,
   toTaskRef,
   setTaskStatus,
+  setTaskParent,
+  syncParentStatus,
   loadApplicableStatusSet,
   execSectorIdsOf,
   type TaskWithLinks,
@@ -19,8 +21,15 @@ import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation"
 import { logMcpActivity } from "@/lib/mcp/activity";
 
 type TaskLabelSummary = { key: string; value: string; color: string };
+/** Cantidad de hijas de una tarea y cuántas de ellas están en estado FINAL. */
+type SubtaskInfo = { count: number; done: number };
+const NO_SUBTASKS: SubtaskInfo = { count: 0, done: 0 };
 
-function summarizeTask(task: TaskWithLinks, labels: TaskLabelSummary[] = []) {
+function summarizeTask(
+  task: TaskWithLinks,
+  labels: TaskLabelSummary[] = [],
+  subtaskInfo: SubtaskInfo = NO_SUBTASKS,
+) {
   return {
     id: task.id,
     text: task.displayText,
@@ -28,6 +37,11 @@ function summarizeTask(task: TaskWithLinks, labels: TaskLabelSummary[] = []) {
     workId: task.workId,
     homeSectorId: task.sectorId,
     dueDate: task.dueDate,
+    // 062-subtareas (Tarea 14): un solo nivel de anidado, igual que el DTO web
+    // (WorkTaskDto en src/server/taskDto.ts) — parentId/subtaskCount/subtaskDone.
+    parentId: task.parentId,
+    subtaskCount: subtaskInfo.count,
+    subtaskDone: subtaskInfo.done,
     execSectorIds: task.links.filter((l) => l.type === "EXEC" && l.sectorId).map((l) => l.sectorId),
     refSectorIds: task.links.filter((l) => l.type === "REF" && l.sectorId).map((l) => l.sectorId),
     refUserIds: task.links.filter((l) => l.type === "REF" && l.userId).map((l) => l.userId),
@@ -53,9 +67,34 @@ async function labelsByTaskId(taskIds: string[]): Promise<Map<string, TaskLabelS
   return byTask;
 }
 
+/**
+ * Trae subtaskCount/subtaskDone de varias tareas en una sola query (evita N+1),
+ * mismo criterio que `labelsByTaskId`. Una subtarea no puede tener sus propias
+ * subtareas (un solo nivel), así que alcanza con mirar `parentId` una vez.
+ */
+async function subtaskCountsByTaskId(taskIds: string[]): Promise<Map<string, SubtaskInfo>> {
+  if (taskIds.length === 0) return new Map();
+  const rows = await prisma.task.findMany({
+    where: { parentId: { in: taskIds } },
+    select: { parentId: true, status: { select: { type: true } } },
+  });
+  const byParent = new Map<string, SubtaskInfo>();
+  for (const row of rows) {
+    if (!row.parentId) continue;
+    const info = byParent.get(row.parentId) ?? { count: 0, done: 0 };
+    info.count += 1;
+    if (row.status.type === "FINAL") info.done += 1;
+    byParent.set(row.parentId, info);
+  }
+  return byParent;
+}
+
 async function summarizeTaskWithLabels(task: TaskWithLinks) {
-  const byTask = await labelsByTaskId([task.id]);
-  return summarizeTask(task, byTask.get(task.id) ?? []);
+  const [byTask, bySubtask] = await Promise.all([
+    labelsByTaskId([task.id]),
+    subtaskCountsByTaskId([task.id]),
+  ]);
+  return summarizeTask(task, byTask.get(task.id) ?? [], bySubtask.get(task.id) ?? NO_SUBTASKS);
 }
 
 const taskInclude = {
@@ -73,6 +112,10 @@ const taskInclude = {
 export const taskCreateInputShape = {
   text: z.string().trim().min(1, "La tarea no puede estar vacía"),
   workId: z.string().uuid().optional(),
+  // 062-subtareas: crea la tarea directamente como hija de `parentId` (un solo
+  // nivel — `saveTask` hereda proyecto, sector home y, si el texto no declara
+  // ningún #sector, los EXEC del padre).
+  parentId: z.string().uuid().optional(),
 };
 
 export const taskUpdateInputShape = {
@@ -85,14 +128,17 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
     "task.list",
     {
       title: "Listar tareas",
-      description: "Lista tareas de un proyecto o de un sector (al menos uno de los dos).",
+      description:
+        "Lista tareas de un proyecto o de un sector (al menos uno de los dos). Con parentId, " +
+        "trae solo las hijas de esa tarea (un solo nivel de anidado).",
       inputSchema: {
         workId: z.string().uuid().optional(),
         sectorId: z.string().uuid().optional(),
         statusType: z.enum(["IN_PROGRESS", "FINAL"]).optional(),
+        parentId: z.string().uuid().optional(),
       },
     },
-    async ({ workId, sectorId, statusType }) => {
+    async ({ workId, sectorId, statusType, parentId }) => {
       try {
         if (!workId && !sectorId) throw badRequest("Indicá workId o sectorId");
 
@@ -147,9 +193,18 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           if (statusType) tasks = tasks.filter((t) => t.status.type === statusType);
         }
 
-        const byTask = await labelsByTaskId(tasks.map((t) => t.id));
+        // 062-subtareas: filtro post-query (aplica igual a las dos ramas de
+        // arriba) — "solo las hijas de esta tarea".
+        if (parentId !== undefined) tasks = tasks.filter((t) => t.parentId === parentId);
+
+        const [byTask, subtaskCounts] = await Promise.all([
+          labelsByTaskId(tasks.map((t) => t.id)),
+          subtaskCountsByTaskId(tasks.map((t) => t.id)),
+        ]);
         return toolSuccess(`${tasks.length} tarea(s) encontrada(s).`, {
-          tasks: tasks.map((t) => summarizeTask(t, byTask.get(t.id) ?? [])),
+          tasks: tasks.map((t) =>
+            summarizeTask(t, byTask.get(t.id) ?? [], subtaskCounts.get(t.id) ?? NO_SUBTASKS),
+          ),
         });
       } catch (err) {
         return toToolErrorResult(err);
@@ -166,9 +221,9 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         "Sin workId, el texto debe incluir /trabajo o la tarea debe poder crearse en un sector.",
       inputSchema: taskCreateInputShape,
     },
-    async ({ text, workId }) => {
+    async ({ text, workId, parentId }) => {
       try {
-        const task = await saveTask(ctx.userContext, { rawText: text, contextWorkId: workId });
+        const task = await saveTask(ctx.userContext, { rawText: text, contextWorkId: workId, parentId });
 
         await logMcpActivity({
           connectionId: ctx.connectionId,
@@ -331,6 +386,69 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         });
 
         return toolSuccess(`Tarea "${task.displayText}" borrada permanentemente.`);
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "task.setParent",
+    {
+      title: "Mover una tarea bajo otra",
+      description:
+        "Convierte una tarea en subtarea de otra (mismo proyecto o sector), o la promueve a tarea " +
+        "independiente con parentId nulo. Un solo nivel de anidado; mismas reglas que arrastrar una " +
+        "tarea en la web: el destino no puede ser a su vez una subtarea, tiene que pertenecer al mismo " +
+        "proyecto/sector, la tarea a mover no puede tener hijas abiertas propias, y si no tiene EXEC " +
+        "propio hereda los del nuevo padre.",
+      inputSchema: { taskId: z.string().uuid(), parentId: z.string().uuid().nullable() },
+    },
+    async ({ taskId, parentId: nextParentId }) => {
+      try {
+        const task = await getTaskOrThrow(taskId);
+        if (!canToggle(ctx.userContext, await toTaskRef(task))) throw forbidden();
+
+        const previousParentId = task.parentId;
+
+        // Núcleo de validación + herencia de EXEC + recálculo de `position`
+        // compartido con PATCH /api/tasks/[id] (revisión final, hallazgo
+        // Importante 5 — antes era una copia literal de ~50 líneas acá y allá,
+        // para que mover una tarea por MCP o por drag-and-drop en la web deje
+        // el mismo resultado).
+        const updated = await setTaskParent(task, nextParentId);
+
+        // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o
+        // con todas terminadas) y el padre nuevo (una hija recién llegada puede
+        // reabrirlo).
+        if (previousParentId) await syncParentStatus(previousParentId, ctx.userId);
+        if (nextParentId) await syncParentStatus(nextParentId, ctx.userId);
+
+        emit({
+          type: "task-changed",
+          taskId,
+          workId: task.workId,
+          sectorIds: updated.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+        });
+
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "task.setParent",
+          targetType: "Task",
+          targetId: taskId,
+          workId: task.workId ?? undefined,
+          summary: nextParentId
+            ? `El asistente de IA movió la tarea "${task.displayText}" como subtarea.`
+            : `El asistente de IA sacó la tarea "${task.displayText}" de su tarea padre.`,
+        });
+
+        return toolSuccess(
+          nextParentId
+            ? `Tarea "${task.displayText}" movida como subtarea.`
+            : `Tarea "${task.displayText}" promovida a tarea independiente.`,
+          await summarizeTaskWithLabels(updated),
+        );
       } catch (err) {
         return toToolErrorResult(err);
       }

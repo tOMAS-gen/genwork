@@ -15,6 +15,7 @@ import {
   type TaskScopeRef,
   type TaskStatusRef,
 } from "@/lib/domain/tasks/statusResolution";
+import { deriveParentStatusId } from "@/lib/domain/tasks/parentStatus";
 import {
   canAddress,
   canToggle,
@@ -23,7 +24,7 @@ import {
   type TaskRef,
   type UserContext,
 } from "@/lib/domain/permissions";
-import { ApiError, conflict, forbidden, notFound } from "@/server/api";
+import { ApiError, badRequest, conflict, forbidden, notFound } from "@/server/api";
 import { emit } from "@/server/events";
 import type { Prisma, Sector, Task, TaskLink, TaskStatus, User, Work, Group } from "@prisma/client";
 
@@ -221,6 +222,8 @@ interface ResolveInput {
   rawText: string;
   contextWorkId?: string;
   contextSectorId?: string;
+  /** Subtarea (un solo nivel): id de la tarea padre de la que cuelga. */
+  parentId?: string;
 }
 
 interface Resolved {
@@ -399,17 +402,148 @@ interface EditMeta {
 }
 
 /**
- * Calcula la posición de inserción para una tarea nueva dentro de su scope
- * (trabajo, o sector cuando la tarea está suelta): MAX(position) + 1, o 0
- * si no hay tareas previas en ese scope.
+ * Posición de inserción dentro del scope: las subtareas se ordenan entre ellas
+ * (por parentId), no junto a las tareas raíz del proyecto (feature 052 + subtareas).
+ *
+ * Exportada (revisión final, hallazgo Importante 4) para que `setTaskParent`
+ * la use al mover/promover una tarea: sin recalcular, la tarea conservaba la
+ * posición de su ámbito anterior (arbitraria entre sus nuevas hermanas, o al
+ * tope de la lista del proyecto al promoverla).
  */
-async function nextPosition(workId: string | null, homeSectorId: string | null): Promise<number> {
-  const where = workId ? { workId } : { workId: null, sectorId: homeSectorId };
-  const result = await prisma.task.aggregate({
-    where,
-    _max: { position: true },
-  });
+export async function nextPosition(
+  workId: string | null,
+  homeSectorId: string | null,
+  parentId: string | null,
+): Promise<number> {
+  const where = parentId
+    ? { parentId }
+    : workId
+      ? { workId, parentId: null }
+      : { workId: null, sectorId: homeSectorId, parentId: null };
+  const result = await prisma.task.aggregate({ where, _max: { position: true } });
   return (result._max.position ?? -1) + 1;
+}
+
+/** Lo mínimo de una tarea que necesita `setTaskParent` (revisión final, hallazgo Importante 5). */
+interface TaskForReparent {
+  id: string;
+  workId: string | null;
+  sectorId: string | null;
+  links: readonly { type: "EXEC" | "REF"; sectorId: string | null }[];
+}
+
+/**
+ * Núcleo compartido de "colgar una tarea de otro padre, o promoverla a tarea
+ * independiente" (revisión final, hallazgo Importante 5): antes vivía
+ * duplicado, copia literal, en `PATCH /api/tasks/[id]` y en el MCP
+ * `task.setParent` (~50 líneas cada uno) — el próximo cambio de regla hubiera
+ * habido que hacerlo en los dos lugares. Ahora los dos llaman a esto.
+ *
+ * A propósito NO hace el fetch de la tarea, el gate de permisos (`canToggle`),
+ * la doble sincronización del espejo (`syncParentStatus` del ex-padre y del
+ * padre nuevo) ni el `emit`: esas cuatro cosas ya eran idénticas en los dos
+ * llamadores (2-3 líneas cada una, plomería genérica de cualquier mutación de
+ * tarea, no una regla propia de "mover bajo otro padre") y encima cada
+ * llamador ya tenía la tarea/ctx en la mano — repetirlas ahí es más simple y
+ * más barato que hacer que este núcleo las vuelva a resolver.
+ *
+ * Reglas (mismas que documenta el spec): un solo nivel de anidado (el destino
+ * no puede ser a su vez una subtarea), misma pertenencia (proyecto o sector
+ * home) que el padre nuevo, la tarea que se mueve no puede arrastrar hijas
+ * propias abiertas, y si no tiene ningún EXEC propio hereda los del nuevo
+ * padre (delegación explícita si ya tenía uno). Recalcula `position` dentro
+ * del nuevo ámbito de hermanas (hallazgo Importante 4): entre las hijas del
+ * padre nuevo, o al final de las tareas raíz del proyecto/sector al promover.
+ */
+export async function setTaskParent(
+  task: TaskForReparent,
+  nextParentId: string | null,
+): Promise<TaskWithLinks> {
+  let inheritedLinksData: { type: "EXEC"; targetType: "SECTOR"; targetId: string; sectorId: string }[] = [];
+
+  if (nextParentId) {
+    if (nextParentId === task.id) throw badRequest("Una tarea no puede colgar de sí misma");
+
+    const parent = await prisma.task.findUnique({ where: { id: nextParentId } });
+    if (!parent) throw notFound("Tarea padre no encontrada");
+
+    // Un solo nivel de anidado: el destino no puede ser a su vez una subtarea.
+    if (parent.parentId) throw badRequest("Una subtarea no puede tener subtareas");
+
+    // Misma pertenencia que el padre (proyecto o sector home).
+    if (parent.workId !== task.workId || parent.sectorId !== task.sectorId) {
+      throw badRequest("La subtarea tiene que pertenecer al mismo proyecto o sector que el padre");
+    }
+
+    // La tarea que se mueve no puede arrastrar hijas propias abiertas (evita 2 niveles).
+    const openChildren = await prisma.task.count({
+      where: { parentId: task.id, status: { type: { not: "FINAL" } } },
+    });
+    if (openChildren > 0) {
+      throw badRequest("Sacá primero las subtareas de esta tarea antes de moverla");
+    }
+
+    const ownExecLinks = task.links.filter((l) => l.type === "EXEC");
+    if (ownExecLinks.length === 0) {
+      const parentExecLinks = await prisma.taskLink.findMany({
+        where: { taskId: nextParentId, type: "EXEC" },
+        select: { sectorId: true },
+      });
+      inheritedLinksData = parentExecLinks
+        .filter((l): l is { sectorId: string } => l.sectorId != null)
+        .map((l) => ({ type: "EXEC" as const, targetType: "SECTOR" as const, targetId: l.sectorId, sectorId: l.sectorId }));
+    }
+  }
+
+  const position = await nextPosition(task.workId, task.sectorId, nextParentId);
+
+  return prisma.task.update({
+    where: { id: task.id },
+    data: {
+      parentId: nextParentId,
+      position,
+      ...(inheritedLinksData.length > 0 ? { links: { create: inheritedLinksData } } : {}),
+    },
+    include: taskInclude,
+  });
+}
+
+/**
+ * Núcleo común de reorder (Tarea 10, hallazgo de revisión #2): `reorderTasks`
+ * (feature 052, ámbito `workId`) y `reorderSubtasks` (ámbito `parentId`)
+ * comparten el mismo algoritmo — valida que `orderedTaskIds` coincide
+ * EXACTAMENTE con las tareas que matchean `where` (mismo tamaño, mismos IDs,
+ * sin duplicados) y, si no, lanza `TASK_SET_CHANGED` (409) SIN aplicar ningún
+ * cambio; si coincide, renumera de forma total y densa (`position = índice`)
+ * dentro de la transacción `tx`. `entityLabel` solo cambia el sustantivo del
+ * mensaje de error ("tareas" / "subtareas") para no perder ese detalle al
+ * factorizar.
+ */
+async function reorderTaskSet(
+  tx: Prisma.TransactionClient,
+  where: Prisma.TaskWhereInput,
+  orderedTaskIds: string[],
+  entityLabel: string,
+): Promise<void> {
+  const current = await tx.task.findMany({ where, select: { id: true } });
+
+  const orderedSet = new Set(orderedTaskIds);
+  const matches =
+    orderedTaskIds.length === current.length &&
+    orderedSet.size === orderedTaskIds.length && // sin duplicados
+    current.every((t) => orderedSet.has(t.id));
+
+  if (!matches) {
+    throw new ApiError(
+      409,
+      "TASK_SET_CHANGED",
+      `El conjunto de ${entityLabel} cambió mientras reordenabas; recargá y volvé a intentar`,
+    );
+  }
+
+  await Promise.all(
+    orderedTaskIds.map((id, index) => tx.task.update({ where: { id }, data: { position: index } })),
+  );
 }
 
 /**
@@ -426,41 +560,102 @@ async function nextPosition(workId: string | null, homeSectorId: string | null):
  * `max + 1` intacto tras reordenar).
  */
 export async function reorderTasks(workId: string, orderedTaskIds: string[]): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    const current = await tx.task.findMany({ where: { workId }, select: { id: true } });
+  // 062-subtareas (hallazgo Crítico de revisión): las hijas heredan `workId`
+  // del padre, así que acotar solo por `workId` las incluía en el conjunto
+  // esperado — la UI (works/[id]/route.ts) solo manda las raíces, y el
+  // conjunto nunca coincidía: TASK_SET_CHANGED en cada arrastre. `parentId:
+  // null` deja el ámbito acotado a las tareas raíz del proyecto, igual que
+  // `reorderSubtasks` lo acota a `parentId` para las hijas de un padre.
+  await prisma.$transaction((tx) =>
+    reorderTaskSet(tx, { workId, parentId: null }, orderedTaskIds, "tareas"),
+  );
+}
 
-    const orderedSet = new Set(orderedTaskIds);
-    const matches =
-      orderedTaskIds.length === current.length &&
-      orderedSet.size === orderedTaskIds.length && // sin duplicados
-      current.every((t) => orderedSet.has(t.id));
-
-    if (!matches) {
-      throw new ApiError(
-        409,
-        "TASK_SET_CHANGED",
-        "El conjunto de tareas cambió mientras reordenabas; recargá y volvé a intentar",
-      );
-    }
-
-    await Promise.all(
-      orderedTaskIds.map((id, index) =>
-        tx.task.update({ where: { id }, data: { position: index } }),
-      ),
-    );
-  });
+/**
+ * Reordena manualmente las subtareas de una tarea padre (Tarea 10): mismo
+ * contrato que `reorderTasks`, pero acotado a `parentId` en vez de `workId`
+ * (las hijas se ordenan entre ellas, `nextPosition` ya las separa de las
+ * tareas raíz). Recibe la lista COMPLETA y ordenada de `taskId` de las hijas
+ * y reasigna `position = índice` dentro de una única transacción. Si
+ * `orderedTaskIds` no coincide EXACTAMENTE con las hijas actuales (mismo
+ * tamaño, mismos IDs, sin duplicados), lanza `TASK_SET_CHANGED` (409) SIN
+ * aplicar ningún cambio.
+ */
+export async function reorderSubtasks(parentId: string, orderedTaskIds: string[]): Promise<void> {
+  await prisma.$transaction((tx) => reorderTaskSet(tx, { parentId }, orderedTaskIds, "subtareas"));
 }
 
 export async function saveTask(
   ctx: UserContext,
   input: ResolveInput & { taskId?: string; editMeta?: EditMeta },
 ): Promise<TaskWithLinks> {
+  // Subtarea (un solo nivel): hereda proyecto y sector home del padre, y no puede
+  // moverse a otro proyecto por texto — `/trabajo` en una hija se rechaza.
+  //
+  // Ruling 2026-08-29 (revisión Tarea 11): si la hija no declara NINGÚN
+  // #sector propio, hereda los EXEC del padre. Sin esto, el caso por defecto
+  // (padre de proyecto con EXEC a un sector, hija sin # propio) deja un
+  // pendiente invisible: el padre es contenedor y no suma (regla de
+  // contenedor), y la hija tampoco aparece en ningún sector porque nunca tuvo
+  // vínculo propio. Si la hija SÍ declara uno o varios #sector, esos valen
+  // (delegación explícita) y no se agregan los del padre.
+  //
+  // Hallazgo Importante B (revisión Tarea 11): la herencia vivía SOLO cuando
+  // el llamador mandaba `parentId` explícito — que pasa al crear, pero NO al
+  // editar el texto de una hija ya existente (ni desde /api/tasks/[id] ni
+  // desde el MCP), y el `update` reconstruye los links desde cero. Resultado:
+  // la primera edición de texto sin `#` borraba el EXEC heredado en silencio.
+  // Arreglo centralizado acá (no en cada llamador): si es una edición
+  // (`input.taskId`) y no vino `parentId` explícito, se resuelve el padre
+  // ACTUAL de la tarea desde la base — así cualquier editor (UI, MCP, uno
+  // futuro) conserva la herencia sin tener que acordarse de mandar `parentId`.
+  let resolvedParentId = input.parentId;
+  if (input.taskId && resolvedParentId === undefined) {
+    const currentTask = await prisma.task.findUnique({
+      where: { id: input.taskId },
+      select: { parentId: true },
+    });
+    resolvedParentId = currentTask?.parentId ?? undefined;
+  }
+
+  let inheritedExecSectorIds: string[] = [];
+  if (resolvedParentId) {
+    const parent = await prisma.task.findUnique({
+      where: { id: resolvedParentId },
+      include: { links: { where: { type: "EXEC" } } },
+    });
+    if (!parent) throw notFound("Tarea padre no encontrada");
+    if (parent.parentId) throw new ApiError(400, "SUBTASK_DEPTH", "Una subtarea no puede tener subtareas");
+    input = {
+      ...input,
+      contextWorkId: parent.workId ?? undefined,
+      contextSectorId: parent.workId ? undefined : (parent.sectorId ?? undefined),
+    };
+
+    // La hija no puede mudarse de proyecto por texto: `/trabajo` en una subtarea
+    // se rechaza en vez de ignorarse en silencio (Principio II).
+    const { tags } = parseTags(input.rawText);
+    if (tags.some((t) => t.symbol === "/")) {
+      throw new ApiError(400, "SUBTASK_WORK_TAG", "Una subtarea vive en el proyecto de su tarea padre: sacá el /proyecto del texto");
+    }
+
+    if (!tags.some((t) => t.symbol === "#")) {
+      inheritedExecSectorIds = parent.links
+        .map((l) => l.sectorId)
+        .filter((id): id is string => id != null);
+    }
+  }
+
   const resolved = await resolveTask(ctx, input);
   const parsedDates = parseDates(input.rawText);
   const dueDate = parsedDates[0]?.iso ? new Date(parsedDates[0].iso) : null;
 
+  // Unión con los EXEC heredados del padre (ver comentario arriba); Set porque
+  // el auto-EXEC al sector de contexto (FR-038) puede coincidir con uno heredado.
+  const execSectorIds = [...new Set([...resolved.execSectorIds, ...inheritedExecSectorIds])];
+
   const linksData = [
-    ...resolved.execSectorIds.map((sectorId) => ({
+    ...execSectorIds.map((sectorId) => ({
       type: "EXEC" as const,
       targetType: "SECTOR" as const,
       targetId: sectorId,
@@ -485,7 +680,7 @@ export async function saveTask(
   const applicableSet = await loadApplicableStatusSet(
     resolved.workId,
     resolved.homeSectorId,
-    resolved.execSectorIds,
+    execSectorIds,
   );
 
   // Al editar: si el sector/trabajo cambió de forma que el estado actual ya no
@@ -546,9 +741,10 @@ export async function saveTask(
           // Propiedad de edición (FR-401): origen según contexto de creación.
           originType: input.contextWorkId ? "WORK" : "SECTOR",
           originSectorId: input.contextWorkId ? null : (input.contextSectorId ?? null),
+          parentId: input.parentId ?? null,
           links: { create: linksData },
           labels: { create: labelsData },
-          position: await nextPosition(resolved.workId, resolved.homeSectorId),
+          position: await nextPosition(resolved.workId, resolved.homeSectorId, input.parentId ?? null),
         },
         include: taskInclude,
       });
@@ -572,12 +768,15 @@ export async function saveTask(
     workId: task.workId,
     sectorIds: [
       ...new Set([
-        ...resolved.execSectorIds,
+        ...execSectorIds,
         ...resolved.refSectorIds,
         ...(resolved.homeSectorId ? [resolved.homeSectorId] : []),
       ]),
     ],
   });
+
+  // Una hija nueva puede reabrir a un padre que ya estaba finalizado (Tarea 5).
+  if (input.parentId) await syncParentStatus(input.parentId, ctx.id);
 
   return task;
 }
@@ -625,6 +824,22 @@ export async function setTaskStatus(
     throw conflict("Ese estado no pertenece al conjunto de estados aplicable a esta tarea");
   }
 
+  // El estado FINAL de un padre es derivado (espejo): sólo lo pone syncParentStatus
+  // cuando todas las hijas terminaron, nunca un clic manual sobre el padre. El corte
+  // es sólo en la frontera FINAL / no-FINAL: moverlo entre estados no-FINAL sigue libre.
+  if (newStatus.type === "FINAL") {
+    const openChildren = await prisma.task.count({
+      where: { parentId: taskId, status: { type: { not: "FINAL" } } },
+    });
+    if (openChildren > 0) {
+      throw new ApiError(
+        409,
+        "PARENT_HAS_OPEN_SUBTASKS",
+        `Faltan ${openChildren} subtarea(s) por finalizar`,
+      );
+    }
+  }
+
   const previousStatusId = task.statusId;
   const updated = await prisma.task.update({
     where: { id: taskId },
@@ -644,5 +859,94 @@ export async function setTaskStatus(
     workId: task.workId,
     sectorIds: task.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
   });
+
+  // Una hija que cambia de estado puede cerrar (o reabrir) a su padre sin que
+  // nadie opere el padre directamente (caso delegación, ver syncParentStatus).
+  if (task.parentId) await syncParentStatus(task.parentId, ctx.id);
+
   return updated;
+}
+
+/**
+ * Espejo padre ↔ subtareas (ver docs/superpowers/specs/2026-08-28-subtareas-design.md).
+ *
+ * Se invoca después de CUALQUIER operación sobre una hija: alta, cambio de estado,
+ * borrado, mover o promover.
+ *
+ * NO corre dentro de la transacción de esa operación (revisión final, hallazgo
+ * Importante 3: el comentario anterior decía lo contrario, pero ningún llamador
+ * le pasa nunca una transacción — todos usan el `db = prisma` de default). Sigue
+ * aceptando un `db` de transacción para el día que algún llamador quiera pasarlo,
+ * pero hoy nadie lo hace: hacerlo de verdad es una refactorización mayor (envolver
+ * cada operación completa en `$transaction`) que quedó afuera del cierre de esta
+ * feature — mejora futura. Esto deja abierta una carrera real si dos personas
+ * cierran las dos últimas hijas de un mismo padre al mismo tiempo.
+ *
+ * A propósito NO valida permisos sobre el padre: quien puede completar la hija
+ * dispara el cierre del padre aunque no opere el padre (caso delegación). La
+ * transición queda registrada en TaskStatusChange con el usuario que la gatilló.
+ *
+ * Nunca relanza (revisión final, hallazgo Importante 3): la escritura principal
+ * que dispara esta llamada ya se aplicó cuando esto corre, así que un fallo acá
+ * (p. ej. `deriveParentStatusId` llama a `finalStatus`/`initialStatus`, que
+ * lanzan si el conjunto aplicable no tiene ningún estado de ese tipo) no puede
+ * convertir un cambio que sí se guardó en un 500 — se captura y se registra, y
+ * el padre queda temporalmente desincronizado hasta el próximo trigger.
+ */
+export async function syncParentStatus(
+  parentId: string,
+  actorId: string,
+  db: DbClient = prisma,
+): Promise<void> {
+  try {
+    const parent = await db.task.findUnique({
+      where: { id: parentId },
+      include: { status: true, links: true },
+    });
+    if (!parent) return;
+
+    const children = await db.task.findMany({
+      where: { parentId },
+      select: { status: { select: { type: true } } },
+    });
+
+    const applicableSet = await loadApplicableStatusSet(
+      parent.workId,
+      parent.sectorId,
+      execSectorIdsOf(parent.links),
+      db,
+    );
+    const targetStatusId = deriveParentStatusId(children, parent.status, applicableSet);
+    if (!targetStatusId || targetStatusId === parent.statusId) return;
+
+    const target = applicableSet.find((s) => s.id === targetStatusId);
+    if (!target) return;
+
+    // Capturado ANTES del update: el padre no queda aislado de la escritura que
+    // sigue (mismo objeto en memoria si `db` es un mock de pruebas), así que leer
+    // `parent.statusId` después ya daría el valor nuevo.
+    const previousStatusId = parent.statusId;
+
+    await db.task.update({
+      where: { id: parentId },
+      data: applyStatusChange(target, actorId, new Date()),
+    });
+    await db.taskStatusChange.create({
+      data: {
+        taskId: parentId,
+        fromStatusId: previousStatusId,
+        toStatusId: targetStatusId,
+        changedById: actorId,
+      },
+    });
+
+    emit({
+      type: "task-changed",
+      taskId: parentId,
+      workId: parent.workId,
+      sectorIds: parent.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
+    });
+  } catch (err) {
+    console.error("[syncParentStatus] no se pudo sincronizar el estado del padre", parentId, err);
+  }
 }

@@ -7,6 +7,7 @@ import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { cloneTasksFromTemplate } from "@/lib/domain/works/cloneFromTemplate";
+import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 
 export const GET = withApi(async (req) => {
   const session = await requireWriter();
@@ -26,7 +27,6 @@ export const GET = withApi(async (req) => {
     include: {
       group: { select: { id: true, name: true, publicRead: true } },
       stage: { select: { id: true, name: true, color: true } },
-      _count: { select: { tasks: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -42,12 +42,28 @@ export const GET = withApi(async (req) => {
 
   const workIds = visible.map((w) => w.id);
 
-  const doneCounts = await prisma.task.groupBy({
-    by: ["workId"],
-    where: { workId: { in: workIds }, status: { type: "FINAL" } },
-    _count: true,
+  // 062-subtareas: un padre con hijas es contenedor y no suma nada — ni a
+  // total, ni a pending, ni a done —; sus hijas ya viajan como filas propias
+  // en el mismo findMany (heredan el `workId` del padre), así que alcanza con
+  // saltear al contenedor (ver src/lib/domain/tasks/unfinishedCount.ts).
+  // Reemplaza el viejo `_count.tasks` (relation count crudo, sacado del
+  // `include` de arriba porque ya no lo usa nadie) + `groupBy` de FINAL:
+  // ninguno de los dos sabía distinguir un contenedor de una hoja.
+  const taskRows = await prisma.task.findMany({
+    where: { workId: { in: workIds } },
+    select: { workId: true, status: { select: { type: true } }, _count: { select: { subtasks: true } } },
   });
-  const doneByWorkId = new Map(doneCounts.map((d) => [d.workId, d._count]));
+  const totalByWorkId = new Map<string, number>();
+  const doneByWorkId = new Map<string, number>();
+  for (const t of taskRows) {
+    if (!t.workId) continue;
+    const subtaskCount = t._count.subtasks;
+    if (isContainerTask({ subtaskCount })) continue; // contenedor: no suma (ver unfinishedCount.ts)
+    totalByWorkId.set(t.workId, (totalByWorkId.get(t.workId) ?? 0) + 1);
+    if (!countsTowardPending({ id: "", status: t.status, subtaskCount })) {
+      doneByWorkId.set(t.workId, (doneByWorkId.get(t.workId) ?? 0) + 1);
+    }
+  }
 
   // sectores distintos con tareas por work (para mostrar chips de sector en el dashboard)
   const sectorGroups = await prisma.task.groupBy({
@@ -92,7 +108,7 @@ export const GET = withApi(async (req) => {
 
   const result = visible.map((w) => {
     const done = doneByWorkId.get(w.id) ?? 0;
-    const total = w._count.tasks;
+    const total = totalByWorkId.get(w.id) ?? 0;
     return {
       ...w,
       // 054-T002: grupo explícito en el payload (null en proyectos personales)

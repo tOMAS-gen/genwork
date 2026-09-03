@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/client";
 import { accessSector, type Access, type UserContext } from "@/lib/domain/permissions";
-import { isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
+import { isContainerTask, isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
 
 /**
  * Ámbito de un sector (feature 046): pertenece a un Grupo (groupId), al espacio
@@ -49,11 +49,20 @@ export async function sectorMetricsByIds(sectorIds: string[]): Promise<Map<strin
     // Filtramos workId: null igual para blindar contra datos legacy y evitar doble conteo con EXEC.
     prisma.task.findMany({
       where: { sectorId: { in: sectorIds }, workId: null },
-      select: { sectorId: true, status: { select: { type: true } } },
+      select: {
+        sectorId: true,
+        status: { select: { type: true } },
+        _count: { select: { subtasks: true } },
+      },
     }),
     prisma.taskLink.findMany({
       where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: { isTemplate: false } } },
-      select: { sectorId: true, task: { select: { status: { select: { type: true } } } } },
+      select: {
+        sectorId: true,
+        task: {
+          select: { status: { select: { type: true } }, _count: { select: { subtasks: true } } },
+        },
+      },
     }),
   ]);
 
@@ -66,8 +75,14 @@ export async function sectorMetricsByIds(sectorIds: string[]): Promise<Map<strin
     return m;
   };
 
+  // 062-subtareas: un padre con hijas es contenedor (su estado es espejo del de
+  // sus hijas, ver parentStatus.ts) y no suma NADA — ni a total, ni a pending,
+  // ni a done. Sus hijas ya viajan como filas propias en el mismo findMany
+  // (heredan sectorId/workId del padre), así que alcanza con saltear al
+  // contenedor: contarlo junto a ellas duplicaría el mismo trabajo.
   for (const task of looseTasks) {
     if (!task.sectorId) continue;
+    if (isContainerTask({ subtaskCount: task._count.subtasks })) continue;
     const m = ensure(task.sectorId);
     m.total += 1;
     if (isTaskUnfinished({ id: "", status: task.status })) m.pending += 1;
@@ -76,6 +91,7 @@ export async function sectorMetricsByIds(sectorIds: string[]): Promise<Map<strin
 
   for (const link of execLinks) {
     if (!link.sectorId) continue;
+    if (isContainerTask({ subtaskCount: link.task._count.subtasks })) continue;
     const m = ensure(link.sectorId);
     m.total += 1;
     if (isTaskUnfinished({ id: "", status: link.task.status })) m.pending += 1;

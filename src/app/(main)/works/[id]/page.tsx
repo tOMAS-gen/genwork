@@ -8,6 +8,7 @@ import {
   closestCenter,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
@@ -33,6 +34,7 @@ import { FilesBrowser } from "@/components/files/FilesBrowser";
 import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
 import { ClientAccessPanel } from "@/components/works/ClientAccessPanel";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
+import { taskListProgress } from "@/lib/domain/works/taskListProgress";
 import { CheckSquare, Clock, Eye, FileText, Folder, List, LayoutGrid } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -85,6 +87,17 @@ function SortableTaskRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   });
+  /**
+   * Zona de anidado (062-subtareas): además de ser ordenable, cada fila raíz es
+   * un destino donde soltar OTRA tarea para colgarla como subtarea. El id lleva
+   * el prefijo `nest:` para que `handleDragEnd` distinga las dos intenciones —
+   * soltar entre filas reordena, soltar sobre esta zona anida. Una subtarea no
+   * es destino: el anidado es de un solo nivel.
+   */
+  const { setNodeRef: setNestRef, isOver: isNestTarget } = useDroppable({
+    id: `nest:${task.id}`,
+    disabled: !editable || !!task.parentId,
+  });
 
   return (
     <div
@@ -95,14 +108,16 @@ function SortableTaskRow({
         touchAction: "none",
       }}
     >
-      <TaskItem
-        task={task}
-        context={{ workId }}
-        canToggle={editable}
-        onChanged={onChanged}
-        dragHandleProps={{ attributes, listeners }}
-        isDragging={isDragging}
-      />
+      <div ref={setNestRef} className={isNestTarget ? "task-nest-target" : undefined}>
+        <TaskItem
+          task={task}
+          context={{ workId }}
+          canToggle={editable}
+          onChanged={onChanged}
+          dragHandleProps={{ attributes, listeners }}
+          isDragging={isDragging}
+        />
+      </div>
     </div>
   );
 }
@@ -189,10 +204,40 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
     [id, load, toast],
   );
 
+  /**
+   * Cuelga una tarea de otra (o la promueve con `parentId: null`) reusando el
+   * mismo PATCH que el menú. El backend valida un solo nivel, misma pertenencia
+   * y que la tarea movida no tenga hijas abiertas, así que acá sólo hay que
+   * mostrar el error si lo rechaza.
+   */
+  const commitReparent = useCallback(
+    (taskId: string, parentId: string | null) => {
+      void api(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ parentId }),
+      })
+        .then(load)
+        .catch((err) => {
+          toast((err as Error).message, "error");
+          load();
+        });
+    },
+    [load, toast],
+  );
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (!over || active.id === over.id) return;
+
+      // Soltar SOBRE una fila (zona `nest:`) cuelga la tarea de esa otra; soltar
+      // entre filas reordena, que es el comportamiento de siempre (feature 052).
+      const overId = String(over.id);
+      if (overId.startsWith("nest:")) {
+        const parentId = overId.slice("nest:".length);
+        if (parentId !== String(active.id)) commitReparent(String(active.id), parentId);
+        return;
+      }
 
       setWork((current) => {
         if (!current) return current;
@@ -206,7 +251,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
         return { ...current, tasks: reordered };
       });
     },
-    [commitReorder],
+    [commitReorder, commitReparent],
   );
 
   if (!work) {
@@ -248,7 +293,9 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const editable = work.status === "ACTIVE";
-  const doneCount = work.tasks.filter((t) => t.status.type === "FINAL").length;
+  // 062-subtareas (hallazgo Importante 4 de revisión): `work.tasks` son solo
+  // raíces (works/[id]/route.ts las anida); ver taskListProgress.ts.
+  const { done: doneCount, total: totalCount } = taskListProgress(work.tasks);
 
   return (
     <div className="sheet">
@@ -295,7 +342,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
 
       <StatusBar
         done={doneCount}
-        total={work.tasks.length}
+        total={totalCount}
         dueDate={work.dueDate}
         status={work.status}
         onDueDateChange={editable ? handleDueDateChange : undefined}

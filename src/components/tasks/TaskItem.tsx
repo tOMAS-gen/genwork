@@ -6,13 +6,25 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { X, Calendar, GripVertical } from "@/components/ui/icons";
-import { Menu } from "@/components/ui/Menu";
+import { X, Calendar, GripVertical, Plus, ChevronDown, ChevronRight } from "@/components/ui/icons";
+import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
+import { effectiveDueDate } from "@/lib/domain/tasks/parentDueDate";
 import { TaskInlineEdit } from "./TaskInlineEdit";
+import {
+  SubtaskList,
+  subtaskProgressLabel,
+  canFinishParent,
+  reparentMenuLabel,
+  deleteConfirmMessage,
+} from "./SubtaskList";
+import { TaskMoveDialog } from "./TaskMoveDialog";
+
+/** 062-subtareas: fecha heredada de una hija — corto, sin año (mismo criterio que StatusBar/DueDateBadge). */
+const inheritedDueDateFormatter = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
 
 export interface TaskDto {
   id: string;
@@ -39,6 +51,24 @@ export interface TaskDto {
   description: string | null;
   /** Per-task completion eligibility (feature 057): true when the user operates a relevant REF sector. */
   canToggle?: boolean;
+  /**
+   * 062-subtareas: total/hechas de hijas (GLOBAL, no solo lo visible en esta
+   * vista). `subtaskCount > 0` marca a la tarea como contenedora — su propio
+   * `status` es un espejo del de sus hijas y no debe sumar a un contador de
+   * progreso por separado (ver src/lib/domain/tasks/unfinishedCount.ts). El
+   * render anidado de las hijas queda para las Tareas 12/13; acá solo viajan
+   * los conteos porque works/[id]/route.ts ya los expone.
+   */
+  subtaskCount?: number;
+  subtaskDone?: number;
+  /** 062-subtareas (Tarea 12): id de la tarea padre — null/undefined en una tarea de nivel raíz. */
+  parentId?: string | null;
+  /** 062-subtareas: texto de la tarea padre (migaja "tarea de: …"); no se usa todavía en la Tarea 12. */
+  parentText?: string | null;
+  /** 062-subtareas: fecha propia de la tarea (Task 3); la mostrada puede heredarse de una hija abierta. */
+  dueDate?: string | null;
+  /** 062-subtareas (Tarea 12): hijas anidadas, serializadas con el MISMO mapper que el padre. */
+  subtasks?: TaskDto[];
 }
 
 type InlineMark =
@@ -194,7 +224,13 @@ export function TaskItem({
   isDragging?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
+  // Abre el campo de alta de subtarea desde el botón + de esta fila (062-subtareas).
+  const [addingSubtask, setAddingSubtask] = useState(false);
+  // Plegado de la lista de hijas. Arranca abierto: al entrar a un proyecto se
+  // espera ver el trabajo pendiente, no tener que expandir cada tarea.
+  const [subtasksOpen, setSubtasksOpen] = useState(true);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
+  const [moveOpen, setMoveOpen] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const nameSaveRef = useRef<(() => void) | null>(null);
 
@@ -235,7 +271,10 @@ export function TaskItem({
   };
 
   const remove = async () => {
-    const ok = await showConfirm("¿Eliminar esta tarea?", {
+    // 062-subtareas (revisión final, hallazgo Crítico): borrar un padre se lleva
+    // sus hijas por cascade de la FK. La confirmación tiene que decir cuántas,
+    // porque es pérdida irreversible con un clic.
+    const ok = await showConfirm(deleteConfirmMessage(task), {
       title: "Eliminar tarea",
       confirmLabel: "Eliminar",
       danger: true,
@@ -243,6 +282,21 @@ export function TaskItem({
     if (!ok) return;
     await api(`/api/tasks/${task.id}`, { method: "DELETE" });
     onChanged();
+  };
+
+  /**
+   * "Sacar de …" (062-subtareas, Tarea 13): promueve la subtarea a raíz en el
+   * acto, sin diálogo — es el caso simétrico de "Mover bajo otra tarea…", que
+   * sí necesita elegir destino. Mismo canal de error que el resto de las
+   * acciones de esta fila (showToast); el backend ya valida todo lo demás.
+   */
+  const takeOutOfParent = async () => {
+    try {
+      await api(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ parentId: null }) });
+      onChanged();
+    } catch (err) {
+      showToast({ message: (err as Error).message });
+    }
   };
 
   const handleDescriptionChange = async (value: string) => {
@@ -320,10 +374,69 @@ export function TaskItem({
   );
 
   const hasDescription = !!(task.description && task.description.trim());
+  /**
+   * ¿Esta fila muestra la lista de subtareas debajo? Solo en la lista (el tablero
+   * agrupa por estado) y solo en tareas raíz. Se calcula una vez porque manda dos
+   * cosas que tienen que ir juntas: montar `SubtaskList` y apilar `.task` en
+   * columna. Sin lo segundo, `.task` sigue siendo un flex en fila y las hijas se
+   * dibujan al costado derecho del padre en vez de debajo — que es exactamente lo
+   * que pasaba cuando la tarea no estaba en edición ni tenía descripción, los dos
+   * únicos casos que hasta ahora activaban el layout de columna.
+   */
+  const showsSubtasks = variant === "list" && !task.parentId && (canToggle || (task.subtasks?.length ?? 0) > 0);
+
+  // 062-subtareas (Tarea 12): progreso de hijas + gate de "se puede finalizar" —
+  // siempre con los conteos GLOBALES del DTO (subtaskCount/subtaskDone), nunca
+  // con el largo de `task.subtasks` (que puede no venir, o venir vacío en vistas
+  // que todavía no anidan hijas — ver comentario de subtaskCount en TaskDto).
+  const subtaskCounts = { subtaskDone: task.subtaskDone ?? 0, subtaskCount: task.subtaskCount ?? 0 };
+  const progressLabel = subtaskProgressLabel(subtaskCounts);
+  const finishable = canFinishParent(subtaskCounts);
+  /**
+   * ¿Esta tarea es un contenedor? (062-subtareas). Con hijas, su estado lo
+   * gobiernan ellas: no lleva casilla ni selector de estado propio, sólo el
+   * progreso. Mostrar controles de estado que el backend va a rechazar (409
+   * PARENT_HAS_OPEN_SUBTASKS) es ofrecer algo que no se puede hacer.
+   */
+  const isContainer = subtaskCounts.subtaskCount > 0;
+  // Revisión (hallazgo Importante 2): el motivo del bloqueo tiene que poder
+  // anunciarse (aria-label + title), no solo verse — se arma una vez acá para
+  // no duplicar la cadena entre los dos atributos que la usan más abajo.
+  const checkboxLabel = !finishable
+    ? "Faltan " + (subtaskCounts.subtaskCount - subtaskCounts.subtaskDone) + " subtareas"
+    : task.status.type === "FINAL"
+      ? "Marcar como no terminada"
+      : "Marcar como terminada";
+  // 062-subtareas (Tarea 13): reorganizar la jerarquía desde el menú — colgar
+  // una tarea raíz de otra ("Mover bajo otra tarea…") o sacar una subtarea de
+  // la suya ("Sacar de …"). Mismo permiso base que el resto de las acciones de
+  // esta fila (canToggle) — es una operación de estructura, no de texto, así
+  // que no depende de canEditText (eso es FR-402/403, sobre el rawText).
+  const reparentTask = { parentId: task.parentId ?? null, parentText: task.parentText ?? null };
+  const reparentItems: MenuItem[] = canToggle
+    ? [
+        {
+          label: reparentMenuLabel(reparentTask),
+          onSelect: () => (reparentTask.parentId ? void takeOutOfParent() : setMoveOpen(true)),
+        },
+      ]
+    : [];
+  // Vencimiento heredado (Task 3): si la tarea no tiene fecha propia, hereda la
+  // más próxima de una hija ABIERTA. El caso "fecha propia" ya se ve inline en
+  // el rawText vía date-chip (renderInlineSegments) — acá solo hace falta
+  // pintar algo cuando NO hay date-chip propio y la fecha viene prestada.
+  const effectiveDue = effectiveDueDate({
+    dueDate: task.dueDate ? new Date(task.dueDate) : null,
+    subtasks: (task.subtasks ?? []).map((s) => ({
+      dueDate: s.dueDate ? new Date(s.dueDate) : null,
+      status: { type: s.status.type },
+    })),
+  });
 
   return (
+    <>
     <div
-      className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
+      className={`task ${task.status.type === "FINAL" ? "done" : ""} ${hasDescription || editing || showsSubtasks ? "task-with-description" : ""} ${variant === "list" && dragHandleProps ? "task-has-handle" : ""} ${isDragging ? "task-dragging" : ""}`}
     >
       <div className="task-row">
         {/* Drag handle (feature 052, T006): solo en variant "list" y cuando el
@@ -342,14 +455,51 @@ export function TaskItem({
         )}
         {/* Casilla de acceso rápido (feature 042): permanece visible durante la
             edición, sin salto de altura de fila. En el tablero no se muestra: los
-            3 puntos ya cubren el cambio de estado (columna = estado). */}
-        {canToggle && variant === "list" ? (
+            3 puntos ya cubren el cambio de estado (columna = estado).
+            Una tarea CON subtareas no lleva casilla (062-subtareas): su estado es
+            derivado del de sus hijas, así que ofrecer un control que no se puede
+            usar —y explicar por qué— es peor que no mostrarlo. En su lugar queda
+            el progreso "1/3", que es la información real de esa fila. */}
+        {/* Flecha para plegar/desplegar las hijas (062-subtareas). Va en el lugar
+            que dejó la casilla —que un contenedor no lleva— así la fila no crece
+            y las hijas quedan alineadas bajo su control. */}
+        {isContainer && variant === "list" && (
+          <button
+            type="button"
+            className="icon-btn task-subtasks-toggle"
+            onClick={() => setSubtasksOpen((open) => !open)}
+            aria-expanded={subtasksOpen}
+            aria-label={
+              subtasksOpen
+                ? `Ocultar las subtareas de "${task.displayText}"`
+                : `Mostrar las ${subtaskCounts.subtaskCount} subtareas de "${task.displayText}"`
+            }
+            title={subtasksOpen ? "Ocultar subtareas" : "Mostrar subtareas"}
+          >
+            {subtasksOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+        )}
+        {isContainer ? null : canToggle && variant === "list" ? (
           <input
             type="checkbox"
             checked={task.status.type === "FINAL"}
-            onChange={() => void quickToggleFinal()}
-            title={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
-            aria-label={task.status.type === "FINAL" ? "Marcar como no terminada" : "Marcar como terminada"}
+            // Revisión (hallazgo Importante 2): `disabled` nativo saca el control
+            // del orden de tabulación — quien navega con teclado nunca llegaría a
+            // escuchar el motivo. `aria-disabled` lo anuncia sin sacarlo del
+            // recorrido; el bloqueo real del toggle lo hace `onClick` (cubre mouse
+            // Y la barra espaciadora, que en un checkbox dispara "click" también),
+            // con `onChange` como resguardo adicional. Mismo patrón de capas que
+            // ya usa Menu.tsx (disabled + aria-disabled), pero sin el `disabled`
+            // nativo porque acá SÍ hace falta que siga siendo alcanzable por Tab.
+            aria-disabled={!finishable}
+            onClick={(e) => {
+              if (!finishable) e.preventDefault();
+            }}
+            onChange={() => {
+              if (finishable) void quickToggleFinal();
+            }}
+            title={checkboxLabel}
+            aria-label={checkboxLabel}
           />
         ) : !canToggle ? (
           <span className="muted" title="Se completa en su sector de ejecución">
@@ -377,23 +527,65 @@ export function TaskItem({
             />
           </>
         ) : (
-          <span
-            className="task-text"
-            style={{ flex: 1, cursor: canEditText ? "text" : "default" }}
-            onClick={handleTextClick}
-          >
-            {shouldShowAutoWorkTag(task, context) && task.work && (
-              <Link className="tag tag-work" href={`/works/${task.work.id}`}>
-                /{task.work.name}
-              </Link>
+          <>
+            <span
+              className="task-text"
+              style={{ flex: 1, cursor: canEditText ? "text" : "default" }}
+              onClick={handleTextClick}
+            >
+              {shouldShowAutoWorkTag(task, context) && task.work && (
+                <Link className="tag tag-work" href={`/works/${task.work.id}`}>
+                  /{task.work.name}
+                </Link>
+              )}
+              {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
+            </span>
+            {/* 062-subtareas (Tarea 12): progreso "hechas/total" junto al título — solo
+                cuando la tarea es contenedora (subtaskCount > 0). */}
+            {progressLabel && (
+              <span
+                className="badge badge-sm"
+                title={`${subtaskCounts.subtaskDone}/${subtaskCounts.subtaskCount} subtareas hechas`}
+              >
+                {progressLabel}
+              </span>
             )}
-            {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
-          </span>
+            {/* Vencimiento heredado (Task 3): la fecha PROPIA ya se ve inline en el texto
+                (date-chip de renderInlineSegments) — este badge atenuado solo aparece
+                cuando la tarea no tiene fecha propia y la toma prestada de una hija. */}
+            {effectiveDue?.inherited && (
+              <span className="date-chip date-chip-inherited" title="Vence por una subtarea">
+                <Calendar size={12} />
+                {inheritedDueDateFormatter.format(effectiveDue.date)}
+              </span>
+            )}
+          </>
+        )}
+        {/* Agregar subtarea (062-subtareas): sólo el ícono, sin texto al lado — el
+            carril de controles de la fila ya es angosto y la acción se explica
+            sola con el `aria-label`. Se revela al pasar el mouse por la fila o al
+            enfocarla (`.task-add-subtask`, en globals.css), así una lista larga no
+            se llena de botones compitiendo por atención. */}
+        {showsSubtasks && canToggle && (
+          <button
+            type="button"
+            className="icon-btn task-add-subtask"
+            style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
+            onClick={() => {
+              setSubtasksOpen(true);
+              setAddingSubtask(true);
+            }}
+            aria-label={`Agregar subtarea a "${task.displayText}"`}
+            title="Agregar subtarea"
+            tabIndex={editing ? -1 : 0}
+          >
+            <Plus size={15} />
+          </button>
         )}
         {/* Selector de estado: solo si hay más de 2 estados en el conjunto (si son
             solo Pendiente/Hecha, la casilla ya alcanza). En el tablero la columna ya
             indica el estado — ahí se ofrece un menú para mover a otro en vez de selector. */}
-        {canToggle && variant === "list" && task.statusOptions.length > 2 && (
+        {canToggle && variant === "list" && !isContainer && task.statusOptions.length > 2 && (
           <span className="task-status-pill" style={{ "--c": task.status.color } as React.CSSProperties}>
             <select
               className="task-status-pill-select"
@@ -402,25 +594,44 @@ export function TaskItem({
               aria-label={`Estado de "${task.displayText}"`}
             >
               {task.statusOptions.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option
+                  key={s.id}
+                  value={s.id}
+                  disabled={s.type === "FINAL" && !finishable}
+                  title={s.type === "FINAL" && !finishable ? "Faltan subtareas por terminar" : undefined}
+                >
                   {s.name}
                 </option>
               ))}
             </select>
           </span>
         )}
-        {canToggle && variant === "board" && task.statusOptions.length > 1 && (
+        {/* En la lista NO hay menú ⋮: mover una tarea bajo otra (o sacarla) se
+            hace arrastrando — soltar sobre una fila la cuelga, soltar en la
+            franja de la lista de hijas la saca. El menú duplicaba esa acción y
+            ocupaba lugar en cada fila. En el tablero sí sigue, porque ahí no hay
+            arrastre entre columnas y es el único acceso. */}
+        {/* 062-subtareas (Tarea 13): el mismo menú de "cambiar estado" (variant
+            board) suma ahora "Mover bajo otra tarea…"/"Sacar de …" — reusa el
+            único ⋮ que ya tiene la tarjeta en vez de agregar un segundo botón. */}
+        {canToggle && variant === "board" && (task.statusOptions.length > 1 || reparentItems.length > 0) && (
           <Menu
-            label={`Cambiar estado de "${task.displayText}"`}
-            items={task.statusOptions
-              .filter((s) => s.id !== task.status.id)
-              .map((s) => ({
-                label: s.name,
-                icon: (
-                  <span className="entity-color-dot" style={{ background: s.color }} aria-hidden="true" />
-                ),
-                onSelect: () => void changeStatus(s.id),
-              }))}
+            label={`Acciones de "${task.displayText}"`}
+            items={[
+              ...task.statusOptions
+                .filter((s) => s.id !== task.status.id)
+                .map((s) => ({
+                  label: s.name,
+                  icon: (
+                    <span className="entity-color-dot" style={{ background: s.color }} aria-hidden="true" />
+                  ),
+                  // 062-subtareas (Tarea 12): mismo gate que el check/select de variant "list" —
+                  // no ofrecer el estado FINAL como alcanzable si quedan hijas abiertas.
+                  disabled: s.type === "FINAL" && !finishable,
+                  onSelect: () => void changeStatus(s.id),
+                })),
+              ...reparentItems,
+            ]}
           />
         )}
         {canToggle && (
@@ -435,6 +646,21 @@ export function TaskItem({
           </button>
         )}
       </div>
+      {/* 062-subtareas (Tarea 12): hijas anidadas — solo en variant "list" (el
+          tablero agrupa por estado, no tiene lugar para una lista anidada) y
+          solo para tareas de nivel raíz (una subtarea no puede tener las suyas,
+          ver taskDto.ts). */}
+      {showsSubtasks && (
+        <SubtaskList
+          task={task}
+          context={context}
+          canToggle={canToggle}
+          onChanged={onChanged}
+          adding={addingSubtask}
+          onAddingChange={setAddingSubtask}
+          expanded={subtasksOpen}
+        />
+      )}
       {editing && (
         <textarea
           ref={descRef}
@@ -491,5 +717,17 @@ export function TaskItem({
         </div>
       )}
     </div>
+    {/* 062-subtareas (Tarea 13): mismo patrón que RenameDialog en sectors/[id]/page.tsx
+        — se monta siempre, controlado por `open`; el fetch de candidatas queda
+        adentro del propio diálogo, gateado por ese mismo `open`. Revisión: ya no
+        es peso muerto en "list" — el ⋮ de reparent de esa variante también abre
+        este mismo diálogo con `setMoveOpen(true)` (ver reparentItems más arriba). */}
+    <TaskMoveDialog
+      open={moveOpen}
+      onClose={() => setMoveOpen(false)}
+      task={task}
+      onMoved={onChanged}
+    />
+    </>
   );
 }

@@ -65,3 +65,17 @@ export function countUnfinishedByKey<K extends string>(
   }
   return out;
 }
+
+/**
+ * Una tarea con subtareas es un contenedor: su estado es derivado (ver
+ * parentStatus.ts), así que contarla junto a sus hijas duplicaría el mismo
+ * trabajo en cada contador (drawer, sector, grupo, proyecto).
+ */
+export function isContainerTask(task: { subtaskCount: number }): boolean {
+  return task.subtaskCount > 0;
+}
+
+/** Regla única de "esto suma al contador de pendientes" (Principio I). */
+export function countsTowardPending(task: CountableTask & { subtaskCount: number }): boolean {
+  return !isContainerTask(task) && isTaskUnfinished(task);
+}

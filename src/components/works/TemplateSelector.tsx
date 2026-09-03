@@ -11,7 +11,6 @@ interface TemplateOption {
   id: string;
   name: string;
   description: string | null;
-  _count?: { tasks: number };
   taskCounts?: { done: number; total: number };
 }
 
@@ -49,8 +48,10 @@ export function TemplateSelector({
     onClose();
   };
 
-  const taskCountOf = (template: TemplateOption) =>
-    template.taskCounts?.total ?? template._count?.tasks;
+  // 062-subtareas: el fallback a `_count.tasks` (relation count crudo, sin
+  // regla de contenedor) quedó muerto — la API ya no lo manda (ver
+  // src/app/api/works/route.ts) y `taskCounts.total` siempre viene.
+  const taskCountOf = (template: TemplateOption) => template.taskCounts?.total;
 
   return (
     <Dialog open={open} onClose={onClose} title="Elegir plantilla">

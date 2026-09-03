@@ -10,9 +10,10 @@ const createSchema = z
     rawText: z.string().trim().min(1, "La tarea no puede estar vacía"),
     contextWorkId: z.string().uuid().optional(),
     contextSectorId: z.string().uuid().optional(),
+    parentId: z.string().uuid().optional(),
   })
-  .refine((v) => v.contextWorkId || v.contextSectorId, {
-    message: "La tarea necesita contexto: un proyecto o un sector",
+  .refine((v) => v.contextWorkId || v.contextSectorId || v.parentId, {
+    message: "La tarea necesita contexto: un proyecto, un sector o una tarea padre",
   });
 
 /** Crear tarea escribiendo una línea (FR-004); backend re-parsea etiquetas (FR-008). */

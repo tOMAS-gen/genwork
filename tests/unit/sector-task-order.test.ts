@@ -35,6 +35,10 @@ type FakeTask = {
     valueId: string;
     value: { name: string; color: string; key: { name: string } };
   }[];
+  // 062-subtareas: sin padre ni hijas en este escenario (orden de proyecto).
+  parentId: string | null;
+  parent: { id: string; displayText: string } | null;
+  _count: { subtasks: number };
 };
 
 const db = vi.hoisted(() => {
@@ -82,6 +86,9 @@ const db = vi.hoisted(() => {
       },
     ],
     labels: [],
+    parentId: null,
+    parent: null,
+    _count: { subtasks: 0 },
   });
 
   const sortedTaskLinks = (type: "EXEC" | "REF") =>

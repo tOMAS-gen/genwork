@@ -43,11 +43,12 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 
 | Herramienta | Qué hace | Notas |
 |---|---|---|
-| `task.list` | Lista tareas de un proyecto o de un sector. | Al menos uno de `workId`/`sectorId`. |
-| `task.create` | Crea una tarea desde texto con etiquetado inline (`/trabajo #sector @ref $etiqueta`). | Mismo parser que la web (Principio II). |
+| `task.list` | Lista tareas de un proyecto o de un sector, con `parentId`, `subtaskCount` y `subtaskDone` de cada una. | Al menos uno de `workId`/`sectorId`. Con `parentId` trae sólo las hijas de esa tarea. |
+| `task.create` | Crea una tarea desde texto con etiquetado inline (`/trabajo #sector @ref $etiqueta`). | Mismo parser que la web (Principio II). Con `parentId` nace como subtarea y hereda proyecto, sector y ejecución del padre. |
 | `task.update` | Reemplaza el texto y re-resuelve las etiquetas inline. | — |
 | `task.setState` | Cambia el estado a cualquiera del conjunto aplicable (feature 042). | `statusId` o `statusName`. |
 | `task.delete` | Borra una tarea de forma permanente. | **[destructiva]** |
+| `task.setParent` | Cuelga una tarea como subtarea de otra, o la promueve a tarea independiente con `parentId: null`. | Un solo nivel; mismo proyecto o sector; hereda los sectores de ejecución del padre si no tiene propios. |
 
 ## Estados de tarea (`taskStatus.*`)
 

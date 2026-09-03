@@ -11,7 +11,7 @@ import { computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
 import { emit } from "@/server/events";
 import { labelScopeOf } from "@/lib/domain/labels/availability";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
-import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
+import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
 
 /** Página completa del trabajo: doc + tareas + adjuntos (Principio III). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
@@ -27,14 +27,11 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
       doc: true,
       attachments: { orderBy: { createdAt: "desc" } },
       tasks: {
+        // 062-subtareas: las hijas viajan anidadas bajo su padre (subtasks), no
+        // sueltas a nivel raíz del listado.
+        where: { parentId: null },
         orderBy: { position: "asc" },
-        include: {
-          links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-          homeSector: { select: { id: true, name: true } },
-          work: { select: { id: true, name: true } },
-          labels: { include: { value: { include: { key: true } } } },
-          status: true,
-        },
+        include: rootTaskWithSubtasksInclude,
       },
       archive: true,
       labels: { include: { value: { include: { key: true } } } },
@@ -62,26 +59,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
       color: l.value.color,
       scope: labelScopeOf({ groupId: l.value.key.groupId, ownerId: l.value.key.ownerId }),
     })),
-    tasks: await Promise.all(
-      tasks.map(async ({ labels: taskLabels, ...task }) => {
-        const applicable = await loadApplicableStatusSet(
-          task.workId,
-          task.sectorId,
-          execSectorIdsOf(task.links),
-        );
-        return {
-          ...task,
-          statusOptions: applicable.map(statusOptionDto),
-          labels: taskLabels.map((l) => ({
-            keyId: l.keyId,
-            keyName: l.value.key.name,
-            valueId: l.valueId,
-            valueName: l.value.name,
-            color: l.value.color,
-          })),
-        };
-      }),
-    ),
+    tasks: await Promise.all(tasks.map((task) => toTaskDto(task, task.subtasks))),
   });
 });
 

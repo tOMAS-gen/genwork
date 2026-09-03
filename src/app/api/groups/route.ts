@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/client";
 import { conflict, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { enqueue } from "@/lib/storage/queue";
-import { countUnfinishedByKey } from "@/lib/domain/tasks/unfinishedCount";
+import { countUnfinishedByKey, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 
 export const GET = withApi(async () => {
   const session = await requireWriter();
@@ -46,35 +46,49 @@ export const GET = withApi(async () => {
     const [looseTasks, execLinks] = await Promise.all([
       prisma.task.findMany({
         where: { sectorId: { in: sectorIds }, workId: null },
-        select: { id: true, sectorId: true, status: { select: { type: true } } },
+        select: {
+          id: true,
+          sectorId: true,
+          status: { select: { type: true } },
+          _count: { select: { subtasks: true } },
+        },
       }),
       prisma.taskLink.findMany({
         where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: { isTemplate: false } } },
         select: {
           taskId: true,
           sectorId: true,
-          task: { select: { status: { select: { type: true } } } },
+          task: {
+            select: { status: { select: { type: true } }, _count: { select: { subtasks: true } } },
+          },
         },
       }),
     ]);
 
+    // 062-subtareas: un padre con hijas es contenedor y no suma nada (ni siquiera
+    // como "pendiente"); sus hijas ya viajan como filas propias en el mismo
+    // findMany, así que alcanza con saltear al contenedor (ver unfinishedCount.ts).
     // Aporte de tareas loose: cada task es única por definición (una sola row).
-    const looseContribution = looseTasks.map((t) => ({
-      id: t.id,
-      status: t.status,
-      key: t.sectorId ? sectorToGroup.get(t.sectorId) ?? null : null,
-    }));
+    const looseContribution = looseTasks
+      .filter((t) => !isContainerTask({ subtaskCount: t._count.subtasks }))
+      .map((t) => ({
+        id: t.id,
+        status: t.status,
+        key: t.sectorId ? sectorToGroup.get(t.sectorId) ?? null : null,
+      }));
 
     // Aporte de EXEC links: dedup por (taskId, sectorId) → un mismo taskId puede
     // aparecer dos veces si linkea a dos sectores distintos del MISMO grupo.
     // countUnfinishedByKey deduplica por task.id dentro de la misma key (grupo),
     // así que dos sectores del mismo grupo con la misma tarea sumarían 1, no 2.
     // (En la práctica los sectores son disjuntos; esto es una salvaguarda.)
-    const execContribution = execLinks.map((l) => ({
-      id: l.taskId,
-      status: l.task.status,
-      key: l.sectorId ? sectorToGroup.get(l.sectorId) ?? null : null,
-    }));
+    const execContribution = execLinks
+      .filter((l) => !isContainerTask({ subtaskCount: l.task._count.subtasks }))
+      .map((l) => ({
+        id: l.taskId,
+        status: l.task.status,
+        key: l.sectorId ? sectorToGroup.get(l.sectorId) ?? null : null,
+      }));
 
     pendingByGroup = countUnfinishedByKey<string>([
       ...looseContribution,

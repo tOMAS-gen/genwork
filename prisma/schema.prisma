@@ -309,9 +309,12 @@ model Task {
   lastEditedAt   DateTime?
   description    String?
   position       Int        @default(0)
+  parentId       String?
 
   work            Work?              @relation(fields: [workId], references: [id], onDelete: Cascade)
   homeSector      Sector?            @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
+  parent          Task?              @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks        Task[]             @relation("TaskSubtasks")
   originSector    Sector?            @relation("TaskOriginSector", fields: [originSectorId], references: [id], onDelete: SetNull)
   creator         User               @relation("TaskCreator", fields: [creatorId], references: [id])
   completedBy     User?              @relation("TaskCompleter", fields: [completedById], references: [id])
@@ -324,6 +327,7 @@ model Task {
 
   @@index([workId, position])
   @@index([statusId])
+  @@index([parentId, position])
 }
 
 /// Historial de transiciones de estado de una tarea (feature 042, US4). Los FKs a

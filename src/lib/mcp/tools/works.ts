@@ -7,6 +7,7 @@ import { enqueue } from "@/lib/storage/queue";
 import { getStorageProvider } from "@/lib/storage";
 import { computeArchivePath } from "@/lib/storage/paths";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
+import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
@@ -37,6 +38,33 @@ async function getWorkWithAccess(ctx: McpAuth, workId: string, need: "read" | "o
   if (level === "none") throw notFound("Proyecto no encontrado");
   if (need === "operate" && level !== "operate") throw forbidden();
   return work;
+}
+
+/**
+ * 062-subtareas: un padre con hijas es contenedor y no suma nada — ni a total
+ * ni a done —; sus hijas ya viajan como filas propias en el mismo `findMany`
+ * (heredan el `workId` del padre), así que alcanza con saltear al contenedor.
+ * Mismo criterio que `src/app/api/works/route.ts` (dashboard web) vía
+ * `unfinishedCount.ts` — reemplaza el viejo `_count.tasks`/`groupBy`/
+ * `aggregate`/`count`, que no distinguían un contenedor de una hoja y por eso
+ * contradecían al dashboard para el mismo proyecto.
+ */
+async function taskCountsByWorkId(workIds: string[]): Promise<Map<string, { total: number; done: number }>> {
+  const rows = await prisma.task.findMany({
+    where: { workId: { in: workIds } },
+    select: { workId: true, status: { select: { type: true } }, _count: { select: { subtasks: true } } },
+  });
+  const counts = new Map<string, { total: number; done: number }>();
+  for (const row of rows) {
+    if (!row.workId) continue;
+    const subtaskCount = row._count.subtasks;
+    if (isContainerTask({ subtaskCount })) continue; // contenedor: no suma
+    const entry = counts.get(row.workId) ?? { total: 0, done: 0 };
+    entry.total += 1;
+    if (!countsTowardPending({ id: "", status: row.status, subtaskCount })) entry.done += 1;
+    counts.set(row.workId, entry);
+  }
+  return counts;
 }
 
 function summarize(work: WorkWithGroup, taskCounts?: { total: number; done: number }) {
@@ -75,7 +103,6 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
           },
           include: {
             group: { select: { id: true, name: true, publicRead: true } },
-            _count: { select: { tasks: true } },
           },
           orderBy: { createdAt: "desc" },
         });
@@ -92,15 +119,10 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
         }
         const filtered = visible.filter((w) => workIds.includes(w.id));
 
-        const doneCounts = await prisma.task.groupBy({
-          by: ["workId"],
-          where: { workId: { in: workIds }, status: { type: "FINAL" } },
-          _count: true,
-        });
-        const doneByWorkId = new Map(doneCounts.map((d) => [d.workId, d._count]));
+        const countsByWorkId = await taskCountsByWorkId(workIds);
 
         const items = filtered.map((w) =>
-          summarize(w, { total: w._count.tasks, done: doneByWorkId.get(w.id) ?? 0 }),
+          summarize(w, countsByWorkId.get(w.id) ?? { total: 0, done: 0 }),
         );
         return toolSuccess(`${items.length} proyecto(s) encontrados.`, { works: items });
       } catch (err) {
@@ -119,13 +141,12 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     async ({ workId }) => {
       try {
         const work = await getWorkWithAccess(ctx, workId, "read");
-        const [taskCounts, labels] = await Promise.all([
-          prisma.task.aggregate({ where: { workId }, _count: true }),
+        const [countsByWorkId, labels] = await Promise.all([
+          taskCountsByWorkId([workId]),
           prisma.workLabel.findMany({ where: { workId }, include: { value: { include: { key: true } } } }),
         ]);
-        const doneCount = await prisma.task.count({ where: { workId, status: { type: "FINAL" } } });
         return toolSuccess(`Proyecto "${work.name}".`, {
-          ...summarize(work, { total: taskCounts._count, done: doneCount }),
+          ...summarize(work, countsByWorkId.get(workId) ?? { total: 0, done: 0 }),
           labels: labels.map((l) => ({ key: l.value.key.name, value: l.value.name, color: l.value.color })),
         });
       } catch (err) {

@@ -298,7 +298,10 @@ describe("admin.sector.delete", () => {
       { sectorId: SECTOR_ID },
       expect.stringContaining("7 vínculo(s) de tareas se desvincularán"),
     );
-    expect(createConfirmation.mock.calls[0][3]).toContain("2 tarea(s) suelta(s) se eliminarán");
+    // El 4º argumento es el resumen que ve el usuario; `mock.calls` se tipa como
+    // tupla vacía porque el mock se declara sin firma, de ahí el cast.
+    const resumen = (createConfirmation.mock.calls[0] as unknown as [string, string, unknown, string])[3];
+    expect(resumen).toContain("2 tarea(s) suelta(s) se eliminarán");
   });
 
   it("con el token borra el sector", async () => {

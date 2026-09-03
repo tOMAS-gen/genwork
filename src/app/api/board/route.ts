@@ -4,6 +4,7 @@ import { withApi } from "@/server/api";
 import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
+import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 
 /** Dashboard de estado por sector (FR-026): sectores visibles según permisos. */
 export const GET = withApi(async () => {
@@ -25,9 +26,9 @@ export const GET = withApi(async () => {
       }) !== "none",
   );
 
-  const board = await Promise.all(
-    visible.map(async (sector) => {
-      const links = await prisma.taskLink.findMany({
+  const linksBySector = await Promise.all(
+    visible.map((sector) =>
+      prisma.taskLink.findMany({
         where: {
           sectorId: sector.id,
           type: "EXEC",
@@ -35,11 +36,55 @@ export const GET = withApi(async () => {
         },
         include: {
           task: {
-            include: { work: { select: { name: true } }, status: true },
+            include: {
+              work: { select: { name: true } },
+              status: true,
+              // 062-subtareas: el tablero lista cada subtarea como tarjeta
+              // propia (excepción de la anidación), así que necesita
+              // `parentText` para la migaja de "tarea de: ...".
+              parent: { select: { id: true, displayText: true } },
+              // `_count.subtasks` (global) para `subtaskCount`/`subtaskDone`
+              // — cada tarjeta es su propia tarea, así que el shape es igual
+              // al del resto de los listados (hallazgo Importante 2/1 de
+              // revisión): mismo significado en todos lados.
+              _count: { select: { subtasks: true } },
+            },
           },
         },
         orderBy: { task: { position: "asc" } },
-      });
+      }),
+    ),
+  );
+
+  // 062-subtareas: `subtaskDone` necesita una consulta aparte (Prisma no
+  // cuenta relaciones filtradas por status dentro de `_count`), acotada a los
+  // padres-contenedor que efectivamente aparecen en el tablero — puede
+  // repetirse entre columnas si una tarea tiene EXEC a más de un sector, por
+  // eso se calcula una sola vez para todo el tablero, no por columna.
+  const containerIds = [
+    ...new Set(
+      linksBySector
+        .flat()
+        .filter((l) => isContainerTask({ subtaskCount: l.task._count.subtasks }))
+        .map((l) => l.task.id),
+    ),
+  ];
+  const doneChildren =
+    containerIds.length > 0
+      ? await prisma.task.findMany({
+          where: { parentId: { in: containerIds } },
+          select: { parentId: true, status: { select: { type: true } } },
+        })
+      : [];
+  const doneByParentId = new Map<string, number>();
+  for (const c of doneChildren) {
+    if (!c.parentId || c.status.type !== "FINAL") continue;
+    doneByParentId.set(c.parentId, (doneByParentId.get(c.parentId) ?? 0) + 1);
+  }
+
+  const board = await Promise.all(
+    visible.map(async (sector, i) => {
+      const links = linksBySector[i];
       const workIds = [...new Set(links.map((l) => l.task.workId).filter((id): id is string => id != null))];
 
       // FR-408/409: una sola query para todas las asignaciones, agrupadas por work (evita N+1)
@@ -75,6 +120,15 @@ export const GET = withApi(async () => {
         },
         workName: l.task.work?.name ?? null,
         workColor: l.task.workId ? colorByWorkId.get(l.task.workId) ?? null : null,
+        // 062-subtareas: cada subtarea es su propia tarjeta acá (no se anida
+        // bajo el padre como en los demás listados); `parentText` arma la migaja.
+        parentId: l.task.parentId,
+        parentText: l.task.parent?.displayText ?? null,
+        // 062-subtareas (Importante 1/2 de revisión): mismo significado que en
+        // el resto de los listados — total/hechas GLOBAL de hijas, no acotado
+        // a esta columna.
+        subtaskCount: l.task._count.subtasks,
+        subtaskDone: doneByParentId.get(l.task.id) ?? 0,
       }));
       return {
         sector: { id: sector.id, name: sector.name, color: sector.color },

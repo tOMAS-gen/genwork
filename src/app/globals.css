@@ -597,6 +597,15 @@ textarea:focus {
   margin: 3px 0 0;
 }
 
+/* 062-subtareas (Tarea 12): casilla bloqueada mientras queden hijas abiertas
+   (evita el 409 PARENT_HAS_OPEN_SUBTASKS en vez de depender de ese error).
+   Revisión (hallazgo Importante 2): `[aria-disabled]`, no `:disabled` — el
+   control sigue siendo foco-alcanzable por teclado (ver TaskItem.tsx). */
+.task input[type="checkbox"][aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .task.done .task-text {
   text-decoration: line-through;
   color: var(--muted);
@@ -700,6 +709,109 @@ textarea:focus {
 
 @media (prefers-reduced-motion: reduce) {
   .task-description-panel {
+    transition: none;
+  }
+}
+
+/* ---- Subtareas (062-subtareas, Tarea 12) ----
+   Mismo sangrado que .task-description-panel (calc(28px + --space-2)): las
+   hijas quedan alineadas bajo el texto del padre, no bajo la casilla. */
+.subtask-list {
+  margin-left: calc(28px + var(--space-2));
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border);
+}
+
+/* Alta de subtarea: el mismo campo que el bloc de tareas principales
+   (`.notes-row`), no un botón. Está siempre en el DOM —así el foco no se pierde
+   al crear una y se pueden cargar varias seguidas— pero se muestra sólo cuando
+   el mouse está sobre la tarea o algo de adentro tiene foco, para que una lista
+   larga no se llene de campos vacíos. `visibility` en vez de `display: none`
+   mantiene el campo enfocable por teclado (Tab lo alcanza y ahí :focus-within
+   lo revela), que es lo que se rompería ocultándolo del todo. */
+/* Flecha para plegar/desplegar las subtareas. Ocupa el carril que dejó la
+   casilla en una tarea contenedora, así las hijas quedan alineadas bajo ella y
+   la fila no cambia de alto. Siempre visible (no depende del hover): es un
+   control de navegación, no una acción secundaria. */
+.task-subtasks-toggle {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  color: var(--muted);
+}
+
+.task-subtasks-toggle:hover {
+  color: var(--text);
+}
+
+/* Destino de anidado (062-subtareas): al arrastrar una tarea SOBRE otra, la fila
+   de destino se resalta para avisar que soltar ahí la va a colgar como subtarea,
+   en vez de reordenarla. Sin esto el gesto es adivinanza: reordenar y anidar se
+   verían igual. */
+.task-nest-target {
+  outline: 2px solid var(--primary, #3b82f6);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+  background: var(--hover-soft);
+}
+
+/* Franja para sacar una subtarea de su padre: reservada en el borde izquierdo de
+   la lista, invisible hasta que hay algo encima. */
+.subtask-unnest-zone {
+  height: 6px;
+  margin-bottom: 2px;
+  border-radius: var(--radius-sm);
+  transition: height 150ms ease, background 150ms ease;
+}
+
+.subtask-unnest-zone.is-over {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding-left: var(--space-2);
+  background: var(--hover-soft);
+  outline: 2px dashed var(--primary, #3b82f6);
+  outline-offset: -2px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .subtask-unnest-zone {
+    transition: none;
+  }
+}
+
+/* Botón "+" para agregar subtarea: atenuado en reposo y pleno al pasar el mouse
+   por la fila o al enfocarlo por teclado. No se oculta con `display: none` ni
+   `opacity: 0` para que siga siendo alcanzable con Tab y no capture clics
+   invisibles.
+
+   El realce se ancla a `.task-row` (la fila propia), NO a `.task`: cada subtarea
+   es a su vez un `TaskItem` con clase `.task`, así que `.task:hover` matchearía
+   también a las hijas y el botón del padre cambiaría de estado según sobre qué
+   fila esté el mouse. */
+.task-add-subtask {
+  /* Atenuado, no invisible: con `opacity: 0` el botón seguiría capturando clics
+     sin verse (el mismo error que ya rompió el campo de alta antes). */
+  opacity: 0.35;
+  transition: opacity 150ms ease;
+}
+
+.task-row:hover .task-add-subtask,
+.task-add-subtask:focus-visible {
+  opacity: 1;
+}
+
+/* Sin hover (touch) no hay gesto equivalente: el botón queda siempre visible. */
+@media (hover: none) {
+  .task-add-subtask {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-add-subtask {
     transition: none;
   }
 }
@@ -1753,6 +1865,13 @@ dialog.dialog--overflow-visible {
   width: 13px;
   height: 13px;
   flex-shrink: 0;
+}
+
+/* 062-subtareas (Tarea 12): vencimiento heredado de una hija — mismo chip,
+   atenuado, para distinguirlo de una fecha propia (color a todo color). */
+.date-chip-inherited {
+  color: var(--muted);
+  opacity: 0.85;
 }
 
 .date-highlight {
@@ -4178,6 +4297,19 @@ dialog.dialog--overflow-visible {
   margin: 4px 2px;
 }
 
+/* 062-subtareas (Tarea 13): envuelve cada tarjeta del tablero para poder
+   sumarle la migaja (parentBreadcrumb) debajo del `.task` sin tocar su layout
+   de fila — .task-board-card pasa a columna, la tarjeta en sí queda igual. */
+.task-board-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.task-board-breadcrumb {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+}
+
 
 /* ─── Recordatorios (feature 036) ──────────────────────────────────────────── */
 
@@ -4732,6 +4864,13 @@ dialog.dialog--overflow-visible {
   gap: var(--space-xs);
   color: var(--muted);
   font-size: var(--text-xs);
+}
+
+/* 062-subtareas: hijas indentadas bajo su padre, solo lectura (sin casilla ni
+   arrastre en el portal — ver PortalTaskItem). */
+.portal-subtask-list {
+  margin: var(--space-xs) 0 0 var(--space-lg);
+  padding: 0;
 }
 
 .portal-activity {
