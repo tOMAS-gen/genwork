@@ -1,5 +1,12 @@
 # Contrato: Herramientas del servidor MCP de Genwork
 
+> **Nota (2026-08-28):** este contrato refleja el alcance ORIGINAL de la feature 039.
+> El inventario vigente de herramientas —incluidas las agregadas después, como
+> `sector.list`/`sector.get` y `admin.sector.update`/`delete`/`sectorGrant.list`— vive en
+> [`docs/mcp-tools.md`](../../../docs/mcp-tools.md), que el guard
+> `tests/unit/mcp-tool-registry.test.ts` mantiene sincronizado con el código
+> (constitución, Principio VIII: Paridad MCP).
+
 Endpoint único: `POST /api/mcp` (JSON-RPC 2.0 sobre HTTP, protocolo MCP — Streamable HTTP,
 modo stateless). Autenticación: header `Authorization: Bearer <token>` (ver
 `mcp-connections-api.md` más abajo para cómo se genera ese token). Sin ese header, o con un

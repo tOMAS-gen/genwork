@@ -42,6 +42,22 @@
 
 [Gates determined based on constitution file]
 
+### MCP Surface (Principle VIII — Paridad MCP, NON-NEGOTIABLE)
+
+*GATE: obligatorio en toda feature, incluso las que "no tocan el MCP". No se puede
+dejar en blanco ni responder "no aplica" sin motivo.*
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Esta feature agrega o cambia una capacidad de dominio (entidad, campo, acción, filtro, agrupación)? | [sí/no + cuál] |
+| ¿Un asistente necesita leerla o ejecutarla? | [sí/no + por qué] |
+| Herramientas MCP nuevas o modificadas | [`area.tool` … / ninguna] |
+| Lógica compartida web ↔ MCP (sin duplicar reglas) | [archivo en `src/server/*` o `src/lib/domain/*`] |
+| Si no se expone: deuda declarada en `docs/mcp-tools.md` | [fila agregada + motivo / N/A] |
+
+Recordatorio: `tests/unit/mcp-tool-registry.test.ts` falla si una herramienta nueva
+no queda documentada en `docs/mcp-tools.md`, o si el inventario menciona una que no existe.
+
 ## Project Structure
 
 ### Documentation (this feature)

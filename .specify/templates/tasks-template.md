@@ -96,6 +96,7 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
 - [ ] T016 [US1] Add validation and error handling
 - [ ] T017 [US1] Add logging for user story 1 operations
+- [ ] T018 [US1] Exponer la capacidad vía MCP en src/lib/mcp/tools/[área].ts + fila en docs/mcp-tools.md (Principio VIII; omitir sólo con la deuda declarada en ese archivo)
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -153,6 +154,7 @@ Examples of foundational tasks (adjust based on your project):
 **Purpose**: Improvements that affect multiple user stories
 
 - [ ] TXXX [P] Documentation updates in docs/
+- [ ] TXXX Verificar paridad MCP: `npx vitest run tests/unit/mcp-tool-registry.test.ts` en verde y `docs/mcp-tools.md` al día (Principio VIII)
 - [ ] TXXX Code cleanup and refactoring
 - [ ] TXXX Performance optimization across all stories
 - [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/

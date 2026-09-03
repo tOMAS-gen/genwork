@@ -7,6 +7,8 @@ import { normalizeEmail } from "@/lib/domain/access";
 import { enqueue } from "@/lib/storage/queue";
 import { isValidHex, normalizeHex } from "@/lib/domain/colors/colorConvert";
 import { assignSectorColor } from "@/lib/domain/sectors/colorAssign";
+import { sectorScopeOf } from "@/server/sectors";
+import { emit } from "@/server/events";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -417,6 +419,175 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
         });
 
         return toolSuccess(`Acceso de lectura ${granted ? "otorgado" : "quitado"}.`);
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "admin.sector.update",
+    {
+      title: "Renombrar o recolorear sector",
+      description:
+        "Cambia el nombre y/o el color de un sector existente. Renombrar conserva los vínculos con " +
+        "las tareas (FR-015). Reservado al administrador del sistema, igual que en la web.",
+      inputSchema: {
+        sectorId: z.string().uuid(),
+        name: z.string().trim().min(1).max(80).optional(),
+        color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
+      },
+    },
+    async ({ sectorId, name, color }) => {
+      try {
+        assertSuperAdmin(ctx);
+        if (name === undefined && color === undefined) {
+          throw badRequest("Indicá al menos name o color");
+        }
+
+        const sector = await prisma.sector.findUnique({ where: { id: sectorId } });
+        if (!sector) throw notFound("Sector no encontrado");
+
+        if (name !== undefined) {
+          const dup = await prisma.sector.findFirst({
+            where: {
+              groupId: sector.groupId,
+              ownerId: sector.ownerId,
+              name: { equals: name, mode: "insensitive" },
+              id: { not: sectorId },
+            },
+          });
+          if (dup) throw conflict(`Ya existe un sector llamado "${name}" en este ámbito`);
+        }
+
+        const updated = await prisma.sector.update({
+          where: { id: sectorId },
+          data: {
+            ...(name !== undefined ? { name } : {}),
+            ...(color !== undefined ? { color: color === null ? null : normalizeHex(color) } : {}),
+          },
+        });
+
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "admin.sector.update",
+          targetType: "Sector",
+          targetId: updated.id,
+          summary:
+            name !== undefined && name !== sector.name
+              ? `El asistente de IA renombró el sector "${sector.name}" a "${updated.name}".`
+              : `El asistente de IA actualizó el sector "${updated.name}".`,
+        });
+
+        return toolSuccess(`Sector "${updated.name}" actualizado.`, {
+          id: updated.id,
+          name: updated.name,
+          color: updated.color,
+          scope: sectorScopeOf(updated),
+        });
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "admin.sector.delete",
+    {
+      title: "Eliminar sector (permanente)",
+      description:
+        "Elimina un sector. Las tareas de proyectos NO se borran: pierden el vínculo con el sector; " +
+        "las tareas sueltas de ese sector sí se eliminan. Requiere confirmación de dos pasos (FR-012).",
+      inputSchema: { sectorId: z.string().uuid(), confirmationToken: z.string().uuid().optional() },
+    },
+    async ({ sectorId, confirmationToken }) => {
+      try {
+        assertSuperAdmin(ctx);
+        const sector = await prisma.sector.findUnique({ where: { id: sectorId } });
+        if (!sector) throw notFound("Sector no encontrado");
+
+        if (!confirmationToken) {
+          const [affectedTasks, looseTasks] = await Promise.all([
+            prisma.taskLink.count({ where: { sectorId } }),
+            prisma.task.count({ where: { sectorId } }),
+          ]);
+          const pending = await createConfirmation(
+            ctx.connectionId,
+            "admin.sector.delete",
+            { sectorId },
+            `Vas a eliminar el sector "${sector.name}": ${affectedTasks} vínculo(s) de tareas se desvincularán` +
+              (looseTasks > 0 ? ` y ${looseTasks} tarea(s) suelta(s) se eliminarán` : "") +
+              ". Esta acción no se puede deshacer.",
+          );
+          return toolConfirmationRequired(pending);
+        }
+
+        const payload = await consumeConfirmation<{ sectorId: string }>(
+          confirmationToken,
+          ctx.connectionId,
+          "admin.sector.delete",
+        );
+        if (payload.sectorId !== sectorId) {
+          throw badRequest("El pedido confirmado no coincide con este sector");
+        }
+
+        await prisma.sector.delete({ where: { id: sectorId } }); // cascade: TaskLinks y tareas sueltas
+        emit({ type: "work-changed", workId: "" });
+
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "admin.sector.delete",
+          targetType: "Sector",
+          targetId: sectorId,
+          summary: `El asistente de IA eliminó el sector "${sector.name}".`,
+        });
+
+        return toolSuccess(`Sector "${sector.name}" eliminado.`);
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "admin.sectorGrant.list",
+    {
+      title: "Listar accesos de un sector",
+      description:
+        "Lista los usuarios con acceso de operación otorgado explícitamente (SectorGrant) sobre un " +
+        "sector. Reservado al administrador del sistema, porque expone datos de otros usuarios.",
+      inputSchema: { sectorId: z.string().uuid() },
+    },
+    async ({ sectorId }) => {
+      try {
+        assertSuperAdmin(ctx);
+        const sector = await prisma.sector.findUnique({
+          where: { id: sectorId },
+          include: { group: { select: { name: true } }, owner: { select: { name: true } } },
+        });
+        if (!sector) throw notFound("Sector no encontrado");
+
+        const grants = await prisma.sectorGrant.findMany({
+          where: { sectorId },
+          include: { user: { select: { id: true, name: true, email: true } } },
+          orderBy: { user: { email: "asc" } },
+        });
+
+        return toolSuccess(
+          `${grants.length} acceso(s) otorgado(s) sobre el sector "${sector.name}".`,
+          {
+            sectorId,
+            sectorName: sector.name,
+            scope: sectorScopeOf(sector),
+            grants: grants.map((grant) => ({
+              userId: grant.user.id,
+              name: grant.user.name,
+              email: grant.user.email,
+            })),
+          },
+        );
       } catch (err) {
         return toToolErrorResult(err);
       }
