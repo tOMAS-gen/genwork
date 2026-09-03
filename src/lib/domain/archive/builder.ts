@@ -4,7 +4,7 @@
  * Falla completa = no hay paquete (atómico hacia el usuario).
  */
 
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -38,7 +38,7 @@ export async function buildArchivePackage(
 ): Promise<ArchiveManifest> {
   await mkdir(path.dirname(outputZipPath), { recursive: true });
 
-  const zip = archiver("zip", { zlib: { level: 6 } });
+  const zip = new ZipArchive({ zlib: { level: 6 } });
   const out = createWriteStream(outputZipPath);
   const done = new Promise<void>((resolve, reject) => {
     out.on("close", () => resolve());

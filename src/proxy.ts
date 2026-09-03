@@ -15,10 +15,10 @@ import { isPathAllowedForClient } from "@/lib/domain/access/portalPaths";
  * datos ya están cerrados por los guards (`requireInternal`) y por el motor de
  * permisos, que devuelve `none` a un CLIENT en todo camino por ámbito.
  *
- * Invariante: este middleware solo AGREGA restricciones, nunca las quita. Si el
+ * Invariante: este proxy solo AGREGA restricciones, nunca las quita. Si el
  * token no se puede decodificar, se cae al comportamiento anterior.
  */
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isPublic =
     pathname.startsWith("/login") ||

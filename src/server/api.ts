@@ -95,11 +95,17 @@ export function toApiErrorResponse(err: unknown): NextResponse | null {
   return null;
 }
 
-/** Envuelve un route handler con manejo uniforme de errores. */
-export function withApi<Ctx>(handler: Handler<Ctx>): Handler<Ctx> {
+/**
+ * Envuelve un route handler con manejo uniforme de errores.
+ *
+ * El contexto es opcional en la firma resultante: Next.js siempre lo pasa, pero
+ * así los tests pueden invocar el handler con la sola `Request` cuando la ruta
+ * no tiene segmentos dinámicos.
+ */
+export function withApi<Ctx>(handler: Handler<Ctx>): (req: Request, ctx?: Ctx) => Promise<Response> {
   return async (req, ctx) => {
     try {
-      return await handler(req, ctx);
+      return await handler(req, ctx as Ctx);
     } catch (err) {
       const known = toApiErrorResponse(err);
       if (known) return known;
