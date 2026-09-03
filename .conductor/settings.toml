@@ -1,0 +1,11 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "npm install"
+run_mode = "nonconcurrent"
+
+[scripts.run.dev]
+available_in = [ "local" ]
+command = "AUTH_URL=http://localhost:$CONDUCTOR_PORT npx next dev -p $CONDUCTOR_PORT"
+default = true
+icon = "play"
