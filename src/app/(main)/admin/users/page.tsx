@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -48,17 +49,17 @@ export default function UsersAdminPage() {
   };
 
   return (
-    <div style={{ maxWidth: 680 }}>
-      <h1>Usuarios y roles</h1>
+    <div className="admin-page admin-form-page">
+      <PageHeader title="Usuarios y roles" icon="settings" />
       <p className="muted">
         El rol Lector es para pantallas de visualización (ej.: el correo del televisor): ve el
         dashboard y nunca puede modificar nada.
       </p>
-      <div style={{ display: "grid", gap: 10 }}>
+      <div className="record-list">
         {users.map((u) => (
           <div key={u.id} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span>
+            <div className="record-row">
+              <span className="record-identity">
                 <strong>{u.name}</strong> <span className="muted">({u.email})</span>
               </span>
               {u.globalRole === "SUPERADMIN" ? (

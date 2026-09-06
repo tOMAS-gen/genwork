@@ -52,6 +52,7 @@ function ConfirmHost() {
   const [state, setLocal] = useState<ConfirmState>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setState = setLocal;
@@ -67,7 +68,8 @@ function ConfirmHost() {
     if (!el) return;
     if (state && !el.open) {
       el.showModal();
-      confirmBtnRef.current?.focus();
+      // En modo danger, el foco inicial va a Cancelar: un Enter reflejo no debe borrar nada.
+      (state.danger ? cancelBtnRef : confirmBtnRef).current?.focus();
     }
     if (!state && el.open) el.close();
   }, [state]);
@@ -82,6 +84,7 @@ function ConfirmHost() {
   return (
     <dialog
       ref={dialogRef}
+      aria-label={state.title}
       className="dialog"
       onClose={() => close(false)}
       onCancel={() => close(false)}
@@ -91,7 +94,7 @@ function ConfirmHost() {
         <h2 className="dialog-title">{state.title}</h2>
         <p style={{ margin: 0, whiteSpace: "pre-line" }}>{state.message}</p>
         <div className="dialog-actions">
-          <button className="btn" onClick={() => close(false)}>
+          <button ref={cancelBtnRef} className="btn" onClick={() => close(false)}>
             {state.cancelLabel}
           </button>
           <button

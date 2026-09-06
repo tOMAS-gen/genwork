@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -30,8 +31,8 @@ export default function ReferencesPage() {
 
   return (
     <div className="sheet">
-      <h1 className="sheet-title">Mis referencias</h1>
-      <p className="sheet-desc">Tareas de otros que necesitan tu aporte (@vos).</p>
+      <PageHeader title="Mis referencias" description="Tareas de otros que necesitan tu aporte (@vos)." icon="references" />
+
 
       <div style={{ marginTop: "var(--space-4)" }}>
         {loading ? (
@@ -53,7 +54,7 @@ export default function ReferencesPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
             {groups.map((group) => (
-              <section key={group.key}>
+              <section key={group.key} className="reference-panel">
                 {group.header.type === "work" ? (
                   <TaskGroupHeader work={group.header.work} />
                 ) : (

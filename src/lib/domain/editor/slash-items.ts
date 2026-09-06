@@ -136,6 +136,16 @@ export function getSlashItems(options: GetSlashItemsOptions = {}): SlashItem[] {
       },
     },
     {
+      id: "table",
+      title: "Tabla",
+      aliases: ["tabla", "table", "columnas", "filas"],
+      shortcut: null,
+      group: GROUP_BLOQUES,
+      run: (ctx) => {
+        deleteCommandRange(ctx).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+      },
+    },
+    {
       id: "blockquote",
       title: "Cita",
       aliases: ["quote", "blockquote", "cita"],

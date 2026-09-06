@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
@@ -30,7 +31,7 @@ export default function PortalHomePage() {
 
   return (
     <>
-      <h1 className="page-title">Mis proyectos</h1>
+      <PageHeader title="Mis proyectos" description="Seguimiento del avance y las entregas de tus proyectos." icon="projects" />
 
       {error && <p className="form-error">{error}</p>}
 

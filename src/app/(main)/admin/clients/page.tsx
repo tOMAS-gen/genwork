@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -72,8 +73,8 @@ export default function ClientsAdminPage() {
   };
 
   return (
-    <div style={{ maxWidth: 680 }}>
-      <h1>Clientes</h1>
+    <div className="admin-page admin-form-page">
+      <PageHeader title="Clientes" icon="settings" />
       <p className="muted">
         Un cliente entra con su correo y solo ve los proyectos que le asignes, sin poder modificar
         nada. Los proyectos se asignan desde la pestaña &quot;Acceso cliente&quot; de cada proyecto.
@@ -108,12 +109,12 @@ export default function ClientsAdminPage() {
 
       {status && <p className="form-error">{status}</p>}
 
-      <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+      <div className="record-list" style={{ marginTop: 16 }}>
         {clients.length === 0 && <p className="muted">Todavía no hay clientes dados de alta.</p>}
         {clients.map((c) => (
           <div key={c.id} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-              <div>
+            <div className="record-row">
+              <div className="record-identity">
                 <strong>{c.name}</strong>
                 <div className="muted">{c.email}</div>
               </div>

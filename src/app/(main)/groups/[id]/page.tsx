@@ -211,7 +211,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Miembros */}
-      <div style={{ marginTop: "var(--space-5)" }}>
+      <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
         <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>Miembros</h2>
         <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-2)", flexWrap: "wrap" }}>
           <div style={{ flex: 1, minWidth: 200 }}>
@@ -239,10 +239,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           {group.memberships.map((m) => (
             <div
               key={m.user.id}
-              className="task"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              className="task record-row"
             >
-              <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+              <span className="record-meta">
                 <Users size={14} className="muted" />
                 <span>{m.user.name}</span>
                 <span className="muted" style={{ fontSize: "var(--text-sm)" }}>({m.user.email})</span>
@@ -265,7 +264,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       {/* Clientes externos del grupo (feature 059): agregar por correo y marcar qué
           proyectos ve. Solo administradores; el servidor igualmente aplica el 403. */}
       {isGroupAdmin && (
-        <div style={{ marginTop: "var(--space-5)" }}>
+        <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
           <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
             Clientes del grupo
           </h2>
@@ -275,7 +274,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Etiquetas del grupo (solo administradores; el servidor igualmente aplica el 403) */}
       {isGroupAdmin && (
-        <div style={{ marginTop: "var(--space-5)" }}>
+        <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
           <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
             Etiquetas del grupo
           </h2>
@@ -284,7 +283,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Proyectos */}
-      <div style={{ marginTop: "var(--space-5)" }}>
+      <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
         <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
           Proyectos ({works.length})
         </h2>
@@ -304,9 +303,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   key={work.id}
                   href={`/works/${work.id}`}
                   className="task"
-                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", textDecoration: "none", color: "inherit" }}
+                  style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center", textDecoration: "none", color: "inherit" }}
                 >
-                  <span style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  <span className="record-meta">
                     <strong>{work.name}</strong>
                     {work.stage && (
                       <span className="stage-badge" style={{ color: work.stage.color || "var(--muted)" }}>

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/PageHeader";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { BoardGrid } from "@/components/board/BoardGrid";
@@ -14,5 +15,5 @@ export default async function TvPage() {
   // un cliente externo no tiene nada que hacer acá.
   if (session.user.globalRole === "CLIENT") redirect("/portal");
 
-  return <BoardGrid />;
+  return <main className="tv-page"><PageHeader title="Vista de tareas" icon="board" /><BoardGrid /></main>;
 }

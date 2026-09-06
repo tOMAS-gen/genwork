@@ -1,8 +1,16 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
+import { Check, X } from "@/components/ui/icons";
+
+type StatusTone = "ok" | "error" | "neutral";
+interface StatusMessage {
+  text: string;
+  tone: StatusTone;
+}
 
 type Provider = "NEXTCLOUD" | "GDRIVE";
 
@@ -35,7 +43,7 @@ export default function StorageAdminPage() {
   const [password, setPassword] = useState("");
   const [sharedDriveId, setSharedDriveId] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<StatusMessage | null>(null);
   const [redirectUri, setRedirectUri] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -57,8 +65,10 @@ export default function StorageAdminPage() {
     // Estado del flujo OAuth de Google (feature 034)
     const params = new URLSearchParams(window.location.search);
     const gd = params.get("gdrive");
-    if (gd === "connected") setStatus("✓ Google Drive conectado");
-    else if (gd === "error") setStatus(`✗ ${params.get("detail") ?? "No se pudo conectar Google Drive"}`);
+    if (gd === "connected") setStatus({ text: "Google Drive conectado", tone: "ok" });
+    else if (gd === "error") {
+      setStatus({ text: params.get("detail") ?? "No se pudo conectar Google Drive", tone: "error" });
+    }
   }, []);
 
   if (!config) return <p className="muted">Cargando…</p>;
@@ -71,20 +81,20 @@ export default function StorageAdminPage() {
           : { provider: "NEXTCLOUD", url, adminUser, ...(password ? { adminPassword: password } : {}) };
       await api("/api/admin/storage", { method: "PUT", body: JSON.stringify(body) });
       setPassword("");
-      setStatus("Configuración guardada");
+      setStatus({ text: "Configuración guardada", tone: "neutral" });
       loadConfig();
     } catch (err) {
-      setStatus((err as Error).message);
+      setStatus({ text: (err as Error).message, tone: "error" });
     }
   };
 
   const test = async () => {
-    setStatus("Probando conexión…");
+    setStatus({ text: "Probando conexión…", tone: "neutral" });
     try {
       const result = await api<{ ok: boolean; detail: string }>("/api/admin/storage/test", { method: "POST" });
-      setStatus(result.ok ? `✓ ${result.detail}` : `✗ ${result.detail}`);
+      setStatus({ text: result.detail, tone: result.ok ? "ok" : "error" });
     } catch (err) {
-      setStatus(`✗ ${(err as Error).message}`);
+      setStatus({ text: (err as Error).message, tone: "error" });
     }
   };
 
@@ -104,8 +114,8 @@ export default function StorageAdminPage() {
   };
 
   return (
-    <div style={{ maxWidth: 620 }}>
-      <h1>Almacenamiento</h1>
+    <div className="admin-page admin-form-page">
+      <PageHeader title="Almacenamiento" icon="settings" />
       <div className="card" style={{ display: "grid", gap: 10, marginBottom: 16 }}>
         <label>
           Proveedor
@@ -159,7 +169,7 @@ export default function StorageAdminPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <code
                   style={{
-                    background: "var(--surface-2, #f4f4f5)",
+                    background: "var(--field)",
                     border: "1px solid var(--border)",
                     borderRadius: 4,
                     padding: "4px 8px",
@@ -174,7 +184,13 @@ export default function StorageAdminPage() {
                   className="btn btn-outline"
                   onClick={() => void copyRedirectUri()}
                 >
-                  {copied ? "Copiado ✓" : "Copiar"}
+                  {copied ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <Check size={14} aria-hidden="true" /> Copiado
+                    </span>
+                  ) : (
+                    "Copiar"
+                  )}
                 </button>
               </div>
             </div>
@@ -209,7 +225,11 @@ export default function StorageAdminPage() {
 
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Aprovisionamiento pendiente</h3>
-        {jobs.length === 0 && <p className="muted">Todo sincronizado ✓</p>}
+        {jobs.length === 0 && (
+          <p className="muted" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <Check size={15} aria-hidden="true" /> Todo sincronizado
+          </p>
+        )}
         <ul style={{ listStyle: "none", padding: 0 }}>
           {jobs.map((job) => (
             <li key={job.id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
@@ -227,7 +247,16 @@ export default function StorageAdminPage() {
           ))}
         </ul>
       </div>
-      {status && <p className="muted">{status}</p>}
+      {status && (
+        <p
+          className="muted"
+          style={{ display: "flex", alignItems: "center", gap: 6, color: status.tone === "error" ? "var(--danger)" : undefined }}
+        >
+          {status.tone === "ok" && <Check size={15} aria-hidden="true" />}
+          {status.tone === "error" && <X size={15} aria-hidden="true" />}
+          {status.text}
+        </p>
+      )}
     </div>
   );
 }

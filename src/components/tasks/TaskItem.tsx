@@ -480,27 +480,29 @@ export function TaskItem({
           </button>
         )}
         {isContainer ? null : canToggle && variant === "list" ? (
-          <input
-            type="checkbox"
-            checked={task.status.type === "FINAL"}
-            // Revisión (hallazgo Importante 2): `disabled` nativo saca el control
-            // del orden de tabulación — quien navega con teclado nunca llegaría a
-            // escuchar el motivo. `aria-disabled` lo anuncia sin sacarlo del
-            // recorrido; el bloqueo real del toggle lo hace `onClick` (cubre mouse
-            // Y la barra espaciadora, que en un checkbox dispara "click" también),
-            // con `onChange` como resguardo adicional. Mismo patrón de capas que
-            // ya usa Menu.tsx (disabled + aria-disabled), pero sin el `disabled`
-            // nativo porque acá SÍ hace falta que siga siendo alcanzable por Tab.
-            aria-disabled={!finishable}
-            onClick={(e) => {
-              if (!finishable) e.preventDefault();
-            }}
-            onChange={() => {
-              if (finishable) void quickToggleFinal();
-            }}
-            title={checkboxLabel}
-            aria-label={checkboxLabel}
-          />
+          <span className="task-checkbox-hit">
+            <input
+              type="checkbox"
+              checked={task.status.type === "FINAL"}
+              // Revisión (hallazgo Importante 2): `disabled` nativo saca el control
+              // del orden de tabulación — quien navega con teclado nunca llegaría a
+              // escuchar el motivo. `aria-disabled` lo anuncia sin sacarlo del
+              // recorrido; el bloqueo real del toggle lo hace `onClick` (cubre mouse
+              // Y la barra espaciadora, que en un checkbox dispara "click" también),
+              // con `onChange` como resguardo adicional. Mismo patrón de capas que
+              // ya usa Menu.tsx (disabled + aria-disabled), pero sin el `disabled`
+              // nativo porque acá SÍ hace falta que siga siendo alcanzable por Tab.
+              aria-disabled={!finishable}
+              onClick={(e) => {
+                if (!finishable) e.preventDefault();
+              }}
+              onChange={() => {
+                if (finishable) void quickToggleFinal();
+              }}
+              title={checkboxLabel}
+              aria-label={checkboxLabel}
+            />
+          </span>
         ) : !canToggle ? (
           <span className="muted" title="Se completa en su sector de ejecución">
             ◇
@@ -589,6 +591,7 @@ export function TaskItem({
           <span className="task-status-pill" style={{ "--c": task.status.color } as React.CSSProperties}>
             <select
               className="task-status-pill-select"
+              title={task.status.name}
               value={task.status.id}
               onChange={(e) => void changeStatus(e.target.value)}
               aria-label={`Estado de "${task.displayText}"`}
@@ -636,7 +639,7 @@ export function TaskItem({
         )}
         {canToggle && (
           <button
-            className="icon-btn"
+            className="icon-btn task-delete"
             style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
             onClick={() => void remove()}
             aria-label="Eliminar tarea"

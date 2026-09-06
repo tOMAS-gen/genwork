@@ -1,54 +1,14 @@
-# Design System — genwork
+# Design System — GenWork
 
-## Register
-product
+GenWork comparte la identidad visual de GenStock y conserva su azul de marca.
+La referencia detallada está en [GENSTOCK_PARITY.md](design-system/genwork/GENSTOCK_PARITY.md); los tokens ejecutables están en `src/app/globals.css`.
 
-## Visual Identity
-
-### Color
-- **Strategy**: Restrained. Tinted neutrals + single blue accent.
-- **Background**: `#f8fafc` (near-white cool gray)
-- **Surface**: `#ffffff` (pure white cards)
-- **Text**: `#0f172a` (near-black slate)
-- **Muted**: `#64748b` (mid slate)
-- **Accent**: `#2563eb` (blue-600)
-- **Accent-soft**: `#eff4ff` (blue wash)
-- **Border**: `#e4e5e7` (light gray)
-- **Danger**: `#dc2626` / **Success**: `#16a34a`
-- **Dark theme**: full token override via `[data-theme="dark"]`
-
-### Typography
-- **Family**: Inter (single family, all weights 300–700)
-- **Scale**: fixed rem — xs(12) / sm(14) / base(16) / lg(18) / xl(22) / 2xl(28)
-- **Scale ratio**: ~1.2 (minor third)
-
-### Spacing
-- **Base unit**: 4px
-- **Scale**: 4 / 8 / 12 / 16 / 24 / 32 / 48
-
-### Borders & Radius
-- **Default radius**: 10px
-- **Scale**: sm(4) / md(8) / lg(12)
-- **Border color**: `--border` token
-
-### Shadows
-- Minimal flat style. Three levels: sm / md / lg.
-- Dark theme uses heavier opacity.
-
-### 10-Color Palette (labels, dots, sector cards)
-red / orange / amber / green / teal / blue / indigo / violet / pink / gray — each with bg/text/accent triplet.
-
-## Component Conventions
-- Flat cards with 1px border, subtle shadow-sm on hover
-- Pills/badges: border-radius ~6-8px (rectangular, not ovaladas)
-- Single font family throughout (Inter)
-- Consistent state vocabulary: hover → `--hover-soft`, active → accent, disabled → muted
-
-## Motion
-- 150–250ms transitions for state changes
-- No orchestrated page-load sequences
-- `prefers-reduced-motion` respected
-
-## Dark Mode
-- Full token swap via `[data-theme="dark"]`
-- Semantic palette maintained with adjusted chroma for contrast
+- Montserrat para la interfaz; Roboto Mono para códigos y valores técnicos. Cuerpo de 14px, títulos de pantalla de 24px/700, acciones de 13px/600, rótulos de 11px/700.
+- Azul claro `#3b5bfa`, oscuro `#5b7fff`. Fondos oscuros acromáticos: `#0c0c0c`, `#151515`, `#1c1c1c`, `#262626`; borde `#272727`.
+- Tema claro: página `#f4f5f8`, panel `#ffffff`, campo `#f1f3f6`, borde estructural `#d2d6de`, outline `#e3e6eb`.
+- Radios por rol: chips 4px, controles 6px, cards 8px, overlays 12px. Círculos sólo para avatares, contadores y progreso.
+- Sidebar 240px, rail 48px, barra superior 40px; padding de página y cards 16px. Selección con lengüeta de 3px.
+- Material Symbols Outlined en SVG mediante `src/components/ui/icons.tsx`.
+- Cards planas, sin elevación ni desplazamiento en hover. Sombras sólo para elementos flotantes.
+- Transiciones de 150–200ms; respetar `prefers-reduced-motion`. Foco visible de 2px.
+- Colores de etiquetas y estados conservan su significado y son independientes de la marca.

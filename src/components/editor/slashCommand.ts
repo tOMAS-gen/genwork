@@ -44,12 +44,16 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
         startOfLine: false,
         // FR-206: solo dispara en frontera de palabra (inicio de línea/doc o precedido de espacio).
         allow: ({ state, range }) => {
+          if (state.selection.$from.parent.type.spec.code) return false;
           if (range.from <= 0) return true;
           const charBefore = state.doc.textBetween(range.from - 1, range.from, "\n", "\n");
           return charBefore === "" || charBefore === " " || charBefore === "\n";
         },
-        items: ({ query }) =>
-          filterSlashItems(getSlashItems({ includeImage: extension.options.includeImage }), query),
+        items: ({ query, editor }) =>
+          filterSlashItems(
+            getSlashItems({ includeImage: extension.options.includeImage }),
+            query,
+          ).filter((item) => item.id !== "table" || !editor.isActive("table")),
         command: ({ editor, range, props }) => {
           const item = props as SlashItem;
           item.run({ editor, range, openImagePicker: extension.options.openImagePicker });

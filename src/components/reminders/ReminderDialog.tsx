@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { api } from "@/components/ui/useApi";
 import type { Lead, ReminderInput, ReminderScope } from "@/lib/domain/reminders/types";
 import { LeadsEditor } from "./LeadsEditor";
@@ -46,6 +47,7 @@ export function ReminderDialog({
   isSuperAdmin,
   existing,
   defaultDate,
+  readOnly = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -53,6 +55,7 @@ export function ReminderDialog({
   isSuperAdmin: boolean;
   existing?: ReminderDto | null;
   defaultDate?: string | null;
+  readOnly?: boolean;
 }) {
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [title, setTitle] = useState("");
@@ -109,12 +112,21 @@ export function ReminderDialog({
       setGroupId(null);
       setLink({ linkType: null, linkId: null });
       setLeads([{ daysBefore: 0, minuteOfDay: 9 * 60 }]);
-      setRec({ recurrenceType: "ONCE", weekdays: [], everyN: 1, everyUnit: "WEEK", endMode: "never", untilDate: null, maxOccurrences: null });
+      setRec({
+        recurrenceType: "ONCE",
+        weekdays: [],
+        everyN: 1,
+        everyUnit: "WEEK",
+        endMode: "never",
+        untilDate: null,
+        maxOccurrences: null,
+      });
     }
     setError("");
   }, [open, existing, defaultDate]);
 
   const save = async () => {
+    if (readOnly || saving) return;
     if (!title.trim()) {
       setError("Poné un nombre a la alerta");
       return;
@@ -149,7 +161,10 @@ export function ReminderDialog({
     setError("");
     try {
       if (existing) {
-        await api(`/api/reminders/${existing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+        await api(`/api/reminders/${existing.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
       } else {
         await api("/api/reminders", { method: "POST", body: JSON.stringify(payload) });
       }
@@ -162,83 +177,135 @@ export function ReminderDialog({
     }
   };
 
+  const hasUnsavedChanges = () => {
+    if (!title.trim()) return false;
+    if (!existing) return true;
+    return (
+      title.trim() !== existing.title.trim() ||
+      description.trim() !== (existing.description ?? "").trim()
+    );
+  };
+
+  const requestClose = async () => {
+    if (!open || saving) return;
+    if (!readOnly && hasUnsavedChanges()) {
+      const ok = await showConfirm("¿Descartar los cambios sin guardar?", {
+        title: "Cambios sin guardar",
+        confirmLabel: "Descartar",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} title={existing ? "Editar recordatorio" : "Nuevo recordatorio"}>
-      <div className="dialog-field">
-        <label htmlFor="rem-title">Nombre</label>
-        <input
-          id="rem-title"
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ej.: Vencimiento factura Tina"
-        />
-      </div>
+    <Dialog
+      open={open}
+      onClose={() => void requestClose()}
+      title={readOnly ? "Recordatorio" : existing ? "Editar recordatorio" : "Nuevo recordatorio"}
+    >
+      <fieldset className="reminder-form" disabled={readOnly || saving}>
+        <div className="dialog-field">
+          <label htmlFor="rem-title">Nombre</label>
+          <input
+            id="rem-title"
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Ej.: Vencimiento factura Tina"
+          />
+        </div>
 
-      <div className="dialog-field">
-        <label htmlFor="rem-desc">Descripción</label>
-        <textarea
-          id="rem-desc"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="De qué es…"
-          rows={2}
-        />
-      </div>
+        <div className="dialog-field">
+          <label htmlFor="rem-desc">Descripción</label>
+          <textarea
+            id="rem-desc"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="De qué es…"
+            rows={2}
+          />
+        </div>
 
-      {!existing ? (
-        <div className="rem-row-2col">
+        {!existing ? (
+          <div className="rem-row-2col">
+            <div className="dialog-field">
+              <label htmlFor="rem-date">Fecha</label>
+              <input
+                id="rem-date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="dialog-field">
+              <label htmlFor="rem-scope">Alcance</label>
+              <select
+                id="rem-scope"
+                value={scope}
+                onChange={(e) => setScope(e.target.value as ReminderScope)}
+              >
+                <option value="INDIVIDUAL">Solo para mí</option>
+                {groups.length > 0 && <option value="GROUP">De grupo</option>}
+                {isSuperAdmin && <option value="GLOBAL">Global (todos)</option>}
+              </select>
+            </div>
+          </div>
+        ) : (
           <div className="dialog-field">
             <label htmlFor="rem-date">Fecha</label>
-            <input id="rem-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input
+              id="rem-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
+        )}
+
+        {!existing && scope === "GROUP" && (
           <div className="dialog-field">
-            <label htmlFor="rem-scope">Alcance</label>
-            <select id="rem-scope" value={scope} onChange={(e) => setScope(e.target.value as ReminderScope)}>
-              <option value="INDIVIDUAL">Solo para mí</option>
-              {groups.length > 0 && <option value="GROUP">De grupo</option>}
-              {isSuperAdmin && <option value="GLOBAL">Global (todos)</option>}
+            <select
+              value={groupId ?? ""}
+              onChange={(e) => setGroupId(e.target.value || null)}
+              className="rem-sub-select"
+              aria-label="Grupo"
+            >
+              <option value="">Elegí un grupo…</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
             </select>
           </div>
-        </div>
-      ) : (
-        <div className="dialog-field">
-          <label htmlFor="rem-date">Fecha</label>
-          <input id="rem-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-        </div>
+        )}
+
+        <RecurrenceEditor value={rec} onChange={setRec} />
+        <LeadsEditor leads={leads} onChange={setLeads} />
+        <LinkPicker value={link} onChange={setLink} />
+      </fieldset>
+      {error && (
+        <p className="rem-error" role="alert">
+          {error}
+        </p>
       )}
-
-      {!existing && scope === "GROUP" && (
-        <div className="dialog-field">
-          <select
-            value={groupId ?? ""}
-            onChange={(e) => setGroupId(e.target.value || null)}
-            className="rem-sub-select"
-            aria-label="Grupo"
-          >
-            <option value="">Elegí un grupo…</option>
-            {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <RecurrenceEditor value={rec} onChange={setRec} />
-      <LeadsEditor leads={leads} onChange={setLeads} />
-      <LinkPicker value={link} onChange={setLink} />
-
-      {error && <p className="rem-error">{error}</p>}
 
       <div className="dialog-actions">
-        <button className="btn" onClick={onClose} disabled={saving}>
-          Cancelar
+        <button className="btn" onClick={() => void requestClose()} disabled={saving}>
+          {readOnly ? "Cerrar" : "Cancelar"}
         </button>
-        <button className="btn btn-primary" onClick={() => void save()} disabled={saving}>
-          {saving ? "Guardando…" : existing ? "Guardar" : "Crear"}
-        </button>
+        {!readOnly && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => void save()}
+            disabled={saving}
+          >
+            {saving ? "Guardando…" : existing ? "Guardar" : "Crear recordatorio"}
+          </button>
+        )}
       </div>
     </Dialog>
   );

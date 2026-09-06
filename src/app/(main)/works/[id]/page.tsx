@@ -24,6 +24,7 @@ import { DocEditor } from "@/components/editor/DocEditor";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
+import { TaskViewToggle } from "@/components/tasks/TaskViewToggle";
 import { ProjectMenu } from "@/components/projects/ProjectMenu";
 import { LabelPicker, type WorkLabelDto } from "@/components/works/LabelPicker";
 import { ProjectTabs } from "@/components/works/ProjectTabs";
@@ -35,10 +36,20 @@ import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
 import { ClientAccessPanel } from "@/components/works/ClientAccessPanel";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 import { taskListProgress } from "@/lib/domain/works/taskListProgress";
-import { CheckSquare, Clock, Eye, FileText, Folder, List, LayoutGrid } from "@/components/ui/icons";
+import {
+  CheckSquare,
+  Clock,
+  Eye,
+  FileText,
+  Folder,
+  Copy,
+  Check,
+  AlertCircle,
+} from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { useToast } from "@/components/ui/Toast";
 
@@ -102,8 +113,10 @@ function SortableTaskRow({
   return (
     <div
       ref={setNodeRef}
+      className="task-sortable-row"
+      // Rows can have different heights; dragging must translate without resizing their content.
       style={{
-        transform: CSS.Transform.toString(transform),
+        transform: CSS.Translate.toString(transform),
         transition,
         touchAction: "none",
       }}
@@ -129,16 +142,18 @@ function SortableTaskRow({
 export default function WorkPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [work, setWork] = useState<WorkFull | null>(null);
+  const [loadError, setLoadError] = useState(false);
   usePageTitle(work?.name ?? null);
   const [docLoaded, setDocLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "tasks" | "docs" | "files" | "activity" | "clients"
-  >("tasks");
+  const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files" | "activity" | "clients">(
+    "tasks",
+  );
   const [taskView, setTaskView] = useState<"list" | "board">("list");
   const [codeCopied, setCodeCopied] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(() => {
+    setLoadError(false);
     void api<WorkFull>(`/api/works/${id}`)
       .then((w) => {
         setWork(w);
@@ -146,6 +161,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
       })
       .catch(() => {
         toast("Error al cargar el proyecto", "error");
+        setLoadError(true);
       });
   }, [id, toast]);
 
@@ -163,7 +179,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           toast("Error al actualizar la fecha", "error");
         });
     },
-    [id, load, toast]
+    [id, load, toast],
   );
 
   // Sensores de dnd-kit (feature 052, T005): PointerSensor con umbral de distancia
@@ -194,7 +210,10 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           setWork((latest) => (latest ? { ...latest, tasks: previousTasks } : latest));
           const status = (err as { status?: number }).status;
           if (status === 409) {
-            toast("El orden cambió mientras se reordenaba la tarea; se actualizó la lista", "error");
+            toast(
+              "El orden cambió mientras se reordenaba la tarea; se actualizó la lista",
+              "error",
+            );
             load();
           } else {
             toast("Error al reordenar las tareas", "error");
@@ -254,38 +273,33 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
     [commitReorder, commitReparent],
   );
 
-  if (!work) {
+  if (!work && loadError) {
     return (
       <div className="sheet">
-        <div style={{ marginBottom: "var(--space-2)" }}>
-          <Skeleton variant="text" width="20%" />
+        <EmptyState
+          icon={AlertCircle}
+          title="No se pudo cargar el proyecto"
+          description="Hubo un error de red o del servidor. Probá de nuevo."
+          action={{ label: "Reintentar", onClick: load }}
+        />
+      </div>
+    );
+  }
+
+  if (!work) {
+    return (
+      <div className="sheet work-detail" role="status" aria-label="Cargando proyecto">
+        <Skeleton variant="text" width="220px" />
+        <div className="work-overview work-loading-summary">
+          <Skeleton variant="text" height="32px" width="60%" />
+          <Skeleton variant="text" width="35%" />
+          <Skeleton variant="card" height="72px" />
         </div>
-        <div className="sheet-header">
-          <div>
-            <Skeleton variant="text" height="32px" width="40%" />
-            <div style={{ marginTop: "var(--space-2)" }}>
-              <Skeleton variant="text" width="60%" />
-            </div>
-          </div>
-        </div>
-        <div style={{ marginTop: "var(--space-2)" }}>
-          <Skeleton variant="text" height="16px" width="100%" />
-        </div>
-        <div style={{ marginTop: "var(--space-2)", display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
-          <Skeleton variant="text" width="80px" />
-          <Skeleton variant="text" width="80px" />
-          <Skeleton variant="text" width="80px" />
-        </div>
-        <div style={{ marginTop: "var(--space-2)", display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
-          <Skeleton variant="text" height="32px" width="60px" />
-          <Skeleton variant="text" height="32px" width="60px" />
-          <Skeleton variant="text" height="32px" width="60px" />
-        </div>
-        <div style={{ marginTop: "var(--space-2)" }}>
+        <div className="work-workspace work-loading-summary">
+          <Skeleton variant="text" height="40px" width="75%" />
+          <Skeleton variant="card" height="44px" />
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} style={{ marginBottom: "var(--space-1)" }}>
-              <Skeleton variant="text" width="100%" />
-            </div>
+            <Skeleton key={i} variant="text" height="40px" />
           ))}
         </div>
       </div>
@@ -296,210 +310,242 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   // 062-subtareas (hallazgo Importante 4 de revisión): `work.tasks` son solo
   // raíces (works/[id]/route.ts las anida); ver taskListProgress.ts.
   const { done: doneCount, total: totalCount } = taskListProgress(work.tasks);
+  const projectColor = getProjectColor(work.labels);
 
   return (
-    <div className="sheet">
-      <div style={{ marginBottom: "var(--space-2)" }}>
-        <Breadcrumbs items={[
+    <div className="sheet work-detail">
+      <Breadcrumbs
+        items={[
           work.isTemplate
-            ? { label: "Proyectos Plantilla", href: "/?filter=templates" }
-            : { label: "Todos los Proyectos", href: "/" },
+            ? { label: "Proyectos plantilla", href: "/?filter=templates" }
+            : { label: "Todos los proyectos", href: "/" },
           { label: work.name },
-        ]} />
-      </div>
-      <div className="sheet-header">
-        <div>
-          <div className="sheet-title-row">
-            {(() => {
-              const color = getProjectColor(work.labels);
-              return (
+        ]}
+      />
+
+      <section className="work-overview" aria-label="Resumen del proyecto">
+        <div className="work-overview-main">
+          <div className="work-overview-info">
+            <div className="work-overview-header">
+              <div className="work-identity">
                 <span
-                  className={`entity-color-dot${color ? "" : " entity-color-dot-empty"}`}
-                  style={color ? { background: color } : undefined}
-                  aria-hidden="true"
+                  className="work-symbol"
+                  style={projectColor ? { color: projectColor } : undefined}
+                >
+                  <Folder size={24} aria-hidden="true" />
+                </span>
+                <div className="work-heading">
+                  <div className="work-title-line">
+                    <h1>{work.name}</h1>
+                  </div>
+                  <div className="work-subtitle">
+                    <p>{work.group ? `Grupo ${work.group.name}` : "Espacio personal"}</p>
+                    <span className="work-state">
+                      {work.isTemplate
+                        ? "Plantilla"
+                        : work.status === "ARCHIVED"
+                          ? "Archivado"
+                          : "Activo"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <ProjectMenu
+                workId={id}
+                workName={work.name}
+                workStatus={work.status}
+                canRename={work.access === "operate"}
+                onRenamed={load}
+              />
+            </div>
+
+            {(editable || work.description) && (
+              <div className="work-description">
+                <span className="work-field-label">Descripción</span>
+                <InlineDescription
+                  workId={id}
+                  initialValue={work.description}
+                  editable={editable}
                 />
-              );
-            })()}
-            <h1 className="sheet-title">{work.name}</h1>
+              </div>
+            )}
           </div>
-          <p className="sheet-desc">
-            {work.group ? `Grupo ${work.group.name}` : "Espacio personal"}
-            {work.status === "ARCHIVED" && " · ARCHIVADO"}
-          </p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
-          <ProjectMenu
-            workId={id}
-            workName={work.name}
-            workStatus={work.status}
-            canRename={work.access === "operate"}
-            onRenamed={load}
+          <StatusBar
+            done={doneCount}
+            total={totalCount}
+            dueDate={work.dueDate}
+            status={work.status}
+            onDueDateChange={editable ? handleDueDateChange : undefined}
+            stageProps={
+              editable
+                ? {
+                    workId: id,
+                    groupId: work.groupId,
+                    currentStageId: work.stageId ?? null,
+                    currentStage: work.stage ?? null,
+                    onChanged: load,
+                  }
+                : undefined
+            }
           />
         </div>
-      </div>
-
-      <InlineDescription workId={id} initialValue={work.description} editable={editable} />
-
-      <StatusBar
-        done={doneCount}
-        total={totalCount}
-        dueDate={work.dueDate}
-        status={work.status}
-        onDueDateChange={editable ? handleDueDateChange : undefined}
-        stageProps={editable ? {
-          workId: id,
-          groupId: work.groupId,
-          currentStageId: work.stageId ?? null,
-          currentStage: work.stage ?? null,
-          onChanged: load,
-        } : undefined}
-      />
-
-      <div style={{ marginTop: "var(--space-2)", display: "flex", alignItems: "center", gap: "var(--space-1)", flexWrap: "wrap" }}>
-        <LabelPicker
-          workId={id}
-          workGroupId={work.groupId}
-          labels={work.labels}
-          onChanged={load}
-        />
-      </div>
-
-      {/* Código de referencia de la carpeta (feature 035) */}
-      <div
-        style={{
-          marginTop: "var(--space-2)",
-          display: "flex",
-          alignItems: "center",
-          gap: "var(--space-2)",
-          flexWrap: "wrap",
-        }}
-      >
-        <span className="muted" style={{ fontSize: "var(--text-xs)" }}>
-          Código / carpeta
-        </span>
-        <code
-          style={{
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            fontSize: "var(--text-sm)",
-            background: "var(--hover-soft)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            padding: "2px 8px",
-            userSelect: "all",
-          }}
-        >
-          {work.code}
-        </code>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          style={{ padding: "2px 8px", fontSize: "var(--text-xs)" }}
-          onClick={() => {
-            void navigator.clipboard.writeText(work.code).then(() => {
-              setCodeCopied(true);
-              setTimeout(() => setCodeCopied(false), 1500);
-            });
-          }}
-        >
-          {codeCopied ? "¡Copiado!" : "Copiar"}
-        </button>
-      </div>
-
-      <ProjectTabs
-        items={[
-          { key: "tasks", label: "Tareas", icon: CheckSquare },
-          { key: "docs", label: "Documentos", icon: FileText },
-          { key: "files", label: "Archivos", icon: Folder },
-          { key: "activity", label: "Actividad", icon: Clock },
-          // Feature 059: dar acceso a alguien de afuera es administración del ámbito
-          // (ADMIN del grupo, dueño personal o super-admin), no operación cotidiana.
-          ...(work.canManageClients ? [{ key: "clients", label: "Acceso cliente", icon: Eye }] : []),
-        ]}
-        activeKey={activeTab}
-        onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files" | "activity" | "clients")}
-      />
-
-      {activeTab === "tasks" && (
-        <>
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <div className="segmented" role="group" aria-label="Vista de tareas">
+        <div className="work-metadata">
+          <div className="work-labels">
+            <span className="work-field-label">Etiquetas</span>
+            <LabelPicker
+              workId={id}
+              workGroupId={work.groupId}
+              labels={work.labels}
+              onChanged={load}
+            />
+          </div>
+          <div className="work-code">
+            <span className="work-field-label">Código / carpeta</span>
+            <div className="work-code-value">
+              <code title={work.code}>{work.code}</code>
               <button
                 type="button"
-                className={`segmented-btn${taskView === "list" ? " is-active" : ""}`}
-                onClick={() => setTaskView("list")}
+                className="work-copy"
+                aria-label={codeCopied ? "Código copiado" : "Copiar código del proyecto"}
+                title={codeCopied ? "Código copiado" : "Copiar código"}
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(work.code)
+                    .then(() => {
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 1500);
+                    })
+                    .catch(() => toast("No se pudo copiar el código", "error"));
+                }}
               >
-                <List size={14} /> Lista
-              </button>
-              <button
-                type="button"
-                className={`segmented-btn${taskView === "board" ? " is-active" : ""}`}
-                onClick={() => setTaskView("board")}
-              >
-                <LayoutGrid size={14} /> Tablero
+                {codeCopied ? (
+                  <Check size={16} aria-hidden="true" />
+                ) : (
+                  <Copy size={16} aria-hidden="true" />
+                )}
+                <span aria-live="polite">{codeCopied ? "Copiado" : "Copiar"}</span>
               </button>
             </div>
           </div>
-          {editable && <TaskListEditor context={{ workId: id }} onCreated={load} />}
-          {taskView === "list" ? (
-            <div style={{ marginTop: "var(--space-1)" }}>
-              {editable ? (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext
-                    items={work.tasks.map((t) => t.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {work.tasks.map((task) => (
-                      <SortableTaskRow
+        </div>
+      </section>
+
+      <section className={`work-workspace${activeTab === "docs" ? " work-workspace-docs" : ""}`} aria-label="Contenido del proyecto">
+        <ProjectTabs
+          panelId="project-content"
+          items={[
+            { key: "tasks", label: "Tareas", icon: CheckSquare },
+            { key: "docs", label: "Documentos", icon: FileText },
+            { key: "files", label: "Archivos", icon: Folder },
+            { key: "activity", label: "Actividad", icon: Clock },
+            // Feature 059: dar acceso a alguien de afuera es administración del ámbito
+            // (ADMIN del grupo, dueño personal o super-admin), no operación cotidiana.
+            ...(work.canManageClients
+              ? [{ key: "clients", label: "Acceso cliente", icon: Eye }]
+              : []),
+          ]}
+          activeKey={activeTab}
+          onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files" | "activity" | "clients")}
+        />
+
+        <div
+          id="project-content"
+          role="tabpanel"
+          aria-labelledby={`project-content-tab-${activeTab}`}
+          className="work-tab-content"
+        >
+          {activeTab === "tasks" && (
+            <>
+              <div className="work-tasks-heading">
+                <div className="work-tasks-title">
+                  <h2>Tareas</h2>
+                  <span>{totalCount - doneCount} pendientes</span>
+                </div>
+                <TaskViewToggle value={taskView} onChange={setTaskView} />
+              </div>
+              {editable && (
+                <div className="work-task-composer">
+                  <TaskListEditor context={{ workId: id }} onCreated={load} />
+                </div>
+              )}
+              {taskView === "list" ? (
+                <div className="work-task-list">
+                  {editable ? (
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext
+                        items={work.tasks.map((t) => t.id)}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {work.tasks.map((task) => (
+                          <SortableTaskRow
+                            key={task.id}
+                            task={task}
+                            workId={id}
+                            editable={editable}
+                            onChanged={load}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    work.tasks.map((task) => (
+                      <TaskItem
                         key={task.id}
                         task={task}
-                        workId={id}
-                        editable={editable}
+                        context={{ workId: id }}
+                        canToggle={editable}
                         onChanged={load}
                       />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+                    ))
+                  )}
+                  {work.tasks.length === 0 && (
+                    <EmptyState
+                      icon={CheckSquare}
+                      title="Sin tareas todavía"
+                      description={
+                        editable
+                          ? "Escribí la primera tarea arriba para empezar a organizar el proyecto."
+                          : "Este proyecto no tiene tareas."
+                      }
+                    />
+                  )}
+                </div>
               ) : (
-                work.tasks.map((task) => (
-                  <TaskItem
-                    key={task.id}
-                    task={task}
+                <div style={{ marginTop: "var(--space-2)" }}>
+                  <TaskBoardView
+                    tasks={work.tasks}
                     context={{ workId: id }}
                     canToggle={editable}
                     onChanged={load}
                   />
-                ))
+                </div>
               )}
-              {work.tasks.length === 0 && !editable && (
-                <p className="muted">Sin tareas.</p>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginTop: "var(--space-2)" }}>
-              <TaskBoardView
-                tasks={work.tasks}
-                context={{ workId: id }}
-                canToggle={editable}
-                onChanged={load}
-              />
-            </div>
+            </>
           )}
-        </>
-      )}
 
-      {activeTab === "docs" && docLoaded && (
-        <DocEditor workId={id} initialContent={work.doc?.content ?? null} editable={editable} />
-      )}
+          {activeTab === "docs" && docLoaded && (
+            <DocEditor
+              workId={id}
+              initialContent={work.doc?.content ?? null}
+              editable={editable && work.access === "operate"}
+              filename={`${work.name} - Documentación`}
+              onContentChange={(content) => setWork((current) => current ? { ...current, doc: { content } } : current)}
+            />
+          )}
 
-      {activeTab === "files" && (
-        <FilesBrowser workId={id} />
-      )}
+          {activeTab === "files" && <FilesBrowser workId={id} />}
 
-      {activeTab === "activity" && <WorkActivityFeed workId={id} />}
+          {activeTab === "activity" && <WorkActivityFeed workId={id} />}
 
-      {activeTab === "clients" && work.canManageClients && (
-        <ClientAccessPanel workId={id} groupId={work.groupId} />
-      )}
+          {activeTab === "clients" && work.canManageClients && (
+            <ClientAccessPanel workId={id} groupId={work.groupId} />
+          )}
+        </div>
+      </section>
     </div>
   );
 }

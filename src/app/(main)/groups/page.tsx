@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,8 +27,7 @@ export default function GroupsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-4)" }}>
-        <h1 style={{ margin: 0 }}>Grupos</h1>
+      <PageHeader title="Grupos" description="Equipos, miembros y proyectos compartidos." icon="groups" actions={
         <button
           className="btn btn-primary"
           onClick={() => setDialogOpen(true)}
@@ -37,7 +37,7 @@ export default function GroupsPage() {
         >
           <Plus size={20} />
         </button>
-      </div>
+      } />
 
       <CreateGroupDialog
         open={dialogOpen}
@@ -46,7 +46,7 @@ export default function GroupsPage() {
       />
 
       {loading ? (
-        <div style={{ display: "grid", gap: "var(--space-3)", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+        <div className="sector-grid">
           <Skeleton variant="card" height="72px" />
           <Skeleton variant="card" height="72px" />
           <Skeleton variant="card" height="72px" />
@@ -59,13 +59,7 @@ export default function GroupsPage() {
           action={{ label: "Nuevo grupo", onClick: () => setDialogOpen(true) }}
         />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: "var(--space-3)",
-          }}
-        >
+        <div className="sector-grid">
           {groups.map((g) => (
             <GroupCard key={g.id} group={g} />
           ))}

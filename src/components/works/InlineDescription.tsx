@@ -50,6 +50,7 @@ export function InlineDescription({
     <textarea
       ref={textareaRef}
       className="inline-desc-editor"
+      aria-label="Descripción del proyecto"
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onBlur={() => void save()}

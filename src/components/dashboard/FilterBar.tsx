@@ -1,7 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { Search, LayoutGrid, List, ArrowUpDown } from "@/components/ui/icons";
+import { useId, useRef, useState } from "react";
+import {
+  Search,
+  LayoutGrid,
+  List,
+  ArrowUpDown,
+  SlidersHorizontal,
+  ChevronDown,
+  X,
+} from "@/components/ui/icons";
 
 export interface DashboardFilters {
   text: string;
@@ -30,7 +38,13 @@ export interface GroupOption {
 
 interface FilterBarProps {
   sectors: { id: string; name: string }[];
-  labelKeys: { keyId: string; keyName: string; valueId: string; valueName: string; color: string }[];
+  labelKeys: {
+    keyId: string;
+    keyName: string;
+    valueId: string;
+    valueName: string;
+    color: string;
+  }[];
   /** Grupos visibles para el usuario (US3, FR-010), ya cargados en el dashboard. */
   groups: GroupOption[];
   onFilterChange: (filters: DashboardFilters) => void;
@@ -38,6 +52,8 @@ interface FilterBarProps {
   onViewModeChange: (mode: ViewMode) => void;
   sortBy: SortBy;
   onSortByChange: (sort: SortBy) => void;
+  resultCount: number;
+  loading?: boolean;
 }
 
 export function FilterBar({
@@ -49,8 +65,14 @@ export function FilterBar({
   onViewModeChange,
   sortBy,
   onSortByChange,
+  resultCount,
+  loading = false,
 }: FilterBarProps) {
   const [filters, setFilters] = useState<DashboardFilters>(EMPTY_DASHBOARD_FILTERS);
+  const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
+  const filterTrigger = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   function update(partial: Partial<DashboardFilters>) {
     const next = { ...filters, ...partial };
@@ -59,9 +81,8 @@ export function FilterBar({
   }
 
   function toggleGroup(groupId: string) {
-    const active = filters.groupIds.includes(groupId);
     update({
-      groupIds: active
+      groupIds: filters.groupIds.includes(groupId)
         ? filters.groupIds.filter((id) => id !== groupId)
         : [...filters.groupIds, groupId],
     });
@@ -72,150 +93,234 @@ export function FilterBar({
     onFilterChange(EMPTY_DASHBOARD_FILTERS);
   }
 
-  const hasActiveFilters =
-    !!filters.text ||
-    !!filters.sectorId ||
-    !!filters.labelValueId ||
-    !!filters.status ||
-    filters.groupIds.length > 0;
-
-  const activeLabelColor =
-    labelKeys.find((l) => l.valueId === filters.labelValueId)?.color ?? null;
-
-  const sectorLabel = filters.sectorId
-    ? sectors.find((s) => s.id === filters.sectorId)?.name ?? "Todos los sectores"
-    : "Todos los sectores";
-  const activeLabel = labelKeys.find((l) => l.valueId === filters.labelValueId);
-  const labelLabel = activeLabel ? `${activeLabel.keyName}: ${activeLabel.valueName}` : "Todas las etiquetas";
-  const statusLabel =
-    { pending: "Pendiente", in_progress: "En progreso", completed: "Completado" }[filters.status] ??
-    "Todos los estados";
+  const activeLabel = labelKeys.find((label) => label.valueId === filters.labelValueId);
+  const activeFilters = [
+    ...(filters.sectorId
+      ? [
+          {
+            key: "sector",
+            label: `Sector: ${sectors.find((sector) => sector.id === filters.sectorId)?.name ?? "Seleccionado"}`,
+            remove: () => update({ sectorId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.labelValueId
+      ? [
+          {
+            key: "label",
+            label: activeLabel
+              ? `${activeLabel.keyName}: ${activeLabel.valueName}`
+              : "Etiqueta seleccionada",
+            remove: () => update({ labelValueId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.status
+      ? [
+          {
+            key: "status",
+            label:
+              { pending: "Pendiente", in_progress: "En progreso", completed: "Completado" }[
+                filters.status
+              ] ?? filters.status,
+            remove: () => update({ status: "" }),
+          },
+        ]
+      : []),
+    ...filters.groupIds.map((id) => ({
+      key: `group-${id}`,
+      label: `Grupo: ${groups.find((group) => group.id === id)?.name ?? "Seleccionado"}`,
+      remove: () => toggleGroup(id),
+    })),
+  ];
+  const hasFilters = !!filters.text || activeFilters.length > 0;
 
   return (
-    <div className="filter-bar">
-      <div className="toolbar-left">
-        <div style={{ position: "relative", display: "flex", alignItems: "center", flex: 1 }}>
-          <Search
-            size={16}
-            style={{ position: "absolute", left: 10, color: "var(--muted)", pointerEvents: "none" }}
-          />
+    <section className="project-toolbar" aria-label="Buscar, filtrar y ordenar proyectos">
+      <div className="project-toolbar-main">
+        <div className="project-search">
+          <Search size={20} aria-hidden="true" />
           <input
-            type="text"
+            ref={searchRef}
+            type="search"
+            aria-label="Buscar proyectos"
             placeholder="Buscar proyectos..."
             value={filters.text}
-            onChange={(e) => update({ text: e.target.value })}
-            style={{ paddingLeft: 32, width: "100%" }}
+            onChange={(event) => update({ text: event.target.value })}
           />
+          {filters.text && (
+            <button
+              type="button"
+              className="project-search-clear"
+              aria-label="Borrar búsqueda"
+              onClick={() => {
+                update({ text: "" });
+                searchRef.current?.focus();
+              }}
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+
+        <button
+          ref={filterTrigger}
+          type="button"
+          className="project-filter-trigger"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          onClick={() => setExpanded(!expanded)}
+        >
+          <SlidersHorizontal size={18} aria-hidden="true" />
+          Filtros
+          {activeFilters.length > 0 && (
+            <span className="project-filter-count">{activeFilters.length}</span>
+          )}
+        </button>
+
+        <label className="project-sort">
+          <ArrowUpDown size={18} aria-hidden="true" />
+          <span className="project-sort-label">Ordenar</span>
+          <select
+            aria-label="Ordenar proyectos"
+            value={sortBy}
+            onChange={(event) => onSortByChange(event.target.value as SortBy)}
+          >
+            <option value="recent">Más recientes</option>
+            <option value="name">Nombre · A–Z</option>
+            <option value="progress">Mayor avance</option>
+          </select>
+          <ChevronDown size={16} aria-hidden="true" />
+        </label>
+
+        <div className="project-view-switch" role="group" aria-label="Vista de proyectos">
+          <button
+            type="button"
+            aria-label="Ver como grilla"
+            title="Grilla"
+            aria-pressed={viewMode === "grid"}
+            onClick={() => onViewModeChange("grid")}
+          >
+            <LayoutGrid size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Ver como lista"
+            title="Lista"
+            aria-pressed={viewMode === "list"}
+            onClick={() => onViewModeChange("list")}
+          >
+            <List size={18} aria-hidden="true" />
+          </button>
         </div>
       </div>
 
-      <div className="toolbar-center">
-        <label className={`filter-pill${filters.sectorId ? " is-active" : ""}`}>
-          <span className="filter-pill-label">{sectorLabel}</span>
-          <select
-            aria-label="Filtrar por sector"
-            value={filters.sectorId}
-            onChange={(e) => update({ sectorId: e.target.value })}
-          >
-            <option value="">Todos los sectores</option>
-            {sectors.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className={`filter-pill${filters.labelValueId ? " is-active" : ""}`}>
-          {activeLabelColor && (
-            <span className="filter-pill-dot" style={{ background: activeLabelColor }} aria-hidden="true" />
-          )}
-          <span className="filter-pill-label">{labelLabel}</span>
-          <select
-            aria-label="Filtrar por etiqueta"
-            value={filters.labelValueId}
-            onChange={(e) => update({ labelValueId: e.target.value })}
-          >
-            <option value="">Todas las etiquetas</option>
-            {labelKeys.map((l) => (
-              <option key={l.valueId} value={l.valueId}>
-                {l.keyName}: {l.valueName}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className={`filter-pill${filters.status ? " is-active" : ""}`}>
-          <span className="filter-pill-label">{statusLabel}</span>
-          <select
-            aria-label="Filtrar por estado"
-            value={filters.status}
-            onChange={(e) => update({ status: e.target.value })}
-          >
-            <option value="">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="in_progress">En progreso</option>
-            <option value="completed">Completado</option>
-          </select>
-        </label>
-
+      <div
+        id={panelId}
+        hidden={!expanded}
+        className="project-filter-panel"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            setExpanded(false);
+            filterTrigger.current?.focus();
+          }
+        }}
+      >
+        <div className="project-filter-fields">
+          <label className="project-filter-field">
+            <span>Sector</span>
+            <select
+              aria-label="Filtrar por sector"
+              value={filters.sectorId}
+              onChange={(event) => update({ sectorId: event.target.value })}
+            >
+              <option value="">Todos los sectores</option>
+              {sectors.map((sector) => (
+                <option key={sector.id} value={sector.id}>
+                  {sector.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="project-filter-field">
+            <span>Etiqueta</span>
+            <select
+              aria-label="Filtrar por etiqueta"
+              value={filters.labelValueId}
+              onChange={(event) => update({ labelValueId: event.target.value })}
+            >
+              <option value="">Todas las etiquetas</option>
+              {labelKeys.map((label) => (
+                <option key={label.valueId} value={label.valueId}>
+                  {label.keyName}: {label.valueName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="project-filter-field">
+            <span>Estado</span>
+            <select
+              aria-label="Filtrar por estado"
+              value={filters.status}
+              onChange={(event) => update({ status: event.target.value })}
+            >
+              <option value="">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En progreso</option>
+              <option value="completed">Completado</option>
+            </select>
+          </label>
+        </div>
         {groups.length > 0 && (
-          <div role="group" aria-label="Filtrar por grupo" style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap" }}>
-            {groups.map((group) => {
-              const active = filters.groupIds.includes(group.id);
-              return (
-                <button
-                  key={group.id}
-                  type="button"
-                  className={`filter-pill filter-pill-toggle${active ? " is-active" : ""}`}
-                  aria-pressed={active}
-                  onClick={() => toggleGroup(group.id)}
-                >
-                  {group.name}
-                </button>
-              );
-            })}
+          <fieldset className="project-filter-groups">
+            <legend>
+              Grupos <span>Podés elegir más de uno</span>
+            </legend>
+            <div>
+              {groups.map((group) => (
+                <label key={group.id}>
+                  <input
+                    type="checkbox"
+                    checked={filters.groupIds.includes(group.id)}
+                    onChange={() => toggleGroup(group.id)}
+                  />
+                  <span>{group.name}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+      </div>
+
+      <div className="project-toolbar-summary">
+        <span className="project-result-count" role="status" aria-live="polite" aria-atomic="true">
+          {loading
+            ? "Cargando proyectos…"
+            : `${resultCount} ${resultCount === 1 ? "proyecto" : "proyectos"}`}
+        </span>
+        {activeFilters.length > 0 && (
+          <div className="project-active-filters" aria-label="Filtros activos">
+            {activeFilters.map((filter) => (
+              <button
+                key={filter.key}
+                type="button"
+                onClick={filter.remove}
+                aria-label={`Quitar filtro: ${filter.label}`}
+                title={`Quitar filtro: ${filter.label}`}
+              >
+                <span>{filter.label}</span>
+                <X size={14} aria-hidden="true" />
+              </button>
+            ))}
           </div>
         )}
-
-        {hasActiveFilters && (
-          <button type="button" className="filter-clear" onClick={clearFilters}>
+        {hasFilters && (
+          <button type="button" className="project-filters-reset" onClick={clearFilters}>
             Limpiar filtros
           </button>
         )}
       </div>
-
-      <div className="toolbar-right">
-        <div className="view-toggle">
-          <button
-            type="button"
-            className={viewMode === "grid" ? "active" : ""}
-            aria-label="Ver como grilla"
-            aria-pressed={viewMode === "grid"}
-            onClick={() => onViewModeChange("grid")}
-          >
-            <LayoutGrid size={16} />
-          </button>
-          <button
-            type="button"
-            className={viewMode === "list" ? "active" : ""}
-            aria-label="Ver como lista"
-            aria-pressed={viewMode === "list"}
-            onClick={() => onViewModeChange("list")}
-          >
-            <List size={16} />
-          </button>
-        </div>
-
-        <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-          <ArrowUpDown size={14} style={{ position: "absolute", left: 10, color: "var(--muted)", pointerEvents: "none" }} />
-          <select value={sortBy} onChange={(e) => onSortByChange(e.target.value as SortBy)} style={{ paddingLeft: 30 }}>
-            <option value="recent">Recientes</option>
-            <option value="name">Nombre</option>
-            <option value="progress">Progreso</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    </section>
   );
 }

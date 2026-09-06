@@ -6,7 +6,10 @@ import { api } from "@/components/ui/useApi";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskGroupHeader } from "@/components/tasks/TaskGroupHeader";
-import { groupReferencesBySource, referenceTaskContext } from "@/components/tasks/groupReferencesBySource";
+import {
+  groupReferencesBySource,
+  referenceTaskContext,
+} from "@/components/tasks/groupReferencesBySource";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -15,9 +18,12 @@ import { Menu } from "@/components/ui/Menu";
 import { RenameDialog } from "@/components/ui/RenameDialog";
 import { ColorField } from "@/components/ui/ColorField";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Trash2, Settings, Pencil, List, LayoutGrid, CheckSquare } from "@/components/ui/icons";
+import { Trash2, Settings, Pencil, CheckSquare, Layers, AlertCircle } from "@/components/ui/icons";
 import { TaskStatusSettings } from "@/components/admin/TaskStatusSettings";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
+import { TaskViewToggle } from "@/components/tasks/TaskViewToggle";
+import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import { progress } from "@/lib/domain/works/progress";
 
 interface SectorView {
   sector: {
@@ -32,7 +38,10 @@ interface SectorView {
     };
   };
   loose: TaskDto[];
-  byWork: { work: { id: string; name: string; status: string; group: { id: string; name: string } | null }; tasks: TaskDto[] }[];
+  byWork: {
+    work: { id: string; name: string; status: string; group: { id: string; name: string } | null };
+    tasks: TaskDto[];
+  }[];
   refs: TaskDto[];
   metrics: { total: number; done: number };
   level: "read" | "operate";
@@ -45,15 +54,22 @@ interface SectorView {
 export default function SectorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [view, setView] = useState<SectorView | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [showStatusSettings, setShowStatusSettings] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [taskView, setTaskView] = useState<"list" | "board">("list");
-  const [me, setMe] = useState<{ id: string; globalRole: "SUPERADMIN" | "MEMBER" | "READER" } | null>(null);
+  const [me, setMe] = useState<{
+    id: string;
+    globalRole: "SUPERADMIN" | "MEMBER" | "READER";
+  } | null>(null);
   usePageTitle(view?.sector.name ?? null);
   const router = useRouter();
 
   const load = useCallback(() => {
-    void api<SectorView>(`/api/sectors/${id}/tasks`).then(setView).catch(() => {});
+    setLoadError(false);
+    void api<SectorView>(`/api/sectors/${id}/tasks`)
+      .then(setView)
+      .catch(() => setLoadError(true));
   }, [id]);
 
   useEffect(load, [load]);
@@ -65,26 +81,32 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
       .catch(() => {});
   }, []);
 
+  if (!view && loadError) {
+    return (
+      <div className="sheet">
+        <EmptyState
+          icon={AlertCircle}
+          title="No se pudo cargar el sector"
+          description="Probá de nuevo para ver las tareas del sector."
+          action={{ label: "Reintentar", onClick: load }}
+        />
+      </div>
+    );
+  }
+
   if (!view) {
     return (
-      <div className="mx-auto max-w-[1100px]">
-        <Skeleton variant="text" height="28px" width="30%" />
-        <div className="mt-2">
-          <Skeleton variant="card" width="100%" height="40px" />
+      <div className="sheet work-detail" role="status" aria-label="Cargando sector">
+        <Skeleton variant="text" width="220px" />
+        <div className="work-overview work-loading-summary">
+          <Skeleton variant="text" height="32px" width="60%" />
+          <Skeleton variant="text" height="32px" width="40%" />
         </div>
-        <div className="mt-2 flex gap-1">
-          <Skeleton variant="text" width="70px" />
-          <Skeleton variant="text" width="70px" />
-          <Skeleton variant="text" width="70px" />
-        </div>
-        <div className="mt-2">
-          <Skeleton variant="text" height="22px" width="40%" />
-        </div>
-        <div className="mt-1">
+        <div className="work-workspace work-loading-summary">
+          <Skeleton variant="text" height="40px" width="75%" />
+          <Skeleton variant="card" height="44px" />
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="mb-1">
-              <Skeleton variant="text" width="100%" />
-            </div>
+            <Skeleton key={i} variant="text" height="40px" />
           ))}
         </div>
       </div>
@@ -93,9 +115,11 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
 
   const canOperate = view.level === "operate";
   const isSuperAdmin = me?.globalRole === "SUPERADMIN";
+  const sectorProgress = progress(view.metrics.done, view.metrics.total);
+  const pendingCount = Math.max(0, view.metrics.total - view.metrics.done);
   const scopeLabel =
     view.sector.scope.type === "GROUP"
-      ? view.sector.scope.groupName ?? "Grupo"
+      ? (view.sector.scope.groupName ?? "Grupo")
       : view.sector.scope.type === "PERSONAL"
         ? "Personal"
         : "Global";
@@ -104,8 +128,11 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
     try {
       await api(`/api/sectors/${id}`, { method: "DELETE" });
     } catch (err) {
-      const body = (err as { body?: { error?: { affectedTasks?: number; looseTasks?: number; message?: string } } })
-        .body;
+      const body = (
+        err as {
+          body?: { error?: { affectedTasks?: number; looseTasks?: number; message?: string } };
+        }
+      ).body;
       const msg = body?.error?.message ?? (err as Error).message;
       const ok = await showConfirm(msg + "\n\n¿Eliminar el sector igualmente?", {
         title: "Eliminar sector",
@@ -132,159 +159,198 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <div className="mx-auto max-w-[1100px]">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {canOperate ? (
-            <span className="[&_.color-field-trigger]:min-h-11 [&_.color-field-trigger]:min-w-11">
+    <div className="sheet work-detail sector-detail">
+      <Breadcrumbs items={[{ label: "Sectores", href: "/sectors" }, { label: view.sector.name }]} />
+      <section className="work-overview sector-overview" aria-label="Resumen del sector">
+        <div className="work-overview-main">
+          <div className="work-overview-info">
+            <div className="work-overview-header">
+              <div className="work-identity">
+                <span
+                  className="work-symbol"
+                  style={view.sector.color ? { color: view.sector.color } : undefined}
+                >
+                  <Layers size={24} aria-hidden="true" />
+                </span>
+                <div className="work-heading">
+                  <div className="work-title-line">
+                    <h1>{view.sector.name}</h1>
+                  </div>
+                  <div className="work-subtitle">
+                    <p>
+                      {view.sector.scope.type === "GROUP"
+                        ? `Grupo ${scopeLabel}`
+                        : scopeLabel === "Personal"
+                          ? "Espacio personal"
+                          : "Sector global"}
+                    </p>
+                    {!canOperate && <span className="work-state">Solo lectura</span>}
+                  </div>
+                </div>
+              </div>
+              {canOperate && (
+                <Menu
+                  label="Acciones del sector"
+                  className="[&_.icon-btn]:h-11 [&_.icon-btn]:w-11"
+                  items={[
+                    {
+                      label: "Estados de tarea",
+                      icon: <Settings size={16} />,
+                      onSelect: () => setShowStatusSettings((v) => !v),
+                    },
+                    ...(isSuperAdmin
+                      ? [
+                          {
+                            label: "Renombrar…",
+                            icon: <Pencil size={16} />,
+                            onSelect: () => setRenaming(true),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: "Eliminar sector",
+                      icon: <Trash2 size={16} />,
+                      danger: true,
+                      onSelect: () => void removeSector(),
+                    },
+                  ]}
+                />
+              )}
+            </div>
+          </div>
+          <div className="work-status-bar">
+            <div className="work-progress-summary">
+              <span className="work-field-label">Avance del sector</span>
+              <div className="work-progress-values">
+                <strong>{sectorProgress ? `${sectorProgress.pct}%` : "Sin tareas"}</strong>
+                <span>
+                  {view.metrics.done} de {view.metrics.total} completadas
+                </span>
+              </div>
+              {sectorProgress && (
+                <div
+                  className="work-progress-track"
+                  role="progressbar"
+                  aria-label="Avance del sector"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={sectorProgress.pct}
+                >
+                  <div className="work-progress-fill" style={{ width: `${sectorProgress.pct}%` }} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="work-metadata sector-metadata">
+          <span className="work-field-label">
+            {view.byWork.length}{" "}
+            {view.byWork.length === 1 ? "proyecto vinculado" : "proyectos vinculados"}
+          </span>
+          {canOperate && (
+            <div className="sector-color-control">
+              <span className="work-field-label">Color del sector</span>
               <ColorField
                 nullable
                 value={view.sector.color}
                 onChange={(hex) => void changeColor(hex)}
                 ariaLabel="Color del sector"
-                align="start"
+                align="end"
               />
-            </span>
-          ) : (
-            <span
-              className={
-                view.sector.color
-                  ? "h-4 w-4 flex-shrink-0 rounded-full border border-[rgba(0,0,0,0.18)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
-                  : "h-4 w-4 flex-shrink-0 rounded-full border-2 border-muted bg-transparent"
-              }
-              style={view.sector.color ? { background: view.sector.color } : undefined}
-              aria-hidden="true"
-            />
+            </div>
           )}
-          <h1 className="m-0 min-w-0 flex-1 truncate" title={view.sector.name}>
-            {view.sector.name}
-          </h1>
-          <span
-            className="inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-md bg-[var(--hover-soft)] px-2 py-0.5 text-xs font-semibold tracking-wide text-text"
-            title={`Ámbito: ${scopeLabel}`}
-          >
-            {scopeLabel}
-          </span>
         </div>
-        {canOperate && (
-          <Menu
-            label="Acciones del sector"
-            className="[&_.icon-btn]:h-11 [&_.icon-btn]:w-11"
-            items={[
-              {
-                label: "Estados de tarea",
-                icon: <Settings size={16} />,
-                onSelect: () => setShowStatusSettings((v) => !v),
-              },
-              ...(isSuperAdmin
-                ? [
-                    {
-                      label: "Renombrar…",
-                      icon: <Pencil size={16} />,
-                      onSelect: () => setRenaming(true),
-                    },
-                  ]
-                : []),
-              {
-                label: "Eliminar sector",
-                icon: <Trash2 size={16} />,
-                danger: true,
-                onSelect: () => void removeSector(),
-              },
-            ]}
-          />
-        )}
-      </div>
+      </section>
 
       {canOperate && showStatusSettings && (
-        <div className="mt-3 rounded-xl border border-border bg-surface p-[18px]">
+        <div className="work-workspace work-tab-content">
           <TaskStatusSettings scope={{ sectorId: id }} title="Estados de tarea de este sector" />
         </div>
       )}
 
-      <h2 className="mt-4">Tareas del sector</h2>
-      <div className="flex justify-end">
-        <div
-          className="inline-flex flex-shrink-0 overflow-hidden rounded-[8px] border border-border"
-          role="group"
-          aria-label="Vista de tareas"
-        >
-          <button
-            type="button"
-            className={`flex min-h-11 min-w-11 items-center gap-1 px-2.5 py-[5px] text-[13px] transition-colors ${
-              taskView === "list" ? "bg-accent-soft text-accent" : "bg-transparent text-muted"
-            }`}
-            onClick={() => setTaskView("list")}
-          >
-            <List size={14} /> Lista
-          </button>
-          <button
-            type="button"
-            className={`flex min-h-11 min-w-11 items-center gap-1 border-l border-border px-2.5 py-[5px] text-[13px] transition-colors ${
-              taskView === "board" ? "bg-accent-soft text-accent" : "bg-transparent text-muted"
-            }`}
-            onClick={() => setTaskView("board")}
-          >
-            <LayoutGrid size={14} /> Tablero
-          </button>
+      <section
+        className="work-workspace work-tab-content sector-tasks"
+        aria-labelledby="sector-tasks-title"
+      >
+        <div className="work-tasks-heading">
+          <div className="work-tasks-title">
+            <h2 id="sector-tasks-title">Tareas</h2>
+            <span>{pendingCount} pendientes</span>
+          </div>
+          <TaskViewToggle value={taskView} onChange={setTaskView} />
         </div>
-      </div>
 
-      {canOperate && (
-        <TaskListEditor context={{ sectorId: id }} onCreated={load} />
-      )}
+        {canOperate && (
+          <div className="work-task-composer">
+            <TaskListEditor context={{ sectorId: id }} onCreated={load} />
+          </div>
+        )}
 
-      {taskView === "list" ? (
-        <>
-          {view.loose.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              context={{ sectorId: id }}
-              canToggle={canOperate}
-              onChanged={load}
-            />
-          ))}
-          {view.byWork.map((group) => (
-            <div key={group.work.id} className="mt-2">
-              <TaskGroupHeader work={group.work} />
-              {group.tasks.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  task={task}
-                  context={{ sectorId: id, suppressWorkTag: true }}
-                  canToggle={canOperate}
-                  onChanged={load}
-                />
-              ))}
-            </div>
-          ))}
-        </>
-      ) : (
-        <TaskBoardView
-          tasks={[...view.loose, ...view.byWork.flatMap((g) => g.tasks)]}
-          context={{ sectorId: id }}
-          canToggle={canOperate}
-          onChanged={load}
-        />
-      )}
-      {view.loose.length === 0 && view.byWork.length === 0 && (
-        <EmptyState
-          icon={CheckSquare}
-          title="Sin tareas todavía"
-          description="Todavía no hay tareas en este sector."
-        />
-      )}
+        {view.loose.length === 0 && view.byWork.length === 0 ? (
+          <EmptyState
+            icon={CheckSquare}
+            title="Sin tareas todavía"
+            description={
+              canOperate
+                ? "Escribí la primera tarea arriba para empezar a organizar el sector."
+                : "Todavía no hay tareas en este sector."
+            }
+          />
+        ) : taskView === "list" ? (
+          <>
+            {view.loose.length > 0 && (
+              <div className="sector-task-group">
+                {view.byWork.length > 0 && <h3 className="sector-loose-heading">Sin proyecto</h3>}
+                {view.loose.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    context={{ sectorId: id }}
+                    canToggle={canOperate}
+                    onChanged={load}
+                  />
+                ))}
+              </div>
+            )}
+            {view.byWork.map((group) => (
+              <div key={group.work.id} className="sector-task-group">
+                <TaskGroupHeader work={group.work} />
+                {group.tasks.map((task) => (
+                  <TaskItem
+                    key={task.id}
+                    task={task}
+                    context={{ sectorId: id, suppressWorkTag: true }}
+                    canToggle={canOperate}
+                    onChanged={load}
+                  />
+                ))}
+              </div>
+            ))}
+          </>
+        ) : (
+          <TaskBoardView
+            tasks={[...view.loose, ...view.byWork.flatMap((g) => g.tasks)]}
+            context={{ sectorId: id }}
+            canToggle={canOperate}
+            onChanged={load}
+          />
+        )}
+      </section>
 
       {view.refs.length > 0 && (
-        <>
-          <h2 className="mt-7">Referencias</h2>
-          <p className="text-[13px] text-muted">
-            Tareas de otros sectores que necesitan aporte de #{view.sector.name}; podés completarlas
-            desde aquí si tenés permiso.
+        <section
+          className="work-workspace work-tab-content sector-references"
+          aria-labelledby="sector-references-title"
+        >
+          <div className="work-tasks-title">
+            <h2 id="sector-references-title">Referencias</h2>
+          </div>
+          <p className="sector-reference-description">
+            Tareas de otros sectores que necesitan el aporte de este sector. Podés completarlas si
+            tenés permiso.
           </p>
           {groupReferencesBySource(view.refs).map((group) => (
-            <div key={group.key} className="mt-2">
+            <div key={group.key} className="sector-task-group">
               {group.header.type === "work" ? (
                 <TaskGroupHeader work={group.header.work} />
               ) : (
@@ -301,7 +367,7 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
               ))}
             </div>
           ))}
-        </>
+        </section>
       )}
 
       <RenameDialog

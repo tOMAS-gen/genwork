@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@/components/ui/useApi";
@@ -11,7 +12,7 @@ import { ProjectCard, type DashboardWork } from "@/components/dashboard/ProjectC
 import { ProjectListRow } from "@/components/dashboard/ProjectListRow";
 import { FilterBar, type DashboardFilters } from "@/components/dashboard/FilterBar";
 import { getProjectStatus } from "@/lib/domain/works/dashboardUtils";
-import { Plus, FolderOpen, BookTemplate } from "@/components/ui/icons";
+import { Plus, FolderOpen, BookTemplate, AlertCircle } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -136,6 +137,7 @@ function HomePageContent() {
   const [sortBy, setSortBy] = useState<SortBy>("recent");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(() => {
     const worksUrl = queryStatus
@@ -144,9 +146,10 @@ function HomePageContent() {
         ? "/api/works?filter=templates"
         : "/api/works";
     setLoading(true);
+    setLoadError(false);
     void api<DashboardWork[]>(worksUrl)
       .then(setWorks)
-      .catch(() => {})
+      .catch(() => setLoadError(true))
       .finally(() => setLoading(false));
     void api<SectorOption[]>("/api/sectors").then(setSectors).catch(() => {});
     void api<GroupOption[]>("/api/groups")
@@ -212,16 +215,13 @@ function HomePageContent() {
   }, [filters]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1 style={{ fontSize: "var(--text-2xl)", margin: 0 }}>
-          {queryFilterKind === "mine" ? "Mis Proyectos"
+    <div className="page-stack">
+      <PageHeader icon="projects" title={queryFilterKind === "mine" ? "Mis Proyectos"
             : queryFilterKind === "favorites" ? "Proyectos Favoritos"
             : queryFilterKind === "templates" ? "Proyectos Plantilla"
             : queryStatus === "ARCHIVED" ? "Archivados"
             : "Todos los Proyectos"}
-        </h1>
-        {queryFilterKind === "templates" ? (
+        actions={queryFilterKind === "templates" ? (
           <button
             type="button"
             className="btn btn-primary"
@@ -256,7 +256,7 @@ function HomePageContent() {
             ]}
           />
         )}
-      </div>
+      />
 
       <TemplateSelector
         open={templateSelectorOpen}
@@ -295,6 +295,8 @@ function HomePageContent() {
         onViewModeChange={setViewMode}
         sortBy={sortBy}
         onSortByChange={setSortBy}
+        resultCount={sortedWorks.length}
+        loading={loading}
       />
 
       {loading ? (
@@ -303,6 +305,13 @@ function HomePageContent() {
           <Skeleton variant="card" height="200px" />
           <Skeleton variant="card" height="200px" />
         </div>
+      ) : loadError ? (
+        <EmptyState
+          icon={AlertCircle}
+          title="No se pudieron cargar los proyectos"
+          description="Hubo un error de red o del servidor. Probá de nuevo."
+          action={{ label: "Reintentar", onClick: load }}
+        />
       ) : works.length === 0 ? (
         <EmptyState
           icon={FolderOpen}

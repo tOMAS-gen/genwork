@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/ui/useApi";
@@ -95,7 +96,7 @@ export default function PortalWorkPage({ params }: { params: Promise<{ id: strin
         <ArrowLeft size={15} /> Mis proyectos
       </Link>
 
-      <h1 className="page-title">{work.name}</h1>
+      <PageHeader title={work.name} icon="projects" />
       {work.description && <p className="portal-work-description">{work.description}</p>}
 
       <div className="portal-work-meta">

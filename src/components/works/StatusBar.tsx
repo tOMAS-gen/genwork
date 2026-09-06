@@ -32,49 +32,55 @@ export function StatusBar({
   const prog = progress(done, total);
 
   return (
-
-    <div className="status-bar">
-      <span>{done}/{total} tareas</span>
-
-      {prog && (
-        <>
-          <div className="status-progress-track">
-            <div className="status-progress-fill" style={{ width: `${prog.pct}%` }} />
+    <div className="work-status-bar">
+      <div className="work-progress-summary">
+        <span className="work-field-label">
+          {status === "ARCHIVED" ? "Avance final" : "Avance"}
+        </span>
+        <div className="work-progress-values">
+          <strong>{prog ? `${prog.pct}%` : "Sin tareas"}</strong>
+          <span>
+            {done} de {total} completadas
+          </span>
+        </div>
+        {prog && (
+          <div
+            className="work-progress-track"
+            role="progressbar"
+            aria-label="Avance del proyecto"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={prog.pct}
+          >
+            <div className="work-progress-fill" style={{ width: `${prog.pct}%` }} />
           </div>
-          <span>{prog.pct}%</span>
-        </>
-      )}
-
-      <span className="status-separator" />
-      {onDueDateChange ? (
-        <DatePicker value={dateOnly} onChange={onDueDateChange} className="status-due" />
-      ) : (
-        dueDate && (
-          <span className="status-due">
-            {new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(
-              new Date(dueDate)
-            )}
-          </span>
-        )
-      )}
-      {urgency && <span className={`due-${urgency.color}`}>{urgency.label}</span>}
-
-      {stageProps ? (
-        stageProps.currentStage && (
-          <>
-            <span className="status-separator" />
-            <StageSelector {...stageProps} />
-          </>
-        )
-      ) : (
-        <>
-          <span className="status-separator" />
-          <span className={`status-pill ${status === "ACTIVE" ? "status-in_progress" : "status-pending"}`}>
-            {status === "ACTIVE" ? "Activo" : "Archivado"}
-          </span>
-        </>
+        )}
+      </div>
+      <div className="work-due-summary">
+        <span className="work-field-label">Fecha límite</span>
+        <div className="work-due-value">
+          {onDueDateChange ? (
+            <DatePicker value={dateOnly} onChange={onDueDateChange} />
+          ) : (
+            <span>
+              {dueDate
+                ? new Intl.DateTimeFormat("es-AR", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                  }).format(new Date(dueDate))
+                : "Sin fecha"}
+            </span>
+          )}
+          {urgency && <span className={`due-${urgency.color}`}>{urgency.label}</span>}
+        </div>
+      </div>
+      {stageProps?.currentStage && (
+        <div className="work-stage-summary">
+          <span className="work-field-label">Etapa</span>
+          <StageSelector {...stageProps} />
+        </div>
       )}
     </div>
-
   );
 }

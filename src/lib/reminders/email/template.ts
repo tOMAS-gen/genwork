@@ -31,7 +31,7 @@ export function renderReminderEmail(data: ReminderEmailData): { subject: string;
     : "";
   const button =
     data.linkUrl != null
-      ? `<a href="${escapeHtml(data.linkUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600;">${escapeHtml(
+      ? `<a href="${escapeHtml(data.linkUrl)}" style="display:inline-block;background:#3b5bfa;color:#ffffff;text-decoration:none;padding:10px 20px;border-radius:6px;font-size:14px;font-weight:600;">${escapeHtml(
           data.linkLabel || "Abrir en genwork",
         )}</a>`
       : "";

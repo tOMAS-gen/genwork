@@ -45,6 +45,16 @@ export function Menu({
     setOpen((v) => !v);
   };
 
+  const menuItemSelector = '[role="menuitem"]:not([disabled])';
+
+  // Foco inicial en el primer ítem al abrir (research R6 — sin esto, Tab/flechas
+  // arrancan "afuera" del menú recién abierto en vez de sobre el primer ítem).
+  useEffect(() => {
+    if (!open) return;
+    const first = popRef.current?.querySelector<HTMLElement>(menuItemSelector);
+    first?.focus();
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
@@ -94,6 +104,19 @@ export function Menu({
             className="menu-pop"
             role="menu"
             style={{ position: "fixed", top: pos.top, right: pos.right }}
+            onKeyDown={(e) => {
+              if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+              e.preventDefault();
+              const els = Array.from(popRef.current?.querySelectorAll<HTMLElement>(menuItemSelector) ?? []);
+              if (els.length === 0) return;
+              const current = els.indexOf(document.activeElement as HTMLElement);
+              let next: number;
+              if (e.key === "Home") next = 0;
+              else if (e.key === "End") next = els.length - 1;
+              else if (e.key === "ArrowDown") next = current < els.length - 1 ? current + 1 : 0;
+              else next = current > 0 ? current - 1 : els.length - 1;
+              els[next]?.focus();
+            }}
           >
             {items.map((item, i) => (
               <button

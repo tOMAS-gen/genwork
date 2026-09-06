@@ -43,7 +43,8 @@ export function LeadsEditor({ leads, onChange }: { leads: Lead[]; onChange: (l: 
 
   return (
     <div className="dialog-field rem-form-section">
-      <label>Avisos (antelaciones)</label>
+      <span className="rem-section-label">Avisos</span>
+      <p className="rem-field-hint">Elegí cuándo y a qué hora recibir cada aviso.</p>
       <div className="rem-leads-list">
         {leads.map((lead, i) => {
           const preset = DAY_PRESETS.some((p) => p.value === lead.daysBefore);
@@ -52,7 +53,9 @@ export function LeadsEditor({ leads, onChange }: { leads: Lead[]; onChange: (l: 
               <select
                 value={preset ? lead.daysBefore : "custom"}
                 onChange={(e) =>
-                  update(i, { daysBefore: e.target.value === "custom" ? lead.daysBefore : Number(e.target.value) })
+                  update(i, {
+                    daysBefore: e.target.value === "custom" ? 4 : Number(e.target.value),
+                  })
                 }
                 aria-label={`Antelación del aviso ${i + 1}`}
               >
@@ -81,7 +84,12 @@ export function LeadsEditor({ leads, onChange }: { leads: Lead[]; onChange: (l: 
                 aria-label={`Hora del aviso ${i + 1}`}
               />
               {leads.length > 1 && (
-                <button type="button" className="btn btn-ghost" onClick={() => remove(i)} aria-label="Quitar aviso">
+                <button
+                  type="button"
+                  className="icon-btn rem-remove-lead"
+                  onClick={() => remove(i)}
+                  aria-label="Quitar aviso"
+                >
                   <X size={14} />
                 </button>
               )}

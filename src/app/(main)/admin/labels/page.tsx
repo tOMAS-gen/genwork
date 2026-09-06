@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
@@ -10,8 +11,8 @@ export default async function LabelsAdminPage() {
   if (session?.user?.globalRole !== "SUPERADMIN") redirect("/");
 
   return (
-    <div>
-      <h1>Etiquetas</h1>
+    <div className="admin-page">
+      <PageHeader title="Etiquetas" icon="settings" />
       <LabelAdmin scope={{ kind: "global" }} />
     </div>
   );

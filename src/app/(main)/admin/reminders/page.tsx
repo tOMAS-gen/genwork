@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -61,10 +62,10 @@ export default function RemindersAdminPage() {
   };
 
   return (
-    <div className="sheet">
-      <h1 className="sheet-title">Recordatorios</h1>
+    <div className="admin-page">
+      <PageHeader title="Recordatorios" icon="settings" />
 
-      <section style={{ marginTop: 16 }}>
+      <section className="section-panel">
         <h2 style={{ fontSize: 16 }}>Zona horaria del sistema</h2>
         <p className="muted" style={{ fontSize: 13 }}>
           Una sola zona horaria para todos los horarios de recordatorios. Se muestra en el calendario.
@@ -87,7 +88,7 @@ export default function RemindersAdminPage() {
         </div>
       </section>
 
-      <section style={{ marginTop: 24 }}>
+      <section className="section-panel">
         <h2 style={{ fontSize: 16 }}>Email (Gmail)</h2>
         <p className="muted" style={{ fontSize: 13 }}>
           Los avisos por email se envían con la cuenta de Google conectada (scope gmail.send).

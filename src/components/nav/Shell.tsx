@@ -1,15 +1,16 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Menu, PanelLeft, PanelLeftClose, X } from "@/components/ui/icons";
 import { BrandLogo } from "@/components/ui/BrandLogo";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const STORAGE_KEY = "gw:drawer-collapsed";
 const WIDTH_KEY = "gw:drawer-width";
-const MIN_W = 286;
+const MIN_W = 240;
 const MAX_W = 400;
-const DEFAULT_W = 286;
-const MINI_W = 60;
+const DEFAULT_W = 240;
+const MINI_W = 48;
 const MOBILE_QUERY = "(max-width: 767px)";
 
 const MobileDrawerContext = createContext<() => void>(() => {});
@@ -27,7 +28,9 @@ export function useDrawerMini() {
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
+  // useLayoutEffect (no useEffect): corre antes del primer paint, así el arranque
+  // en `false` nunca llega a pintarse como un frame de layout desktop en mobile.
+  useLayoutEffect(() => {
     const mql = window.matchMedia(MOBILE_QUERY);
     setIsMobile(mql.matches);
     const onChange = () => setIsMobile(mql.matches);
@@ -52,6 +55,7 @@ export function Shell({
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const [width, setWidth] = useState(DEFAULT_W);
 
   useEffect(() => {
@@ -73,7 +77,10 @@ export function Shell({
   }, []);
 
   const openMobile = useCallback(() => setMobileOpen(true), []);
-  const closeMobile = useCallback(() => setMobileOpen(false), []);
+  const closeMobile = useCallback(() => {
+    setMobileOpen(false);
+    mobileTriggerRef.current?.focus();
+  }, []);
 
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -109,30 +116,75 @@ export function Shell({
   const isMobile = useIsMobile();
   const mini = collapsed && !isMobile;
   const asideWidth = mini ? MINI_W : width;
+  const asideRef = useRef<HTMLElement>(null);
+
+  // Foco atrapado + Escape mientras el drawer mobile está abierto (hallazgo
+  // Crítico de accesibilidad: sin esto, Tab se escapa al contenido de atrás
+  // y no hay forma de cerrar por teclado).
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const aside = asideRef.current;
+    if (!aside) return;
+    const focusable = aside.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMobile();
+        return;
+      }
+      if (e.key !== "Tab" || focusable.length === 0) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileOpen, closeMobile]);
 
   return (
     <MobileDrawerContext.Provider value={closeMobile}>
       <DrawerMiniContext.Provider value={mini}>
-        <div className="shell" style={{ gridTemplateColumns: `${asideWidth}px 1fr` }}>
+        <div className="shell" style={{ gridTemplateColumns: `${asideWidth}px minmax(0, 1fr)` }}>
+          <header className="shell-topbar">
+            <button
+              ref={mobileTriggerRef}
+              type="button"
+              className="icon-btn mobile-menu-btn"
+              aria-label="Abrir menú"
+              onClick={openMobile}
+            >
+              <Menu size={20} />
+            </button>
+            <BrandLogo />
+            <ThemeToggle mini />
+          </header>
           <button
             type="button"
-            className="icon-btn mobile-menu-btn"
-            aria-label="Abrir menú"
-            onClick={openMobile}
-          >
-            <Menu size={20} />
-          </button>
-          <div
             className={`sidebar-overlay ${mobileOpen ? "open" : ""}`}
             onClick={closeMobile}
-            aria-hidden="true"
+            aria-label="Cerrar menú"
+            tabIndex={mobileOpen ? 0 : -1}
           />
           <aside
+            ref={asideRef}
             className={`sidebar ${mini ? "mini" : ""} ${mobileOpen ? "mobile-open" : ""}`}
             style={{ width: asideWidth }}
+            role={isMobile && mobileOpen ? "dialog" : undefined}
+            aria-modal={isMobile && mobileOpen ? true : undefined}
+            aria-label="Menú"
           >
             <div className="sidebar-header">
-              {!mini && <BrandLogo />}
+              {!mini && <span className="section-label">Espacio de trabajo</span>}
               <button
                 type="button"
                 className="icon-btn drawer-close-mobile"

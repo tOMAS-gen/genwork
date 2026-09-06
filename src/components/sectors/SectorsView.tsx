@@ -1,11 +1,13 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/ui/useApi";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { ArrowUpDown, Inbox, LayoutGrid, List, Plus, Search } from "@/components/ui/icons";
+import { Inbox, Plus } from "@/components/ui/icons";
+import { SectorToolbar } from "@/components/sectors/SectorToolbar";
 import { SectorCard, type SectorCardData } from "@/components/sectors/SectorCard";
 import { CreateSectorDialog } from "@/components/sectors/CreateSectorDialog";
 import {
@@ -75,6 +77,7 @@ export function SectorsView({
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
+  const [scope, setScope] = useState("");
   const [sort, setSort] = useState<SectorSortKey>("name");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
@@ -101,18 +104,19 @@ export function SectorsView({
   }, []);
 
   const query = searchText.trim().toLowerCase();
-  const isSearching = query.length > 0;
+  const isSearching = query.length > 0 || scope.length > 0;
+  const scopes = useMemo(() => groupSectorsByScope(sectors), [sectors]);
 
   // Cada cambio de búsqueda reabre todo: las secciones que coinciden tienen que
   // verse sin un click extra.
   useEffect(() => {
     setCollapsedInSearch(new Set());
-  }, [query]);
+  }, [query, scope]);
 
   const sections = useMemo(() => {
     const filtered = query ? sectors.filter((s) => s.name.toLowerCase().includes(query)) : sectors;
-    return groupSectorsByScope(filtered, sort);
-  }, [sectors, query, sort]);
+    return groupSectorsByScope(filtered, sort).filter((section) => !scope || section.key === scope);
+  }, [sectors, query, sort, scope]);
 
   const isOpen = useCallback(
     (key: string) => !(isSearching ? collapsedInSearch : collapsed).has(key),
@@ -133,7 +137,10 @@ export function SectorsView({
       }
       setCollapsed((prev) => {
         const next = apply(prev);
-        writeCollapsed(next, sections.map((s) => s.key));
+        writeCollapsed(
+          next,
+          sections.map((s) => s.key),
+        );
         return next;
       });
     },
@@ -149,7 +156,10 @@ export function SectorsView({
       return;
     }
     setCollapsed(next);
-    writeCollapsed(next, sections.map((s) => s.key));
+    writeCollapsed(
+      next,
+      sections.map((s) => s.key),
+    );
   }, [allCollapsed, sections, isSearching]);
 
   const goToSector = useCallback((id: string) => router.push(`/sectors/${id}`), [router]);
@@ -171,21 +181,25 @@ export function SectorsView({
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="m-0 text-2xl text-text">Sectores</h1>
-        {canCreate && (
-          <button
-            type="button"
-            onClick={() => setDialogOpen(true)}
-            title="Crear un sector"
-            aria-label="Crear un sector"
-            className="inline-flex items-center justify-center rounded-full border border-accent bg-accent py-2 px-3 text-white transition hover:[box-shadow:var(--shadow-md)] hover:brightness-110 active:scale-[0.98]"
-          >
-            <Plus size={20} />
-          </button>
-        )}
-      </div>
+    <div className="page-stack">
+      <PageHeader
+        title="Sectores"
+        description="Tareas y proyectos organizados por área de trabajo."
+        icon="sectors"
+        actions={
+          canCreate && (
+            <button
+              type="button"
+              onClick={() => setDialogOpen(true)}
+              title="Crear un sector"
+              aria-label="Crear un sector"
+              className="btn btn-primary"
+            >
+              <Plus size={20} />
+            </button>
+          )
+        }
+      />
 
       <CreateSectorDialog
         open={dialogOpen}
@@ -196,79 +210,27 @@ export function SectorsView({
         isSuperAdmin={isSuperAdmin}
       />
 
-      {sectors.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex min-w-0 flex-1 items-center">
-            <Search size={16} className="pointer-events-none absolute left-2.5 text-muted" />
-            <input
-              type="text"
-              placeholder="Buscar sectores..."
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="w-full rounded-[4px] border border-border bg-surface py-2 pl-8 pr-3 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
-            />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2">
-            {sections.length > 1 && (
-              <button
-                type="button"
-                onClick={toggleAll}
-                className="inline-flex min-h-11 items-center rounded-[4px] border border-border bg-surface px-3 py-2 text-sm text-muted transition hover:bg-[var(--hover-soft)] hover:text-text"
-              >
-                {allCollapsed ? "Expandir todo" : "Contraer todo"}
-              </button>
-            )}
-
-            <div className="inline-flex overflow-hidden rounded-md border border-border">
-              <button
-                type="button"
-                aria-label="Ver como grilla"
-                aria-pressed={viewMode === "grid"}
-                onClick={() => setViewMode("grid")}
-                className={`inline-flex min-h-11 min-w-11 items-center justify-center px-2.5 py-1.5 transition ${
-                  viewMode === "grid"
-                    ? "bg-accent text-white"
-                    : "bg-surface text-text hover:bg-[var(--hover-soft)]"
-                }`}
-              >
-                <LayoutGrid size={16} />
-              </button>
-              <button
-                type="button"
-                aria-label="Ver como lista"
-                aria-pressed={viewMode === "list"}
-                onClick={() => setViewMode("list")}
-                className={`inline-flex min-h-11 min-w-11 items-center justify-center px-2.5 py-1.5 transition ${
-                  viewMode === "list"
-                    ? "bg-accent text-white"
-                    : "bg-surface text-text hover:bg-[var(--hover-soft)]"
-                }`}
-              >
-                <List size={16} />
-              </button>
-            </div>
-
-            <div className="relative flex items-center">
-              <ArrowUpDown size={14} className="pointer-events-none absolute left-2.5 text-muted" />
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SectorSortKey)}
-                aria-label="Ordenar sectores"
-                className="min-h-11 rounded-[4px] border border-border bg-surface py-2 pl-7 pr-3 text-sm text-text focus:border-accent focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
-              >
-                <option value="name">Nombre A-Z</option>
-                <option value="pending">Más pendientes</option>
-                <option value="tasks">Más tareas</option>
-                <option value="progress">Mayor progreso</option>
-              </select>
-            </div>
-          </div>
-        </div>
+      {(loading || sectors.length > 0) && (
+        <SectorToolbar
+          searchText={searchText}
+          onSearchChange={setSearchText}
+          scope={scope}
+          onScopeChange={setScope}
+          scopes={scopes}
+          sort={sort}
+          onSortChange={setSort}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          resultCount={sections.reduce((total, section) => total + section.sectors.length, 0)}
+          loading={loading}
+          canToggleAll={sections.length > 1}
+          allCollapsed={allCollapsed}
+          onToggleAll={toggleAll}
+        />
       )}
 
       {loading ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
+        <div className="sector-grid">
           <Skeleton variant="card" height="140px" />
           <Skeleton variant="card" height="140px" />
           <Skeleton variant="card" height="140px" />
@@ -278,7 +240,9 @@ export function SectorsView({
           icon={Inbox}
           title="Sin sectores todavía"
           description="Creá tu primer sector para agrupar tareas y proyectos por área de trabajo."
-          action={canCreate ? { label: "Nuevo sector", onClick: () => setDialogOpen(true) } : undefined}
+          action={
+            canCreate ? { label: "Nuevo sector", onClick: () => setDialogOpen(true) } : undefined
+          }
         />
       ) : sections.length === 0 ? (
         <p className="text-sm text-muted">No hay sectores que coincidan con el filtro.</p>
@@ -292,7 +256,7 @@ export function SectorsView({
                 {renderHeaderButton(section, open)}
                 <div id={panelId} className={open ? "mt-3" : undefined}>
                   {open && (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(340px,1fr))] gap-4">
+                    <div className="sector-grid">
                       {section.sectors.map((s) => (
                         <SectorCard key={s.id} sector={s} />
                       ))}
@@ -304,7 +268,7 @@ export function SectorsView({
           })}
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="table-scroll-wrapper section-panel">
           <table className="w-full min-w-[420px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted">
@@ -334,7 +298,9 @@ export function SectorsView({
                     {open &&
                       section.sectors.map((s) => {
                         const pct =
-                          s.metrics.total > 0 ? Math.round((s.metrics.done / s.metrics.total) * 100) : 0;
+                          s.metrics.total > 0
+                            ? Math.round((s.metrics.done / s.metrics.total) * 100)
+                            : 0;
                         return (
                           <tr
                             key={s.id}
@@ -364,7 +330,10 @@ export function SectorsView({
                               {s.metrics.total > 0 ? (
                                 <div className="flex items-center gap-2">
                                   <div className="h-2 max-w-[100px] flex-1 overflow-hidden rounded-full bg-border">
-                                    <div className="h-full rounded-full bg-ok" style={{ width: `${pct}%` }} />
+                                    <div
+                                      className="h-full rounded-full bg-ok"
+                                      style={{ width: `${pct}%` }}
+                                    />
                                   </div>
                                   <span className="text-xs font-semibold text-muted">{pct}%</span>
                                 </div>
