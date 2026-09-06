@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { EveryUnit, RecurrenceType } from "@/lib/domain/reminders/types";
 
 export interface RecurrenceState {
@@ -31,17 +32,23 @@ export function RecurrenceEditor({
   value: RecurrenceState;
   onChange: (v: RecurrenceState) => void;
 }) {
+  const recurrenceId = useId();
   const set = (patch: Partial<RecurrenceState>) => onChange({ ...value, ...patch });
 
   const toggleWeekday = (d: number) => {
     const has = value.weekdays.includes(d);
-    set({ weekdays: has ? value.weekdays.filter((x) => x !== d) : [...value.weekdays, d].sort((a, b) => a - b) });
+    set({
+      weekdays: has
+        ? value.weekdays.filter((x) => x !== d)
+        : [...value.weekdays, d].sort((a, b) => a - b),
+    });
   };
 
   return (
     <div className="dialog-field rem-form-section">
-      <label>Repetición</label>
+      <label htmlFor={recurrenceId}>Repetición</label>
       <select
+        id={recurrenceId}
         value={value.recurrenceType}
         onChange={(e) => set({ recurrenceType: e.target.value as RecurrenceType })}
         className="rem-select-compact"

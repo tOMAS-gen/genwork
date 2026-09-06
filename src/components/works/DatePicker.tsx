@@ -47,6 +47,7 @@ export function DatePicker({
       <input
         ref={inputRef}
         type="date"
+        aria-label="Fecha límite del proyecto"
         value={value ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
         className="date-picker-input"

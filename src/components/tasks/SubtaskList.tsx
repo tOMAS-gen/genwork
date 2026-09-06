@@ -106,7 +106,9 @@ function SortableSubtaskRow({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, touchAction: "none" }}
+      className="task-sortable-row"
+      // Rows can have different heights; dragging must translate without resizing their content.
+      style={{ transform: CSS.Translate.toString(transform), transition, touchAction: "none" }}
     >
       <TaskItem
         task={task}
@@ -145,6 +147,7 @@ function AddSubtaskInput({
   const [text, setText] = useState("");
   const [unresolved, setUnresolved] = useState<{ symbol: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const {
     suggestions,
@@ -176,6 +179,8 @@ function AddSubtaskInput({
       onClose();
       return;
     }
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await api("/api/tasks", {
         method: "POST",
@@ -189,6 +194,8 @@ function AddSubtaskInput({
         .body;
       if (body?.error?.unresolvedTags) setUnresolved(body.error.unresolvedTags);
       else setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 

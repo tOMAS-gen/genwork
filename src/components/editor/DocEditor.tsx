@@ -1,15 +1,12 @@
 "use client";
 
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
+import { useEditor } from "@tiptap/react";
 import Placeholder from "@tiptap/extension-placeholder";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
 import { useEffect, useRef } from "react";
-import { api } from "@/components/ui/useApi";
+import { useDocumentAutosave } from "./useDocumentAutosave";
 import { SlashCommand } from "./slashCommand";
-import { InlineToolbar } from "./InlineToolbar";
+import { MarkdownSurface } from "./MarkdownSurface";
+import { markdownExtensions } from "./markdownExtensions";
 
 /**
  * Documentación libre del proyecto (Principio III, FR-003): hoja estilo Notion sin
@@ -20,42 +17,47 @@ export function DocEditor({
   workId,
   initialContent,
   editable,
+  filename = "Documentación",
+  onContentChange,
 }: {
   workId: string;
   initialContent: unknown;
   editable: boolean;
+  filename?: string;
+  onContentChange?: (content: unknown) => void;
 }) {
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { status, schedule, retry } = useDocumentAutosave(`/api/works/${workId}/doc`, "PUT");
   // Input de archivo oculto que dispara el ítem "Imagen" del menú slash (FR-204b).
   const fileInputRef = useRef<HTMLInputElement>(null);
   const openImagePicker = () => fileInputRef.current?.click();
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Image,
+      ...markdownExtensions(),
       Placeholder.configure({ placeholder: "Escribí acá la documentación del proyecto…" }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
       SlashCommand.configure({ openImagePicker }),
     ],
     content: (initialContent as object) ?? "",
     editable,
     immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        "aria-label": "Documentación del proyecto",
+        role: "textbox",
+        "aria-multiline": "true",
+      },
+    },
     onUpdate({ editor }) {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        void api(`/api/works/${workId}/doc`, {
-          method: "PUT",
-          body: JSON.stringify({ content: editor.getJSON() }),
-        }).catch(() => {});
-      }, 800);
+      if (!editor.isEditable) return;
+      const content = editor.getJSON();
+      schedule({ content });
+      onContentChange?.(content);
     },
   });
 
-  useEffect(() => () => {
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-  }, []);
+  useEffect(() => {
+    editor?.setEditable(editable, false);
+  }, [editor, editable]);
 
   const uploadImage = async (file: File) => {
     const form = new FormData();
@@ -63,14 +65,17 @@ export function DocEditor({
     const res = await fetch(`/api/works/${workId}/attachments`, { method: "POST", body: form });
     if (!res.ok) return;
     const attachment = (await res.json()) as { id: string };
-    editor?.chain().focus().setImage({ src: `/api/attachments/${attachment.id}` }).run();
+    editor
+      ?.chain()
+      .focus()
+      .setImage({ src: `/api/attachments/${attachment.id}` })
+      .run();
   };
 
   if (!editor) return null;
 
   return (
     <div className="doc">
-      {editable && <InlineToolbar editor={editor} />}
       <input
         type="file"
         accept="image/*"
@@ -83,9 +88,7 @@ export function DocEditor({
           e.target.value = "";
         }}
       />
-      <div style={{ cursor: "text" }} onClick={() => editor.chain().focus().run()}>
-        <EditorContent editor={editor} />
-      </div>
+      <MarkdownSurface editor={editor} filename={filename} saveStatus={status} onRetry={retry} />
     </div>
   );
 }

@@ -66,9 +66,12 @@ function ToastHost() {
     };
   }, []);
 
-  // Auto-dismiss a los 5 s.
+  // Auto-dismiss a los 5 s — salvo que tenga un link accionable: si se autocierra
+  // igual que uno sin link, el usuario no llega a hacer click a tiempo. Queda
+  // persistente hasta que lo cierre con el botón X (mismo criterio que el toast
+  // de error del otro sistema, ver ToastProvider más abajo).
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || toast.href) return;
     const timer = setTimeout(() => setClosing(true), AUTO_DISMISS_MS);
     return () => clearTimeout(timer);
   }, [toast]);

@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Archivo, IBM_Plex_Mono } from "next/font/google";
+import { Montserrat, Roboto_Mono } from "next/font/google";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
-const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-brand" });
-const archivo = Archivo({ subsets: ["latin"], variable: "--font-sans" });
-const ibmPlexMono = IBM_Plex_Mono({
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
+const robotoMono = Roboto_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-mono",
@@ -65,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="es"
-      className={`${montserrat.variable} ${archivo.variable} ${ibmPlexMono.variable}`}
+      className={`${montserrat.variable} ${robotoMono.variable}`}
       suppressHydrationWarning
     >
       <head>

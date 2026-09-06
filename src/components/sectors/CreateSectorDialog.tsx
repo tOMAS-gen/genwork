@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { ColorField } from "@/components/ui/ColorField";
 import { api } from "@/components/ui/useApi";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 
 const PERSONAL_SCOPE = "__personal__";
 const GLOBAL_SCOPE = "__global__";
@@ -27,6 +28,7 @@ export function CreateSectorDialog({
   const [color, setColor] = useState<string | null>(null);
   const [scope, setScope] = useState(PERSONAL_SCOPE);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const reset = () => {
     setName("");
@@ -35,11 +37,26 @@ export function CreateSectorDialog({
     setError("");
   };
 
+  const requestClose = async () => {
+    if (name.trim()) {
+      const ok = await showConfirm("¿Descartar el sector sin crear?", {
+        title: "Cambios sin guardar",
+        confirmLabel: "Descartar",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    reset();
+    onClose();
+  };
+
   const create = async () => {
     if (!name.trim()) {
       setError("Poné un nombre al sector");
       return;
     }
+    if (saving) return;
+    setSaving(true);
     try {
       const body: { name: string; color: string | null; groupId?: string; global?: boolean } = {
         name: name.trim(),
@@ -59,6 +76,8 @@ export function CreateSectorDialog({
       onClose();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -67,7 +86,7 @@ export function CreateSectorDialog({
   return (
     <Dialog
       open={open}
-      onClose={() => { reset(); onClose(); }}
+      onClose={() => void requestClose()}
       title="Nuevo sector"
     >
       <div className="grid gap-1.5">
@@ -81,7 +100,7 @@ export function CreateSectorDialog({
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej.: Metalúrgica, Diseño, Compras"
           onKeyDown={(e) => e.key === "Enter" && void create()}
-          className="w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-text transition-colors duration-150 placeholder:text-muted placeholder:opacity-70 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
+          className="w-full rounded-control border border-border bg-field px-2.5 py-2 text-text transition-colors duration-150 placeholder:text-muted placeholder:opacity-70 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
         />
       </div>
       <div className="grid gap-1.5">
@@ -101,7 +120,7 @@ export function CreateSectorDialog({
           id="ns-scope"
           value={scope}
           onChange={(e) => setScope(e.target.value)}
-          className="w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-text transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
+          className="w-full rounded-control border border-border bg-field px-2.5 py-2 text-text transition-colors duration-150 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
         >
           <option value={PERSONAL_SCOPE}>Personal</option>
           {adminGroups.map((group) => (
@@ -115,16 +134,17 @@ export function CreateSectorDialog({
       {error && <p className="m-0 text-sm text-danger">{error}</p>}
       <div className="flex justify-end gap-2 mt-2">
         <button
-          className="rounded-full border border-border bg-surface px-3.5 py-[7px] text-text transition-colors duration-150 hover:border-accent hover:text-accent hover:[box-shadow:var(--shadow-sm)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]"
-          onClick={() => { reset(); onClose(); }}
+          className="rounded-control border border-border bg-surface px-3.5 py-[7px] text-text transition-colors duration-150 hover:border-accent hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]"
+          onClick={() => void requestClose()}
         >
           Cancelar
         </button>
         <button
-          className="rounded-full border border-accent bg-accent px-3.5 py-[7px] text-white transition-[filter,box-shadow] duration-150 hover:brightness-[1.08] hover:[box-shadow:var(--shadow-md)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]"
+          className="rounded-control border border-accent bg-accent px-3.5 py-[7px] text-white transition-[filter] duration-150 hover:brightness-[1.08] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98] disabled:opacity-50 dark:text-bg"
+          disabled={saving}
           onClick={() => void create()}
         >
-          Crear sector
+          {saving ? "Creando…" : "Crear sector"}
         </button>
       </div>
     </Dialog>

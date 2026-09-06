@@ -24,7 +24,14 @@ export interface DashboardWork {
   // contenedor) sacado — la API ya no lo manda (ver src/app/api/works/route.ts)
   // y nada de este componente lo leía; `taskCounts.total` es la fuente única.
   taskCounts: { done: number; total: number };
-  labels: { keyId: string; keyName: string; isPrimary: boolean; valueId: string; valueName: string; color: string }[];
+  labels: {
+    keyId: string;
+    keyName: string;
+    isPrimary: boolean;
+    valueId: string;
+    valueName: string;
+    color: string;
+  }[];
   stage: { id: string; name: string; color: string | null } | null;
 }
 
@@ -48,19 +55,25 @@ export function ProjectCard({
   const urgency = parsedDue ? getDueDateUrgency(parsedDue) : null;
 
   return (
-    <Link
-      href={`/works/${project.id}`}
-      className="project-card"
-    >
+    <div className="project-card">
+      {/* Link "estirado" a toda la card (patrón stretched-link): así el resto
+          del contenido puede seguir teniendo botones propios (favorito, menú)
+          sin anidar controles interactivos dentro de un <a>, que es HTML
+          inválido y rompe el foco/tab. */}
+      <Link href={`/works/${project.id}`} className="project-card-link" aria-label={project.name} />
+
       {/* Row 1: pill nombre + star + menu */}
       <div className="card-header">
         <span
+          title={project.name}
           className={`pc-name-pill ${color ? "color-chip" : "pc-name-pill-default"}`}
-          style={color ? ({ "--c": color, color: "var(--text)" } as React.CSSProperties) : undefined}
+          style={
+            color ? ({ "--c": color, color: "var(--text)" } as React.CSSProperties) : undefined
+          }
         >
           {project.name.toUpperCase()}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+        <div className="project-card-actions">
           {project.isTemplate && (
             <span className="pc-template-badge" title="Plantilla" aria-label="Plantilla">
               <BookTemplate size={14} />
@@ -71,33 +84,27 @@ export function ProjectCard({
             className={`favorite-btn ${project.isFavorite ? "active" : ""}`}
             aria-label={project.isFavorite ? "Quitar de favoritos" : "Marcar como favorito"}
             aria-pressed={project.isFavorite}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleFavorite(project.id);
-            }}
+            onClick={() => onToggleFavorite(project.id)}
           >
             <Star size={18} fill={project.isFavorite ? "currentColor" : "none"} />
           </button>
-          <span onClick={(e) => e.preventDefault()}>
-            <Menu
-              label="Acciones del proyecto"
-              trigger={<MoreHorizontal size={18} />}
-              items={[
-                {
-                  label: "Abrir proyecto",
-                  onSelect: () => {
-                    window.location.href = `/works/${project.id}`;
-                  },
+          <Menu
+            label="Acciones del proyecto"
+            trigger={<MoreHorizontal size={18} />}
+            items={[
+              {
+                label: "Abrir proyecto",
+                onSelect: () => {
+                  window.location.href = `/works/${project.id}`;
                 },
-                {
-                  label: "Archivar",
-                  onSelect: () => {},
-                  disabled: true,
-                },
-              ]}
-            />
-          </span>
+              },
+              {
+                label: "Archivar",
+                onSelect: () => {},
+                disabled: true,
+              },
+            ]}
+          />
         </div>
       </div>
 
@@ -119,30 +126,6 @@ export function ProjectCard({
         </div>
       )}
 
-      {/* Row 4: barra de progreso */}
-      {prog && (
-        <div className="pc-progress">
-          <div
-            role="progressbar"
-            aria-valuenow={prog.pct}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-label={`Progreso: ${prog.pct}%`}
-            className="pc-progress-track"
-          >
-            <div className="pc-progress-fill" style={{ width: `${prog.pct}%` }} />
-          </div>
-          <span className="pc-progress-pct">{prog.pct}%</span>
-        </div>
-      )}
-
-      {/* Row 4b: contador de tareas */}
-      {project.taskCounts.total > 0 && (
-        <span className="pc-task-count">
-          {project.taskCounts.done}/{project.taskCounts.total}
-        </span>
-      )}
-
       {/* Row 5: fecha de entrega */}
       {parsedDue && urgency && (
         <div className="pc-due">
@@ -155,6 +138,31 @@ export function ProjectCard({
           </span>
         </div>
       )}
-    </Link>
+      <div className="pc-card-footer">
+        {/* Row 4: barra de progreso */}
+        {prog && (
+          <div className="pc-progress">
+            <div
+              role="progressbar"
+              aria-valuenow={prog.pct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`Progreso: ${prog.pct}%`}
+              className="pc-progress-track"
+            >
+              <div className="pc-progress-fill" style={{ width: `${prog.pct}%` }} />
+            </div>
+            <span className="pc-progress-pct">{prog.pct}%</span>
+          </div>
+        )}
+
+        {/* Row 4b: contador de tareas */}
+        <span className="pc-task-count">
+          {project.taskCounts.total > 0
+            ? `${project.taskCounts.done}/${project.taskCounts.total} tareas`
+            : "Sin tareas todavía"}
+        </span>
+      </div>
+    </div>
   );
 }

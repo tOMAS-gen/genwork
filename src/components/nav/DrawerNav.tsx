@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   Archive,
   AtSign,
   BookTemplate,
-  Bot,
   Calendar,
   ChevronRight,
   FileText,
@@ -24,7 +23,6 @@ import { api } from "@/components/ui/useApi";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 import { useCloseMobileDrawer, useDrawerMini } from "@/components/nav/Shell";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -99,13 +97,11 @@ function getInitials(name: string): string {
  * navegación directa sin pasar por el listado; se refresca en vivo (SSE).
  */
 export function DrawerNav({
-  isSuperAdmin,
   userEmail,
   userName,
   userImage,
   logoutButton,
 }: {
-  isSuperAdmin: boolean;
   userEmail?: string | null;
   userName?: string | null;
   userImage?: string | null;
@@ -121,16 +117,29 @@ export function DrawerNav({
   const closeMobileDrawer = useCloseMobileDrawer();
   const mini = useDrawerMini();
   const pathname = usePathname();
-  /** Coincidencia por pathname (sin query): alcanza para saber en qué
-   *  proyecto/sector/grupo o sección estás parado. */
+  const searchParams = useSearchParams();
+  /** Coincidencia por pathname + query relevante: alcanza para saber en qué
+   *  proyecto/sector/grupo o sección estás parado. El caso especial es "/"
+   *  (dashboard), donde varios links comparten pathname y sólo se distinguen
+   *  por ?filter=/?status= — "Todos los proyectos" (sin query) sólo está
+   *  activo cuando ninguno de esos filtros está aplicado. */
   const isActive = useCallback(
     (href: string) => {
-      const path = href.split("?")[0];
-      if (path === "/") return pathname === "/";
-      return pathname === path || pathname.startsWith(`${path}/`);
+      const [path, query] = href.split("?");
+      const pathMatches = path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(`${path}/`);
+      if (!pathMatches) return false;
+      if (!query) {
+        return path !== "/" || (!searchParams.get("filter") && !searchParams.get("status"));
+      }
+      const hrefParams = new URLSearchParams(query);
+      return Array.from(hrefParams.entries()).every(([k, v]) => searchParams.get(k) === v);
     },
-    [pathname],
+    [pathname, searchParams],
   );
+
+  /** Configuración es un solo destino en el drawer, pero sus secciones viven
+   *  repartidas entre /settings (cuenta) y /admin (sistema). */
+  const settingsActive = isActive("/settings") || isActive("/admin");
 
   const load = useCallback(() => {
     void Promise.allSettled([
@@ -156,41 +165,35 @@ export function DrawerNav({
           </div>
         )}
         <div className="sidebar-scroll">
-          <Link href="/notes" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Mis notas" aria-label="Mis notas">
+          <Link href="/notes" onClick={closeMobileDrawer} className={`rail-link${isActive("/notes") ? " nav-active" : ""}`} aria-current={isActive("/notes") ? "page" : undefined} data-tooltip="Mis notas" aria-label="Mis notas">
             <FileText size={18} />
           </Link>
-          <Link href="/references" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Mis referencias" aria-label="Mis referencias">
+          <Link href="/references" onClick={closeMobileDrawer} className={`rail-link${isActive("/references") ? " nav-active" : ""}`} aria-current={isActive("/references") ? "page" : undefined} data-tooltip="Mis referencias" aria-label="Mis referencias">
             <AtSign size={18} />
           </Link>
-          <Link href="/" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Proyectos" aria-label="Proyectos">
+          <Link href="/" onClick={closeMobileDrawer} className={`rail-link${isActive("/") ? " nav-active" : ""}`} aria-current={isActive("/") ? "page" : undefined} data-tooltip="Proyectos" aria-label="Proyectos">
             <FileText size={18} />
           </Link>
-          <Link href="/sectors" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Sectores" aria-label="Sectores">
+          <Link href="/sectors" onClick={closeMobileDrawer} className={`rail-link${isActive("/sectors") ? " nav-active" : ""}`} aria-current={isActive("/sectors") ? "page" : undefined} data-tooltip="Sectores" aria-label="Sectores">
             <Layers size={18} />
           </Link>
-          <Link href="/groups" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Grupos" aria-label="Grupos">
+          <Link href="/groups" onClick={closeMobileDrawer} className={`rail-link${isActive("/groups") ? " nav-active" : ""}`} aria-current={isActive("/groups") ? "page" : undefined} data-tooltip="Grupos" aria-label="Grupos">
             <Users size={18} />
           </Link>
-          <Link href="/board" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Vista de tareas" aria-label="Vista de tareas">
+          <Link href="/board" onClick={closeMobileDrawer} className={`rail-link${isActive("/board") ? " nav-active" : ""}`} aria-current={isActive("/board") ? "page" : undefined} data-tooltip="Vista de tareas" aria-label="Vista de tareas">
             <LayoutDashboard size={18} />
           </Link>
-          <Link href="/reminders" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Recordatorios" aria-label="Recordatorios">
+          <Link href="/reminders" onClick={closeMobileDrawer} className={`rail-link${isActive("/reminders") ? " nav-active" : ""}`} aria-current={isActive("/reminders") ? "page" : undefined} data-tooltip="Recordatorios" aria-label="Recordatorios">
             <Calendar size={18} />
           </Link>
-          <Link href="/settings" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Asistentes conectados" aria-label="Asistentes conectados">
-            <Bot size={18} />
+          <Link href="/settings" onClick={closeMobileDrawer} className={`rail-link${settingsActive ? " nav-active" : ""}`} aria-current={settingsActive ? "page" : undefined} data-tooltip="Configuración" aria-label="Configuración">
+            <Settings size={18} />
           </Link>
-          {isSuperAdmin && (
-            <Link href="/admin" onClick={closeMobileDrawer} className="rail-link" data-tooltip="Administración" aria-label="Administración">
-              <Settings size={18} />
-            </Link>
-          )}
         </div>
         <div className="sidebar-footer">
           <div className="rail-link" data-tooltip="Vence hoy" aria-label="Vence hoy">
             <DueTodayBell />
           </div>
-          <ThemeToggle mini />
           <div className="rail-link" data-tooltip="Salir" aria-label="Salir">
             {logoutButton}
           </div>
@@ -231,35 +234,30 @@ export function DrawerNav({
 
     return (
       <div>
-        <div
-          className={`nav-group ${open ? "open" : ""}`}
-          role="button"
-          tabIndex={0}
-          aria-expanded={open}
-          aria-controls={sublistId}
-          onClick={() => setOpen(!open)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              setOpen(!open);
-            }
-          }}
-        >
-          <ChevronRight size={15} className="chev" />
-          <Icon size={16} className="muted" />
-          <span style={{ flex: 1 }}>{label}</span>
-          <Badge
-            count={sectionTotal}
-            ariaLabelSingular={`${label}: 1 tarea no finalizada`}
-            ariaLabelPlural={`${label}: tareas no finalizadas`}
-            className="badge-inline-end"
-          />
+        {/* Toggle (expandir/contraer) y "ver todos" son hermanos, no un Link
+            anidado dentro de un role=button: dos controles interactivos
+            anidados son inválidos para teclado y lectores de pantalla. */}
+        <div className={`nav-group ${open ? "open" : ""}`}>
+          <button
+            type="button"
+            className="nav-group-toggle"
+            aria-expanded={open}
+            aria-controls={sublistId}
+            onClick={() => setOpen(!open)}
+          >
+            <ChevronRight size={15} className="chev" />
+            <Icon size={16} className="muted" />
+            <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+            <Badge
+              count={sectionTotal}
+              ariaLabelSingular={`${label}: 1 tarea no finalizada`}
+              ariaLabelPlural={`${label}: tareas no finalizadas`}
+              className="badge-inline-end"
+            />
+          </button>
           <Link
             href={href}
-            onClick={(e) => {
-              e.stopPropagation();
-              closeMobileDrawer();
-            }}
+            onClick={closeMobileDrawer}
             className="muted"
             style={{ fontSize: "var(--text-xs)", marginLeft: 6 }}
           >
@@ -270,23 +268,48 @@ export function DrawerNav({
           <div className="nav-sublist" id={sublistId} role="group" aria-label={label}>
             {label === "Proyectos" && (
               <>
-                <Link href="/" className={isActive("/") ? "nav-active" : ""} onClick={closeMobileDrawer}>
+                <Link
+                  href="/"
+                  className={isActive("/") ? "nav-active" : ""}
+                  aria-current={isActive("/") ? "page" : undefined}
+                  onClick={closeMobileDrawer}
+                >
                   <LayoutGrid size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
                   Todos los proyectos
                 </Link>
-                <Link href="/?filter=mine" onClick={closeMobileDrawer}>
+                <Link
+                  href="/?filter=mine"
+                  className={isActive("/?filter=mine") ? "nav-active" : ""}
+                  aria-current={isActive("/?filter=mine") ? "page" : undefined}
+                  onClick={closeMobileDrawer}
+                >
                   <User size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
                   Mis proyectos
                 </Link>
-                <Link href="/?filter=favorites" onClick={closeMobileDrawer}>
+                <Link
+                  href="/?filter=favorites"
+                  className={isActive("/?filter=favorites") ? "nav-active" : ""}
+                  aria-current={isActive("/?filter=favorites") ? "page" : undefined}
+                  onClick={closeMobileDrawer}
+                >
                   <Star size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
                   Favoritos
                 </Link>
-                <Link href="/?filter=templates" onClick={closeMobileDrawer}>
+                <Link
+                  href="/?filter=templates"
+                  className={isActive("/?filter=templates") ? "nav-active" : ""}
+                  aria-current={isActive("/?filter=templates") ? "page" : undefined}
+                  onClick={closeMobileDrawer}
+                >
                   <BookTemplate size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
                   Plantillas
                 </Link>
-                <Link href="/?status=ARCHIVED" className="muted" onClick={closeMobileDrawer}>
+                <Link
+                  href="/?status=ARCHIVED"
+                  className={`muted${isActive("/?status=ARCHIVED") ? " nav-active" : ""}`}
+                  aria-current={isActive("/?status=ARCHIVED") ? "page" : undefined}
+                  onClick={closeMobileDrawer}
+                >
                   <Archive size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
                   Archivados
                 </Link>
@@ -311,6 +334,7 @@ export function DrawerNav({
                   href={itemHref}
                   title={itemName}
                   className={isActive(itemHref) ? "nav-active" : ""}
+                  aria-current={isActive(itemHref) ? "page" : undefined}
                   onClick={closeMobileDrawer}
                   style={{ display: "flex", alignItems: "center", minWidth: 0 }}
                 >
@@ -377,6 +401,7 @@ export function DrawerNav({
       <div className="sidebar-scroll">
         <Link
           className={`nav${isActive("/notes") ? " nav-active" : ""}`}
+          aria-current={isActive("/notes") ? "page" : undefined}
           href="/notes"
           onClick={closeMobileDrawer}
           style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -385,6 +410,7 @@ export function DrawerNav({
         </Link>
         <Link
           className={`nav${isActive("/references") ? " nav-active" : ""}`}
+          aria-current={isActive("/references") ? "page" : undefined}
           href="/references"
           onClick={closeMobileDrawer}
           style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -397,6 +423,7 @@ export function DrawerNav({
           {group("Grupos", "/groups", openGroups, setOpenGroups, groups, "/groups", Users)}
           <Link
             className={`nav${isActive("/board") ? " nav-active" : ""}`}
+            aria-current={isActive("/board") ? "page" : undefined}
             href="/board"
             onClick={closeMobileDrawer}
             style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -405,6 +432,7 @@ export function DrawerNav({
           </Link>
           <Link
             className={`nav${isActive("/reminders") ? " nav-active" : ""}`}
+            aria-current={isActive("/reminders") ? "page" : undefined}
             href="/reminders"
             onClick={closeMobileDrawer}
             style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
@@ -412,28 +440,18 @@ export function DrawerNav({
             <Calendar size={16} className="muted" /> Recordatorios
           </Link>
           <Link
-            className={`nav${isActive("/settings") ? " nav-active" : ""}`}
+            className={`nav${settingsActive ? " nav-active" : ""}`}
+            aria-current={settingsActive ? "page" : undefined}
             href="/settings"
             onClick={closeMobileDrawer}
             style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
           >
-            <Bot size={16} className="muted" /> Asistentes conectados
+            <Settings size={16} className="muted" /> Configuración
           </Link>
-          {isSuperAdmin && (
-            <Link
-              className={`nav${isActive("/admin") ? " nav-active" : ""}`}
-              href="/admin"
-              onClick={closeMobileDrawer}
-              style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
-            >
-              <Settings size={16} className="muted" /> Administración
-            </Link>
-          )}
         </div>
       </div>
       <div className="sidebar-footer">
         <DueTodayBell label="Vence hoy" />
-        <ThemeToggle />
         {logoutButton}
       </div>
     </nav>

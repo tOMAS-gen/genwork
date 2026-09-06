@@ -36,7 +36,7 @@ function AdminActivitySection() {
   if (entries.length === 0) return null;
 
   return (
-    <section>
+    <section className="section-panel">
       <h3>Actividad administrativa</h3>
       <ul>
         {entries.map((entry) => (
@@ -109,8 +109,8 @@ export function McpConnectionsPanel() {
   }
 
   return (
-    <section>
-      <h2>Asistentes conectados</h2>
+    <section className="section-panel">
+      <h2>Asistentes y conexión MCP</h2>
       <p>
         Generá una credencial personal para que un asistente de IA (vía MCP) actúe en tu
         nombre en Genwork, con exactamente tus mismos permisos. Podés revocarla en cualquier
@@ -129,7 +129,7 @@ export function McpConnectionsPanel() {
         </div>
       )}
 
-      <form onSubmit={handleCreate} style={{ display: "flex", gap: 8 }}>
+      <form onSubmit={handleCreate} className="inline-form">
         <input
           type="text"
           placeholder="Nombre del asistente (ej. Claude en mi laptop)"
@@ -152,10 +152,12 @@ export function McpConnectionsPanel() {
       ) : (
         <ul>
           {connections.map((c) => (
-            <li key={c.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <li key={c.id} className="record-row">
               <span>{c.label}</span>
               {c.revokedAt ? (
-                <span className="badge">Revocado</span>
+                <span className="label-chip" style={{ background: "var(--hover-soft)", color: "var(--muted)" }}>
+                  Revocado
+                </span>
               ) : (
                 <>
                   <span>

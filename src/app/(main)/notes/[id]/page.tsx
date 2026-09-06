@@ -92,11 +92,13 @@ export default function NotePage() {
         </button>
       </div>
 
+      <div className="document-page">
       <NoteEditor
         note={note}
         onTitleChange={setTitle}
         onContentChange={() => {}}
       />
+      </div>
     </div>
   );
 }

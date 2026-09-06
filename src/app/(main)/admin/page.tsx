@@ -1,19 +1,29 @@
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
-import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle, Eye } from "@/components/ui/icons";
+import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle, Eye, Bell, Bot, User } from "@/components/ui/icons";
 
-export const metadata: Metadata = { title: "Administración" };
+export const metadata: Metadata = { title: "Configuración" };
 
 export default async function AdminHome() {
   const session = await auth();
   if (session?.user?.globalRole !== "SUPERADMIN") redirect("/");
 
   return (
-    <div className="sheet">
-      <h1 className="sheet-title" style={{ marginBottom: "var(--space-4)" }}>Administración</h1>
+    <div className="admin-page">
+      <PageHeader title="Configuración" icon="settings" />
       <div className="project-grid">
+        <Link className="project-card" href="/settings">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <User size={20} />
+            <div>
+              <div><strong>Mi cuenta</strong></div>
+              <span className="muted">Almacenamiento vinculado y preferencias de tu cuenta</span>
+            </div>
+          </div>
+        </Link>
         <Link className="project-card" href="/admin/access">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Shield size={20} />
@@ -83,6 +93,24 @@ export default async function AdminHome() {
             <div>
               <div><strong>Errores</strong></div>
               <span className="muted">Errores capturados automáticamente, listos para revisar y corregir</span>
+            </div>
+          </div>
+        </Link>
+        <Link className="project-card" href="/admin/reminders">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <Bell size={20} />
+            <div>
+              <div><strong>Recordatorios</strong></div>
+              <span className="muted">Calendario y avisos programados del grupo</span>
+            </div>
+          </div>
+        </Link>
+        <Link className="project-card" href="/admin/mcp">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <Bot size={20} />
+            <div>
+              <div><strong>Asistentes / MCP</strong></div>
+              <span className="muted">Vinculación de asistentes de IA a la cuenta vía MCP</span>
             </div>
           </div>
         </Link>

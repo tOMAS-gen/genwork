@@ -1,6 +1,7 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import type { ComponentType } from "react";
+import type { IconProps } from "@/components/ui/icons";
 
 /**
  * Estado vacío genérico (feature 008): ícono + título + descripción + acción
@@ -13,7 +14,7 @@ export function EmptyState({
   description,
   action,
 }: {
-  icon: LucideIcon;
+  icon: ComponentType<IconProps>;
   title: string;
   description: string;
   action?: { label: string; onClick?: () => void; href?: string };

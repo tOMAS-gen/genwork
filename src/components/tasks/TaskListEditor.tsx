@@ -28,6 +28,7 @@ export function TaskListEditor({
   const [desc, setDesc] = useState("");
   const [unresolved, setUnresolved] = useState<{ symbol: string; name: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const {
@@ -78,7 +79,8 @@ export function TaskListEditor({
 
   const submit = async () => {
     const raw = text.trim();
-    if (!raw) return;
+    if (!raw || submitting) return;
+    setSubmitting(true);
     try {
       const task = await createOne(raw);
       // el detalle se guarda con un PATCH aparte (el POST solo parsea el rawText)
@@ -100,6 +102,8 @@ export function TaskListEditor({
         .body;
       if (body?.error?.unresolvedTags) setUnresolved(body.error.unresolvedTags);
       else setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -107,7 +111,9 @@ export function TaskListEditor({
     const pasted = e.clipboardData.getData("text");
     const lines = splitTaskLines(pasted);
     if (lines.length <= 1) return; // una sola línea: comportamiento normal
+    if (submitting) return;
     e.preventDefault();
+    setSubmitting(true);
     try {
       let lastMoved: TaskDto | null = null;
       for (const line of lines) {
@@ -120,6 +126,8 @@ export function TaskListEditor({
       inputRef.current?.focus();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 

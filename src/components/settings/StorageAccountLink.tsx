@@ -145,7 +145,7 @@ export function StorageAccountLink() {
 
   if (loading) {
     return (
-      <section>
+      <section className="section-panel">
         <h2>Cuenta de almacenamiento</h2>
         <Skeleton variant="text" width="220px" />
       </section>
@@ -154,7 +154,7 @@ export function StorageAccountLink() {
 
   if (loadError || !status) {
     return (
-      <section>
+      <section className="section-panel">
         <h2>Cuenta de almacenamiento</h2>
         <p className="muted">No se pudo cargar el estado de vinculación.</p>
         <button className="btn btn-outline" onClick={() => { setLoading(true); void loadStatus(); }}>
@@ -167,7 +167,7 @@ export function StorageAccountLink() {
   const providerLabel = PROVIDER_LABEL[status.provider];
 
   return (
-    <section>
+    <section className="section-panel">
       <h2>Cuenta de almacenamiento</h2>
       <p className="muted">
         Vinculá tu cuenta de {providerLabel} para que GenWork pueda acceder a tus archivos con tus

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { signIn, auth, DEV_AUTH_ENABLED, DEV_USERS } from "@/server/auth";
 import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/ui/BrandLogo";
+import { SubmitButton } from "./SubmitButton";
 
 export const metadata: Metadata = { title: "Iniciar sesión" };
 
@@ -31,9 +32,9 @@ export default async function LoginPage({
             await signIn("google", { redirectTo: "/" });
           }}
         >
-          <button className="btn btn-primary" style={{ width: "100%", padding: 12 }}>
+          <SubmitButton className="btn btn-primary" style={{ width: "100%", padding: 12 }} pendingLabel="Ingresando…">
             Ingresar con Google
-          </button>
+          </SubmitButton>
         </form>
 
         {denied && (
@@ -54,9 +55,9 @@ export default async function LoginPage({
                   await signIn("dev", { redirectTo: "/", user: key });
                 }}
               >
-                <button className="btn" style={{ width: "100%", marginTop: 6 }}>
+                <SubmitButton className="btn" style={{ width: "100%", marginTop: 6 }} pendingLabel="Ingresando…">
                   Entrar como {dev.name}
-                </button>
+                </SubmitButton>
               </form>
             ))}
           </div>

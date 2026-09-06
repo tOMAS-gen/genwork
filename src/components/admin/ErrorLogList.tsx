@@ -27,12 +27,12 @@ export function ErrorLogList() {
   if (errors.length === 0) return <p className="muted">No hay errores registrados.</p>;
 
   return (
-    <ul style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+    <ul className="error-list">
       {errors.map((entry) => (
         <li key={entry.id}>
           <Link
             href={`/admin/errors/${entry.id}`}
-            className="project-card"
+            className="error-record"
             style={{ display: "flex", alignItems: "flex-start", gap: "var(--space-3)" }}
           >
             {entry.status === "RESOLVED" ? (
@@ -40,8 +40,8 @@ export function ErrorLogList() {
             ) : (
               <AlertCircle size={16} className="muted" style={{ marginTop: 2, flexShrink: 0 }} />
             )}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div><strong>{entry.message}</strong></div>
+            <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+              <div className="error-record-message"><strong>{entry.message}</strong></div>
               <span className="muted">{entry.route}</span>
             </div>
             <div style={{ textAlign: "right", flexShrink: 0 }}>

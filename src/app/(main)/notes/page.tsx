@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { NoteEditor, type NoteDto } from "@/components/notes/NoteEditor";
@@ -15,6 +16,7 @@ export default function NotesPage() {
   usePageTitle("Mis notas");
   const [note, setNote] = useState<NoteDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,8 +37,13 @@ export default function NotesPage() {
   }, []);
 
   return (
-    <div className="sheet">
-      <h1 className="sheet-title">Mis notas</h1>
+    <div className="sheet notes-page">
+      <PageHeader
+        title="Mis notas"
+        description="Tu espacio para escribir, organizar ideas y documentar."
+        icon="notes"
+        actions={<div className="notes-header-actions" ref={setActionsTarget} />}
+      />
 
       {loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
@@ -45,7 +52,9 @@ export default function NotesPage() {
           <Skeleton variant="text" width="60%" />
         </div>
       ) : note ? (
-        <NoteEditor key={note.id} note={note} hideTitle />
+        <div className="document-page">
+          <NoteEditor key={note.id} note={note} hideTitle actionsTarget={actionsTarget} />
+        </div>
       ) : (
         <p className="muted">No se pudo cargar la nota.</p>
       )}

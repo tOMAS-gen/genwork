@@ -24,7 +24,7 @@ export interface ColorPickerProps {
 }
 
 /** Hex de respaldo cuando `value` es `null`/inválido (punto de partida del área SB). */
-const FALLBACK_HEX = "#3b82f6";
+const FALLBACK_HEX = "#3b5bfa";
 
 /**
  * Selector de color unificado (feature 033): área de saturación/brillo (2D) +
@@ -129,6 +129,66 @@ export function ColorPicker({
     window.addEventListener("pointerup", onUp);
   }
 
+  const SV_STEP = 0.05;
+  const HUE_STEP = 4;
+
+  /** Área SV por teclado (sin esto, el área 2D sólo respondía a pointer). */
+  function handleSvKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? SV_STEP * 2 : SV_STEP;
+    let s = hsv.s;
+    let v = hsv.v;
+    switch (e.key) {
+      case "ArrowLeft":
+        s = Math.max(0, s - step);
+        break;
+      case "ArrowRight":
+        s = Math.min(1, s + step);
+        break;
+      case "ArrowUp":
+        v = Math.min(1, v + step);
+        break;
+      case "ArrowDown":
+        v = Math.max(0, v - step);
+        break;
+      case "Home":
+        s = 0;
+        break;
+      case "End":
+        s = 1;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    commit(hue, s, v);
+  }
+
+  /** Slider de hue por teclado (mismo motivo que el área SV). */
+  function handleHueKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const step = e.shiftKey ? HUE_STEP * 2.5 : HUE_STEP;
+    let h = hue;
+    switch (e.key) {
+      case "ArrowLeft":
+      case "ArrowDown":
+        h = Math.max(0, h - step);
+        break;
+      case "ArrowRight":
+      case "ArrowUp":
+        h = Math.min(360, h + step);
+        break;
+      case "Home":
+        h = 0;
+        break;
+      case "End":
+        h = 360;
+        break;
+      default:
+        return;
+    }
+    e.preventDefault();
+    commit(h, hsv.s, hsv.v);
+  }
+
   function handleHexChange(raw: string) {
     setHexInput(raw);
     const normalized = normalizeHex(raw);
@@ -226,6 +286,14 @@ export function ColorPicker({
             className="color-picker-sv"
             style={{ ["--sv-hue" as string]: hueColor }}
             onPointerDown={handleSvPointer}
+            role="slider"
+            tabIndex={0}
+            aria-label="Saturación y brillo"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(hsv.s * 100)}
+            aria-valuetext={`Saturación ${Math.round(hsv.s * 100)}%, brillo ${Math.round(hsv.v * 100)}%`}
+            onKeyDown={handleSvKeyDown}
           >
             <div
               className="color-picker-sv-thumb"
@@ -237,7 +305,18 @@ export function ColorPicker({
             />
           </div>
 
-          <div ref={hueRef} className="color-picker-hue" onPointerDown={handleHuePointer}>
+          <div
+            ref={hueRef}
+            className="color-picker-hue"
+            onPointerDown={handleHuePointer}
+            role="slider"
+            tabIndex={0}
+            aria-label="Matiz"
+            aria-valuemin={0}
+            aria-valuemax={360}
+            aria-valuenow={Math.round(hue)}
+            onKeyDown={handleHueKeyDown}
+          >
             <div
               className="color-picker-hue-thumb"
               style={{ left: `${(hue / 360) * 100}%`, background: hueColor }}

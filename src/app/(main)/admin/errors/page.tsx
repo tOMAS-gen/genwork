@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
@@ -10,8 +11,8 @@ export default async function AdminErrorsPage() {
   if (session?.user?.globalRole !== "SUPERADMIN") redirect("/");
 
   return (
-    <div className="sheet">
-      <h1 className="sheet-title" style={{ marginBottom: "var(--space-4)" }}>Errores</h1>
+    <div className="admin-page">
+      <PageHeader title="Errores" icon="settings" />
       <ErrorLogList />
     </div>
   );

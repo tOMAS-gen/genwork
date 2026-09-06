@@ -7,7 +7,7 @@ export default async function SectorsPage() {
   const session = await auth();
   if (!session?.user?.id) {
     return (
-      <div className="mx-auto w-full max-w-[1100px]">
+      <div className="sheet">
         <SectorsView canCreate={false} adminGroups={[]} isSuperAdmin={false} groupColors={{}} />
       </div>
     );
@@ -33,7 +33,7 @@ export default async function SectorsPage() {
   const canCreate = true;
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div className="sheet">
       <SectorsView
         canCreate={canCreate}
         adminGroups={adminGroups}

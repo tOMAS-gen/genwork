@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import type { ErrorLogDetail as ErrorLogDetailType } from "@/lib/errors/types";
@@ -36,10 +37,11 @@ export function ErrorLogDetail({ id }: { id: string }) {
   if (error === null) return <p className="muted">Cargando…</p>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-3)" }}>
+    <div className="page-stack error-detail">
+      <PageHeader title="Detalle del error" icon="settings" />
+      <div className="record-row section-panel">
         <div>
-          <h2 style={{ margin: 0 }}>{error.message}</h2>
+          <h2 className="error-detail-title">{error.message}</h2>
           <span className="muted">{error.route}</span>
         </div>
         <button type="button" className="btn" onClick={() => void toggleStatus()} disabled={updating}>
@@ -47,7 +49,7 @@ export function ErrorLogDetail({ id }: { id: string }) {
         </button>
       </div>
 
-      <dl style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-2) var(--space-4)" }}>
+      <dl className="detail-metadata section-panel">
         <dt className="muted">Estado</dt>
         <dd>{error.status === "RESOLVED" ? "Resuelto" : "Pendiente"}</dd>
 

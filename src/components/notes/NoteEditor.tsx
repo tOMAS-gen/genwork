@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
+import { useState } from "react";
+import { useEditor } from "@tiptap/react";
 import Placeholder from "@tiptap/extension-placeholder";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
+import { markdownExtensions } from "@/components/editor/markdownExtensions";
+import { MarkdownSurface } from "@/components/editor/MarkdownSurface";
 import { SlashCommand } from "@/components/editor/slashCommand";
-import { api } from "@/components/ui/useApi";
-import { Bold, Italic, Heading1, Heading2, Heading3, List, Type } from "@/components/ui/icons";
+import { useDocumentAutosave } from "@/components/editor/useDocumentAutosave";
 
 export type NoteDto = {
   id: string;
@@ -18,10 +15,6 @@ export type NoteDto = {
   createdAt: string;
   updatedAt: string;
 };
-
-type SaveStatus = "idle" | "saving" | "saved";
-
-const AUTOSAVE_DELAY_MS = 1500;
 
 /**
  * Editor de nota rich-text (TipTap) con título editable y autoguardado con debounce.
@@ -32,188 +25,79 @@ export function NoteEditor({
   onTitleChange,
   onContentChange,
   hideTitle = false,
+  actionsTarget,
 }: {
   note: NoteDto;
   onTitleChange?: (title: string) => void;
   onContentChange?: (content: unknown) => void;
-  /** Modo nota general ("Mis notas"): oculta el campo de título y la barra de
-   *  formato para escribir directo (el formato queda disponible con "/" y atajos). */
+  /** Modo nota general ("Mis notas"): oculta el campo de título. */
   hideTitle?: boolean;
+  actionsTarget?: HTMLElement | null;
 }) {
   const [title, setTitle] = useState(note.title);
-  const [status, setStatus] = useState<SaveStatus>("idle");
-  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const contentTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { status, schedule, retry } = useDocumentAutosave(`/api/notes/${note.id}`, "PATCH", 1500);
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Link.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: "Empezá a escribir... Escribí “/” para ver opciones de formato" }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      // Sin Image extension ni selector de archivo en notas: se oculta del menú "/".
-      SlashCommand.configure({ includeImage: false }),
+      ...markdownExtensions(),
+      Placeholder.configure({
+        placeholder: "Empezá a escribir... Escribí “/” para ver opciones de formato",
+      }),
+      SlashCommand.configure({
+        openImagePicker: () => {
+          const url = window.prompt("URL de la imagen (https://…):");
+          if (!url?.trim()) return;
+          if (!/^https?:\/\//i.test(url.trim())) {
+            window.alert("Ingresá una URL que empiece con https:// o http://.");
+            return;
+          }
+          editor?.chain().focus().setImage({ src: url.trim() }).run();
+        },
+      }),
     ],
     content: note.content ?? "",
     immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        "aria-label": "Contenido de la nota",
+        role: "textbox",
+        "aria-multiline": "true",
+      },
+    },
     onUpdate: ({ editor }) => {
-      scheduleContentSave(editor);
+      const content = editor.getJSON();
+      schedule({ content });
+      onContentChange?.(content);
     },
   });
 
-  const scheduleSaveStatus = () => {
-    setStatus("saving");
-  };
-
-  const scheduleContentSave = (ed: Editor) => {
-    scheduleSaveStatus();
-    if (contentTimer.current) clearTimeout(contentTimer.current);
-    contentTimer.current = setTimeout(() => {
-      const json = ed.getJSON();
-      void saveContent(json);
-    }, AUTOSAVE_DELAY_MS);
-  };
-
-  const saveContent = async (content: unknown) => {
-    try {
-      await api(`/api/notes/${note.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ content }),
-      });
-      onContentChange?.(content);
-      setStatus("saved");
-    } catch {
-      setStatus("idle");
-    }
-  };
-
-  const saveTitle = async (value: string) => {
-    try {
-      await api(`/api/notes/${note.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ title: value }),
-      });
-      onTitleChange?.(value);
-      setStatus("saved");
-    } catch {
-      setStatus("idle");
-    }
-  };
-
   const handleTitleChange = (value: string) => {
     setTitle(value);
-    scheduleSaveStatus();
-    if (titleTimer.current) clearTimeout(titleTimer.current);
-    titleTimer.current = setTimeout(() => {
-      void saveTitle(value);
-    }, AUTOSAVE_DELAY_MS);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (titleTimer.current) clearTimeout(titleTimer.current);
-      if (contentTimer.current) clearTimeout(contentTimer.current);
-    };
-  }, []);
-
-  const setLink = () => {
-    if (!editor) return;
-    const previousUrl = editor.getAttributes("link").href as string | undefined;
-    const url = window.prompt("URL del link:", previousUrl ?? "");
-    if (url === null) return;
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return;
-    }
-    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+    schedule({ title: value });
+    onTitleChange?.(value);
   };
 
   return (
     <div className="note-editor">
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: hideTitle ? "flex-end" : "space-between",
-          gap: 8,
-        }}
-      >
-        {!hideTitle && (
-          <input
-            className="note-title-input"
-            value={title}
-            placeholder="Sin título"
-            onChange={(e) => handleTitleChange(e.target.value)}
-          />
-        )}
-        <span className="note-save-status">
-          {status === "saving" ? "Guardando..." : status === "saved" ? "Guardado" : ""}
-        </span>
-      </div>
-
-      {!hideTitle && editor && (
-        <div className="note-toolbar">
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("heading", { level: 1 }) ? " active" : ""}`}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            aria-label="Encabezado 1"
-          >
-            <Heading1 size={16} />
-          </button>
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("heading", { level: 2 }) ? " active" : ""}`}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            aria-label="Encabezado 2"
-          >
-            <Heading2 size={16} />
-          </button>
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("heading", { level: 3 }) ? " active" : ""}`}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            aria-label="Encabezado 3"
-          >
-            <Heading3 size={16} />
-          </button>
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("bold") ? " active" : ""}`}
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            aria-label="Negrita"
-          >
-            <Bold size={16} />
-          </button>
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("italic") ? " active" : ""}`}
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            aria-label="Cursiva"
-          >
-            <Italic size={16} />
-          </button>
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("bulletList") ? " active" : ""}`}
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            aria-label="Lista con viñetas"
-          >
-            <List size={16} />
-          </button>
-          <button
-            type="button"
-            className={`note-toolbar-btn${editor.isActive("link") ? " active" : ""}`}
-            onClick={setLink}
-            aria-label="Link"
-          >
-            <Type size={16} />
-          </button>
-        </div>
+      {!hideTitle && (
+        <input
+          className="note-title-input"
+          aria-label="Título de la nota"
+          value={title}
+          placeholder="Sin título"
+          onChange={(event) => handleTitleChange(event.target.value)}
+        />
       )}
 
-      <EditorContent editor={editor} />
+      {editor && (
+        <MarkdownSurface
+          editor={editor}
+          filename={hideTitle ? "Mis notas" : title || "Nota"}
+          saveStatus={status}
+          onRetry={retry}
+          actionsTarget={actionsTarget}
+        />
+      )}
     </div>
   );
 }

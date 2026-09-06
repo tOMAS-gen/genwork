@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import Link from "next/link";
 import { Eye } from "@/components/ui/icons";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -23,7 +24,7 @@ export function PortalShell({
     <div className="portal-shell">
       <header className="portal-header">
         <Link href="/portal" className="portal-brand">
-          genwork
+          <BrandLogo />
         </Link>
         <span className="portal-badge">
           <Eye size={14} aria-hidden="true" />
@@ -31,7 +32,7 @@ export function PortalShell({
         </span>
         <div className="portal-header-right">
           <span className="portal-user">{userName}</span>
-          <ThemeToggle />
+          <ThemeToggle mini />
           {logoutButton}
         </div>
       </header>

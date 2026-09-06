@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -43,8 +44,8 @@ export default function TaskStatusesAdminPage() {
         : { groupId };
 
   return (
-    <div>
-      <h1>Estados de tarea</h1>
+    <div className="admin-page">
+      <PageHeader title="Estados de tarea" icon="settings" />
       <p className="muted">
         Conjunto general de estados: &ldquo;en curso&rdquo; (uno o más) y &ldquo;final&rdquo;
         (exactamente uno) por ámbito. Los sectores pueden adaptar el suyo propio desde su

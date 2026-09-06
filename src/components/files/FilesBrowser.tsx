@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Upload, Folder, Download, Trash2, Share2, Copy, Check, Clock } from "@/components/ui/icons";
+import { Upload, Folder, FileText, Download, Trash2, Share2, Copy, Check, Clock } from "@/components/ui/icons";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -586,7 +586,9 @@ export function FilesBrowser({
               className="file-item"
               onClick={() => (file.isDirectory ? openFolder(file) : openFile())}
             >
-              <span aria-hidden="true">{file.isDirectory ? "📁" : "📄"}</span>
+              <span aria-hidden="true" className="muted" style={{ display: "inline-flex", flexShrink: 0 }}>
+                {file.isDirectory ? <Folder size={16} /> : <FileText size={16} />}
+              </span>
               <span className="file-item-name">{file.name}</span>
               {!file.isDirectory && <span className="file-item-size">{formatSize(file.size)}</span>}
               <span className="muted" style={{ flexShrink: 0 }}>

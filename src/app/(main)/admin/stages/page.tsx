@@ -1,8 +1,10 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { ColorField } from "@/components/ui/ColorField";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { Trash2, Plus, ArrowUp, ArrowDown } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
 
@@ -18,7 +20,7 @@ interface StageDto {
   sortOrder: number;
 }
 
-const DEFAULT_NEW_COLOR = "#3b82f6";
+const DEFAULT_NEW_COLOR = "#3b5bfa";
 
 /** Extrae el mensaje de un error lanzado por el helper `api` (contrato { error }). */
 function errorMessage(err: unknown): string {
@@ -40,6 +42,8 @@ export default function StagesAdminPage() {
   const [error, setError] = useState("");
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<string>(DEFAULT_NEW_COLOR);
+  const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -77,8 +81,9 @@ export default function StagesAdminPage() {
 
   const createStage = async () => {
     const name = newName.trim();
-    if (!name) return;
+    if (!name || creating) return;
     setError("");
+    setCreating(true);
     try {
       const body = groupId === "personal"
         ? { name, color: newColor, personal: true }
@@ -91,6 +96,8 @@ export default function StagesAdminPage() {
       await loadStages(groupId);
     } catch (err) {
       setError(errorMessage(err));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -107,13 +114,22 @@ export default function StagesAdminPage() {
     }
   };
 
-  const deleteStage = async (id: string) => {
+  const deleteStage = async (id: string, name: string) => {
+    const ok = await showConfirm(`¿Eliminar el estado "${name}"?`, {
+      title: "Eliminar estado",
+      confirmLabel: "Eliminar",
+      danger: true,
+    });
+    if (!ok) return;
     setError("");
+    setDeletingId(id);
     try {
       await api(`/api/stages/${id}`, { method: "DELETE" });
       await loadStages(groupId);
     } catch (err) {
       setError(errorMessage(err));
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -136,8 +152,8 @@ export default function StagesAdminPage() {
   };
 
   return (
-    <div>
-      <h1>Estados de producción</h1>
+    <div className="admin-page">
+      <PageHeader title="Estados de producción" icon="settings" />
 
       <div className="dialog-field" style={{ maxWidth: 320, marginBottom: 16 }}>
         <label htmlFor="stages-group">Ámbito</label>
@@ -216,7 +232,8 @@ export default function StagesAdminPage() {
                   <button
                     className="icon-btn"
                     aria-label={`Eliminar ${stage.name}`}
-                    onClick={() => void deleteStage(stage.id)}
+                    disabled={deletingId === stage.id}
+                    onClick={() => void deleteStage(stage.id, stage.name)}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -243,9 +260,9 @@ export default function StagesAdminPage() {
                 onChange={setNewColor}
                 ariaLabel="Color del nuevo estado"
               />
-              <button className="btn" onClick={() => void createStage()}>
+              <button className="btn" disabled={creating} onClick={() => void createStage()}>
                 <Plus size={14} />
-                Agregar
+                {creating ? "Agregando…" : "Agregar"}
               </button>
             </div>
           </div>

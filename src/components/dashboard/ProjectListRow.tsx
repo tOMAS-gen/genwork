@@ -32,9 +32,20 @@ export function ProjectListRow({
   const parsedDue = project.dueDate ? new Date(project.dueDate) : null;
   const urgency = parsedDue ? getDueDateUrgency(parsedDue) : null;
 
+  const open = () => router.push(`/works/${project.id}`);
+
   return (
     <tr
-      onClick={() => router.push(`/works/${project.id}`)}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          open();
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      aria-label={`Abrir proyecto ${project.name}`}
       style={{ cursor: "pointer" }}
     >
       <td>
@@ -97,9 +108,7 @@ export function ProjectListRow({
             items={[
               {
                 label: "Abrir proyecto",
-                onSelect: () => {
-                  router.push(`/works/${project.id}`);
-                },
+                onSelect: open,
               },
             ]}
           />

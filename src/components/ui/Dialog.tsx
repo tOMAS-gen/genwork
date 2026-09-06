@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { X } from "@/components/ui/icons";
 
 /**
@@ -29,6 +29,7 @@ export function Dialog({
   allowOverflow?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const el = ref.current;
@@ -40,7 +41,8 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={`w-[92%] max-w-[480px] rounded-[14px] border-none bg-surface p-0 text-text [box-shadow:var(--shadow-lg)] animate-[dialog-content-in_180ms_ease_forwards] [&::backdrop]:animate-[dialog-overlay-in_180ms_ease_forwards] [&::backdrop]:bg-[rgba(15,23,42,0.45)] [&::backdrop]:backdrop-blur-[3px] ${
+      aria-labelledby={titleId}
+      className={`w-[92%] max-w-[480px] rounded-[12px] border border-border bg-floating p-0 text-text [box-shadow:var(--shadow-lg)] animate-[dialog-content-in_180ms_ease_forwards] [&::backdrop]:animate-[dialog-overlay-in_180ms_ease_forwards] [&::backdrop]:bg-[rgba(0,0,0,0.45)] ${
         allowOverflow ? "overflow-visible" : ""
       }`}
       onClose={onClose}
@@ -50,11 +52,11 @@ export function Dialog({
         if (e.target === ref.current) onClose();
       }}
     >
-      <div className="grid gap-4 p-6">
+      <div className="grid gap-4 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="m-0 text-xl font-semibold">{title}</h2>
+          <h2 id={titleId} className="m-0 text-base font-semibold">{title}</h2>
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-transparent bg-transparent text-muted transition-colors duration-200 hover:bg-[var(--hover-soft)] hover:text-text"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent bg-transparent text-muted transition-colors duration-200 hover:bg-[var(--hover-soft)] hover:text-text"
             onClick={onClose}
             aria-label="Cerrar"
           >

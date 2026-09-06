@@ -23,7 +23,7 @@ export function SystemInfoSection() {
   const isDev = info.environment === "development";
 
   return (
-    <section>
+    <section className="section-panel">
       <h2>Sistema</h2>
       <p style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span>genwork v{info.version}</span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/ui/PageHeader";
 import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -56,8 +57,8 @@ export default function AccessAdminPage() {
   };
 
   return (
-    <div style={{ maxWidth: 560 }}>
-      <h1>Control de acceso</h1>
+    <div className="admin-page admin-form-page">
+      <PageHeader title="Control de acceso" icon="settings" />
       <div className="card" style={{ marginBottom: 16 }}>
         <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input

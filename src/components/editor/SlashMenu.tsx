@@ -24,6 +24,7 @@ import {
   Quote,
   Code,
   Minus,
+  LayoutGrid,
 } from "@/components/ui/icons";
 
 /** Ícono por ítem del catálogo (mapeo UI, el dominio no conoce React/Lucide). */
@@ -40,6 +41,7 @@ const ICONS: Record<string, typeof Type> = {
   blockquote: Quote,
   "code-block": Code,
   divider: Minus,
+  table: LayoutGrid,
 };
 
 export interface SlashMenuHandle {
@@ -69,7 +71,10 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function Sl
 ) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [placement, setPlacement] = useState<"below" | "above">("below");
+  const [position, setPosition] = useState<CSSProperties>({
+    position: "fixed",
+    visibility: "hidden",
+  });
 
   // clave estable del conjunto de ítems visibles: resetea el resaltado cuando cambia el filtro
   const itemsKey = items.map((item) => item.id).join(",");
@@ -84,14 +89,30 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function Sl
     active?.scrollIntoView({ block: "nearest" });
   }, [selectedIndex, itemsKey]);
 
-  // FR-201/edge case: reposiciona hacia arriba si el menú no entra cerca del borde inferior
+  // Keep the menu inside the viewport, including near the right edge on mobile.
   useLayoutEffect(() => {
-    const rect = clientRect?.();
-    const el = containerRef.current;
-    if (!rect || !el) return;
-    const menuHeight = el.offsetHeight;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    setPlacement(spaceBelow < menuHeight + 16 ? "above" : "below");
+    const place = () => {
+      const rect = clientRect?.();
+      const el = containerRef.current;
+      if (!rect || !el) return;
+      const maxHeight = Math.min(320, window.innerHeight - 16);
+      const height = Math.min(el.offsetHeight, maxHeight);
+      const below = rect.bottom + 6;
+      const top = below + height <= window.innerHeight - 8 ? below : rect.top - height - 6;
+      setPosition({
+        position: "fixed",
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - el.offsetWidth - 8)),
+        top: Math.max(8, Math.min(top, window.innerHeight - height - 8)),
+        maxHeight,
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
   }, [clientRect, itemsKey]);
 
   useImperativeHandle(
@@ -125,17 +146,6 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function Sl
     [items, selectedIndex, command, onClose],
   );
 
-  const rect = clientRect?.();
-  const style: CSSProperties = rect
-    ? {
-        position: "fixed",
-        left: rect.left,
-        ...(placement === "below"
-          ? { top: rect.bottom + 6 }
-          : { bottom: window.innerHeight - rect.top + 6 }),
-      }
-    : { display: "none" };
-
   const activeId = items[selectedIndex] ? `slash-item-${items[selectedIndex].id}` : undefined;
 
   let lastGroup: string | null = null;
@@ -144,7 +154,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(function Sl
     <div
       ref={containerRef}
       className="slash-menu"
-      style={style}
+      style={position}
       role="listbox"
       aria-label="Bloques disponibles"
       aria-activedescendant={activeId}
