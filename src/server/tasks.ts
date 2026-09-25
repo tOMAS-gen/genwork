@@ -26,6 +26,7 @@ import {
 } from "@/lib/domain/permissions";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "@/server/api";
 import { emit } from "@/server/events";
+import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 import type { Prisma, Sector, Task, TaskLink, TaskStatus, User, Work, Group } from "@prisma/client";
 
 async function ensureDefaultStatusesForScope(
@@ -274,8 +275,18 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
   let workId: string | null = contextWork?.id ?? null;
   const workName = grouped["/"][0];
   if (workName) {
+    // objetivos (higiene de plantillas): una plantilla no es destino de `/`
+    // (antes se podía mandar una tarea a una plantilla escribiendo
+    // `/Plantilla` desde un sector o el dashboard). Excepción: la plantilla
+    // de contexto, para que editar dentro de ella una tarea cuyo texto la
+    // nombra no dé 409. Mover por texto de la plantilla A a la B deja de
+    // andar (409 `unresolvedTags`), a propósito.
     const candidates = await prisma.work.findMany({
-      where: { ...scopeWhere, status: "ACTIVE" },
+      where: {
+        ...scopeWhere,
+        status: "ACTIVE",
+        OR: [NOT_TEMPLATE_WORK, ...(contextWork ? [{ id: contextWork.id }] : [])],
+      },
     });
     const target = matchByTag(workName, candidates, (w) => w.name);
     if (!target) {

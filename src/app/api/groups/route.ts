@@ -5,6 +5,7 @@ import { conflict, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { enqueue } from "@/lib/storage/queue";
 import { countUnfinishedByKey, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 
 export const GET = withApi(async () => {
   const session = await requireWriter();
@@ -54,7 +55,7 @@ export const GET = withApi(async () => {
         },
       }),
       prisma.taskLink.findMany({
-        where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: { isTemplate: false } } },
+        where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: NOT_TEMPLATE_WORK } },
         select: {
           taskId: true,
           sectorId: true,

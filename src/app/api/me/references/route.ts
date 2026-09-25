@@ -5,6 +5,7 @@ import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canToggle, type TaskRef } from "@/lib/domain/permissions";
 import { execSectorIdsOf, loadApplicableStatusSet, statusOptionDto } from "@/server/tasks";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
 import type { TaskDto } from "@/components/tasks/TaskItem";
 
 /**
@@ -112,7 +113,9 @@ export const GET = withApi(async (req) => {
         task: {
           ...(statusId ? { statusId } : {}),
           ...(type === "IN_PROGRESS" || type === "FINAL" ? { status: { type } } : {}),
-          OR: [{ work: { status: "ACTIVE" } }, { workId: null }],
+          // objetivos (higiene de plantillas): un `@usuario` escrito en una
+          // plantilla no es una referencia real; antes solo se miraba `status`.
+          ...TASK_IN_ACTIVE_PROJECT_OR_LOOSE,
         },
       },
       include: {

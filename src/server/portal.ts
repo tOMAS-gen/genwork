@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/client";
 import { progress } from "@/lib/domain/works/progress";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { ACTIVE_PROJECT_WORK } from "@/server/workFilters";
 
 /**
  * Capa de datos del portal de cliente (feature 059).
@@ -60,8 +61,12 @@ export interface PortalWorkDetail extends PortalWorkSummary {
   doc: { content: unknown } | null;
 }
 
-/** Solo proyectos activos y no plantilla llegan al portal (FR-015). */
-const PORTAL_WORK_FILTER = { status: "ACTIVE", isTemplate: false } as const;
+/**
+ * Solo proyectos activos y no plantilla llegan al portal (FR-015). Es el mismo
+ * filtro con el que el administrador de grupo elige qué asignar (objetivos,
+ * higiene de plantillas): lo asignable y lo visible no pueden divergir.
+ */
+const PORTAL_WORK_FILTER = ACTIVE_PROJECT_WORK;
 
 const LABEL_INCLUDE = { value: { include: { key: true } } } as const;
 

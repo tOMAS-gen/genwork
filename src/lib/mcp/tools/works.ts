@@ -9,6 +9,7 @@ import { computeArchivePath } from "@/lib/storage/paths";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
+import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -97,8 +98,8 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
       try {
         const works = await prisma.work.findMany({
           where: {
+            ...NOT_TEMPLATE_WORK,
             status: status ?? "ACTIVE",
-            isTemplate: false,
             ...(groupId ? { groupId } : {}),
           },
           include: {

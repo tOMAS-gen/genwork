@@ -6,6 +6,7 @@ import { getUserContext } from "@/server/user-context";
 import { canAddress } from "@/lib/domain/permissions";
 import { canonical, toTagForm } from "@/lib/domain/tags/matching";
 import { scopeOf } from "@/server/tasks";
+import { ACTIVE_PROJECT_WORK } from "@/server/workFilters";
 
 /**
  * Autocompletado de etiquetas (FR-009): matching tolerante case/acento-insensible y
@@ -53,7 +54,10 @@ export const GET = withApi(async (req) => {
   }[] = [];
 
   if (symbol === "/") {
-    const works = await prisma.work.findMany({ where: { ...scopeWhere, status: "ACTIVE" } });
+    // objetivos (higiene de plantillas): una plantilla no es destino de `/`
+    // (resolveTask tampoco la acepta), así que no se sugiere. Dentro de una
+    // plantilla se escribe con `contextWorkId`, sin `/`.
+    const works = await prisma.work.findMany({ where: { ...scopeWhere, ...ACTIVE_PROJECT_WORK } });
     results = works
       .filter((w) => matches(w.name) && canAddress(ctx, scopeOf(w)))
       .map((w) => ({ id: w.id, name: w.name, type: "work" as const, insertText: toTagForm(w.name) }));

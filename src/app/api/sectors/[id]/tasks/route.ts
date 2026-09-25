@@ -7,6 +7,7 @@ import { accessSector } from "@/lib/domain/permissions";
 import { applyTaskFilters, type TaskFilters } from "@/lib/domain/views/filters";
 import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE, TASK_NOT_IN_TEMPLATE } from "@/server/workFilters";
 
 // 062-subtareas: shape de cada fila; `_count.subtasks` es el conteo GLOBAL de
 // hijas (todas, sin importar a qué sector estén vinculadas) — sirve para saber
@@ -173,12 +174,14 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   // 062-subtareas: SIN filtro de `parentId` acá — una hija vinculada a este
   // sector por sí misma (EXEC o REF) tiene que listarse, tenga o no a su padre
   // en esta misma vista (ver `nestByParent`, ruling 2026-08-29).
+  // objetivos (higiene de plantillas): los filtros compartidos traen `OR`;
+  // `labelWhere` solo aporta `labels`, así que esparcir ambos no pisa nada.
   const [execLinks, refLinks, loose] = await Promise.all([
     prisma.taskLink.findMany({
       where: {
         sectorId: id,
         type: "EXEC",
-        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }], ...labelWhere },
+        task: { ...TASK_IN_ACTIVE_PROJECT_OR_LOOSE, ...labelWhere },
       },
       include: { task: { include: taskInclude } },
       orderBy: { task: { position: "asc" } },
@@ -187,7 +190,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       where: {
         sectorId: id,
         type: "REF",
-        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }], ...labelWhere },
+        task: { ...TASK_IN_ACTIVE_PROJECT_OR_LOOSE, ...labelWhere },
       },
       include: { task: { include: taskInclude } },
       orderBy: { task: { position: "asc" } },
@@ -195,7 +198,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     prisma.task.findMany({
       where: {
         sectorId: id,
-        OR: [{ work: { isTemplate: false } }, { workId: null }],
+        ...TASK_NOT_IN_TEMPLATE,
         ...labelWhere,
       },
       include: taskInclude,

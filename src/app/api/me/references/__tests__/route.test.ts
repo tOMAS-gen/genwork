@@ -220,3 +220,57 @@ describe("GET /api/me/references", () => {
     expect(body[0].homeSector.group).toEqual({ id: GROUP_Y, name: "Grupo origen" });
   });
 });
+
+describe("GET /api/me/references — sin tareas de plantillas (objetivos, D15)", () => {
+  type Where = Record<string, unknown>;
+
+  /** Evaluador mínimo de `where.task`: igualdad, `OR`/`AND` y la relación `work`. */
+  function matchesWhere(row: Record<string, unknown>, where: Where): boolean {
+    return Object.entries(where).every(([key, value]) => {
+      if (key === "OR") return (value as Where[]).some((w) => matchesWhere(row, w));
+      if (key === "AND") return (value as Where[]).every((w) => matchesWhere(row, w));
+      if (key === "work") {
+        const work = row.work as Record<string, unknown> | null;
+        return work !== null && matchesWhere(work, value as Where);
+      }
+      if (key === "status") {
+        const status = row.status as Record<string, unknown>;
+        return matchesWhere(status, value as Where);
+      }
+      return row[key] === value;
+    });
+  }
+
+  function withWork(taskId: string, work: { status: string; isTemplate: boolean } | null) {
+    const link = makeTaskLink({ taskId, workId: work ? `work-of-${taskId}` : null });
+    if (link.task.work && work) Object.assign(link.task.work, work);
+    return link;
+  }
+
+  beforeEach(() => {
+    const rows = [
+      withWork("de-proyecto", { status: "ACTIVE", isTemplate: false }),
+      withWork("de-plantilla", { status: "ACTIVE", isTemplate: true }),
+      withWork("de-archivado", { status: "ARCHIVED", isTemplate: false }),
+      withWork("suelta", null),
+    ];
+    mocks.taskLinkFindMany.mockImplementation(async ({ where }: { where: { task: Where } }) =>
+      rows.filter((r) => matchesWhere(r.task as unknown as Record<string, unknown>, where.task)),
+    );
+  });
+
+  it("un `@usuario` escrito en una plantilla no aparece como referencia", async () => {
+    const res = await GET(new Request("http://localhost/api/me/references"), undefined);
+    const body = (await res.json()) as Array<{ id: string }>;
+    expect(body.map((t) => t.id).sort()).toEqual(["de-proyecto", "suelta"]);
+  });
+
+  it("el where lleva el `OR` sin plantillas y conserva los filtros de estado", async () => {
+    await GET(new Request("http://localhost/api/me/references?type=IN_PROGRESS"), undefined);
+    const { where } = mocks.taskLinkFindMany.mock.calls[0][0] as { where: { task: Where } };
+    expect(where.task).toEqual({
+      status: { type: "IN_PROGRESS" },
+      OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }],
+    });
+  });
+});

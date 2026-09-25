@@ -5,6 +5,7 @@ import { access, accessSector, taskAccess } from "@/lib/domain/permissions";
 import { toTaskRef } from "@/server/tasks";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult } from "@/lib/mcp/errors";
+import { ACTIVE_PROJECT_WORK, TASK_NOT_IN_TEMPLATE } from "@/server/workFilters";
 
 const LIMIT = 20;
 
@@ -30,7 +31,7 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
 
         if (wanted.has("work")) {
           const works = await prisma.work.findMany({
-            where: { status: "ACTIVE", isTemplate: false, name: { contains: text, mode: "insensitive" } },
+            where: { ...ACTIVE_PROJECT_WORK, name: { contains: text, mode: "insensitive" } },
             include: { group: { select: { publicRead: true } } },
             take: LIMIT * 3,
           });
@@ -68,8 +69,11 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
         }
 
         if (wanted.has("task")) {
+          // objetivos (higiene de plantillas): las tareas de una plantilla no son
+          // trabajo real y no se ofrecen en la búsqueda. Las de proyectos
+          // archivados sí (cambio mínimo: solo se tapa la fuga de plantillas).
           const tasks = await prisma.task.findMany({
-            where: { displayText: { contains: text, mode: "insensitive" } },
+            where: { displayText: { contains: text, mode: "insensitive" }, ...TASK_NOT_IN_TEMPLATE },
             include: {
               links: { include: { sector: true, user: { select: { id: true, name: true } } } },
               work: { select: { id: true, name: true } },

@@ -5,6 +5,7 @@ import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
 
 /** Dashboard de estado por sector (FR-026): sectores visibles según permisos. */
 export const GET = withApi(async () => {
@@ -32,7 +33,10 @@ export const GET = withApi(async () => {
         where: {
           sectorId: sector.id,
           type: "EXEC",
-          task: { OR: [{ work: { status: "ACTIVE" } }, { workId: null }] },
+          // objetivos (higiene de plantillas): antes solo miraba `status`, y una
+          // tarea de plantilla con #sector aparecía en el tablero (y en la TV)
+          // como pendiente real. Mismo filtro que la vista del sector.
+          task: TASK_IN_ACTIVE_PROJECT_OR_LOOSE,
         },
         include: {
           task: {

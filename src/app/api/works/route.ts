@@ -8,6 +8,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { cloneTasksFromTemplate } from "@/lib/domain/works/cloneFromTemplate";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { ACTIVE_TEMPLATE_WORK, NOT_TEMPLATE_WORK } from "@/server/workFilters";
 
 export const GET = withApi(async (req) => {
   const session = await requireWriter();
@@ -19,8 +20,8 @@ export const GET = withApi(async (req) => {
 
   const where: Prisma.WorkWhereInput =
     filter === "templates"
-      ? { isTemplate: true, status: "ACTIVE", ...(groupId ? { groupId } : {}) }
-      : { status, isTemplate: false, ...(groupId ? { groupId } : {}) };
+      ? { ...ACTIVE_TEMPLATE_WORK, ...(groupId ? { groupId } : {}) }
+      : { ...NOT_TEMPLATE_WORK, status, ...(groupId ? { groupId } : {}) };
 
   const works = await prisma.work.findMany({
     where,

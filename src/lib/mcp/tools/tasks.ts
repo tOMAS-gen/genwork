@@ -15,6 +15,7 @@ import {
   type TaskWithLinks,
 } from "@/server/tasks";
 import { emit } from "@/server/events";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -174,9 +175,15 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           });
           if (level === "none") throw notFound("Sector no encontrado");
 
+          // objetivos (higiene de plantillas): por sector, mismo filtro que la
+          // vista web del sector (Principio VIII) — sin tareas de plantillas ni
+          // de proyectos archivados. `loose` ya queda fuera de toda plantilla
+          // por construcción (`workId: null`), así que no suma cláusula.
+          // La rama `workId` de arriba NO se filtra: listar una plantilla por id
+          // es legítimo.
           const [execLinks, loose] = await Promise.all([
             prisma.taskLink.findMany({
-              where: { sectorId: sectorId!, type: "EXEC" },
+              where: { sectorId: sectorId!, type: "EXEC", task: TASK_IN_ACTIVE_PROJECT_OR_LOOSE },
               include: { task: { include: taskInclude } },
               orderBy: { task: { position: "asc" } },
             }),
