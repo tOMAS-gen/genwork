@@ -9,6 +9,7 @@ import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { parseTags } from "@/lib/domain/tags/parser";
 import { getTaskOrThrow, saveTask, setTaskParent, syncParentStatus, toTaskRef } from "@/server/tasks";
 import { emit } from "@/server/events";
+import { setTaskObjective } from "@/server/objectives";
 
 const patchSchema = z.union([
   z.object({
@@ -20,6 +21,12 @@ const patchSchema = z.union([
   }),
   z.object({
     description: z.string().max(2000).nullable(),
+  }),
+  // objetivos: mover la tarea (raíz) de sección. `null` = tareas generales;
+  // `index` es el lugar dentro de la sección destino (sin él, al final).
+  z.object({
+    objectiveId: z.string().uuid().nullable(),
+    index: z.number().int().min(0).optional(),
   }),
 ]);
 
@@ -63,6 +70,14 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
       sectorIds: updated.links.filter((l) => l.sectorId).map((l) => l.sectorId as string),
     });
 
+    return NextResponse.json(updated);
+  }
+
+  if ("objectiveId" in body) {
+    // El servicio exige operar el proyecto (no alcanza con el `canToggle` de
+    // arriba), valida el objetivo, mueve las hijas con la tarea, deja densas
+    // las dos secciones y emite los eventos. Mismo DTO que la rama `parentId`.
+    const updated = await setTaskObjective(ctx, id, body.objectiveId, { index: body.index });
     return NextResponse.json(updated);
   }
 
