@@ -664,6 +664,7 @@ textarea:focus {
   display: inline-flex;
   flex: none;
   align-self: flex-start;
+  cursor: pointer;
 }
 .task-checkbox-hit::before {
   content: "";
