@@ -32,3 +32,33 @@ export function shouldShowAutoWorkTag(
   );
   return !hasExplicitWorkTag;
 }
+
+export interface ObjectiveChipTask {
+  objective?: { id: string } | null;
+}
+
+export interface ObjectiveChipContext {
+  /** Sección de objetivo que está renderizando la fila (lista del proyecto). */
+  objectiveId?: string | null;
+  /** La fila es una hija dentro de `SubtaskList`: el padre ya muestra el chip. */
+  suppressObjectiveChip?: boolean;
+}
+
+/**
+ * objetivos: ¿mostrar el chip "Proyecto › Objetivo" de la tarea?
+ *
+ * Reglas:
+ * - Solo si la tarea pertenece a un objetivo.
+ * - No en las hijas (`suppressObjectiveChip`): repetirían el chip del padre.
+ * - No dentro de la sección de su propio objetivo (`objectiveId` del contexto):
+ *   el encabezado ya lo dice.
+ * - En el resto (sector, referencias, tablero del proyecto) se muestra.
+ */
+export function shouldShowObjectiveChip(
+  task: ObjectiveChipTask,
+  context: ObjectiveChipContext,
+): boolean {
+  if (!task.objective) return false;
+  if (context.suppressObjectiveChip) return false;
+  return context.objectiveId !== task.objective.id;
+}
