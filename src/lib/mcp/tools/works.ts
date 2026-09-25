@@ -10,6 +10,9 @@ import { buildProjectCode } from "@/lib/domain/works/projectCode";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
 import { createWork } from "@/server/works";
+import { listObjectives } from "@/server/objectives";
+import { objectiveTitleSchema } from "@/lib/domain/objectives/validation";
+import { summarizeObjectiveWithCounts } from "@/lib/mcp/tools/objectives";
 import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
@@ -78,6 +81,8 @@ function summarize(work: WorkWithGroup, taskCounts?: { total: number; done: numb
     dueDate: work.dueDate,
     groupId: work.groupId,
     groupName: work.group?.name ?? null,
+    // objetivos: una plantilla se puede leer por id (work.get) aunque work.list no la liste.
+    isTemplate: work.isTemplate,
     code: buildProjectCode(work.group?.name ?? null, work.folderSeq, work.name),
     ...(taskCounts ? { taskCounts } : {}),
   };
@@ -137,19 +142,26 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     "work.get",
     {
       title: "Obtener proyecto",
-      description: "Datos completos de un proyecto: grupo, etiquetas y contador de tareas.",
+      description:
+        "Datos completos de un proyecto: grupo, etiquetas, contador de tareas y sus objetivos en " +
+        "orden con su progreso (taskCounts), más el contador de las tareas generales. En una " +
+        "plantilla (isTemplate) `objectives` viene vacío.",
       inputSchema: { workId: z.string().uuid() },
     },
     async ({ workId }) => {
       try {
         const work = await getWorkWithAccess(ctx, workId, "read");
-        const [countsByWorkId, labels] = await Promise.all([
+        // objetivos: mismo cálculo que `objective.list` (servicio compartido).
+        const [countsByWorkId, labels, { objectives, generalTaskCounts }] = await Promise.all([
           taskCountsByWorkId([workId]),
           prisma.workLabel.findMany({ where: { workId }, include: { value: { include: { key: true } } } }),
+          listObjectives(ctx.userContext, workId),
         ]);
         return toolSuccess(`Proyecto "${work.name}".`, {
           ...summarize(work, countsByWorkId.get(workId) ?? { total: 0, done: 0 }),
           labels: labels.map((l) => ({ key: l.value.key.name, value: l.value.name, color: l.value.color })),
+          objectives: objectives.map((o) => summarizeObjectiveWithCounts(workId, o)),
+          generalTaskCounts,
         });
       } catch (err) {
         return toToolErrorResult(err);
@@ -162,24 +174,38 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Crear proyecto",
       description:
-        "Crea un proyecto nuevo. Sin groupId se crea en el espacio personal del usuario.",
+        "Crea un proyecto nuevo. Sin groupId se crea en el espacio personal del usuario. Con " +
+        "templateId (ver template.list) nace con esa plantilla insertada como un objetivo " +
+        "(objectiveTitle opcional; por defecto, el nombre de la plantilla). Con isTemplate: true " +
+        "crea una plantilla (sin objetivos: con templateId copia sus tareas como generales).",
       inputSchema: {
         name: z.string().trim().min(1).max(120),
         groupId: z.string().uuid().nullable().optional(),
         description: z.string().trim().max(280).optional(),
         dueDate: z.string().datetime().optional(),
+        isTemplate: z.boolean().optional(),
+        templateId: z.string().uuid().optional(),
+        objectiveTitle: objectiveTitleSchema.optional(),
       },
     },
-    async ({ name, groupId, description, dueDate }) => {
+    async ({ name, groupId, description, dueDate, isTemplate, templateId, objectiveTitle }) => {
       try {
+        if (objectiveTitle !== undefined && (!templateId || isTemplate)) {
+          throw badRequest("objectiveTitle solo aplica al crear un proyecto con templateId");
+        }
         // objetivos: misma alta que `POST /api/works` (grupo, nombre único,
-        // rol con escritura y evento `work-changed` viven en `createWork`).
-        const { work } = await createWork(ctx.userContext, {
+        // rol con escritura, plantilla legible, objetivo insertado en la misma
+        // transacción y evento `work-changed` viven en `createWork`).
+        const { work, objective, copiedTasks, template } = await createWork(ctx.userContext, {
           name,
           groupId,
           description,
           dueDate: dueDate ? new Date(dueDate) : null,
+          isTemplate,
+          templateId,
+          objectiveTitle,
         });
+        const kind = work.isTemplate ? "la plantilla" : "el proyecto";
 
         await logMcpActivity({
           connectionId: ctx.connectionId,
@@ -188,10 +214,23 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
           targetType: "Work",
           targetId: work.id,
           workId: work.id,
-          summary: `El asistente de IA creó el proyecto "${work.name}".`,
+          summary: template
+            ? `El asistente de IA creó ${kind} "${work.name}" desde la plantilla "${template.name}".`
+            : `El asistente de IA creó ${kind} "${work.name}".`,
         });
 
-        return toolSuccess(`Proyecto "${work.name}" creado.`, summarize(work));
+        return toolSuccess(`${work.isTemplate ? "Plantilla" : "Proyecto"} "${work.name}" creado.`, {
+          ...summarize(work),
+          ...(template
+            ? {
+                templateId: template.id,
+                templateName: template.name,
+                objectiveId: objective?.id ?? null,
+                objectiveTitle: objective?.title ?? null,
+                copiedTasks,
+              }
+            : {}),
+        });
       } catch (err) {
         return toToolErrorResult(err);
       }

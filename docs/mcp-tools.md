@@ -32,8 +32,8 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 | Herramienta | Qué hace | Notas |
 |---|---|---|
 | `work.list` | Lista proyectos visibles, filtrables por grupo o estado. | Solo lectura. |
-| `work.get` | Datos completos de un proyecto: grupo, etiquetas y contador de tareas. | Solo lectura. |
-| `work.create` | Crea un proyecto; sin `groupId` va al espacio personal. | — |
+| `work.get` | Datos completos de un proyecto: grupo, etiquetas, contador de tareas y sus objetivos con progreso, más `generalTaskCounts`. | Solo lectura. En una plantilla (`isTemplate`) `objectives` viene vacío. |
+| `work.create` | Crea un proyecto; sin `groupId` va al espacio personal. | Con `templateId` nace con esa plantilla insertada como objetivo (igual que *Nuevo proyecto desde plantilla*; `objectiveTitle` opcional). Con `isTemplate: true` crea una plantilla. |
 | `work.update` | Actualiza nombre, descripción o vencimiento. | — |
 | `work.archive` | Archiva un proyecto. | Reversible. |
 | `work.restore` | Restaura un proyecto archivado. | — |
@@ -43,12 +43,29 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 
 | Herramienta | Qué hace | Notas |
 |---|---|---|
-| `task.list` | Lista tareas de un proyecto o de un sector, con `parentId`, `subtaskCount` y `subtaskDone` de cada una. | Al menos uno de `workId`/`sectorId`. Con `parentId` trae sólo las hijas de esa tarea. |
-| `task.create` | Crea una tarea desde texto con etiquetado inline (`/trabajo #sector @ref $etiqueta`). | Mismo parser que la web (Principio II). Con `parentId` nace como subtarea y hereda proyecto, sector y ejecución del padre. |
+| `task.list` | Lista tareas de un proyecto o de un sector, con `parentId`, `subtaskCount`, `subtaskDone`, `workName`, `objectiveId` y `objectiveTitle` de cada una. | Al menos uno de `workId`/`sectorId`/`objectiveId`. Con `parentId` trae sólo las hijas de esa tarea. Con `objectiveId` filtra por objetivo; `objectiveId: null` = generales (requiere `workId`). Por sector excluye plantillas. |
+| `task.create` | Crea una tarea desde texto con etiquetado inline (`/trabajo #sector @ref $etiqueta`). | Mismo parser que la web (Principio II). Con `parentId` nace como subtarea y hereda proyecto, sector, ejecución y objetivo del padre. Con `objectiveId` nace en ese objetivo (requiere operar el proyecto). |
 | `task.update` | Reemplaza el texto y re-resuelve las etiquetas inline. | — |
 | `task.setState` | Cambia el estado a cualquiera del conjunto aplicable (feature 042). | `statusId` o `statusName`. |
 | `task.delete` | Borra una tarea de forma permanente. | **[destructiva]** |
-| `task.setParent` | Cuelga una tarea como subtarea de otra, o la promueve a tarea independiente con `parentId: null`. | Un solo nivel; mismo proyecto o sector; hereda los sectores de ejecución del padre si no tiene propios. |
+| `task.setParent` | Cuelga una tarea como subtarea de otra, o la promueve a tarea independiente con `parentId: null`. | Un solo nivel; mismo proyecto o sector; hereda los sectores de ejecución y el objetivo del padre. |
+| `task.setObjective` | Mueve una tarea raíz (con sus subtareas) a otro objetivo del mismo proyecto, o a generales con `objectiveId: null`. | Requiere operar el proyecto. `index` opcional (desde 0); sin él queda al final. |
+
+## Objetivos (`objective.*`)
+
+| Herramienta | Qué hace | Notas |
+|---|---|---|
+| `objective.list` | Objetivos de un proyecto en orden, con `taskCounts` y `complete`, más `generalTaskCounts`. | Solo lectura. Progreso derivado (regla de contenedor). |
+| `objective.create` | Agrega un objetivo al final: a mano (`title`) o insertando una plantilla (`templateId`). | La inserción es una copia independiente de las tareas pendientes con subtareas; se puede repetir. |
+| `objective.update` | Edita título, descripción o `position` (0 = primero) de un objetivo. | `position` fuera de rango queda al final. |
+| `objective.delete` | Elimina un objetivo. | **[destructiva]** `mode` obligatorio: `deleteTasks` \| `moveToGeneral`. |
+| `objective.saveAsTemplate` | Crea una plantilla personal con el título, la descripción y las tareas pendientes del objetivo. | Requiere operar el proyecto. Nombre repetido → sufijo " (2)". |
+
+## Plantillas (`template.*`)
+
+| Herramienta | Qué hace | Notas |
+|---|---|---|
+| `template.list` | Plantillas activas visibles, con `copyableTaskCount`. | Solo lectura. Cada plantilla se inserta como un objetivo (`objective.create` + `templateId`). |
 
 ## Estados de tarea (`taskStatus.*`)
 
@@ -115,7 +132,7 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 
 | Herramienta | Qué hace | Notas |
 |---|---|---|
-| `search.query` | Busca proyectos, tareas y sectores por texto, ya filtrado por visibilidad. | Solo lectura. |
+| `search.query` | Busca proyectos, tareas y sectores por texto, ya filtrado por visibilidad. | Solo lectura. Excluye plantillas; las tareas traen proyecto y objetivo. |
 
 ## Grupos (`group.*`)
 
@@ -149,7 +166,7 @@ declarada: al tocar esa área, la feature correspondiente debe cerrarla o renova
 |---|---|---|
 | Etapas de proyecto (`ProjectStage`) | `/api/stages`, `/api/stages/reorder` | Feature 033 previa al MCP; sin pedido de uso vía asistente todavía. |
 | Miembros de grupo | `/api/groups/[id]/members` | El MCP sólo lista grupos; el alta/baja de miembros sigue siendo de la web. |
-| Reordenar tareas | `/api/works/[id]/tasks/reorder` | El orden manual es una decisión visual (feature 052). |
+| Reordenar tareas | `/api/works/[id]/tasks/reorder` | El orden manual es una decisión visual (feature 052), ahora por ámbito general/objetivo. Mover entre secciones (y a un `index`) sí está cubierto por `task.setObjective`. |
 | Archivos en la nube y compartidos | `/api/works/[id]/files/*` | `attachment.*` cubre subir/bajar; compartir enlaces (feature 051) queda pendiente. |
 | Portal de cliente | `/api/portal/*`, `client-grants` | Feature 059; el portal es de solo lectura para un rol que no usa MCP. |
 | Errores y almacenamiento (admin) | `/api/admin/errors`, `/api/admin/storage` | Operación de infraestructura, no de trabajo cotidiano. |

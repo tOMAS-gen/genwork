@@ -25,7 +25,14 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
         const wanted = new Set(kinds && kinds.length > 0 ? kinds : ["work", "task", "sector"]);
         const result: {
           works: { id: string; name: string }[];
-          tasks: { id: string; text: string; workId: string | null }[];
+          tasks: {
+            id: string;
+            text: string;
+            workId: string | null;
+            workName: string | null;
+            objectiveId: string | null;
+            objectiveTitle: string | null;
+          }[];
           sectors: { id: string; name: string }[];
         } = { works: [], tasks: [], sectors: [] };
 
@@ -79,6 +86,7 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
               work: { select: { id: true, name: true } },
               homeSector: { select: { id: true, name: true } },
               status: true,
+              objective: { select: { id: true, title: true } },
             },
             take: LIMIT * 3,
             orderBy: { createdAt: "desc" },
@@ -89,7 +97,15 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
             const ref = await toTaskRef(t);
             if (taskAccess(ctx.userContext, ref) !== "none") visible.push(t);
           }
-          result.tasks = visible.map((t) => ({ id: t.id, text: t.displayText, workId: t.workId }));
+          // objetivos: cada tarea trae su proyecto y su objetivo (null = general o suelta).
+          result.tasks = visible.map((t) => ({
+            id: t.id,
+            text: t.displayText,
+            workId: t.workId,
+            workName: t.work?.name ?? null,
+            objectiveId: t.objective?.id ?? null,
+            objectiveTitle: t.objective?.title ?? null,
+          }));
         }
 
         const total = result.works.length + result.tasks.length + result.sectors.length;
