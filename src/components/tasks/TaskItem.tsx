@@ -480,7 +480,9 @@ export function TaskItem({
           </button>
         )}
         {isContainer ? null : canToggle && variant === "list" ? (
-          <span className="task-checkbox-hit">
+          // <label>, no <span>: el ::before del área táctil tapa el input; siendo
+          // label, el click sobre él se reenvía a la casilla.
+          <label className="task-checkbox-hit">
             <input
               type="checkbox"
               checked={task.status.type === "FINAL"}
@@ -502,7 +504,7 @@ export function TaskItem({
               title={checkboxLabel}
               aria-label={checkboxLabel}
             />
-          </span>
+          </label>
         ) : !canToggle ? (
           <span className="muted" title="Se completa en su sector de ejecución">
             ◇
