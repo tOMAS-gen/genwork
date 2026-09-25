@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/client";
 import type { UserContext } from "@/lib/domain/permissions";
+import { unauthorized } from "@/server/api";
 
 /**
  * Arma el UserContext del motor de permisos con una consulta por colección.
@@ -18,7 +19,13 @@ export async function getUserContext(userId: string): Promise<UserContext> {
     prisma.sectorGrant.findMany({ where: { userId } }),
     prisma.readerGrant.findMany({ where: { userId } }),
     prisma.clientWorkGrant.findMany({ where: { userId }, select: { workId: true } }),
-  ]);
+  ]).catch((err: unknown) => {
+    // Sesión huérfana: el token apunta a un usuario que ya no existe (base de
+    // dev recreada, usuario borrado). Es 401 y no 500: el cliente vuelve al
+    // login. El callback jwt de auth.ts además limpia la cookie al revalidar.
+    if ((err as { code?: string }).code === "P2025") throw unauthorized();
+    throw err;
+  });
 
   return {
     id: userId,

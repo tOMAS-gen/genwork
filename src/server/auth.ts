@@ -169,10 +169,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { id: token.userId as string },
           select: { globalRole: true, image: true },
         });
-        if (fresh) {
-          token.globalRole = fresh.globalRole;
-          token.image = fresh.image ?? null;
-        }
+        // El usuario ya no existe (borrado, o base de dev recreada con una cookie
+        // vieja todavía en el navegador): devolver null hace que Auth.js borre la
+        // cookie de sesión y el usuario vuelva al login, en vez de que cada ruta
+        // que arma el UserContext responda 500.
+        if (!fresh) return null;
+        token.globalRole = fresh.globalRole;
+        token.image = fresh.image ?? null;
         token.roleSyncedAt = Date.now();
       }
       return token;
