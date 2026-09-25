@@ -72,7 +72,8 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 vi.mock("@/lib/domain/works/cloneFromTemplate", () => ({
-  cloneTasksFromTemplate: vi.fn(),
+  cloneTaskTree: vi.fn(),
+  insertTemplateAsObjectiveTx: vi.fn(),
 }));
 
 // Importado después de registrar los mocks.

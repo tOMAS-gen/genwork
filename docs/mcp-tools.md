@@ -149,7 +149,6 @@ declarada: al tocar esa área, la feature correspondiente debe cerrarla o renova
 |---|---|---|
 | Etapas de proyecto (`ProjectStage`) | `/api/stages`, `/api/stages/reorder` | Feature 033 previa al MCP; sin pedido de uso vía asistente todavía. |
 | Miembros de grupo | `/api/groups/[id]/members` | El MCP sólo lista grupos; el alta/baja de miembros sigue siendo de la web. |
-| Clonar proyecto | `/api/works/[id]/clone` | Falta definir qué se clona vía asistente (plantillas). |
 | Reordenar tareas | `/api/works/[id]/tasks/reorder` | El orden manual es una decisión visual (feature 052). |
 | Archivos en la nube y compartidos | `/api/works/[id]/files/*` | `attachment.*` cubre subir/bajar; compartir enlaces (feature 051) queda pendiente. |
 | Portal de cliente | `/api/portal/*`, `client-grants` | Feature 059; el portal es de solo lectura para un rol que no usa MCP. |

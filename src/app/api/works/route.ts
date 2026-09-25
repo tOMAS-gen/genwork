@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
-import { badRequest, conflict, forbidden, withApi } from "@/server/api";
+import { withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
-import { cloneTasksFromTemplate } from "@/lib/domain/works/cloneFromTemplate";
+import { createWork } from "@/server/works";
+import { objectiveTitleSchema } from "@/lib/domain/objectives/validation";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { ACTIVE_TEMPLATE_WORK, NOT_TEMPLATE_WORK } from "@/server/workFilters";
 
@@ -135,54 +136,34 @@ const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(280).optional(),
   groupId: z.string().uuid().nullable().optional(),
+  /** Plantilla a insertar como objetivo del proyecto nuevo ("Nuevo proyecto desde plantilla"). */
   cloneFromId: z.string().uuid().optional(),
+  /** objetivos: título del objetivo insertado; por defecto, el nombre de la plantilla. */
+  objectiveTitle: objectiveTitleSchema.optional(),
   isTemplate: z.boolean().optional(),
 });
 
-/** Crear proyecto en su ámbito (FR-027) + carpeta en la mini nube (FR-029, vía cola). */
+/**
+ * Crear proyecto en su ámbito (FR-027) + carpeta en la mini nube (FR-029, vía cola).
+ *
+ * objetivos: delega en `createWork` (compartido con `work.create` del MCP).
+ * Con `cloneFromId` controla la lectura de la plantilla y el proyecto nace con
+ * la plantilla insertada como objetivo, en la misma transacción.
+ */
 export const POST = withApi(async (req) => {
   const session = await requireWriter();
   const ctx = await getUserContext(session.user.id);
-  const { name, description, groupId, cloneFromId, isTemplate } = createSchema.parse(await req.json());
+  const { name, description, groupId, cloneFromId, objectiveTitle, isTemplate } = createSchema.parse(
+    await req.json(),
+  );
 
-  const scope = groupId
-    ? { groupId, ownerId: null }
-    : { groupId: null, ownerId: session.user.id };
-
-  if (groupId && access(ctx, { groupId, ownerId: null }) !== "operate") {
-    throw forbidden("No sos miembro de ese grupo");
-  }
-
-  const dup = await prisma.work.findFirst({ where: { ...scope, name } });
-  if (dup) throw conflict(`Ya existe un proyecto llamado "${name}" en este ámbito`);
-
-  if (cloneFromId) {
-    const template = await prisma.work.findUnique({
-      where: { id: cloneFromId },
-      select: { id: true, isTemplate: true, status: true },
-    });
-    if (!template || !template.isTemplate || template.status !== "ACTIVE") {
-      throw badRequest("La plantilla seleccionada no existe o no está activa");
-    }
-  }
-
-  const work = await prisma.$transaction(async (tx) => {
-    const newWork = await tx.work.create({
-      data: {
-        name,
-        description: description || null,
-        ...scope,
-        createdById: session.user.id,
-        isTemplate: isTemplate ?? false,
-        doc: { create: {} },
-      },
-    });
-
-    if (cloneFromId) {
-      await cloneTasksFromTemplate(cloneFromId, newWork.id, session.user.id, tx);
-    }
-
-    return newWork;
+  const { work } = await createWork(ctx, {
+    name,
+    description,
+    groupId,
+    isTemplate,
+    templateId: cloneFromId,
+    objectiveTitle,
   });
 
   // Código de referencia (feature 035): la carpeta del proyecto en el

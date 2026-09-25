@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { conflict, withApi } from "@/server/api";
+import { ApiError, conflict, withApi } from "@/server/api";
 import { requireInternal, requireWriter } from "@/server/guards";
 import { getWorkWithAccess } from "@/server/works";
 import { canManageClientAccess } from "@/lib/domain/permissions";
@@ -113,6 +113,19 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
       where: { groupId: work.groupId, ownerId: work.ownerId, name: body.name, id: { not: id } },
     });
     if (dup) throw conflict(`Ya existe un proyecto llamado "${body.name}" en este ámbito`);
+  }
+  // objetivos: una plantilla nunca tiene objetivos (invariante). Convertir en
+  // plantilla un proyecto que ya los tiene se rechaza en vez de dejarlos
+  // colgados: cada objetivo se guarda como plantilla desde su propio menú.
+  if (body.isTemplate === true && !work.isTemplate) {
+    const objectives = await prisma.objective.count({ where: { workId: id } });
+    if (objectives > 0) {
+      throw new ApiError(
+        409,
+        "OBJECTIVES_PRESENT",
+        "Este proyecto tiene objetivos: guardá cada objetivo como plantilla desde su menú",
+      );
+    }
   }
 
   const updated = await prisma.work.update({

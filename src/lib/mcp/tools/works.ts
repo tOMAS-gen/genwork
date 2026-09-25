@@ -9,6 +9,7 @@ import { computeArchivePath } from "@/lib/storage/paths";
 import { buildProjectCode } from "@/lib/domain/works/projectCode";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
+import { createWork } from "@/server/works";
 import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
@@ -171,27 +172,13 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     },
     async ({ name, groupId, description, dueDate }) => {
       try {
-        const scope = groupId
-          ? { groupId, ownerId: null as string | null }
-          : { groupId: null as string | null, ownerId: ctx.userId };
-
-        if (groupId && access(ctx.userContext, { groupId, ownerId: null }) !== "operate") {
-          throw forbidden("No sos miembro de ese grupo");
-        }
-
-        const dup = await prisma.work.findFirst({ where: { ...scope, name } });
-        if (dup) throw conflict(`Ya existe un proyecto llamado "${name}" en este ámbito`);
-
-        const work = await prisma.work.create({
-          data: {
-            name,
-            description: description || null,
-            ...scope,
-            createdById: ctx.userId,
-            dueDate: dueDate ? new Date(dueDate) : null,
-            doc: { create: {} },
-          },
-          include: { group: { select: { id: true, name: true, publicRead: true } } },
+        // objetivos: misma alta que `POST /api/works` (grupo, nombre único,
+        // rol con escritura y evento `work-changed` viven en `createWork`).
+        const { work } = await createWork(ctx.userContext, {
+          name,
+          groupId,
+          description,
+          dueDate: dueDate ? new Date(dueDate) : null,
         });
 
         await logMcpActivity({
@@ -203,7 +190,6 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
           workId: work.id,
           summary: `El asistente de IA creó el proyecto "${work.name}".`,
         });
-        emit({ type: "work-changed", workId: work.id });
 
         return toolSuccess(`Proyecto "${work.name}" creado.`, summarize(work));
       } catch (err) {
