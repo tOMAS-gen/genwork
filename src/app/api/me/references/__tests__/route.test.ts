@@ -220,3 +220,96 @@ describe("GET /api/me/references", () => {
     expect(body[0].homeSector.group).toEqual({ id: GROUP_Y, name: "Grupo origen" });
   });
 });
+
+describe("GET /api/me/references — sin tareas de plantillas (objetivos, D15)", () => {
+  type Where = Record<string, unknown>;
+
+  /** Evaluador mínimo de `where.task`: igualdad, `OR`/`AND` y la relación `work`. */
+  function matchesWhere(row: Record<string, unknown>, where: Where): boolean {
+    return Object.entries(where).every(([key, value]) => {
+      if (key === "OR") return (value as Where[]).some((w) => matchesWhere(row, w));
+      if (key === "AND") return (value as Where[]).every((w) => matchesWhere(row, w));
+      if (key === "work") {
+        const work = row.work as Record<string, unknown> | null;
+        return work !== null && matchesWhere(work, value as Where);
+      }
+      if (key === "status") {
+        const status = row.status as Record<string, unknown>;
+        return matchesWhere(status, value as Where);
+      }
+      return row[key] === value;
+    });
+  }
+
+  function withWork(taskId: string, work: { status: string; isTemplate: boolean } | null) {
+    const link = makeTaskLink({ taskId, workId: work ? `work-of-${taskId}` : null });
+    if (link.task.work && work) Object.assign(link.task.work, work);
+    return link;
+  }
+
+  beforeEach(() => {
+    const rows = [
+      withWork("de-proyecto", { status: "ACTIVE", isTemplate: false }),
+      withWork("de-plantilla", { status: "ACTIVE", isTemplate: true }),
+      withWork("de-archivado", { status: "ARCHIVED", isTemplate: false }),
+      withWork("suelta", null),
+    ];
+    mocks.taskLinkFindMany.mockImplementation(async ({ where }: { where: { task: Where } }) =>
+      rows.filter((r) => matchesWhere(r.task as unknown as Record<string, unknown>, where.task)),
+    );
+  });
+
+  it("un `@usuario` escrito en una plantilla no aparece como referencia", async () => {
+    const res = await GET(new Request("http://localhost/api/me/references"), undefined);
+    const body = (await res.json()) as Array<{ id: string }>;
+    expect(body.map((t) => t.id).sort()).toEqual(["de-proyecto", "suelta"]);
+  });
+
+  it("el where lleva el `OR` sin plantillas y conserva los filtros de estado", async () => {
+    await GET(new Request("http://localhost/api/me/references?type=IN_PROGRESS"), undefined);
+    const { where } = mocks.taskLinkFindMany.mock.calls[0][0] as { where: { task: Where } };
+    expect(where.task).toEqual({
+      status: { type: "IN_PROGRESS" },
+      OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }],
+    });
+  });
+});
+
+describe("GET /api/me/references — objetivo de la tarea (objetivos, vistas externas)", () => {
+  it("pide el objetivo en el include de la tarea", async () => {
+    mocks.taskLinkFindMany.mockResolvedValue([]);
+    await GET(new Request("http://localhost/api/me/references"), undefined);
+    const args = mocks.taskLinkFindMany.mock.calls[0][0] as {
+      include: { task: { include: { objective?: unknown } } };
+    };
+    expect(args.include.task.include.objective).toEqual({ select: { id: true, title: true } });
+  });
+
+  it("el DTO trae `objectiveId` y `objective {id,title}` para el chip de TaskItem", async () => {
+    const link = makeTaskLink({ taskId: TASK_T1, workId: WORK_W1 });
+    Object.assign(link.task, {
+      objectiveId: "obj-1",
+      // `position` viaja en la fila pero no se expone: el chip solo usa id y título.
+      objective: { id: "obj-1", title: "Diseño", position: 3 },
+    });
+    mocks.taskLinkFindMany.mockResolvedValue([link]);
+
+    const res = await GET(new Request("http://localhost/api/me/references"), undefined);
+    const body = (await res.json()) as Array<{ objectiveId: string | null; objective: unknown }>;
+    expect(body[0].objectiveId).toBe("obj-1");
+    expect(body[0].objective).toEqual({ id: "obj-1", title: "Diseño" });
+  });
+
+  it("una tarea general (o suelta) trae `objective: null`", async () => {
+    mocks.taskLinkFindMany.mockResolvedValue([
+      makeTaskLink({ taskId: TASK_T1, workId: WORK_W1 }),
+      makeTaskLink({ taskId: TASK_T2 }),
+    ]);
+    const res = await GET(new Request("http://localhost/api/me/references"), undefined);
+    const body = (await res.json()) as Array<{ objectiveId: string | null; objective: unknown }>;
+    for (const t of body) {
+      expect(t.objectiveId).toBeNull();
+      expect(t.objective).toBeNull();
+    }
+  });
+});

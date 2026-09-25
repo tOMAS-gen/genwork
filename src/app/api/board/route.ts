@@ -5,6 +5,8 @@ import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { accessSector } from "@/lib/domain/permissions";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
+import { OBJECTIVE_REF_SELECT } from "@/lib/domain/objectives/select";
 
 /** Dashboard de estado por sector (FR-026): sectores visibles según permisos. */
 export const GET = withApi(async () => {
@@ -32,7 +34,10 @@ export const GET = withApi(async () => {
         where: {
           sectorId: sector.id,
           type: "EXEC",
-          task: { OR: [{ work: { status: "ACTIVE" } }, { workId: null }] },
+          // objetivos (higiene de plantillas): antes solo miraba `status`, y una
+          // tarea de plantilla con #sector aparecía en el tablero (y en la TV)
+          // como pendiente real. Mismo filtro que la vista del sector.
+          task: TASK_IN_ACTIVE_PROJECT_OR_LOOSE,
         },
         include: {
           task: {
@@ -48,6 +53,8 @@ export const GET = withApi(async () => {
               // al del resto de los listados (hallazgo Importante 2/1 de
               // revisión): mismo significado en todos lados.
               _count: { select: { subtasks: true } },
+              // objetivos: migaja "Proyecto › Objetivo" de cada tarjeta.
+              objective: OBJECTIVE_REF_SELECT,
             },
           },
         },
@@ -120,6 +127,8 @@ export const GET = withApi(async () => {
         },
         workName: l.task.work?.name ?? null,
         workColor: l.task.workId ? colorByWorkId.get(l.task.workId) ?? null : null,
+        // objetivos: solo el título; BoardGrid arma la migaja con `objectiveBreadcrumb`.
+        objectiveTitle: l.task.objective?.title ?? null,
         // 062-subtareas: cada subtarea es su propia tarjeta acá (no se anida
         // bajo el padre como en los demás listados); `parentText` arma la migaja.
         parentId: l.task.parentId,

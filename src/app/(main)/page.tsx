@@ -121,7 +121,7 @@ function HomePageContent() {
   const [works, setWorks] = useState<DashboardWork[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<{ id: string; name: string } | null>(null);
   const [newIsTemplate, setNewIsTemplate] = useState(false);
   const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
@@ -218,7 +218,7 @@ function HomePageContent() {
     <div className="page-stack">
       <PageHeader icon="projects" title={queryFilterKind === "mine" ? "Mis Proyectos"
             : queryFilterKind === "favorites" ? "Proyectos Favoritos"
-            : queryFilterKind === "templates" ? "Proyectos Plantilla"
+            : queryFilterKind === "templates" ? "Plantillas de objetivo"
             : queryStatus === "ARCHIVED" ? "Archivados"
             : "Todos los Proyectos"}
         actions={queryFilterKind === "templates" ? (
@@ -226,7 +226,7 @@ function HomePageContent() {
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              setSelectedTemplateId(null);
+              setSelectedTemplate(null);
               setNewIsTemplate(true);
               setDialogOpen(true);
             }}
@@ -243,13 +243,13 @@ function HomePageContent() {
                 label: "Nuevo proyecto",
                 icon: <Plus size={16} />,
                 onSelect: () => {
-                  setSelectedTemplateId(null);
+                  setSelectedTemplate(null);
                   setNewIsTemplate(false);
                   setDialogOpen(true);
                 },
               },
               {
-                label: "Desde plantilla",
+                label: "Nuevo proyecto desde plantilla",
                 icon: <BookTemplate size={16} />,
                 onSelect: () => setTemplateSelectorOpen(true),
               },
@@ -261,24 +261,24 @@ function HomePageContent() {
       <TemplateSelector
         open={templateSelectorOpen}
         onClose={() => setTemplateSelectorOpen(false)}
-        onSelect={(templateId) => {
-          setSelectedTemplateId(templateId);
+        onSelect={(template) => {
+          setSelectedTemplate(template);
           setDialogOpen(true);
         }}
       />
 
       <CreateProjectDialog
         open={dialogOpen}
-        cloneFromId={selectedTemplateId}
+        template={selectedTemplate}
         isTemplate={newIsTemplate}
         onClose={() => {
           setDialogOpen(false);
-          setSelectedTemplateId(null);
+          setSelectedTemplate(null);
           setNewIsTemplate(false);
         }}
         onCreated={() => {
           load();
-          setSelectedTemplateId(null);
+          setSelectedTemplate(null);
           setNewIsTemplate(false);
           toast(newIsTemplate ? "Plantilla creada" : "Proyecto creado", "success");
         }}
@@ -315,13 +315,13 @@ function HomePageContent() {
       ) : works.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
-          title={queryFilterKind === "templates" ? "Sin plantillas todavía"
+          title={queryFilterKind === "templates" ? "Sin plantillas de objetivo todavía"
             : queryFilterKind === "favorites" ? "Sin favoritos"
             : queryFilterKind === "mine" ? "Sin proyectos propios"
             : queryStatus === "ARCHIVED" ? "Sin proyectos archivados"
             : "Todavía no tenés proyectos"}
           description={queryFilterKind === "templates"
-            ? "Creá una plantilla para reutilizar estructuras de proyecto."
+            ? "Una plantilla es un objetivo reutilizable: sus tareas se copian en cada proyecto donde la insertes. Creá una acá o guardá un objetivo como plantilla desde su menú ⋮."
             : queryFilterKind === "favorites"
               ? "Marcá proyectos como favoritos para verlos acá."
               : queryFilterKind === "mine"

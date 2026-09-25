@@ -9,7 +9,7 @@ import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { X, Calendar, GripVertical, Plus, ChevronDown, ChevronRight } from "@/components/ui/icons";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
-import { shouldShowAutoWorkTag } from "@/lib/domain/tasks/workTagVisibility";
+import { shouldShowAutoWorkTag, shouldShowObjectiveChip } from "@/lib/domain/tasks/workTagVisibility";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
 import { effectiveDueDate } from "@/lib/domain/tasks/parentDueDate";
@@ -22,6 +22,8 @@ import {
   deleteConfirmMessage,
 } from "./SubtaskList";
 import { TaskMoveDialog } from "./TaskMoveDialog";
+import { ObjectiveChip } from "@/components/objectives/ObjectiveChip";
+import { MoveToObjectiveDialog } from "@/components/objectives/MoveToObjectiveDialog";
 
 /** 062-subtareas: fecha heredada de una hija — corto, sin año (mismo criterio que StatusBar/DueDateBadge). */
 const inheritedDueDateFormatter = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
@@ -69,6 +71,24 @@ export interface TaskDto {
   dueDate?: string | null;
   /** 062-subtareas (Tarea 12): hijas anidadas, serializadas con el MISMO mapper que el padre. */
   subtasks?: TaskDto[];
+  /** objetivos: sección de la tarea dentro de su proyecto (null = tareas generales). */
+  objectiveId?: string | null;
+  /** objetivos: referencia mínima al objetivo (chip "Proyecto › Objetivo"). */
+  objective?: { id: string; title: string; position?: number } | null;
+}
+
+/**
+ * Contexto de render de una fila: vista de proyecto (`workId`) o de sector
+ * (`sectorId`). objetivos: `objectiveId` = sección de objetivo que está
+ * dibujando la fila (oculta su propio chip); `suppressObjectiveChip` = la fila
+ * es una hija dentro de `SubtaskList` (el padre ya lo muestra).
+ */
+export interface TaskItemContext {
+  workId?: string;
+  sectorId?: string;
+  suppressWorkTag?: boolean;
+  objectiveId?: string | null;
+  suppressObjectiveChip?: boolean;
 }
 
 type InlineMark =
@@ -207,9 +227,10 @@ export function TaskItem({
   variant = "list",
   dragHandleProps,
   isDragging = false,
+  objectiveOptions,
 }: {
   task: TaskDto;
-  context: { workId?: string; sectorId?: string; suppressWorkTag?: boolean };
+  context: TaskItemContext;
   canToggle: boolean;
   onChanged: () => void;
   /** "board": la columna ya indica el estado — sin selector, solo un menú para mover a otra. */
@@ -222,6 +243,12 @@ export function TaskItem({
   dragHandleProps?: { attributes: DraggableAttributes; listeners: DraggableSyntheticListeners };
   /** Feature 052 (T006): true mientras esta tarea se está arrastrando — aplica el estilo de elevación. */
   isDragging?: boolean;
+  /**
+   * objetivos (crítica I3): objetivos del proyecto para "Mover a objetivo…" en
+   * el ⋮ de la tarjeta del tablero — el acceso sin arrastrar (teclado, touch).
+   * Solo lo pasa el tablero del proyecto, y solo si el usuario opera el proyecto.
+   */
+  objectiveOptions?: { id: string; title: string }[];
 }) {
   const [editing, setEditing] = useState(false);
   // Abre el campo de alta de subtarea desde el botón + de esta fila (062-subtareas).
@@ -231,6 +258,7 @@ export function TaskItem({
   const [subtasksOpen, setSubtasksOpen] = useState(true);
   const [focusTarget, setFocusTarget] = useState<"name" | "description">("name");
   const [moveOpen, setMoveOpen] = useState(false);
+  const [objectiveMoveOpen, setObjectiveMoveOpen] = useState(false);
   const descRef = useRef<HTMLTextAreaElement>(null);
   const nameSaveRef = useRef<(() => void) | null>(null);
 
@@ -421,6 +449,35 @@ export function TaskItem({
         },
       ]
     : [];
+  // objetivos: "Mover a objetivo…" solo para raíces de ESTE proyecto (una hija
+  // sigue a su padre) y solo si hay a dónde moverla.
+  const canMoveToObjective =
+    canToggle &&
+    !task.parentId &&
+    !!task.workId &&
+    task.workId === context.workId &&
+    (objectiveOptions?.length ?? 0) > 0;
+  const objectiveItems: MenuItem[] = canMoveToObjective
+    ? [{ label: "Mover a objetivo…", onSelect: () => setObjectiveMoveOpen(true) }]
+    : [];
+  // objetivos: chip del objetivo (regla pura compartida con las vistas externas).
+  const objectiveChip =
+    task.objective && task.workId && shouldShowObjectiveChip(task, context) ? (
+      <ObjectiveChip
+        workId={task.workId}
+        workName={task.work?.name ?? null}
+        objective={task.objective}
+        projectVisible={
+          task.workId === context.workId ||
+          !!context.suppressWorkTag ||
+          shouldShowAutoWorkTag(task, context) ||
+          (showWorkTag &&
+            parseTags(task.rawText).tags.some(
+              (t) => t.symbol === "/" && normalizeTagName(t.name) === normalizeTagName(task.work?.name ?? ""),
+            ))
+        }
+      />
+    ) : null;
   // Vencimiento heredado (Task 3): si la tarea no tiene fecha propia, hereda la
   // más próxima de una hija ABIERTA. El caso "fecha propia" ya se ve inline en
   // el rawText vía date-chip (renderInlineSegments) — acá solo hace falta
@@ -544,6 +601,7 @@ export function TaskItem({
               )}
               {renderInlineSegments(task, context, showWorkTag, visibleLinks)}
             </span>
+            {objectiveChip}
             {/* 062-subtareas (Tarea 12): progreso "hechas/total" junto al título — solo
                 cuando la tarea es contenedora (subtaskCount > 0). */}
             {progressLabel && (
@@ -619,7 +677,9 @@ export function TaskItem({
         {/* 062-subtareas (Tarea 13): el mismo menú de "cambiar estado" (variant
             board) suma ahora "Mover bajo otra tarea…"/"Sacar de …" — reusa el
             único ⋮ que ya tiene la tarjeta en vez de agregar un segundo botón. */}
-        {canToggle && variant === "board" && (task.statusOptions.length > 1 || reparentItems.length > 0) && (
+        {canToggle &&
+          variant === "board" &&
+          (task.statusOptions.length > 1 || reparentItems.length > 0 || objectiveItems.length > 0) && (
           <Menu
             label={`Acciones de "${task.displayText}"`}
             items={[
@@ -636,6 +696,7 @@ export function TaskItem({
                   onSelect: () => void changeStatus(s.id),
                 })),
               ...reparentItems,
+              ...objectiveItems,
             ]}
           />
         )}
@@ -733,6 +794,15 @@ export function TaskItem({
       task={task}
       onMoved={onChanged}
     />
+    {canMoveToObjective && (
+      <MoveToObjectiveDialog
+        open={objectiveMoveOpen}
+        onClose={() => setObjectiveMoveOpen(false)}
+        task={task}
+        objectives={objectiveOptions ?? []}
+        onMoved={onChanged}
+      />
+    )}
     </>
   );
 }

@@ -7,6 +7,9 @@ import { accessSector } from "@/lib/domain/permissions";
 import { applyTaskFilters, type TaskFilters } from "@/lib/domain/views/filters";
 import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE, TASK_NOT_IN_TEMPLATE } from "@/server/workFilters";
+import { OBJECTIVE_REF_SELECT } from "@/lib/domain/objectives/select";
+import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
 
 // 062-subtareas: shape de cada fila; `_count.subtasks` es el conteo GLOBAL de
 // hijas (todas, sin importar a qué sector estén vinculadas) — sirve para saber
@@ -20,6 +23,9 @@ const taskInclude = {
   status: true,
   parent: { select: { id: true, displayText: true } },
   _count: { select: { subtasks: true } },
+  // objetivos: el chip "Proyecto › Objetivo" de TaskItem y el orden del grupo
+  // de cada proyecto (`compareProjectTaskOrder`) necesitan el objetivo.
+  objective: OBJECTIVE_REF_SELECT,
 } as const;
 
 /**
@@ -173,12 +179,14 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   // 062-subtareas: SIN filtro de `parentId` acá — una hija vinculada a este
   // sector por sí misma (EXEC o REF) tiene que listarse, tenga o no a su padre
   // en esta misma vista (ver `nestByParent`, ruling 2026-08-29).
+  // objetivos (higiene de plantillas): los filtros compartidos traen `OR`;
+  // `labelWhere` solo aporta `labels`, así que esparcir ambos no pisa nada.
   const [execLinks, refLinks, loose] = await Promise.all([
     prisma.taskLink.findMany({
       where: {
         sectorId: id,
         type: "EXEC",
-        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }], ...labelWhere },
+        task: { ...TASK_IN_ACTIVE_PROJECT_OR_LOOSE, ...labelWhere },
       },
       include: { task: { include: taskInclude } },
       orderBy: { task: { position: "asc" } },
@@ -187,7 +195,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       where: {
         sectorId: id,
         type: "REF",
-        task: { OR: [{ work: { status: "ACTIVE", isTemplate: false } }, { workId: null }], ...labelWhere },
+        task: { ...TASK_IN_ACTIVE_PROJECT_OR_LOOSE, ...labelWhere },
       },
       include: { task: { include: taskInclude } },
       orderBy: { task: { position: "asc" } },
@@ -195,7 +203,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     prisma.task.findMany({
       where: {
         sectorId: id,
-        OR: [{ work: { isTemplate: false } }, { workId: null }],
+        ...TASK_NOT_IN_TEMPLATE,
         ...labelWhere,
       },
       include: taskInclude,
@@ -260,6 +268,10 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     }
     entry.tasks.push(t);
   }
+  // objetivos: `position` es densa por sección {proyecto, objetivo}; ordenar
+  // solo por `position` intercalaría objetivos. Generales primero, después
+  // cada objetivo en su orden (sort estable: sin objetivos, orden de siempre).
+  for (const entry of byWorkMap.values()) entry.tasks.sort(compareProjectTaskOrder);
   const byWork = [...byWorkMap.values()].sort((a, b) => a.work.name.localeCompare(b.work.name));
 
   // 062-subtareas: `allExec` son los ítems de nivel raíz de ESTA vista (un

@@ -16,13 +16,19 @@ import type { TaskDto } from "./TaskItem";
  * (feature 001 + R2 de 004); pegar multilínea crea una tarea por línea no vacía
  * (splitTaskLines). Si la tarea creada se direccionó a otro proyecto, avisa con un Toast
  * (R3 de 004).
+ *
+ * objetivos: con `context.objectiveId` la tarea nace dentro de ese objetivo
+ * (`contextObjectiveId`; el backend exige operar el proyecto).
  */
 export function TaskListEditor({
   context,
   onCreated,
+  placeholder,
 }: {
-  context: { workId?: string; sectorId?: string };
+  context: { workId?: string; sectorId?: string; objectiveId?: string };
   onCreated: () => void;
+  /** objetivos: texto del campo en el composer de una sección ("Agregar tarea a «X»…"). */
+  placeholder?: string;
 }) {
   const [text, setText] = useState("");
   const [desc, setDesc] = useState("");
@@ -59,6 +65,7 @@ export function TaskListEditor({
         rawText,
         contextWorkId: context.workId,
         contextSectorId: context.sectorId,
+        ...(context.objectiveId ? { contextObjectiveId: context.objectiveId } : {}),
       }),
     });
   };
@@ -153,9 +160,9 @@ export function TaskListEditor({
         <Plus size={16} className="plus" />
         <TagHighlightInput
           ref={inputRef}
-          placeholder={context.workId
+          placeholder={placeholder ?? (context.workId
             ? "Escribí una tarea y Enter…  (#sector  @referencia)"
-            : "Escribí una tarea y Enter…  (/proyecto  #sector  @referencia)"
+            : "Escribí una tarea y Enter…  (/proyecto  #sector  @referencia)")
           }
           value={text}
           onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}

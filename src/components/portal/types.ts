@@ -50,8 +50,24 @@ export interface PortalTask {
   subtaskDone: number;
 }
 
-export interface PortalWorkDetail extends PortalWorkSummary {
+/**
+ * objetivos (D11): un objetivo del proyecto con su progreso (regla de
+ * contenedor) y sus tareas. Sin posición, plantilla de origen ni autor.
+ */
+export interface PortalObjective {
+  id: string;
+  title: string;
+  description: string | null;
+  taskCounts: { done: number; total: number };
+  pct: number;
   tasks: PortalTask[];
+}
+
+export interface PortalWorkDetail extends PortalWorkSummary {
+  /** objetivos: solo las tareas generales (sin objetivo). */
+  tasks: PortalTask[];
+  /** objetivos: en orden; `[]` si el proyecto no tiene. */
+  objectives: PortalObjective[];
   doc: { content: unknown } | null;
 }
 

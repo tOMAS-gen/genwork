@@ -1,28 +1,10 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  useDroppable,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/components/ui/useApi";
 import { DocEditor } from "@/components/editor/DocEditor";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
-import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import type { TaskDto } from "@/components/tasks/TaskItem";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 import { TaskViewToggle } from "@/components/tasks/TaskViewToggle";
 import { ProjectMenu } from "@/components/projects/ProjectMenu";
@@ -34,6 +16,12 @@ import { InlineDescription } from "@/components/works/InlineDescription";
 import { FilesBrowser } from "@/components/files/FilesBrowser";
 import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
 import { ClientAccessPanel } from "@/components/works/ClientAccessPanel";
+import { ProjectTaskList } from "@/components/objectives/ProjectTaskList";
+import { AddObjectiveDialog } from "@/components/objectives/AddObjectiveDialog";
+import { useCollapsedObjectives } from "@/components/objectives/useCollapsedObjectives";
+import { objectiveAnchorId } from "@/components/objectives/ObjectiveSection";
+import type { ObjectiveDto } from "@/components/objectives/objectiveApi";
+import { groupTasksByObjective, flattenSections } from "@/lib/domain/objectives/grouping";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 import { taskListProgress } from "@/lib/domain/works/taskListProgress";
 import {
@@ -45,6 +33,8 @@ import {
   Copy,
   Check,
   AlertCircle,
+  Plus,
+  Info,
 } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -61,7 +51,10 @@ interface WorkFull {
   groupId: string | null;
   group: { id: string; name: string } | null;
   doc: { content: unknown } | null;
+  /** Todas las raíces del proyecto (generales y de objetivos), cada una con `objectiveId`. */
   tasks: TaskDto[];
+  /** objetivos: en orden; `[]` en una plantilla. */
+  objectives?: ObjectiveDto[];
   attachments: { id: string; fileName: string; size: number }[];
   archive: { status: "BUILDING" | "READY" | "CONFIRMED" | "FAILED" } | null;
   labels: WorkLabelDto[];
@@ -75,64 +68,6 @@ interface WorkFull {
   access: "read" | "operate";
   /** Feature 059: si este usuario administra el ámbito y puede dar acceso a clientes. */
   canManageClients: boolean;
-}
-
-/**
- * Fila arrastrable de la lista de tareas (feature 052, T005/T006): el handle
- * visual y el estilo de "arrastrando" viven en `TaskItem` (variant "list"), acá
- * solo se conecta `useSortable` y se le pasan `attributes`/`listeners` como
- * `dragHandleProps` — así el arrastre se activa desde el ícono del handle, no
- * desde toda la fila, y clicks en checkbox/select/texto/borrar no se ven afectados.
- */
-function SortableTaskRow({
-  task,
-  workId,
-  editable,
-  onChanged,
-}: {
-  task: TaskDto;
-  workId: string;
-  editable: boolean;
-  onChanged: () => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-  });
-  /**
-   * Zona de anidado (062-subtareas): además de ser ordenable, cada fila raíz es
-   * un destino donde soltar OTRA tarea para colgarla como subtarea. El id lleva
-   * el prefijo `nest:` para que `handleDragEnd` distinga las dos intenciones —
-   * soltar entre filas reordena, soltar sobre esta zona anida. Una subtarea no
-   * es destino: el anidado es de un solo nivel.
-   */
-  const { setNodeRef: setNestRef, isOver: isNestTarget } = useDroppable({
-    id: `nest:${task.id}`,
-    disabled: !editable || !!task.parentId,
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      className="task-sortable-row"
-      // Rows can have different heights; dragging must translate without resizing their content.
-      style={{
-        transform: CSS.Translate.toString(transform),
-        transition,
-        touchAction: "none",
-      }}
-    >
-      <div ref={setNestRef} className={isNestTarget ? "task-nest-target" : undefined}>
-        <TaskItem
-          task={task}
-          context={{ workId }}
-          canToggle={editable}
-          onChanged={onChanged}
-          dragHandleProps={{ attributes, listeners }}
-          isDragging={isDragging}
-        />
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -182,96 +117,55 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
     [id, load, toast],
   );
 
-  // Sensores de dnd-kit (feature 052, T005): PointerSensor con umbral de distancia
-  // para que un click simple sobre la casilla/selector/texto de una tarea no se
-  // interprete como el inicio de un arrastre; KeyboardSensor para accesibilidad.
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  // objetivos: una plantilla nunca muestra UI de objetivos (invariante: no tiene).
+  const objectives = work && !work.isTemplate ? (work.objectives ?? []) : [];
+  const { isOpen, toggle, expand } = useCollapsedObjectives(
+    id,
+    objectives.map((o) => o.id),
+    work !== null,
   );
+  const [addObjectiveOpen, setAddObjectiveOpen] = useState(false);
+  /** Objetivo al que hay que bajar cuando su sección esté en pantalla. */
+  const [scrollTarget, setScrollTarget] = useState<string | null>(null);
 
-  /**
-   * Llama al PATCH de reorder (T003) con el array completo de IDs ya reordenado
-   * y reconcilia el estado optimista con la respuesta (o revierte en error).
-   */
-  const commitReorder = useCallback(
-    (reordered: TaskDto[], previousTasks: TaskDto[]) => {
-      void api<TaskDto[]>(`/api/works/${id}/tasks/reorder`, {
-        method: "PATCH",
-        body: JSON.stringify({ orderedTaskIds: reordered.map((t) => t.id) }),
-      })
-        .then((tasks) => {
-          setWork((latest) => (latest ? { ...latest, tasks } : latest));
-        })
-        .catch((err) => {
-          // Revertimos el optimismo; si el conflicto es porque el conjunto de
-          // tareas cambió mientras se reordenaba (409 TASK_SET_CHANGED), además
-          // refrescamos desde el servidor y avisamos al usuario (contrato T005).
-          setWork((latest) => (latest ? { ...latest, tasks: previousTasks } : latest));
-          const status = (err as { status?: number }).status;
-          if (status === 409) {
-            toast(
-              "El orden cambió mientras se reordenaba la tarea; se actualizó la lista",
-              "error",
-            );
-            load();
-          } else {
-            toast("Error al reordenar las tareas", "error");
-          }
-        });
-    },
-    [id, load, toast],
-  );
+  const setTasks = useCallback((update: (prev: TaskDto[]) => TaskDto[]) => {
+    setWork((w) => (w ? { ...w, tasks: update(w.tasks) } : w));
+  }, []);
+  const setObjectives = useCallback((update: (prev: ObjectiveDto[]) => ObjectiveDto[]) => {
+    setWork((w) => (w ? { ...w, objectives: update(w.objectives ?? []) } : w));
+  }, []);
 
-  /**
-   * Cuelga una tarea de otra (o la promueve con `parentId: null`) reusando el
-   * mismo PATCH que el menú. El backend valida un solo nivel, misma pertenencia
-   * y que la tarea movida no tenga hijas abiertas, así que acá sólo hay que
-   * mostrar el error si lo rechaza.
-   */
-  const commitReparent = useCallback(
-    (taskId: string, parentId: string | null) => {
-      void api(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        body: JSON.stringify({ parentId }),
-      })
-        .then(load)
-        .catch((err) => {
-          toast((err as Error).message, "error");
-          load();
-        });
-    },
-    [load, toast],
-  );
+  // objetivos (crítica I1): el chip lleva a `#objetivo-<id>`. Al entrar (o si
+  // cambia el hash estando acá) se muestra la lista, se despliega esa sección
+  // y, cuando ya está dibujada, se baja hasta ella. La carga es asíncrona, por
+  // eso el scroll va en un efecto aparte que espera a que exista el ancla.
+  useEffect(() => {
+    const readHash = () => {
+      const match = /^#objetivo-(.+)$/.exec(window.location.hash);
+      if (!match) return;
+      setActiveTab("tasks");
+      setTaskView("list");
+      expand(match[1]);
+      setScrollTarget(match[1]);
+    };
+    readHash();
+    window.addEventListener("hashchange", readHash);
+    return () => window.removeEventListener("hashchange", readHash);
+  }, [expand]);
 
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id) return;
-
-      // Soltar SOBRE una fila (zona `nest:`) cuelga la tarea de esa otra; soltar
-      // entre filas reordena, que es el comportamiento de siempre (feature 052).
-      const overId = String(over.id);
-      if (overId.startsWith("nest:")) {
-        const parentId = overId.slice("nest:".length);
-        if (parentId !== String(active.id)) commitReparent(String(active.id), parentId);
-        return;
-      }
-
-      setWork((current) => {
-        if (!current) return current;
-        const oldIndex = current.tasks.findIndex((t) => t.id === active.id);
-        const newIndex = current.tasks.findIndex((t) => t.id === over.id);
-        if (oldIndex === -1 || newIndex === -1) return current;
-
-        const previousTasks = current.tasks;
-        const reordered = arrayMove(previousTasks, oldIndex, newIndex);
-        commitReorder(reordered, previousTasks);
-        return { ...current, tasks: reordered };
-      });
-    },
-    [commitReorder, commitReparent],
-  );
+  useEffect(() => {
+    if (!scrollTarget || !work) return;
+    const el = document.getElementById(objectiveAnchorId(scrollTarget));
+    if (!el) {
+      // El objetivo ya no existe (o todavía no llegó la recarga): nada que hacer.
+      if (!(work.objectives ?? []).some((o) => o.id === scrollTarget)) setScrollTarget(null);
+      return;
+    }
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
+    el.querySelector<HTMLButtonElement>(".objective-toggle")?.focus({ preventScroll: true });
+    setScrollTarget(null);
+  }, [scrollTarget, work]);
 
   if (!work && loadError) {
     return (
@@ -307,6 +201,9 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const editable = work.status === "ACTIVE";
+  // objetivos (crítica I6): gestionar objetivos exige operar el proyecto; en una
+  // plantilla no hay objetivos (una plantilla ES un objetivo).
+  const canManageObjectives = editable && work.access === "operate" && !work.isTemplate;
   // 062-subtareas (hallazgo Importante 4 de revisión): `work.tasks` son solo
   // raíces (works/[id]/route.ts las anida); ver taskListProgress.ts.
   const { done: doneCount, total: totalCount } = taskListProgress(work.tasks);
@@ -317,7 +214,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
       <Breadcrumbs
         items={[
           work.isTemplate
-            ? { label: "Proyectos plantilla", href: "/?filter=templates" }
+            ? { label: "Plantillas de objetivo", href: "/?filter=templates" }
             : { label: "Todos los proyectos", href: "/" },
           { label: work.name },
         ]}
@@ -342,7 +239,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                     <p>{work.group ? `Grupo ${work.group.name}` : "Espacio personal"}</p>
                     <span className="work-state">
                       {work.isTemplate
-                        ? "Plantilla"
+                        ? "Plantilla de objetivo"
                         : work.status === "ARCHIVED"
                           ? "Archivado"
                           : "Activo"}
@@ -461,68 +358,74 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                   <h2>Tareas</h2>
                   <span>{totalCount - doneCount} pendientes</span>
                 </div>
-                <TaskViewToggle value={taskView} onChange={setTaskView} />
-              </div>
-              {editable && (
-                <div className="work-task-composer">
-                  <TaskListEditor context={{ workId: id }} onCreated={load} />
+                <div className="work-tasks-actions">
+                  {canManageObjectives && (
+                    <button type="button" className="btn" onClick={() => setAddObjectiveOpen(true)}>
+                      <Plus size={16} aria-hidden="true" />
+                      Nuevo objetivo
+                    </button>
+                  )}
+                  <TaskViewToggle value={taskView} onChange={setTaskView} />
                 </div>
+              </div>
+              {work.isTemplate && (
+                <p className="template-objective-note">
+                  <Info size={16} aria-hidden="true" />
+                  <span>
+                    Esta plantilla es un objetivo: al insertarla en un proyecto, su nombre pasa a ser el
+                    título del objetivo, la descripción se copia y se copian las tareas pendientes con sus
+                    subtareas.
+                  </span>
+                </p>
               )}
               {taskView === "list" ? (
-                <div className="work-task-list">
-                  {editable ? (
-                    <DndContext
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <SortableContext
-                        items={work.tasks.map((t) => t.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {work.tasks.map((task) => (
-                          <SortableTaskRow
-                            key={task.id}
-                            task={task}
-                            workId={id}
-                            editable={editable}
-                            onChanged={load}
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
-                  ) : (
-                    work.tasks.map((task) => (
-                      <TaskItem
-                        key={task.id}
-                        task={task}
-                        context={{ workId: id }}
-                        canToggle={editable}
-                        onChanged={load}
-                      />
-                    ))
-                  )}
-                  {work.tasks.length === 0 && (
-                    <EmptyState
-                      icon={CheckSquare}
-                      title="Sin tareas todavía"
-                      description={
-                        editable
-                          ? "Escribí la primera tarea arriba para empezar a organizar el proyecto."
-                          : "Este proyecto no tiene tareas."
-                      }
-                    />
-                  )}
-                </div>
+                <ProjectTaskList
+                  workId={id}
+                  tasks={work.tasks}
+                  objectives={objectives}
+                  editable={editable}
+                  canManageObjectives={canManageObjectives}
+                  isOpen={isOpen}
+                  onToggle={toggle}
+                  onExpand={expand}
+                  setTasks={setTasks}
+                  setObjectives={setObjectives}
+                  onReload={load}
+                />
               ) : (
-                <div style={{ marginTop: "var(--space-2)" }}>
-                  <TaskBoardView
-                    tasks={work.tasks}
-                    context={{ workId: id }}
-                    canToggle={editable}
-                    onChanged={load}
-                  />
-                </div>
+                <>
+                  {editable && (
+                    <div className="work-task-composer">
+                      <TaskListEditor context={{ workId: id }} onCreated={load} />
+                    </div>
+                  )}
+                  <div style={{ marginTop: "var(--space-2)" }}>
+                    {/* objetivos: el tablero sigue plano (generales primero, después
+                        cada objetivo en orden); cada tarjeta lleva su chip. */}
+                    <TaskBoardView
+                      tasks={flattenSections(groupTasksByObjective(work.tasks, objectives))}
+                      context={{ workId: id }}
+                      canToggle={editable}
+                      onChanged={load}
+                      objectiveOptions={canManageObjectives && objectives.length > 0 ? objectives : undefined}
+                    />
+                  </div>
+                </>
+              )}
+              {canManageObjectives && (
+                <AddObjectiveDialog
+                  open={addObjectiveOpen}
+                  onClose={() => setAddObjectiveOpen(false)}
+                  workId={id}
+                  onCreated={(objective) => {
+                    // Se suma ya (sin esperar la recarga) para poder bajar hasta él.
+                    setObjectives((prev) =>
+                      prev.some((o) => o.id === objective.id) ? prev : [...prev, objective],
+                    );
+                    setScrollTarget(objective.id);
+                    load();
+                  }}
+                />
               )}
             </>
           )}

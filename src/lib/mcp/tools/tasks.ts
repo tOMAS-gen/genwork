@@ -12,9 +12,13 @@ import {
   syncParentStatus,
   loadApplicableStatusSet,
   execSectorIdsOf,
+  taskWithLinksInclude,
   type TaskWithLinks,
 } from "@/server/tasks";
 import { emit } from "@/server/events";
+import { getObjectiveWithAccess, setTaskObjective } from "@/server/objectives";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
+import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -35,6 +39,11 @@ function summarizeTask(
     text: task.displayText,
     status: { id: task.status.id, name: task.status.name, color: task.status.color, type: task.status.type },
     workId: task.workId,
+    // objetivos: proyecto y sección de la tarea (null = tarea general o
+    // suelta). Defensivo: los fakes de los tests no siempre traen relaciones.
+    workName: task.work?.name ?? null,
+    objectiveId: task.objectiveId ?? null,
+    objectiveTitle: task.objective?.title ?? null,
     homeSectorId: task.sectorId,
     dueDate: task.dueDate,
     // 062-subtareas (Tarea 14): un solo nivel de anidado, igual que el DTO web
@@ -97,13 +106,6 @@ async function summarizeTaskWithLabels(task: TaskWithLinks) {
   return summarizeTask(task, byTask.get(task.id) ?? [], bySubtask.get(task.id) ?? NO_SUBTASKS);
 }
 
-const taskInclude = {
-  links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-  work: { select: { id: true, name: true } },
-  homeSector: { select: { id: true, name: true } },
-  status: true,
-} as const;
-
 /**
  * Input de `task.create`/`task.update` (exportado para test, T024): a propósito
  * NO tiene campos estructurados para `/ # @ $` — todo pasa por `text`/`parseTags`
@@ -116,6 +118,10 @@ export const taskCreateInputShape = {
   // nivel — `saveTask` hereda proyecto, sector home y, si el texto no declara
   // ningún #sector, los EXEC del padre).
   parentId: z.string().uuid().optional(),
+  // objetivos: crea la tarea dentro de ese objetivo (ubicación estructural,
+  // como `parentId`; no es un símbolo del texto). Sin `workId` lo toma del
+  // objetivo; una subtarea ignora esto y hereda el objetivo del padre.
+  objectiveId: z.string().uuid().optional(),
 };
 
 export const taskUpdateInputShape = {
@@ -129,17 +135,31 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Listar tareas",
       description:
-        "Lista tareas de un proyecto o de un sector (al menos uno de los dos). Con parentId, " +
-        "trae solo las hijas de esa tarea (un solo nivel de anidado).",
+        "Lista tareas de un proyecto o de un sector (al menos uno de los dos, o un objectiveId). " +
+        "Con parentId, trae solo las hijas de esa tarea (un solo nivel de anidado). Con objectiveId " +
+        "trae solo las de ese objetivo (sin workId se usa su proyecto); objectiveId null trae las " +
+        "tareas generales del proyecto (requiere workId). Cada tarea trae workName, objectiveId y " +
+        "objectiveTitle; en un proyecto van primero las generales y después cada objetivo en orden.",
       inputSchema: {
         workId: z.string().uuid().optional(),
         sectorId: z.string().uuid().optional(),
         statusType: z.enum(["IN_PROGRESS", "FINAL"]).optional(),
         parentId: z.string().uuid().optional(),
+        objectiveId: z.string().uuid().nullable().optional(),
       },
     },
-    async ({ workId, sectorId, statusType, parentId }) => {
+    async ({ workId: inputWorkId, sectorId, statusType, parentId, objectiveId }) => {
       try {
+        // objetivos: `objectiveId` sin proyecto ni sector → el proyecto del
+        // objetivo (404 si no se ve). Las generales (null) necesitan proyecto.
+        let workId = inputWorkId;
+        if (objectiveId === null && !workId) {
+          throw badRequest("Para filtrar tareas generales indicá workId");
+        }
+        if (objectiveId && !workId && !sectorId) {
+          const { objective } = await getObjectiveWithAccess(ctx.userContext, objectiveId, "read");
+          workId = objective.workId;
+        }
         if (!workId && !sectorId) throw badRequest("Indicá workId o sectorId");
 
         let tasks: TaskWithLinks[];
@@ -157,9 +177,12 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           if (level === "none") throw notFound("Proyecto no encontrado");
           tasks = await prisma.task.findMany({
             where: { workId, ...(statusType ? { status: { type: statusType } } : {}) },
-            include: taskInclude,
+            include: taskWithLinksInclude,
             orderBy: { position: "asc" },
           });
+          // objetivos: `position` es densa por sección, así que el orden del
+          // proyecto es el de la página: generales, después cada objetivo.
+          tasks = [...tasks].sort(compareProjectTaskOrder);
         } else {
           const sector = await prisma.sector.findUnique({
             where: { id: sectorId! },
@@ -174,15 +197,21 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           });
           if (level === "none") throw notFound("Sector no encontrado");
 
+          // objetivos (higiene de plantillas): por sector, mismo filtro que la
+          // vista web del sector (Principio VIII) — sin tareas de plantillas ni
+          // de proyectos archivados. `loose` ya queda fuera de toda plantilla
+          // por construcción (`workId: null`), así que no suma cláusula.
+          // La rama `workId` de arriba NO se filtra: listar una plantilla por id
+          // es legítimo.
           const [execLinks, loose] = await Promise.all([
             prisma.taskLink.findMany({
-              where: { sectorId: sectorId!, type: "EXEC" },
-              include: { task: { include: taskInclude } },
+              where: { sectorId: sectorId!, type: "EXEC", task: TASK_IN_ACTIVE_PROJECT_OR_LOOSE },
+              include: { task: { include: taskWithLinksInclude } },
               orderBy: { task: { position: "asc" } },
             }),
             prisma.task.findMany({
               where: { sectorId: sectorId!, workId: null },
-              include: taskInclude,
+              include: taskWithLinksInclude,
               orderBy: { position: "asc" },
             }),
           ]);
@@ -196,6 +225,10 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         // 062-subtareas: filtro post-query (aplica igual a las dos ramas de
         // arriba) — "solo las hijas de esta tarea".
         if (parentId !== undefined) tasks = tasks.filter((t) => t.parentId === parentId);
+        // objetivos: mismo criterio post-query para la sección.
+        if (objectiveId !== undefined) {
+          tasks = tasks.filter((t) => (t.objectiveId ?? null) === objectiveId);
+        }
 
         const [byTask, subtaskCounts] = await Promise.all([
           labelsByTaskId(tasks.map((t) => t.id)),
@@ -218,12 +251,19 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
       title: "Crear tarea",
       description:
         "Crea una tarea a partir de texto con etiquetado inline (/trabajo #sector @referencia $etiqueta). " +
-        "Sin workId, el texto debe incluir /trabajo o la tarea debe poder crearse en un sector.",
+        "Sin workId, el texto debe incluir /trabajo o la tarea debe poder crearse en un sector. " +
+        "Con objectiveId nace dentro de ese objetivo (requiere operar su proyecto); una subtarea " +
+        "(parentId) hereda el objetivo del padre.",
       inputSchema: taskCreateInputShape,
     },
-    async ({ text, workId, parentId }) => {
+    async ({ text, workId, parentId, objectiveId }) => {
       try {
-        const task = await saveTask(ctx.userContext, { rawText: text, contextWorkId: workId, parentId });
+        const task = await saveTask(ctx.userContext, {
+          rawText: text,
+          contextWorkId: workId,
+          parentId,
+          contextObjectiveId: objectiveId,
+        });
 
         await logMcpActivity({
           connectionId: ctx.connectionId,
@@ -400,8 +440,9 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         "Convierte una tarea en subtarea de otra (mismo proyecto o sector), o la promueve a tarea " +
         "independiente con parentId nulo. Un solo nivel de anidado; mismas reglas que arrastrar una " +
         "tarea en la web: el destino no puede ser a su vez una subtarea, tiene que pertenecer al mismo " +
-        "proyecto/sector, la tarea a mover no puede tener hijas abiertas propias, y si no tiene EXEC " +
-        "propio hereda los del nuevo padre.",
+        "proyecto/sector, la tarea a mover no puede tener hijas propias (ni siquiera terminadas), y si " +
+        "no tiene EXEC propio hereda los del nuevo padre. Al colgarla toma el objetivo del padre (si eso " +
+        "la cambia de objetivo, hace falta operar el proyecto); al promoverla conserva el suyo.",
       inputSchema: { taskId: z.string().uuid(), parentId: z.string().uuid().nullable() },
     },
     async ({ taskId, parentId: nextParentId }) => {
@@ -415,8 +456,9 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         // compartido con PATCH /api/tasks/[id] (revisión final, hallazgo
         // Importante 5 — antes era una copia literal de ~50 líneas acá y allá,
         // para que mover una tarea por MCP o por drag-and-drop en la web deje
-        // el mismo resultado).
-        const updated = await setTaskParent(task, nextParentId);
+        // el mismo resultado). objetivos: con `ctx`, para exigir operar el
+        // proyecto si la tarea cambia de objetivo al colgarla.
+        const updated = await setTaskParent(ctx.userContext, task, nextParentId);
 
         // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o
         // con todas terminadas) y el padre nuevo (una hija recién llegada puede
@@ -447,6 +489,58 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           nextParentId
             ? `Tarea "${task.displayText}" movida como subtarea.`
             : `Tarea "${task.displayText}" promovida a tarea independiente.`,
+          await summarizeTaskWithLabels(updated),
+        );
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "task.setObjective",
+    {
+      title: "Mover tarea a un objetivo",
+      description:
+        "Mueve una tarea raíz (con sus subtareas) a otro objetivo del mismo proyecto, o a las " +
+        "tareas generales con objectiveId null. Queda al final de la sección, o en `index` " +
+        "(desde 0) si se indica. Una subtarea sigue el objetivo de su padre (usar task.setParent). " +
+        "Requiere operar el proyecto.",
+      inputSchema: {
+        taskId: z.string().uuid(),
+        objectiveId: z.string().uuid().nullable(),
+        index: z.number().int().min(0).optional(),
+      },
+    },
+    async ({ taskId, objectiveId, index }) => {
+      try {
+        const existing = await getTaskOrThrow(taskId);
+        // Permisos, validación y el no-op de "misma sección sin index" viven en
+        // el servicio (mismo núcleo que PATCH /api/tasks/[id] con objectiveId).
+        const updated = await setTaskObjective(ctx.userContext, taskId, objectiveId, { index });
+
+        const sameSection = (existing.objectiveId ?? null) === objectiveId;
+        if (sameSection && index === undefined) {
+          return toolSuccess("La tarea ya estaba en esa sección.", await summarizeTaskWithLabels(updated));
+        }
+
+        const where = updated.objective ? `al objetivo "${updated.objective.title}"` : "a tareas generales";
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "task.setObjective",
+          targetType: "Task",
+          targetId: taskId,
+          workId: updated.workId ?? undefined,
+          summary: sameSection
+            ? `El asistente de IA reordenó la tarea "${updated.displayText}".`
+            : `El asistente de IA movió la tarea "${updated.displayText}" ${where}.`,
+        });
+
+        return toolSuccess(
+          sameSection
+            ? `Tarea "${updated.displayText}" reordenada.`
+            : `Tarea "${updated.displayText}" movida ${where}.`,
           await summarizeTaskWithLabels(updated),
         );
       } catch (err) {

@@ -7,7 +7,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { buildArchivePackage } from "@/lib/domain/archive/builder";
-import type { ArchivableTask } from "@/lib/domain/archive/render";
+import type { ArchivableObjective, ArchivableTask } from "@/lib/domain/archive/render";
 import type { Prisma } from "@prisma/client";
 
 const ARCHIVE_DIR = process.env.ARCHIVE_DIR ?? "./storage/archives";
@@ -54,7 +54,15 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
         where: { id },
         include: {
           doc: true,
+          // objetivos (D12): `tareas.md` se agrupa por objetivo, en su orden.
+          objectives: {
+            orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+            select: { id: true, title: true, description: true },
+          },
           tasks: {
+            // objetivos: antes sin orden; `position` es por sección, así que
+            // `createdAt` desempata (mismo criterio que works/[id]).
+            orderBy: [{ position: "asc" }, { createdAt: "asc" }],
             include: {
               creator: { select: { name: true } },
               completedBy: { select: { name: true } },
@@ -66,6 +74,9 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
       });
 
       const tasks: ArchivableTask[] = full.tasks.map((t) => ({
+        id: t.id,
+        parentId: t.parentId,
+        objectiveId: t.objectiveId,
         displayText: t.displayText,
         rawText: t.rawText,
         statusType: t.status.type,
@@ -79,6 +90,8 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
         })),
       }));
 
+      const objectives: ArchivableObjective[] = full.objectives;
+
       const storage = await getStorageProvider();
       if (!storage) throw new Error("Almacenamiento no configurado");
       const zipPath = path.join(ARCHIVE_DIR, `${id}.zip`);
@@ -89,6 +102,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
           folderPath: full.nextcloudFolderPath,
           docContent: full.doc?.content ?? null,
           tasks,
+          objectives,
         },
         zipPath,
       );

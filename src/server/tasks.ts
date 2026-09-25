@@ -26,7 +26,21 @@ import {
 } from "@/lib/domain/permissions";
 import { ApiError, badRequest, conflict, forbidden, notFound } from "@/server/api";
 import { emit } from "@/server/events";
-import type { Prisma, Sector, Task, TaskLink, TaskStatus, User, Work, Group } from "@prisma/client";
+import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
+import { requireWorkAccess } from "@/server/works";
+import { OBJECTIVE_REF_SELECT } from "@/lib/domain/objectives/select";
+import { sameIdSet } from "@/lib/domain/objectives/ordering";
+import type {
+  Objective,
+  Prisma,
+  Sector,
+  Task,
+  TaskLink,
+  TaskStatus,
+  User,
+  Work,
+  Group,
+} from "@prisma/client";
 
 async function ensureDefaultStatusesForScope(
   scope: TaskScopeRef,
@@ -66,13 +80,22 @@ export type TaskWithLinks = Task & {
   work: Pick<Work, "id" | "name"> | null;
   homeSector: Pick<Sector, "id" | "name"> | null;
   status: TaskStatus;
+  /** objetivos: referencia mínima al objetivo (chip "Proyecto › Objetivo"); null si es general. */
+  objective: Pick<Objective, "id" | "title" | "position"> | null;
 };
 
-const taskInclude = {
+/**
+ * Include de `TaskWithLinks`. Exportado (objetivos) para que el MCP use el
+ * mismo en vez de una copia local que se desincronice. `OBJECTIVE_REF_SELECT`
+ * viene de un módulo hoja: ver el comentario de `objectives/select.ts` sobre
+ * el import circular con `taskDto.ts`.
+ */
+export const taskWithLinksInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
   work: { select: { id: true, name: true } },
   homeSector: { select: { id: true, name: true } },
   status: true,
+  objective: OBJECTIVE_REF_SELECT,
 } satisfies Prisma.TaskInclude;
 
 /** Cliente Prisma o de transacción — las consultas de scope funcionan con cualquiera de los dos. */
@@ -176,7 +199,14 @@ function scopeWithPublic(entity: {
   };
 }
 
-export async function toTaskRef(task: TaskWithLinks): Promise<TaskRef> {
+/**
+ * objetivos: recibe solo lo que usa (proyecto, sector home y vínculos) para
+ * que un listado con un include propio sin `objective` (p. ej. la búsqueda
+ * del MCP) pueda armar el TaskRef sin cargar el objetivo.
+ */
+export async function toTaskRef(
+  task: Pick<TaskWithLinks, "workId" | "sectorId" | "links">,
+): Promise<TaskRef> {
   const work = task.workId
     ? await prisma.work.findUnique({ where: { id: task.workId }, include: { group: true } })
     : null;
@@ -224,6 +254,13 @@ interface ResolveInput {
   contextSectorId?: string;
   /** Subtarea (un solo nivel): id de la tarea padre de la que cuelga. */
   parentId?: string;
+  /**
+   * objetivos: alta de una tarea raíz dentro de un objetivo. Solo cuenta en
+   * `saveTask` al CREAR sin padre (una hija hereda el objetivo del padre y una
+   * edición conserva el suyo; para cambiarla de sección está
+   * `setTaskObjective`). `resolveTask` la ignora.
+   */
+  contextObjectiveId?: string;
 }
 
 interface Resolved {
@@ -274,8 +311,18 @@ export async function resolveTask(ctx: UserContext, input: ResolveInput): Promis
   let workId: string | null = contextWork?.id ?? null;
   const workName = grouped["/"][0];
   if (workName) {
+    // objetivos (higiene de plantillas): una plantilla no es destino de `/`
+    // (antes se podía mandar una tarea a una plantilla escribiendo
+    // `/Plantilla` desde un sector o el dashboard). Excepción: la plantilla
+    // de contexto, para que editar dentro de ella una tarea cuyo texto la
+    // nombra no dé 409. Mover por texto de la plantilla A a la B deja de
+    // andar (409 `unresolvedTags`), a propósito.
     const candidates = await prisma.work.findMany({
-      where: { ...scopeWhere, status: "ACTIVE" },
+      where: {
+        ...scopeWhere,
+        status: "ACTIVE",
+        OR: [NOT_TEMPLATE_WORK, ...(contextWork ? [{ id: contextWork.id }] : [])],
+      },
     });
     const target = matchByTag(workName, candidates, (w) => w.name);
     if (!target) {
@@ -409,19 +456,36 @@ interface EditMeta {
  * la use al mover/promover una tarea: sin recalcular, la tarea conservaba la
  * posición de su ámbito anterior (arbitraria entre sus nuevas hermanas, o al
  * tope de la lista del proyecto al promoverla).
+ *
+ * objetivos: las raíces de un proyecto se ordenan por sección — las generales
+ * (`objectiveId: null`) y cada objetivo son ámbitos distintos
+ * (`rootScopeWhere`), así que una tarea nueva de un objetivo va al final de
+ * ESE objetivo y no detrás de todas las raíces del proyecto. `db` permite
+ * llamarla dentro de una transacción.
  */
 export async function nextPosition(
   workId: string | null,
   homeSectorId: string | null,
   parentId: string | null,
+  objectiveId: string | null = null,
+  db: DbClient = prisma,
 ): Promise<number> {
   const where = parentId
     ? { parentId }
     : workId
-      ? { workId, parentId: null }
+      ? rootScopeWhere(workId, objectiveId)
       : { workId: null, sectorId: homeSectorId, parentId: null };
-  const result = await prisma.task.aggregate({ where, _max: { position: true } });
+  const result = await db.task.aggregate({ where, _max: { position: true } });
   return (result._max.position ?? -1) + 1;
+}
+
+/**
+ * objetivos: ámbito de orden de las tareas raíz de un proyecto — las
+ * generales (`objectiveId: null`) o las de un objetivo. Lo comparten
+ * `nextPosition`, `reorderTasks` y los servicios de objetivos.
+ */
+export function rootScopeWhere(workId: string, objectiveId: string | null) {
+  return { workId, objectiveId, parentId: null };
 }
 
 /** Lo mínimo de una tarea que necesita `setTaskParent` (revisión final, hallazgo Importante 5). */
@@ -429,6 +493,8 @@ interface TaskForReparent {
   id: string;
   workId: string | null;
   sectorId: string | null;
+  /** objetivos: sección actual de la tarea (null = general o suelta de sector). */
+  objectiveId: string | null;
   links: readonly { type: "EXEC" | "REF"; sectorId: string | null }[];
 }
 
@@ -454,12 +520,28 @@ interface TaskForReparent {
  * padre (delegación explícita si ya tenía uno). Recalcula `position` dentro
  * del nuevo ámbito de hermanas (hallazgo Importante 4): entre las hijas del
  * padre nuevo, o al final de las tareas raíz del proyecto/sector al promover.
+ *
+ * objetivos:
+ * - Una hija vive en el objetivo de su padre: al colgarla hereda
+ *   `parent.objectiveId`; al promoverla conserva el suyo y va al final de las
+ *   raíces de ESE objetivo (o de las generales).
+ * - Si el objetivo cambia (anidar bajo un padre de otra sección) exige operar
+ *   el proyecto, igual que "Mover tarea de sección" (crítica I5): el
+ *   `canToggle` de los llamadores alcanza a quien opera solo un sector de la
+ *   tarea, y eso no le da permiso para reorganizar el proyecto.
+ * - Cuenta TODAS las hijas de la tarea que se mueve, no solo las abiertas: con
+ *   hijas FINAL quedaban dos niveles de anidado y, con objetivos, hijas en
+ *   otra sección que la de su padre.
  */
 export async function setTaskParent(
+  ctx: UserContext,
   task: TaskForReparent,
   nextParentId: string | null,
 ): Promise<TaskWithLinks> {
   let inheritedLinksData: { type: "EXEC"; targetType: "SECTOR"; targetId: string; sectorId: string }[] = [];
+  // Promover conserva la sección; colgar la toma del padre (abajo).
+  const currentObjectiveId = task.objectiveId ?? null;
+  let nextObjectiveId = currentObjectiveId;
 
   if (nextParentId) {
     if (nextParentId === task.id) throw badRequest("Una tarea no puede colgar de sí misma");
@@ -475,13 +557,14 @@ export async function setTaskParent(
       throw badRequest("La subtarea tiene que pertenecer al mismo proyecto o sector que el padre");
     }
 
-    // La tarea que se mueve no puede arrastrar hijas propias abiertas (evita 2 niveles).
-    const openChildren = await prisma.task.count({
-      where: { parentId: task.id, status: { type: { not: "FINAL" } } },
-    });
-    if (openChildren > 0) {
+    // La tarea que se mueve no puede arrastrar hijas propias (evita 2 niveles),
+    // ni siquiera terminadas (ver comentario de arriba).
+    const children = await prisma.task.count({ where: { parentId: task.id } });
+    if (children > 0) {
       throw badRequest("Sacá primero las subtareas de esta tarea antes de moverla");
     }
+
+    nextObjectiveId = parent.objectiveId ?? null;
 
     const ownExecLinks = task.links.filter((l) => l.type === "EXEC");
     if (ownExecLinks.length === 0) {
@@ -495,16 +578,22 @@ export async function setTaskParent(
     }
   }
 
-  const position = await nextPosition(task.workId, task.sectorId, nextParentId);
+  // Sin proyecto no hay objetivos: una tarea suelta de sector nunca cambia de sección.
+  if (nextObjectiveId !== currentObjectiveId && task.workId) {
+    await requireWorkAccess(ctx, task.workId, "operate");
+  }
+
+  const position = await nextPosition(task.workId, task.sectorId, nextParentId, nextObjectiveId);
 
   return prisma.task.update({
     where: { id: task.id },
     data: {
       parentId: nextParentId,
+      objectiveId: nextObjectiveId,
       position,
       ...(inheritedLinksData.length > 0 ? { links: { create: inheritedLinksData } } : {}),
     },
-    include: taskInclude,
+    include: taskWithLinksInclude,
   });
 }
 
@@ -527,13 +616,8 @@ async function reorderTaskSet(
 ): Promise<void> {
   const current = await tx.task.findMany({ where, select: { id: true } });
 
-  const orderedSet = new Set(orderedTaskIds);
-  const matches =
-    orderedTaskIds.length === current.length &&
-    orderedSet.size === orderedTaskIds.length && // sin duplicados
-    current.every((t) => orderedSet.has(t.id));
-
-  if (!matches) {
+  // objetivos: la comparación vive en `sameIdSet` (la comparte el reorder de objetivos).
+  if (!sameIdSet(current.map((t) => t.id), orderedTaskIds)) {
     throw new ApiError(
       409,
       "TASK_SET_CHANGED",
@@ -559,16 +643,34 @@ async function reorderTaskSet(
  * asume nada del `position` anterior (FR-006: `nextPosition()` sigue devolviendo
  * `max + 1` intacto tras reordenar).
  */
-export async function reorderTasks(workId: string, orderedTaskIds: string[]): Promise<void> {
+export async function reorderTasks(
+  workId: string,
+  orderedTaskIds: string[],
+  objectiveId: string | null = null,
+): Promise<void> {
   // 062-subtareas (hallazgo Crítico de revisión): las hijas heredan `workId`
   // del padre, así que acotar solo por `workId` las incluía en el conjunto
   // esperado — la UI (works/[id]/route.ts) solo manda las raíces, y el
   // conjunto nunca coincidía: TASK_SET_CHANGED en cada arrastre. `parentId:
   // null` deja el ámbito acotado a las tareas raíz del proyecto, igual que
   // `reorderSubtasks` lo acota a `parentId` para las hijas de un padre.
-  await prisma.$transaction((tx) =>
-    reorderTaskSet(tx, { workId, parentId: null }, orderedTaskIds, "tareas"),
-  );
+  //
+  // objetivos: el ámbito es además UNA sección (`rootScopeWhere`) — las
+  // generales (`objectiveId` null, el default de siempre) o las de un
+  // objetivo. Sin esto, con objetivos el conjunto de raíces del proyecto
+  // mezclaba secciones y cada arrastre salía TASK_SET_CHANGED. El objetivo se
+  // valida dentro de la misma transacción: uno inexistente o de otro proyecto
+  // es 404 (no filtra si existe en otro lado).
+  await prisma.$transaction(async (tx) => {
+    if (objectiveId) {
+      const objective = await tx.objective.findUnique({
+        where: { id: objectiveId },
+        select: { workId: true },
+      });
+      if (!objective || objective.workId !== workId) throw notFound("Objetivo no encontrado");
+    }
+    await reorderTaskSet(tx, rootScopeWhere(workId, objectiveId), orderedTaskIds, "tareas");
+  });
 }
 
 /**
@@ -609,16 +711,32 @@ export async function saveTask(
   // (`input.taskId`) y no vino `parentId` explícito, se resuelve el padre
   // ACTUAL de la tarea desde la base — así cualquier editor (UI, MCP, uno
   // futuro) conserva la herencia sin tener que acordarse de mandar `parentId`.
+  //
+  // objetivos: en una edición se lee UNA sola vez lo actual de la tarea
+  // (padre, proyecto, objetivo y estado) — antes eran dos lecturas (padre acá
+  // y estado más abajo). El proyecto y el objetivo actuales deciden si la
+  // edición muda la tarea de proyecto (ver `workChanged`).
+  const current = input.taskId
+    ? await prisma.task.findUnique({
+        where: { id: input.taskId },
+        select: {
+          parentId: true,
+          workId: true,
+          objectiveId: true,
+          status: { select: { id: true, type: true } },
+        },
+      })
+    : null;
+  if (input.taskId && !current) throw notFound("Tarea no encontrada");
+
   let resolvedParentId = input.parentId;
-  if (input.taskId && resolvedParentId === undefined) {
-    const currentTask = await prisma.task.findUnique({
-      where: { id: input.taskId },
-      select: { parentId: true },
-    });
-    resolvedParentId = currentTask?.parentId ?? undefined;
+  if (current && resolvedParentId === undefined) {
+    resolvedParentId = current.parentId ?? undefined;
   }
 
   let inheritedExecSectorIds: string[] = [];
+  // objetivos: una hija vive en el objetivo de su padre (se ignora `contextObjectiveId`).
+  let inheritedObjectiveId: string | null = null;
   if (resolvedParentId) {
     const parent = await prisma.task.findUnique({
       where: { id: resolvedParentId },
@@ -644,9 +762,51 @@ export async function saveTask(
         .map((l) => l.sectorId)
         .filter((id): id is string => id != null);
     }
+
+    inheritedObjectiveId = parent.objectiveId ?? null;
+  }
+
+  // objetivos: alta de una tarea raíz dentro de un objetivo. El objetivo fija
+  // el proyecto de contexto; si además vino `contextWorkId`, tienen que
+  // coincidir. Exige OPERAR el proyecto (crítica B6): hasta acá `saveTask` no
+  // miraba acceso sobre `contextWorkId` —cualquiera con el id creaba tareas en
+  // cualquier proyecto—; con objetivos se corta al menos en la vía nueva, con
+  // el mismo gate que el resto de las mutaciones de objetivos (404 sin
+  // acceso, 403 si solo lee, 409 si el proyecto está archivado).
+  let contextObjective: { id: string; workId: string } | null = null;
+  if (!current && !resolvedParentId && input.contextObjectiveId) {
+    contextObjective = await prisma.objective.findUnique({
+      where: { id: input.contextObjectiveId },
+      select: { id: true, workId: true },
+    });
+    if (!contextObjective) throw notFound("Objetivo no encontrado");
+    await requireWorkAccess(ctx, contextObjective.workId, "operate");
+    if (input.contextWorkId && input.contextWorkId !== contextObjective.workId) {
+      throw new ApiError(400, "OBJECTIVE_WORK_MISMATCH", "El objetivo no pertenece a ese proyecto");
+    }
+    input = { ...input, contextWorkId: contextObjective.workId };
   }
 
   const resolved = await resolveTask(ctx, input);
+
+  // objetivos: sección de la tarea después de guardar.
+  // - Edición: conserva su objetivo, salvo que el texto la mude de proyecto
+  //   (`/Otro`): un objetivo es de UN proyecto, así que queda general en el
+  //   destino (y sus hijas se mudan con ella, ver `moveSubtasksWithParent`).
+  // - Alta de hija: el objetivo del padre.
+  // - Alta raíz: el de contexto, salvo que un `/Otro` explícito la mande a
+  //   otro proyecto — ahí también queda general.
+  const workChanged = current !== null && resolved.workId !== current.workId;
+  const objectiveId = current
+    ? workChanged
+      ? null
+      : (current.objectiveId ?? null)
+    : resolvedParentId
+      ? inheritedObjectiveId
+      : contextObjective && resolved.workId === contextObjective.workId
+        ? contextObjective.id
+        : null;
+
   const parsedDates = parseDates(input.rawText);
   const dueDate = parsedDates[0]?.iso ? new Date(parsedDates[0].iso) : null;
 
@@ -688,15 +848,10 @@ export async function saveTask(
   // primer estado IN_PROGRESS del conjunto (FR-009).
   let statusId: string;
   let previousStatusId: string | null = null;
-  if (input.taskId) {
-    const existing = await prisma.task.findUnique({
-      where: { id: input.taskId },
-      select: { status: { select: { id: true, type: true } } },
-    });
-    if (!existing) throw notFound("Tarea no encontrada");
-    previousStatusId = existing.status.id;
+  if (current) {
+    previousStatusId = current.status.id;
     statusId = reassignOnSectorChange(
-      { ...existing.status, name: "", color: "", sortOrder: 0, groupId: null, ownerId: null, sectorId: null },
+      { ...current.status, name: "", color: "", sortOrder: 0, groupId: null, ownerId: null, sectorId: null },
       applicableSet,
     ).id;
   } else {
@@ -726,8 +881,21 @@ export async function saveTask(
             lastEditedAt: new Date(),
             ...(input.editMeta.adopt && { adoptedAt: new Date() }),
           }),
+          // objetivos: al mudarse de proyecto queda general en el destino y va
+          // al final de ESA sección (antes conservaba la posición del proyecto
+          // viejo, arbitraria entre sus nuevas hermanas). Sin mudanza no se
+          // toca: la tarea conserva su objetivo y su lugar.
+          ...(workChanged && {
+            objectiveId: null,
+            position: await nextPosition(
+              resolved.workId,
+              resolved.homeSectorId,
+              resolvedParentId ?? null,
+              null,
+            ),
+          }),
         },
-        include: taskInclude,
+        include: taskWithLinksInclude,
       })
     : await prisma.task.create({
         data: {
@@ -742,11 +910,17 @@ export async function saveTask(
           originType: input.contextWorkId ? "WORK" : "SECTOR",
           originSectorId: input.contextWorkId ? null : (input.contextSectorId ?? null),
           parentId: input.parentId ?? null,
+          objectiveId,
           links: { create: linksData },
           labels: { create: labelsData },
-          position: await nextPosition(resolved.workId, resolved.homeSectorId, input.parentId ?? null),
+          position: await nextPosition(
+            resolved.workId,
+            resolved.homeSectorId,
+            input.parentId ?? null,
+            objectiveId,
+          ),
         },
-        include: taskInclude,
+        include: taskWithLinksInclude,
       });
 
   // Historial de estado (US4, FR-019): registrar el cambio si es una tarea nueva
@@ -762,6 +936,12 @@ export async function saveTask(
     });
   }
 
+  // objetivos: las hijas se mudan de proyecto con su padre. Antes quedaban
+  // abandonadas en el proyecto viejo, colgando de un padre de otro proyecto.
+  const movedChildSectorIds = workChanged
+    ? await moveSubtasksWithParent(task.id, resolved.workId, resolved.homeSectorId, ctx.id)
+    : [];
+
   emit({
     type: "task-changed",
     taskId: task.id,
@@ -771,9 +951,13 @@ export async function saveTask(
         ...execSectorIds,
         ...resolved.refSectorIds,
         ...(resolved.homeSectorId ? [resolved.homeSectorId] : []),
+        ...movedChildSectorIds,
       ]),
     ],
   });
+  // El `task-changed` lleva el proyecto NUEVO: el viejo se entera por acá
+  // para sacar la tarea (y sus hijas) de su lista.
+  if (workChanged && current?.workId) emit({ type: "work-changed", workId: current.workId });
 
   // Una hija nueva puede reabrir a un padre que ya estaba finalizado (Tarea 5).
   if (input.parentId) await syncParentStatus(input.parentId, ctx.id);
@@ -781,8 +965,52 @@ export async function saveTask(
   return task;
 }
 
+/**
+ * objetivos: muda las hijas de `parentId` al proyecto/sector home de su padre
+ * cuando una edición de texto (`/Otro`) muda al padre (crítica F4). Cada hija:
+ * - toma `workId` y `sectorId` del padre y queda sin objetivo (general en el
+ *   destino, igual que el padre); conserva `parentId` y `position`, que son
+ *   de su ámbito de hermanas;
+ * - reasigna el estado si el actual no pertenece al conjunto aplicable del
+ *   destino (FR-015, misma regla que `saveTask`) y lo registra en el historial.
+ * Después sincroniza el espejo del padre (un estado reasignado puede
+ * cambiarlo). Devuelve los sectores de las hijas para el `task-changed`: una
+ * hija delegada a otro sector también tiene que desaparecer de esa vista.
+ */
+async function moveSubtasksWithParent(
+  parentId: string,
+  workId: string | null,
+  homeSectorId: string | null,
+  actorId: string,
+): Promise<string[]> {
+  const children = await prisma.task.findMany({
+    where: { parentId },
+    include: { links: true, status: true },
+  });
+  if (children.length === 0) return [];
+
+  const sectorIds = new Set<string>();
+  for (const child of children) {
+    const applicable = await loadApplicableStatusSet(workId, homeSectorId, execSectorIdsOf(child.links));
+    const statusId = reassignOnSectorChange(child.status, applicable).id;
+    await prisma.task.update({
+      where: { id: child.id },
+      data: { workId, sectorId: homeSectorId, objectiveId: null, statusId },
+    });
+    if (statusId !== child.statusId) {
+      await prisma.taskStatusChange.create({
+        data: { taskId: child.id, fromStatusId: child.statusId, toStatusId: statusId, changedById: actorId },
+      });
+    }
+    for (const link of child.links) if (link.sectorId) sectorIds.add(link.sectorId);
+  }
+
+  await syncParentStatus(parentId, actorId);
+  return [...sectorIds];
+}
+
 export async function getTaskOrThrow(taskId: string): Promise<TaskWithLinks> {
-  const task = await prisma.task.findUnique({ where: { id: taskId }, include: taskInclude });
+  const task = await prisma.task.findUnique({ where: { id: taskId }, include: taskWithLinksInclude });
   if (!task) throw notFound("Tarea no encontrada");
   return task;
 }
@@ -844,7 +1072,7 @@ export async function setTaskStatus(
   const updated = await prisma.task.update({
     where: { id: taskId },
     data: applyStatusChange(newStatus, ctx.id, new Date()),
-    include: taskInclude,
+    include: taskWithLinksInclude,
   });
 
   if (previousStatusId !== statusId) {

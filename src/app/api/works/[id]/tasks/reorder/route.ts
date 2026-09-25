@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { forbidden, notFound, withApi } from "@/server/api";
+import { withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
-import { getUserContext } from "@/server/user-context";
-import { access } from "@/lib/domain/permissions";
+import { getWorkWithAccess } from "@/server/works";
 import { emit } from "@/server/events";
 import { reorderTasks } from "@/server/tasks";
 import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
@@ -16,6 +15,9 @@ const reorderSchema = z.object({
     .refine((ids) => new Set(ids).size === ids.length, {
       message: "orderedTaskIds no puede tener IDs duplicados",
     }),
+  // objetivos: sección que se reordena — ausente o null son las tareas
+  // generales (el comportamiento de siempre), un id es ese objetivo.
+  objectiveId: z.string().uuid().nullable().optional(),
 });
 
 /**
@@ -23,28 +25,19 @@ const reorderSchema = z.object({
  * la lista COMPLETA de IDs en el nuevo orden; el servidor valida que coincide
  * exactamente con las tareas actuales (409 TASK_SET_CHANGED si no) y reasigna
  * `position` dentro de una transacción.
+ *
+ * objetivos: la lista es la de UNA sección (`objectiveId`); un objetivo de otro
+ * proyecto es 404. El gate es `getWorkWithAccess` (mismo 404/403 que tenía
+ * copiado acá).
  */
 export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
   const session = await requireWriter();
   const { id } = await params;
+  await getWorkWithAccess(session.user.id, id, "operate");
 
-  const ctx = await getUserContext(session.user.id);
-  const work = await prisma.work.findUnique({
-    where: { id },
-    include: { group: { select: { publicRead: true } } },
-  });
-  if (!work) throw notFound();
-  const level = access(ctx, {
-    groupId: work.groupId,
-    ownerId: work.ownerId,
-    groupPublicRead: work.group?.publicRead ?? false,
-  });
-  if (level === "none") throw notFound();
-  if (level !== "operate") throw forbidden();
+  const { orderedTaskIds, objectiveId } = reorderSchema.parse(await req.json());
 
-  const { orderedTaskIds } = reorderSchema.parse(await req.json());
-
-  await reorderTasks(id, orderedTaskIds);
+  await reorderTasks(id, orderedTaskIds, objectiveId ?? null);
 
   emit({ type: "work-changed", workId: id });
 
@@ -54,9 +47,14 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   // `parentText`/`subtaskCount`/`subtaskDone`) porque la página le pisa el
   // estado a `work.tasks` con esta respuesta tal cual — devolver el shape
   // plano viejo dejaba a las hijas como filas raíz y rompía el progreso.
+  //
+  // objetivos (crítica B1): la respuesta NO cambia de forma — sigue siendo el
+  // array plano de TODAS las raíces del proyecto (cada una con su
+  // `objectiveId`/`objective`), con el mismo orden que GET works/[id]. La
+  // página agrupa por sección del lado del cliente.
   const tasks = await prisma.task.findMany({
     where: { workId: id, parentId: null },
-    orderBy: { position: "asc" },
+    orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     include: rootTaskWithSubtasksInclude,
   });
 

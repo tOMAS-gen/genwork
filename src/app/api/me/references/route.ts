@@ -5,6 +5,7 @@ import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canToggle, type TaskRef } from "@/lib/domain/permissions";
 import { execSectorIdsOf, loadApplicableStatusSet, statusOptionDto } from "@/server/tasks";
+import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
 import type { TaskDto } from "@/components/tasks/TaskItem";
 
 /**
@@ -53,6 +54,8 @@ type TaskWithPermissionData = {
   adoptedAt: Date | null;
   description: string | null;
   position: number;
+  objectiveId: string | null;
+  objective: { id: string; title: string } | null;
   status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL"; sortOrder: number };
   work: {
     id: string;
@@ -112,7 +115,9 @@ export const GET = withApi(async (req) => {
         task: {
           ...(statusId ? { statusId } : {}),
           ...(type === "IN_PROGRESS" || type === "FINAL" ? { status: { type } } : {}),
-          OR: [{ work: { status: "ACTIVE" } }, { workId: null }],
+          // objetivos (higiene de plantillas): un `@usuario` escrito en una
+          // plantilla no es una referencia real; antes solo se miraba `status`.
+          ...TASK_IN_ACTIVE_PROJECT_OR_LOOSE,
         },
       },
       include: {
@@ -128,6 +133,8 @@ export const GET = withApi(async (req) => {
             homeSector: { include: { group: { select: { id: true, name: true, publicRead: true } } } },
             labels: { include: { value: { include: { key: true } } } },
             status: true,
+            // objetivos: el chip "Proyecto › Objetivo" de TaskItem.
+            objective: { select: { id: true, title: true } },
           },
         },
       },
@@ -143,7 +150,13 @@ export const GET = withApi(async (req) => {
         execSectorIdsOf(task.links),
       );
 
-      const dto: TaskDto & { canToggle: boolean } = {
+      // objetivos: `objective` se declara acá además de en `TaskDto` (opcional
+      // allá) para que esta respuesta lo traiga SIEMPRE, null si es general.
+      const dto: TaskDto & {
+        canToggle: boolean;
+        objectiveId: string | null;
+        objective: { id: string; title: string } | null;
+      } = {
         id: task.id,
         rawText: task.rawText,
         displayText: task.displayText,
@@ -185,6 +198,8 @@ export const GET = withApi(async (req) => {
           user: link.user,
         })),
         description: task.description,
+        objectiveId: task.objectiveId ?? null,
+        objective: task.objective ? { id: task.objective.id, title: task.objective.title } : null,
         canToggle: canToggle(ctx, taskRefFromLoadedTask(task)),
       };
       return dto;

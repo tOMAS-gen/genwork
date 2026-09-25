@@ -143,6 +143,16 @@
   flex-shrink: 0;
   margin-top: 1px;
 }
+/* objetivos: migaja "Proyecto › Objetivo"; en la TV (compacto) se corta en
+   una línea para que un objetivo largo no empuje la tarjeta. */
+.projectName {
+  min-width: 0;
+}
+.overview[data-compact="true"] .projectName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .children {
   font-variant-numeric: tabular-nums;
 }

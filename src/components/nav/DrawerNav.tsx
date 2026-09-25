@@ -302,7 +302,7 @@ export function DrawerNav({
                   onClick={closeMobileDrawer}
                 >
                   <BookTemplate size={14} style={{ flexShrink: 0, verticalAlign: -2, marginRight: 4 }} />
-                  Plantillas
+                  Plantillas de objetivo
                 </Link>
                 <Link
                   href="/?status=ARCHIVED"

@@ -25,7 +25,7 @@ import { Plus } from "@/components/ui/icons";
 import { useTagAutocomplete, type Suggestion } from "./useTagAutocomplete";
 import { TagSuggestionsMenu } from "./TagSuggestionsMenu";
 import { TagHighlightInput } from "./TagHighlightInput";
-import { TaskItem, type TaskDto } from "./TaskItem";
+import { TaskItem, type TaskDto, type TaskItemContext } from "./TaskItem";
 
 /** Progreso "hechas/total" de las hijas de una tarea; null cuando no tiene subtareas (Tarea 12). */
 export function subtaskProgressLabel(task: { subtaskDone: number; subtaskCount: number }): string | null {
@@ -95,7 +95,7 @@ function SortableSubtaskRow({
   onChanged,
 }: {
   task: TaskDto;
-  context: { workId?: string; sectorId?: string; suppressWorkTag?: boolean };
+  context: TaskItemContext;
   canToggle: boolean;
   onChanged: () => void;
 }) {
@@ -335,7 +335,7 @@ export function SubtaskList({
   expanded,
 }: {
   task: TaskDto;
-  context: { workId?: string; sectorId?: string; suppressWorkTag?: boolean };
+  context: TaskItemContext;
   canToggle: boolean;
   onChanged: () => void;
   /** El campo de alta lo abre el botón + de la fila del padre (`TaskItem`). */
@@ -349,6 +349,8 @@ export function SubtaskList({
   // orden ANTES de que responda el PATCH, y se resincroniza cada vez que el
   // padre entrega un array de hijas nuevo (después de un refetch real).
   const [subtasks, setSubtasks] = useState<TaskDto[]>(task.subtasks ?? []);
+  // objetivos (crítica I1): las hijas no repiten el chip de objetivo del padre.
+  const childContext: TaskItemContext = { ...context, suppressObjectiveChip: true };
   // Sólo se puede reordenar si esta vista ve todas las hijas (ver canReorderSubtasks).
   const reorderable = canReorderSubtasks(task);
   useEffect(() => {
@@ -435,7 +437,7 @@ export function SubtaskList({
                 <SortableSubtaskRow
                   key={child.id}
                   task={child}
-                  context={context}
+                  context={childContext}
                   canToggle={canToggle}
                   onChanged={onChanged}
                 />
@@ -444,7 +446,7 @@ export function SubtaskList({
           </DndContext>
         ) : (
           subtasks.map((child) => (
-            <TaskItem key={child.id} task={child} context={context} canToggle={canToggle} onChanged={onChanged} />
+            <TaskItem key={child.id} task={child} context={childContext} canToggle={canToggle} onChanged={onChanged} />
           ))
         ))}
       {/* Alta de subtarea: el MISMO campo que el bloc de tareas principales

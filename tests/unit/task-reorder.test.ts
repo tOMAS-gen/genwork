@@ -9,6 +9,10 @@ type FakeTask = {
   workId: string | null;
   sectorId: string | null;
   parentId: string | null;
+  // objetivos: el ámbito de orden de las raíces es {workId, objectiveId,
+  // parentId: null}; `matchesWhere` compara por igualdad estricta, así que el
+  // fixture necesita el campo explícito (null = tarea general).
+  objectiveId: string | null;
   creatorId: string;
   completedAt: Date | null;
   completedById: string | null;
@@ -127,6 +131,7 @@ const db = vi.hoisted(() => {
     workId: "work-1",
     sectorId: null,
     parentId: null,
+    objectiveId: null,
     creatorId: "user-1",
     completedAt: null,
     completedById: null,
@@ -255,5 +260,15 @@ describe("reorderTasks", () => {
     expect(positionById()).toMatchObject({ "task-a": 1, "task-b": 2, "task-c": 0 });
     // La posición de la subtarea no se toca: el reorder de raíces no la incluye.
     expect(positionById()["task-a-1"]).toBe(0);
+  });
+
+  it("objetivos: las raíces de un objetivo no entran en el reorder de las generales", async () => {
+    // Mismo proyecto, otra sección: sin el ámbito por objetivo el conjunto de
+    // raíces nunca coincidía con la lista que manda la UI (una sección).
+    db.tasks.push(db.task({ id: "task-o-1", position: 0, objectiveId: "objetivo-1" }));
+
+    await reorderTasks("work-1", ["task-c", "task-a", "task-b"]);
+
+    expect(positionById()).toMatchObject({ "task-a": 1, "task-b": 2, "task-c": 0, "task-o-1": 0 });
   });
 });

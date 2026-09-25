@@ -5,6 +5,7 @@ import { access, accessSector, taskAccess } from "@/lib/domain/permissions";
 import { toTaskRef } from "@/server/tasks";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult } from "@/lib/mcp/errors";
+import { ACTIVE_PROJECT_WORK, TASK_NOT_IN_TEMPLATE } from "@/server/workFilters";
 
 const LIMIT = 20;
 
@@ -24,13 +25,20 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
         const wanted = new Set(kinds && kinds.length > 0 ? kinds : ["work", "task", "sector"]);
         const result: {
           works: { id: string; name: string }[];
-          tasks: { id: string; text: string; workId: string | null }[];
+          tasks: {
+            id: string;
+            text: string;
+            workId: string | null;
+            workName: string | null;
+            objectiveId: string | null;
+            objectiveTitle: string | null;
+          }[];
           sectors: { id: string; name: string }[];
         } = { works: [], tasks: [], sectors: [] };
 
         if (wanted.has("work")) {
           const works = await prisma.work.findMany({
-            where: { status: "ACTIVE", isTemplate: false, name: { contains: text, mode: "insensitive" } },
+            where: { ...ACTIVE_PROJECT_WORK, name: { contains: text, mode: "insensitive" } },
             include: { group: { select: { publicRead: true } } },
             take: LIMIT * 3,
           });
@@ -68,13 +76,17 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
         }
 
         if (wanted.has("task")) {
+          // objetivos (higiene de plantillas): las tareas de una plantilla no son
+          // trabajo real y no se ofrecen en la búsqueda. Las de proyectos
+          // archivados sí (cambio mínimo: solo se tapa la fuga de plantillas).
           const tasks = await prisma.task.findMany({
-            where: { displayText: { contains: text, mode: "insensitive" } },
+            where: { displayText: { contains: text, mode: "insensitive" }, ...TASK_NOT_IN_TEMPLATE },
             include: {
               links: { include: { sector: true, user: { select: { id: true, name: true } } } },
               work: { select: { id: true, name: true } },
               homeSector: { select: { id: true, name: true } },
               status: true,
+              objective: { select: { id: true, title: true } },
             },
             take: LIMIT * 3,
             orderBy: { createdAt: "desc" },
@@ -85,7 +97,15 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
             const ref = await toTaskRef(t);
             if (taskAccess(ctx.userContext, ref) !== "none") visible.push(t);
           }
-          result.tasks = visible.map((t) => ({ id: t.id, text: t.displayText, workId: t.workId }));
+          // objetivos: cada tarea trae su proyecto y su objetivo (null = general o suelta).
+          result.tasks = visible.map((t) => ({
+            id: t.id,
+            text: t.displayText,
+            workId: t.workId,
+            workName: t.work?.name ?? null,
+            objectiveId: t.objective?.id ?? null,
+            objectiveTitle: t.objective?.title ?? null,
+          }));
         }
 
         const total = result.works.length + result.tasks.length + result.sectors.length;

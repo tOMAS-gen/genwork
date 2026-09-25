@@ -82,3 +82,17 @@
 ## Dropdowns
 - Menu: bg #000000, border #222222, radius 16px, shadow-lg
 - Items: 8px padding, 10px radius, hover #1A1A1A
+
+## Objective section (objetivos dentro de proyectos)
+- Componente: `src/components/objectives/ObjectiveSection.tsx`; clases en `globals.css` (bloque `/* objetivos: proyecto */`).
+- Encabezado `.objective-header`: fondo `--field`, borde `--border`, lengüeta izquierda de 3px (`--accent` abierta, `--ok` completa), radio 6px, alto mínimo 48px.
+- Botón de plegar `.objective-toggle` (chevron que rota 90°, título con elipsis, chip "Completo") y acciones como HERMANOS (patrón `.nav-group`): `ProgressBar size="sm"` X/Y, `Badge` de pendientes, menú ⋮. `aria-expanded` + `aria-controls` al panel; ancla `id="objetivo-<id>"`.
+- Chip "Completo" `.objective-complete`: radio 4px, `--color-success-bg` / `--color-success-text`.
+- Filas en `.objective-task-list` (mismos separadores que `.work-task-list`); composer `.work-task-composer.is-inline` transparente hasta hover/foco.
+- Destino de arrastre (`.is-drop-target`, `.task-drop-target`): contorno 2px punteado `--primary` + `--hover-soft`, igual que `.task-nest-target`.
+- Transiciones 150ms, anuladas con `prefers-reduced-motion`.
+
+## Objective chip
+- Componente: `src/components/objectives/ObjectiveChip.tsx`, dentro de `TaskItem` (visibilidad por `shouldShowObjectiveChip`).
+- `<Link class="tag tag-objective">` hacia `/works/<id>#objetivo-<oid>`: reusa `.tag` (radio 4px, rectangular, nunca píldora), borde `--border`, fondo `--field`, texto `--muted` 11px/600, ícono bandera 12px, elipsis.
+- Texto: título del objetivo si el proyecto ya se ve en la fila; si no, "Proyecto › Objetivo". `title` siempre con la forma completa.

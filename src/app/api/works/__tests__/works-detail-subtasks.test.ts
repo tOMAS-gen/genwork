@@ -131,6 +131,10 @@ vi.mock("@/lib/db/client", () => ({
             folderSeq: 1,
             groupId: null,
             ownerId: null,
+            // objetivos: el contrato suma `objectives` (en la misma consulta);
+            // acá no hay ninguno — el contrato de objetivos se prueba en
+            // works-detail-objectives.test.ts.
+            isTemplate: false,
             group: null,
             stage: null,
             doc: null,
@@ -138,6 +142,7 @@ vi.mock("@/lib/db/client", () => ({
             archive: null,
             labels: [],
             tasks,
+            objectives: [],
           };
         },
       ),

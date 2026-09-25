@@ -69,7 +69,19 @@ vi.mock("@/lib/db/client", () => ({
       ),
     },
     task: {
-      findMany: vi.fn(async ({ where }: { where: { workId?: string | { in: string[] } } }) => {
+      findMany: vi.fn(async ({ where }: { where: { workId?: string | { in: string[] }; parentId?: null } }) => {
+        // objetivos: `listObjectives` (work.get) pide las raíces con sus hijas.
+        if (where.parentId === null) {
+          return db.tasks
+            .filter((t) => t.workId === where.workId && t.parentId === null)
+            .map((t) => ({
+              objectiveId: null,
+              status: { type: t.statusType },
+              subtasks: db.tasks
+                .filter((c) => c.parentId === t.id)
+                .map((c) => ({ status: { type: c.statusType } })),
+            }));
+        }
         const ids =
           typeof where.workId === "object" && where.workId !== null
             ? where.workId.in
@@ -84,6 +96,10 @@ vi.mock("@/lib/db/client", () => ({
             _count: { subtasks: t.subtaskCount },
           }));
       }),
+    },
+    // objetivos: work.get suma los objetivos del proyecto (este no tiene).
+    objective: {
+      findMany: vi.fn(async () => []),
     },
     userFavorite: {
       findMany: vi.fn(async () => []),
@@ -183,5 +199,14 @@ describe("work.get — mismo criterio que work.list", () => {
     const handlers = tools();
     const result = await handlerOf(handlers, "work.get")({ workId: WORK_1 });
     expect(result.structuredContent?.taskCounts).toEqual({ total: 4, done: 2 });
+  });
+
+  it("objetivos: sin objetivos, las generales suman lo mismo que el proyecto", async () => {
+    const handlers = tools();
+    const result = await handlerOf(handlers, "work.get")({ workId: WORK_1 });
+    expect(result.structuredContent).toMatchObject({
+      objectives: [],
+      generalTaskCounts: { total: 4, done: 2 },
+    });
   });
 });

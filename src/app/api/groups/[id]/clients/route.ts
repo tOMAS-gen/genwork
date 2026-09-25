@@ -6,6 +6,7 @@ import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canManageGroup } from "@/lib/domain/permissions";
 import { findOrCreateClient } from "@/server/clients";
+import { ACTIVE_PROJECT_WORK } from "@/server/workFilters";
 
 /**
  * Clientes externos de un grupo (feature 059, FR-008/FR-009).
@@ -17,10 +18,10 @@ import { findOrCreateClient } from "@/server/clients";
  * Todo el alcance queda acotado al grupo por construcción: los proyectos que se
  * ofrecen y los que se aceptan son los del grupo, así que un administrador del
  * grupo A no puede darle a nadie un proyecto del grupo B ni al crearlo ni al editarlo.
+ *
+ * Proyectos asignables del grupo: activos y no plantilla (`ACTIVE_PROJECT_WORK`,
+ * compartido con el portal para que lo que se asigna sea lo que el cliente ve).
  */
-
-/** Proyectos asignables del grupo: activos y no plantilla. */
-const ASSIGNABLE = { status: "ACTIVE", isTemplate: false } as const;
 
 async function requireGroupAdmin(userId: string, groupId: string) {
   const group = await prisma.group.findUnique({ where: { id: groupId } });
@@ -39,7 +40,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
 
   const [works, grants] = await Promise.all([
     prisma.work.findMany({
-      where: { groupId: id, ...ASSIGNABLE },
+      where: { groupId: id, ...ACTIVE_PROJECT_WORK },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
@@ -85,7 +86,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
   // Los proyectos tienen que ser de ESTE grupo: sin esta validación, un
   // administrador del grupo A podría asignar un proyecto del grupo B pasando su id.
   const owned = await prisma.work.count({
-    where: { id: { in: body.workIds }, groupId: id, ...ASSIGNABLE },
+    where: { id: { in: body.workIds }, groupId: id, ...ACTIVE_PROJECT_WORK },
   });
   if (owned !== body.workIds.length) {
     throw badRequest("Alguno de los proyectos no pertenece a este grupo");

@@ -85,6 +85,8 @@ function makeWork(over: Record<string, unknown> = {}) {
     stage: { name: "Producción", color: "#3b5bfa" },
     labels: [{ isPrimary: true, value: { name: "Alta", color: "#dc2626" } }],
     doc: { content: { type: "doc" } },
+    // objetivos: el proyecto base no tiene; ver portal-works-objectives.test.ts.
+    objectives: [],
     tasks: [
       {
         id: "task-1",
@@ -225,7 +227,34 @@ describe("GET /api/portal/works/[id] — detalle (FR-016, FR-022)", () => {
       expect(Object.keys(task)).not.toContain("statusOptions");
       expect(Object.keys(task)).not.toContain("creatorId");
       expect(Object.keys(task)).not.toContain("completedById");
+      // objetivos: el id del objetivo solo sirve para agrupar en el servidor.
+      expect(Object.keys(task)).not.toContain("objectiveId");
     }
+  });
+
+  it("objetivos: cada objetivo expone EXACTAMENTE la allowlist (FR-021)", async () => {
+    db.works = [
+      makeWork({
+        objectives: [
+          {
+            id: "obj-1",
+            title: "Diseño",
+            description: null,
+            // Campos internos que un `select` de más dejaría pasar:
+            workId: "work-1",
+            position: 0,
+            sourceTemplateId: "tpl-1",
+            createdById: "user-9",
+            createdAt: new Date("2026-09-01"),
+          },
+        ],
+      }),
+    ];
+    const body = await (await callDetail("work-1")).json();
+    expect(body.objectives).toHaveLength(1);
+    expect(Object.keys(body.objectives[0]).sort()).toEqual(
+      ["description", "id", "pct", "taskCounts", "tasks", "title"].sort(),
+    );
   });
 });
 

@@ -5,6 +5,7 @@ import { badRequest, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { canManageGroup } from "@/lib/domain/permissions";
+import { ACTIVE_PROJECT_WORK } from "@/server/workFilters";
 
 /**
  * Qué proyectos del grupo ve un cliente (feature 059, FR-009/FR-013).
@@ -13,9 +14,10 @@ import { canManageGroup } from "@/lib/domain/permissions";
  * tildados y quita los destildados, sin tocar los accesos que ese mismo cliente
  * tenga en proyectos de otros grupos. Es lo que hace que la pantalla del grupo sea
  * una casilla por proyecto y no una lista de operaciones sueltas.
+ *
+ * Solo se aceptan proyectos asignables del grupo: activos y no plantilla
+ * (`ACTIVE_PROJECT_WORK`, el mismo filtro que la pantalla de alta).
  */
-
-const ASSIGNABLE = { status: "ACTIVE", isTemplate: false } as const;
 
 async function requireGroupAdmin(userId: string, groupId: string) {
   const group = await prisma.group.findUnique({ where: { id: groupId } });
@@ -46,7 +48,7 @@ export const PUT = withApi<{ params: Promise<{ id: string; userId: string }> }>(
     const { workIds } = putSchema.parse(await req.json());
     if (workIds.length > 0) {
       const owned = await prisma.work.count({
-        where: { id: { in: workIds }, groupId: id, ...ASSIGNABLE },
+        where: { id: { in: workIds }, groupId: id, ...ACTIVE_PROJECT_WORK },
       });
       if (owned !== workIds.length) {
         throw badRequest("Alguno de los proyectos no pertenece a este grupo");

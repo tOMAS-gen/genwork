@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/client";
 import { accessSector, type Access, type UserContext } from "@/lib/domain/permissions";
 import { isContainerTask, isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
+import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 
 /**
  * Ámbito de un sector (feature 046): pertenece a un Grupo (groupId), al espacio
@@ -56,7 +57,7 @@ export async function sectorMetricsByIds(sectorIds: string[]): Promise<Map<strin
       },
     }),
     prisma.taskLink.findMany({
-      where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: { isTemplate: false } } },
+      where: { type: "EXEC", sectorId: { in: sectorIds }, task: { work: NOT_TEMPLATE_WORK } },
       select: {
         sectorId: true,
         task: {

@@ -11,12 +11,20 @@ const createSchema = z
     contextWorkId: z.string().uuid().optional(),
     contextSectorId: z.string().uuid().optional(),
     parentId: z.string().uuid().optional(),
+    // objetivos: alta dentro de un objetivo (el composer de su sección). Alcanza
+    // como contexto por sí solo: el objetivo fija el proyecto (`saveTask`).
+    contextObjectiveId: z.string().uuid().optional(),
   })
-  .refine((v) => v.contextWorkId || v.contextSectorId || v.parentId, {
-    message: "La tarea necesita contexto: un proyecto, un sector o una tarea padre",
+  .refine((v) => v.contextWorkId || v.contextSectorId || v.parentId || v.contextObjectiveId, {
+    message: "La tarea necesita contexto: un proyecto, un objetivo, un sector o una tarea padre",
   });
 
-/** Crear tarea escribiendo una línea (FR-004); backend re-parsea etiquetas (FR-008). */
+/**
+ * Crear tarea escribiendo una línea (FR-004); backend re-parsea etiquetas (FR-008).
+ * objetivos: con `contextObjectiveId`, `saveTask` exige operar el proyecto del
+ * objetivo (404/403/409) y responde 400 `OBJECTIVE_WORK_MISMATCH` si también
+ * vino un `contextWorkId` de otro proyecto.
+ */
 export const POST = withApi(async (req) => {
   const session = await requireWriter();
   const ctx = await getUserContext(session.user.id);

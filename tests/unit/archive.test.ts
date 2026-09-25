@@ -110,3 +110,126 @@ describe("renderizadores legibles sin el sistema (FR-030)", () => {
     expect(html).toContain("<h1>Tina</h1>");
   });
 });
+
+describe("tareas.md con subtareas y objetivos (objetivos, D12)", () => {
+  const base = {
+    rawText: "",
+    createdAt: new Date("2026-07-01"),
+    completedAt: null,
+    creatorName: "Tomi",
+    completedByName: null,
+    tags: [],
+  };
+  const t = (
+    id: string,
+    over: { parentId?: string | null; objectiveId?: string | null; done?: boolean } = {},
+  ) => ({
+    ...base,
+    id,
+    displayText: id,
+    parentId: over.parentId ?? null,
+    objectiveId: over.objectiveId ?? null,
+    statusType: over.done ? ("FINAL" as const) : ("IN_PROGRESS" as const),
+  });
+
+  it("sin objetivos: sin encabezados de sección y la subtarea va con sangría debajo de su padre", () => {
+    // La hija viene ANTES que el padre en la lista: igual se ubica debajo de él.
+    const md = tasksToMarkdown("Tina", [t("Hija", { parentId: "Padre" }), t("Padre"), t("Suelta")]);
+    expect(md).not.toContain("## ");
+    const lines = md.split("\n");
+    const iPadre = lines.indexOf("- [ ] Padre");
+    expect(iPadre).toBeGreaterThan(-1);
+    expect(lines[iPadre + 2]).toBe("  - [ ] Hija");
+    expect(lines[iPadre + 3]).toBe("    - creada por Tomi el 2026-07-01");
+    expect(md).toContain("3 tareas.");
+  });
+
+  it("sin objetivos: una tarea sin padre en la lista sale igual que antes", () => {
+    const md = tasksToMarkdown("Tina", [task]);
+    expect(md).toContain("\n- [x] Armar estructura — #Metalurgica /Tina\n  - creada por Tomi el 2026-07-01");
+  });
+
+  it("con objetivos: generales primero, después cada objetivo en orden con (hechas/total)", () => {
+    const objectives = [
+      { id: "o-diseno", title: "Diseño", description: "Planos y renders" },
+      { id: "o-obra", title: "Obra", description: null },
+    ];
+    const md = tasksToMarkdown(
+      "Casa",
+      [
+        t("Relevar"),
+        t("Plano", { objectiveId: "o-diseno", done: true }),
+        t("Render", { objectiveId: "o-diseno" }),
+        t("Contenedor", { objectiveId: "o-obra" }),
+        t("Hija A", { parentId: "Contenedor", objectiveId: "o-obra", done: true }),
+        t("Hija B", { parentId: "Contenedor", objectiveId: "o-obra", done: true }),
+      ],
+      objectives,
+    );
+
+    const iGen = md.indexOf("## Tareas generales");
+    const iDis = md.indexOf("## Objetivo: Diseño (1/2)");
+    const iObra = md.indexOf("## Objetivo: Obra (2/2)"); // regla de contenedor: suman las hijas
+    expect(iGen).toBeGreaterThan(-1);
+    expect(iDis).toBeGreaterThan(iGen);
+    expect(iObra).toBeGreaterThan(iDis);
+    expect(md).toContain("## Objetivo: Diseño (1/2)\n\nPlanos y renders\n\n- [x] Plano");
+    expect(md).toContain("- [ ] Contenedor\n  - creada por Tomi el 2026-07-01\n  - [x] Hija A");
+    // El encabezado sigue contando todas las filas.
+    expect(md).toContain("6 tareas.");
+  });
+
+  it("un objetivo sin tareas muestra _Sin tareas._ y sin generales no hay sección de generales", () => {
+    const md = tasksToMarkdown(
+      "Casa",
+      [t("Plano", { objectiveId: "o-1" })],
+      [
+        { id: "o-1", title: "Diseño", description: null },
+        { id: "o-2", title: "Vacío", description: null },
+      ],
+    );
+    expect(md).not.toContain("## Tareas generales");
+    expect(md).toContain("## Objetivo: Vacío (0/0)\n\n_Sin tareas._");
+    expect(md.endsWith("_Sin tareas._\n")).toBe(true);
+  });
+
+  it("un objectiveId desconocido cae en generales (la tarea nunca se pierde)", () => {
+    const md = tasksToMarkdown(
+      "Casa",
+      [t("Huérfana", { objectiveId: "o-borrado" }), t("Plano", { objectiveId: "o-1" })],
+      [{ id: "o-1", title: "Diseño", description: null }],
+    );
+    const iGen = md.indexOf("## Tareas generales");
+    expect(iGen).toBeGreaterThan(-1);
+    expect(md.indexOf("- [ ] Huérfana")).toBeGreaterThan(iGen);
+    expect(md.indexOf("- [ ] Huérfana")).toBeLessThan(md.indexOf("## Objetivo: Diseño"));
+  });
+
+  it("una hija va en la sección de su RAÍZ aunque su objectiveId esté desalineado", () => {
+    const md = tasksToMarkdown(
+      "Casa",
+      [t("Padre", { objectiveId: "o-1" }), t("Hija", { parentId: "Padre", objectiveId: null })],
+      [{ id: "o-1", title: "Diseño", description: null }],
+    );
+    expect(md).not.toContain("## Tareas generales");
+    expect(md).toContain("## Objetivo: Diseño (0/1)");
+    expect(md).toContain("  - [ ] Hija");
+  });
+
+  it("buildArchivePackage pasa los objetivos al tareas.md sin cambiar taskCount", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "gw-archive-"));
+    const zipPath = path.join(dir, "obj.zip");
+    const manifest = await buildArchivePackage(
+      mockStorage({}),
+      {
+        workName: "W",
+        folderPath: null,
+        docContent: null,
+        tasks: [t("Plano", { objectiveId: "o-1" }), t("Suelta")],
+        objectives: [{ id: "o-1", title: "Diseño", description: null }],
+      },
+      zipPath,
+    );
+    expect(manifest.taskCount).toBe(2);
+  });
+});

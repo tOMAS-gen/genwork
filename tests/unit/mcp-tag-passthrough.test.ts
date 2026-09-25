@@ -7,7 +7,9 @@ describe("task.create / task.update — passthrough de etiquetado inline (Princi
     // 062-subtareas: parentId no es un símbolo de etiquetado inline (no hay
     // "#parentId" en el texto) — es la posición estructural de la tarea nueva
     // como hija de otra, mismo rol que el `parentId` de saveTask (Tarea 7).
-    expect(Object.keys(taskCreateInputShape).sort()).toEqual(["parentId", "text", "workId"]);
+    // objetivos: objectiveId tampoco es un símbolo del texto — es la sección
+    // estructural donde nace la tarea (`contextObjectiveId` de saveTask).
+    expect(Object.keys(taskCreateInputShape).sort()).toEqual(["objectiveId", "parentId", "text", "workId"]);
   });
 
   it("task.update no define campos estructurados paralelos para / # @ $", () => {

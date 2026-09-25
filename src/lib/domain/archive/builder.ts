@@ -9,7 +9,7 @@ import { createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
-import { docToHtml, tasksToMarkdown, type ArchivableTask } from "./render";
+import { docToHtml, tasksToMarkdown, type ArchivableObjective, type ArchivableTask } from "./render";
 
 /** Subconjunto de StorageProvider que necesita el export (mockeable en tests). */
 export interface ArchiveStorage {
@@ -22,6 +22,8 @@ export interface ArchiveInput {
   folderPath: string | null;
   docContent: unknown;
   tasks: ArchivableTask[];
+  /** objetivos (D12): en orden; sin objetivos `tareas.md` sale como siempre. */
+  objectives?: ArchivableObjective[];
 }
 
 export interface ArchiveManifest {
@@ -74,7 +76,7 @@ export async function buildArchivePackage(
   zip.append(JSON.stringify(input.docContent ?? null, null, 2), {
     name: `${root}/documentacion.json`,
   });
-  zip.append(tasksToMarkdown(input.workName, input.tasks), { name: `${root}/tareas.md` });
+  zip.append(tasksToMarkdown(input.workName, input.tasks, input.objectives ?? []), { name: `${root}/tareas.md` });
   zip.append(JSON.stringify(manifest, null, 2), { name: `${root}/manifest.json` });
 
   await zip.finalize();

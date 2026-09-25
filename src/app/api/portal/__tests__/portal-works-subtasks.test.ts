@@ -106,6 +106,8 @@ function makeWork() {
     stage: null,
     labels: [],
     doc: { content: null },
+    // objetivos: sin objetivos, todas las raíces son generales.
+    objectives: [],
   };
 }
 

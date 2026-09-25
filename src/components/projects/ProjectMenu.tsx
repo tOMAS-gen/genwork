@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
 import { RenameDialog } from "@/components/ui/RenameDialog";
-import { Archive, ArchiveRestore, BookTemplate, Pencil, Trash2 } from "@/components/ui/icons";
+import { Archive, ArchiveRestore, Pencil, Trash2 } from "@/components/ui/icons";
 import { api } from "@/components/ui/useApi";
 import { useToast } from "@/components/ui/Toast";
 
@@ -68,21 +68,11 @@ export function ProjectMenu({
     }
   };
 
+  // objetivos: "Guardar como plantilla" pasó al menú de cada objetivo (una
+  // plantilla es UN objetivo); el proyecto entero ya no se guarda como plantilla.
   const items =
     workStatus === "ACTIVE"
       ? [
-          {
-            label: "Guardar como plantilla",
-            icon: <BookTemplate size={16} />,
-            onSelect: async () => {
-              try {
-                const result = await api<{ id: string; name: string }>(`/api/works/${workId}/clone`, { method: "POST" });
-                toast(`Plantilla "${result.name}" creada`, "success");
-              } catch {
-                toast("Error al crear plantilla", "error");
-              }
-            },
-          },
           ...(canRename
             ? [
                 {

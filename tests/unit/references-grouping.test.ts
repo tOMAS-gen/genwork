@@ -129,3 +129,21 @@ describe("referenceTaskContext", () => {
     expect(result.suppressWorkTag).toBeUndefined();
   });
 });
+
+describe("groupReferencesBySource — objetivos", () => {
+  it("dos objetivos del mismo proyecto quedan en UN solo grupo (el objetivo va como chip)", () => {
+    const work = { id: "w1", name: "Proyecto Alfa", status: "ACTIVE", group: GROUP_A };
+    // `objective` se agrega con un cast: el campo opcional de TaskDto lo suma la
+    // capa de UI; acá solo importa que no parta el grupo del proyecto.
+    const tasks = [
+      { ...makeTask({ id: "t1", workId: "w1", work }), objective: { id: "o1", title: "Diseño" } },
+      { ...makeTask({ id: "t2", workId: "w1", work }), objective: { id: "o2", title: "Obra" } },
+      { ...makeTask({ id: "t3", workId: "w1", work }), objective: null },
+    ] as unknown as TaskDto[];
+
+    const groups = groupReferencesBySource(tasks);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].tasks.map((t) => t.id)).toEqual(["t1", "t2", "t3"]);
+  });
+});

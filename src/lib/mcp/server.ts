@@ -3,6 +3,8 @@ import type { McpAuth } from "@/server/mcp-auth";
 import { registerConnectionTools } from "@/lib/mcp/tools/connection";
 import { registerWorkTools } from "@/lib/mcp/tools/works";
 import { registerTaskTools } from "@/lib/mcp/tools/tasks";
+import { registerObjectiveTools } from "@/lib/mcp/tools/objectives";
+import { registerTemplateTools } from "@/lib/mcp/tools/templates";
 import { registerDocTools } from "@/lib/mcp/tools/docs";
 import { registerAttachmentTools } from "@/lib/mcp/tools/attachments";
 import { registerSearchTools } from "@/lib/mcp/tools/search";
@@ -30,6 +32,8 @@ export const TOOL_REGISTRARS: readonly ToolRegistrar[] = [
   registerConnectionTools,
   registerWorkTools,
   registerTaskTools,
+  registerObjectiveTools,
+  registerTemplateTools,
   registerDocTools,
   registerAttachmentTools,
   registerSearchTools,

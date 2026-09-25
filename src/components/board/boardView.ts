@@ -6,6 +6,8 @@ export interface BoardTask {
   status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL" };
   workName: string | null;
   workColor: string | null;
+  /** objetivos: título del objetivo de la tarea (null si es general o suelta). */
+  objectiveTitle?: string | null;
   parentId: string | null;
   parentText: string | null;
   subtaskCount: number;

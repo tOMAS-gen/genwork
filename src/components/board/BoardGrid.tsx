@@ -6,6 +6,7 @@ import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { AlertCircle, Check, ChevronDown, Folder, LayoutDashboard } from "@/components/ui/icons";
+import { objectiveBreadcrumb } from "@/lib/domain/objectives/breadcrumb";
 import { columnProgress } from "./columnProgress";
 import { boardProgress, taskIsDone, type BoardColumn, type BoardTask } from "./boardView";
 import styles from "./BoardGrid.module.css";
@@ -42,7 +43,10 @@ function TaskRow({ task, compact }: { task: BoardTask; compact: boolean }) {
         <div className={styles.taskMeta}>
           <span className={styles.project}>
             <Folder size={14} aria-hidden="true" />
-            {task.workName ?? "Sin proyecto"}
+            {/* objetivos: "Proyecto › Objetivo" (o solo el proyecto si es general). */}
+            <span className={styles.projectName}>
+              {objectiveBreadcrumb(task.workName, task.objectiveTitle ?? null)}
+            </span>
           </span>
           {task.subtaskCount > 0 && (
             <span className={styles.children}>
