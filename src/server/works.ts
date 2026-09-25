@@ -128,7 +128,8 @@ export interface CreateWorkInput {
  * - Con `templateId`: plantilla legible (`requireReadableTemplate`), y el
  *   proyecto nace con la plantilla insertada como objetivo en la MISMA
  *   transacción (si el clonado falla, no queda un proyecto a medias).
- * - Emite `work-changed`.
+ * - Emite `work-changed` (y `task-changed` a los sectores vinculados de las
+ *   tareas copiadas).
  */
 export async function createWork(ctx: UserContext, input: CreateWorkInput) {
   if (!isWriterRole(ctx.globalRole)) throw forbidden();
@@ -148,7 +149,7 @@ export async function createWork(ctx: UserContext, input: CreateWorkInput) {
 
   const template = templateId ? await requireReadableTemplate(ctx, templateId) : null;
 
-  const result = await prisma.$transaction(
+  const { copiedSectorIds, firstCopiedTaskId, ...result } = await prisma.$transaction(
     async (tx) => {
       const work = await tx.work.create({
         data: {
@@ -162,30 +163,44 @@ export async function createWork(ctx: UserContext, input: CreateWorkInput) {
         },
         include: { group: { select: { id: true, name: true, publicRead: true } } },
       });
-      if (!template) return { work, objective: null, copiedTasks: 0 };
-
-      if (isTemplate) {
-        // Plantilla desde plantilla: sin objetivos, las tareas quedan generales.
-        const { copiedTasks } = await cloneTaskTree(tx, {
-          sourceWhere: { workId: template.id },
-          destWorkId: work.id,
-          destObjectiveId: null,
-          actorId: ctx.id,
-        });
-        return { work, objective: null, copiedTasks };
+      if (!template) {
+        return { work, objective: null, copiedTasks: 0, copiedSectorIds: [], firstCopiedTaskId: null };
       }
 
-      const { objective, copiedTasks } = await insertTemplateAsObjectiveTx(tx, {
-        workId: work.id,
-        template,
-        title: input.objectiveTitle,
-        actorId: ctx.id,
-      });
-      return { work, objective, copiedTasks };
+      // Plantilla desde plantilla: sin objetivos, las tareas quedan generales.
+      // Proyecto: la plantilla entra como UN objetivo.
+      const { objective, tasks, copiedTasks, sectorIds } = isTemplate
+        ? {
+            objective: null,
+            ...(await cloneTaskTree(tx, {
+              sourceWhere: { workId: template.id },
+              destWorkId: work.id,
+              destObjectiveId: null,
+              actorId: ctx.id,
+            })),
+          }
+        : await insertTemplateAsObjectiveTx(tx, {
+            workId: work.id,
+            template,
+            title: input.objectiveTitle,
+            actorId: ctx.id,
+          });
+      return {
+        work,
+        objective,
+        copiedTasks,
+        copiedSectorIds: sectorIds,
+        firstCopiedTaskId: tasks[0]?.id ?? null,
+      };
     },
     { timeout: 20_000 },
   );
 
+  // objetivos: las copias con `#sector`/`@sector` aparecen en esos sectores;
+  // se avisa a sus vistas además del `work-changed` del proyecto nuevo.
+  if (firstCopiedTaskId && copiedSectorIds.length > 0) {
+    emit({ type: "task-changed", taskId: firstCopiedTaskId, workId: result.work.id, sectorIds: copiedSectorIds });
+  }
   emit({ type: "work-changed", workId: result.work.id });
   return {
     ...result,

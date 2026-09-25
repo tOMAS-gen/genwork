@@ -42,6 +42,12 @@ export interface CloneTaskTreeResult {
   tasks: Task[];
   /** Cantidad de tareas copiadas (raíces + hijas); es el `copiedTasks` de los contratos. */
   copiedTasks: number;
+  /**
+   * Sectores de los vínculos copiados (EXEC y REF, sin repetir): el llamador
+   * los avisa con `task-changed` después del commit para que las vistas de
+   * esos sectores muestren las copias.
+   */
+  sectorIds: string[];
 }
 
 /**
@@ -83,7 +89,7 @@ export async function cloneTaskTree(
     },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
   });
-  if (source.length === 0) return { tasks: [], copiedTasks: 0 };
+  if (source.length === 0) return { tasks: [], copiedTasks: 0, sectorIds: [] };
 
   // Raíces, huérfanas (hija cuyo padre no se copia) e hijas por padre, en el
   // orden de la consulta.
@@ -148,6 +154,7 @@ export async function cloneTaskTree(
     return set;
   };
 
+  const copiedSectorIds = new Set<string>();
   const copyOne = async (src: (typeof source)[number], parentId: string | null, position: number) => {
     const rawText = stripWorkTags(src.rawText);
     const displayText = rawText === src.rawText ? src.displayText : parseTags(rawText).displayText;
@@ -164,6 +171,7 @@ export async function cloneTaskTree(
         sectorId: l.targetType === "SECTOR" ? l.targetId : null,
         userId: l.targetType === "USER" ? l.targetId : null,
       }));
+    for (const l of links) if (l.sectorId) copiedSectorIds.add(l.sectorId);
     const labels = src.labels
       .filter((l) => isTaskLabelKeyAvailable(l.key, destWork))
       .map((l) => ({ keyId: l.keyId, valueId: l.valueId }));
@@ -217,7 +225,7 @@ export async function cloneTaskTree(
     })),
   });
 
-  return { tasks: created, copiedTasks: created.length };
+  return { tasks: created, copiedTasks: created.length, sectorIds: [...copiedSectorIds] };
 }
 
 /** objetivos: posición de un objetivo nuevo, al final de los del proyecto. */
@@ -247,7 +255,7 @@ export interface InsertTemplateAsObjectiveArgs {
 export async function insertTemplateAsObjectiveTx(
   tx: TxClient,
   { workId, template, title, actorId }: InsertTemplateAsObjectiveArgs,
-): Promise<{ objective: Objective; copiedTasks: number }> {
+): Promise<CloneTaskTreeResult & { objective: Objective }> {
   const objective = await tx.objective.create({
     data: {
       workId,
@@ -258,11 +266,11 @@ export async function insertTemplateAsObjectiveTx(
       createdById: actorId,
     },
   });
-  const { copiedTasks } = await cloneTaskTree(tx, {
+  const cloned = await cloneTaskTree(tx, {
     sourceWhere: { workId: template.id },
     destWorkId: workId,
     destObjectiveId: objective.id,
     actorId,
   });
-  return { objective, copiedTasks };
+  return { objective, ...cloned };
 }

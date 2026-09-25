@@ -168,11 +168,11 @@ beforeEach(() => {
     // El objetivo se inserta dentro de la transacción del alta.
     expect(db.inTransaction).toBe(true);
     expect(tx).toBe(db.txClient);
-    return { objective: { id: "obj-1", title: "Instalación" }, copiedTasks: 3 };
+    return { objective: { id: "obj-1", title: "Instalación" }, tasks: [], copiedTasks: 3, sectorIds: [] };
   });
   mocks.cloneTaskTree.mockImplementation(async () => {
     expect(db.inTransaction).toBe(true);
-    return { tasks: [], copiedTasks: 2 };
+    return { tasks: [], copiedTasks: 2, sectorIds: [] };
   });
 });
 
@@ -191,6 +191,25 @@ describe("POST /api/works con cloneFromId", () => {
       actorId: "user-1",
     });
     expect(mocks.cloneTaskTree).not.toHaveBeenCalled();
+    expect(mocks.emit).toHaveBeenCalledWith({ type: "work-changed", workId: "new-work" });
+  });
+
+  it("objetivos: avisa a los sectores vinculados de las tareas copiadas", async () => {
+    mocks.insertTemplateAsObjectiveTx.mockResolvedValueOnce({
+      objective: { id: "obj-1", title: "Instalación" },
+      tasks: [{ id: "copia-1" }],
+      copiedTasks: 1,
+      sectorIds: ["sector-1"],
+    });
+
+    await post({ name: "Casa Pérez", groupId: GROUP_A, cloneFromId: TPL_GROUP_A });
+
+    expect(mocks.emit).toHaveBeenCalledWith({
+      type: "task-changed",
+      taskId: "copia-1",
+      workId: "new-work",
+      sectorIds: ["sector-1"],
+    });
     expect(mocks.emit).toHaveBeenCalledWith({ type: "work-changed", workId: "new-work" });
   });
 

@@ -235,7 +235,7 @@ describe("cloneTaskTree", () => {
 
     const result = await cloneTaskTree(asTx(tx), base);
 
-    expect(result).toEqual({ tasks: [], copiedTasks: 0 });
+    expect(result).toEqual({ tasks: [], copiedTasks: 0, sectorIds: [] });
     expect(created).toHaveLength(0);
     expect(statusChanges).toHaveLength(0);
   });
@@ -405,9 +405,11 @@ describe("cloneTaskTree", () => {
       ],
     });
 
-    await expect(cloneTaskTree(asTx(tx), base)).resolves.toBeTruthy();
+    const result = await cloneTaskTree(asTx(tx), base);
 
     expect(created[0].links.create.map((l) => l.targetId)).toEqual(["s-grupo", "s-personal-actor", "s-global"]);
+    // Los sectores copiados (y solo esos) vuelven para el aviso `task-changed` del llamador.
+    expect(result.sectorIds).toEqual(["s-grupo", "s-personal-actor", "s-global"]);
     expect(created[0].links.create[0]).toEqual({
       type: "EXEC",
       targetType: "SECTOR",
