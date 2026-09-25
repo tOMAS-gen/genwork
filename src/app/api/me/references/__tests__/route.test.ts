@@ -274,3 +274,42 @@ describe("GET /api/me/references — sin tareas de plantillas (objetivos, D15)",
     });
   });
 });
+
+describe("GET /api/me/references — objetivo de la tarea (objetivos, vistas externas)", () => {
+  it("pide el objetivo en el include de la tarea", async () => {
+    mocks.taskLinkFindMany.mockResolvedValue([]);
+    await GET(new Request("http://localhost/api/me/references"), undefined);
+    const args = mocks.taskLinkFindMany.mock.calls[0][0] as {
+      include: { task: { include: { objective?: unknown } } };
+    };
+    expect(args.include.task.include.objective).toEqual({ select: { id: true, title: true } });
+  });
+
+  it("el DTO trae `objectiveId` y `objective {id,title}` para el chip de TaskItem", async () => {
+    const link = makeTaskLink({ taskId: TASK_T1, workId: WORK_W1 });
+    Object.assign(link.task, {
+      objectiveId: "obj-1",
+      // `position` viaja en la fila pero no se expone: el chip solo usa id y título.
+      objective: { id: "obj-1", title: "Diseño", position: 3 },
+    });
+    mocks.taskLinkFindMany.mockResolvedValue([link]);
+
+    const res = await GET(new Request("http://localhost/api/me/references"), undefined);
+    const body = (await res.json()) as Array<{ objectiveId: string | null; objective: unknown }>;
+    expect(body[0].objectiveId).toBe("obj-1");
+    expect(body[0].objective).toEqual({ id: "obj-1", title: "Diseño" });
+  });
+
+  it("una tarea general (o suelta) trae `objective: null`", async () => {
+    mocks.taskLinkFindMany.mockResolvedValue([
+      makeTaskLink({ taskId: TASK_T1, workId: WORK_W1 }),
+      makeTaskLink({ taskId: TASK_T2 }),
+    ]);
+    const res = await GET(new Request("http://localhost/api/me/references"), undefined);
+    const body = (await res.json()) as Array<{ objectiveId: string | null; objective: unknown }>;
+    for (const t of body) {
+      expect(t.objectiveId).toBeNull();
+      expect(t.objective).toBeNull();
+    }
+  });
+});

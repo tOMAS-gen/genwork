@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db/client";
 import { progress } from "@/lib/domain/works/progress";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { ACTIVE_PROJECT_WORK } from "@/server/workFilters";
+import { groupTasksByObjective } from "@/lib/domain/objectives/grouping";
+import { objectiveTaskCounts, type TaskCounts } from "@/lib/domain/objectives/progress";
 
 /**
  * Capa de datos del portal de cliente (feature 059).
@@ -56,8 +58,26 @@ export interface PortalTaskDto {
   subtaskDone: number;
 }
 
-export interface PortalWorkDetail extends PortalWorkSummary {
+/**
+ * objetivos (D11): un objetivo tal como lo ve el cliente. Allowlist explícita:
+ * sin `workId`, `position`, `sourceTemplateId`, `createdById` ni `createdAt`
+ * (organización interna). `taskCounts` sigue la regla de contenedor, igual
+ * que el total del proyecto.
+ */
+export interface PortalObjectiveDto {
+  id: string;
+  title: string;
+  description: string | null;
+  taskCounts: TaskCounts;
+  pct: number;
   tasks: PortalTaskDto[];
+}
+
+export interface PortalWorkDetail extends PortalWorkSummary {
+  /** objetivos: solo las tareas GENERALES (sin objetivo); las demás van en `objectives[].tasks`. */
+  tasks: PortalTaskDto[];
+  /** objetivos: en orden (`position`); `[]` si el proyecto no tiene. */
+  objectives: PortalObjectiveDto[];
   doc: { content: unknown } | null;
 }
 
@@ -69,6 +89,9 @@ export interface PortalWorkDetail extends PortalWorkSummary {
 const PORTAL_WORK_FILTER = ACTIVE_PROJECT_WORK;
 
 const LABEL_INCLUDE = { value: { include: { key: true } } } as const;
+
+/** objetivos: allowlist de campos del objetivo que pueden llegar al cliente. */
+const PORTAL_OBJECTIVE_SELECT = { id: true, title: true, description: true } as const;
 
 /**
  * 062-subtareas (hallazgo Importante 6 de revisión): shape compartida por
@@ -105,10 +128,6 @@ function toLabelDtos(
     color: l.value.color,
     isPrimary: l.isPrimary,
   }));
-}
-
-function countDone(tasks: readonly { status: { type: string } }[]): number {
-  return tasks.filter((t) => t.status.type === "FINAL").length;
 }
 
 /**
@@ -199,31 +218,48 @@ export async function getPortalWork(workId: string): Promise<PortalWorkDetail | 
       tasks: {
         // 062-subtareas: las hijas viajan anidadas bajo su padre (subtasks),
         // no sueltas a nivel raíz del listado.
+        // objetivos: `position` es por sección, así que `createdAt` desempata
+        // (mismo criterio que works/[id]); el agrupado conserva este orden.
         where: { parentId: null },
-        orderBy: { position: "asc" },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
         select: {
           ...PORTAL_TASK_SELECT,
+          // objetivos: solo en la raíz y solo para agrupar; `toPortalTaskDto`
+          // mapea campo por campo, así que no llega al cliente. Las hijas
+          // cuentan en el objetivo de su raíz (D14).
+          objectiveId: true,
           subtasks: { orderBy: { position: "asc" }, select: PORTAL_TASK_SELECT },
         },
+      },
+      objectives: {
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        select: PORTAL_OBJECTIVE_SELECT,
       },
     },
   });
   if (!work) return null;
 
+  // objetivos (D11): generales + una sección por objetivo. Un `objectiveId`
+  // desconocido cae en generales: la tarea nunca desaparece del portal.
+  const grouped = groupTasksByObjective(work.tasks, work.objectives);
+  const general = grouped.general.map(toPortalTaskDto);
+  const objectives: PortalObjectiveDto[] = grouped.sections.map(({ objective, tasks }) => {
+    const dtos = tasks.map(toPortalTaskDto);
+    const counts = objectiveTaskCounts(dtos);
+    return {
+      id: objective.id,
+      title: objective.title,
+      description: objective.description,
+      taskCounts: counts,
+      pct: progress(counts.done, counts.total)?.pct ?? 0,
+      tasks: dtos,
+    };
+  });
+
   // 062-subtareas: un padre-contenedor no suma; sus hijas (ya anidadas en
-  // `task.subtasks`) aportan en su lugar (ver unfinishedCount.ts).
-  let total = 0;
-  let done = 0;
-  for (const t of work.tasks) {
-    const subtasks = t.subtasks ?? [];
-    if (isContainerTask({ subtaskCount: subtasks.length })) {
-      total += subtasks.length;
-      done += countDone(subtasks);
-    } else {
-      total += 1;
-      if (t.status.type === "FINAL") done += 1;
-    }
-  }
+  // `subtasks`) aportan en su lugar. Misma regla (`taskListProgress`) que la
+  // página de proyecto; el total es la suma de generales + objetivos.
+  const { done, total } = objectiveTaskCounts([...general, ...objectives.flatMap((o) => o.tasks)]);
 
   return {
     id: work.id,
@@ -235,7 +271,8 @@ export async function getPortalWork(workId: string): Promise<PortalWorkDetail | 
     taskCounts: { done, total },
     pct: progress(done, total)?.pct ?? 0,
     doc: work.doc ? { content: work.doc.content } : null,
-    tasks: work.tasks.map(toPortalTaskDto),
+    tasks: general,
+    objectives,
   };
 }
 

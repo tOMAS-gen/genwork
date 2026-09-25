@@ -9,10 +9,9 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import { ProjectTabs } from "@/components/works/ProjectTabs";
 import { ProgressBar } from "@/components/works/ProgressBar";
 import { DocEditor } from "@/components/editor/DocEditor";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { ArrowLeft, Calendar, CheckSquare, FileText, History, Inbox } from "@/components/ui/icons";
-import { PortalTaskItem } from "@/components/portal/PortalTaskItem";
+import { ArrowLeft, Calendar, CheckSquare, FileText, History } from "@/components/ui/icons";
+import { PortalTaskGroups } from "@/components/portal/PortalTaskGroups";
 import { PortalActivityFeed } from "@/components/portal/PortalActivityFeed";
 import type { PortalActivityEntry, PortalWorkDetail } from "@/components/portal/types";
 
@@ -122,20 +121,8 @@ export default function PortalWorkPage({ params }: { params: Promise<{ id: strin
 
       <ProjectTabs items={TABS} activeKey={tab} onChange={(k) => setTab(k as TabKey)} />
 
-      {tab === "tasks" &&
-        (work.tasks.length === 0 ? (
-          <EmptyState
-            icon={Inbox}
-            title="El proyecto todavía no tiene tareas"
-            description="Cuando se carguen las tareas, vas a poder seguir su avance desde acá."
-          />
-        ) : (
-          <ul className="task-list portal-task-list">
-            {work.tasks.map((task) => (
-              <PortalTaskItem key={task.id} task={task} />
-            ))}
-          </ul>
-        ))}
+      {/* objetivos (D11): generales + un bloque por objetivo con su progreso. */}
+      {tab === "tasks" && <PortalTaskGroups work={work} />}
 
       {/* editable={false}: TipTap deja la vista no editable, lo que bloquea también
           pegar y arrastrar contenido, y oculta la barra de herramientas (FR-020). */}

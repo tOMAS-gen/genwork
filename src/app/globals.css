@@ -6475,3 +6475,52 @@ dialog.dialog--overflow-visible {
   .reminder-form .rem-weekday-btn { min-height: 44px; }
   .reminder-form .rem-remove-lead { width: 40px; height: 44px; flex-basis: 40px; }
 }
+
+/* objetivos: portal y vistas externas */
+/* Pestaña Tareas del portal: generales + un bloque por objetivo (D11). Los
+   títulos van sobre el fondo de la página y cada lista conserva su card
+   (.portal-task-list), igual que la lista sin objetivos. */
+.portal-task-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.portal-objective {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.portal-objective-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.portal-group-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.portal-objective-complete {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.portal-objective-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.portal-objective-empty {
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}

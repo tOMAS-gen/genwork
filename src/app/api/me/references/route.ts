@@ -54,6 +54,8 @@ type TaskWithPermissionData = {
   adoptedAt: Date | null;
   description: string | null;
   position: number;
+  objectiveId: string | null;
+  objective: { id: string; title: string } | null;
   status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL"; sortOrder: number };
   work: {
     id: string;
@@ -131,6 +133,8 @@ export const GET = withApi(async (req) => {
             homeSector: { include: { group: { select: { id: true, name: true, publicRead: true } } } },
             labels: { include: { value: { include: { key: true } } } },
             status: true,
+            // objetivos: el chip "Proyecto › Objetivo" de TaskItem.
+            objective: { select: { id: true, title: true } },
           },
         },
       },
@@ -146,7 +150,13 @@ export const GET = withApi(async (req) => {
         execSectorIdsOf(task.links),
       );
 
-      const dto: TaskDto & { canToggle: boolean } = {
+      // objetivos: `objective` se declara acá además de en `TaskDto` (opcional
+      // allá) para que esta respuesta lo traiga SIEMPRE, null si es general.
+      const dto: TaskDto & {
+        canToggle: boolean;
+        objectiveId: string | null;
+        objective: { id: string; title: string } | null;
+      } = {
         id: task.id,
         rawText: task.rawText,
         displayText: task.displayText,
@@ -188,6 +198,8 @@ export const GET = withApi(async (req) => {
           user: link.user,
         })),
         description: task.description,
+        objectiveId: task.objectiveId ?? null,
+        objective: task.objective ? { id: task.objective.id, title: task.objective.title } : null,
         canToggle: canToggle(ctx, taskRefFromLoadedTask(task)),
       };
       return dto;

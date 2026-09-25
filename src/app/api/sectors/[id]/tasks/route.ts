@@ -8,6 +8,8 @@ import { applyTaskFilters, type TaskFilters } from "@/lib/domain/views/filters";
 import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE, TASK_NOT_IN_TEMPLATE } from "@/server/workFilters";
+import { OBJECTIVE_REF_SELECT } from "@/lib/domain/objectives/select";
+import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
 
 // 062-subtareas: shape de cada fila; `_count.subtasks` es el conteo GLOBAL de
 // hijas (todas, sin importar a qué sector estén vinculadas) — sirve para saber
@@ -21,6 +23,9 @@ const taskInclude = {
   status: true,
   parent: { select: { id: true, displayText: true } },
   _count: { select: { subtasks: true } },
+  // objetivos: el chip "Proyecto › Objetivo" de TaskItem y el orden del grupo
+  // de cada proyecto (`compareProjectTaskOrder`) necesitan el objetivo.
+  objective: OBJECTIVE_REF_SELECT,
 } as const;
 
 /**
@@ -263,6 +268,10 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     }
     entry.tasks.push(t);
   }
+  // objetivos: `position` es densa por sección {proyecto, objetivo}; ordenar
+  // solo por `position` intercalaría objetivos. Generales primero, después
+  // cada objetivo en su orden (sort estable: sin objetivos, orden de siempre).
+  for (const entry of byWorkMap.values()) entry.tasks.sort(compareProjectTaskOrder);
   const byWork = [...byWorkMap.values()].sort((a, b) => a.work.name.localeCompare(b.work.name));
 
   // 062-subtareas: `allExec` son los ítems de nivel raíz de ESTA vista (un
