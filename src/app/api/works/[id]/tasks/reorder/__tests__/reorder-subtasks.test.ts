@@ -39,14 +39,16 @@ vi.mock("@/server/events", () => ({ emit: vi.fn() }));
 // Simula el efecto real de reorderTasks (ya probado en tests/unit/task-reorder.test.ts):
 // reasigna `position = índice` a las raíces recibidas, para que el mock de
 // `task.findMany` (que sí ordena por `position`) devuelva el orden nuevo.
-const reorderTasksMock = vi.fn(async (_workId: string, orderedTaskIds: string[]) => {
+// objetivos: recibe también la sección (`objectiveId`, null = generales).
+const reorderTasksMock = vi.fn(async (_workId: string, orderedTaskIds: string[], _objectiveId: string | null) => {
   orderedTaskIds.forEach((id, index) => {
     const t = db.tasks.find((x) => x.id === id);
     if (t) t.position = index;
   });
 });
 vi.mock("@/server/tasks", () => ({
-  reorderTasks: (workId: string, orderedTaskIds: string[]) => reorderTasksMock(workId, orderedTaskIds),
+  reorderTasks: (workId: string, orderedTaskIds: string[], objectiveId: string | null) =>
+    reorderTasksMock(workId, orderedTaskIds, objectiveId),
   loadApplicableStatusSet: vi.fn(async () => []),
   execSectorIdsOf: (links: { type: string; sectorId: string | null }[]) =>
     links.filter((l) => l.type === "EXEC" && l.sectorId).map((l) => l.sectorId as string),
@@ -142,12 +144,14 @@ vi.mock("@/lib/db/client", () => ({
 
 import { PATCH } from "@/app/api/works/[id]/tasks/reorder/route";
 
-function req(orderedTaskIds: string[]) {
+function req(orderedTaskIds: string[], extra: Record<string, unknown> = {}) {
   return new Request(`http://localhost/api/works/${WORK_ID}/tasks/reorder`, {
     method: "PATCH",
-    body: JSON.stringify({ orderedTaskIds }),
+    body: JSON.stringify({ orderedTaskIds, ...extra }),
   });
 }
+
+const OBJETIVO_ID = "55555555-5555-4555-8555-555555555555";
 
 describe("PATCH /api/works/[id]/tasks/reorder — contrato de la respuesta (062-subtareas)", () => {
   beforeEach(() => {
@@ -182,5 +186,42 @@ describe("PATCH /api/works/[id]/tasks/reorder — contrato de la respuesta (062-
     expect(hijaDto).toHaveProperty("statusOptions");
     expect(hijaDto).toHaveProperty("labels");
     expect(hijaDto.subtasks).toEqual([]);
+  });
+});
+
+describe("PATCH /api/works/[id]/tasks/reorder — sección (objetivos)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.tasks = [padre, hija, suelta];
+  });
+
+  it("sin objectiveId reordena las generales (null), como siempre", async () => {
+    await PATCH(req([SUELTA_ID, PADRE_ID]), { params: Promise.resolve({ id: WORK_ID }) });
+    expect(reorderTasksMock).toHaveBeenCalledWith(WORK_ID, [SUELTA_ID, PADRE_ID], null);
+  });
+
+  it("objectiveId llega a reorderTasks y la respuesta mantiene la forma de siempre (array plano de raíces)", async () => {
+    const res = await PATCH(req([SUELTA_ID, PADRE_ID], { objectiveId: OBJETIVO_ID }), {
+      params: Promise.resolve({ id: WORK_ID }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(reorderTasksMock).toHaveBeenCalledWith(WORK_ID, [SUELTA_ID, PADRE_ID], OBJETIVO_ID);
+    const body = await res.json();
+    expect(Array.isArray(body)).toBe(true);
+    expect(body.map((t: { id: string }) => t.id)).toEqual([SUELTA_ID, PADRE_ID]);
+  });
+
+  it("objectiveId null explícito también son las generales", async () => {
+    await PATCH(req([SUELTA_ID, PADRE_ID], { objectiveId: null }), { params: Promise.resolve({ id: WORK_ID }) });
+    expect(reorderTasksMock).toHaveBeenCalledWith(WORK_ID, [SUELTA_ID, PADRE_ID], null);
+  });
+
+  it("un objectiveId que no es uuid es 400 y no reordena nada", async () => {
+    const res = await PATCH(req([SUELTA_ID, PADRE_ID], { objectiveId: "no-es-uuid" }), {
+      params: Promise.resolve({ id: WORK_ID }),
+    });
+    expect(res.status).toBe(400);
+    expect(reorderTasksMock).not.toHaveBeenCalled();
   });
 });

@@ -12,6 +12,7 @@ import {
   syncParentStatus,
   loadApplicableStatusSet,
   execSectorIdsOf,
+  taskWithLinksInclude,
   type TaskWithLinks,
 } from "@/server/tasks";
 import { emit } from "@/server/events";
@@ -98,13 +99,6 @@ async function summarizeTaskWithLabels(task: TaskWithLinks) {
   return summarizeTask(task, byTask.get(task.id) ?? [], bySubtask.get(task.id) ?? NO_SUBTASKS);
 }
 
-const taskInclude = {
-  links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-  work: { select: { id: true, name: true } },
-  homeSector: { select: { id: true, name: true } },
-  status: true,
-} as const;
-
 /**
  * Input de `task.create`/`task.update` (exportado para test, T024): a propósito
  * NO tiene campos estructurados para `/ # @ $` — todo pasa por `text`/`parseTags`
@@ -158,7 +152,7 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           if (level === "none") throw notFound("Proyecto no encontrado");
           tasks = await prisma.task.findMany({
             where: { workId, ...(statusType ? { status: { type: statusType } } : {}) },
-            include: taskInclude,
+            include: taskWithLinksInclude,
             orderBy: { position: "asc" },
           });
         } else {
@@ -184,12 +178,12 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           const [execLinks, loose] = await Promise.all([
             prisma.taskLink.findMany({
               where: { sectorId: sectorId!, type: "EXEC", task: TASK_IN_ACTIVE_PROJECT_OR_LOOSE },
-              include: { task: { include: taskInclude } },
+              include: { task: { include: taskWithLinksInclude } },
               orderBy: { task: { position: "asc" } },
             }),
             prisma.task.findMany({
               where: { sectorId: sectorId!, workId: null },
-              include: taskInclude,
+              include: taskWithLinksInclude,
               orderBy: { position: "asc" },
             }),
           ]);
@@ -407,8 +401,9 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         "Convierte una tarea en subtarea de otra (mismo proyecto o sector), o la promueve a tarea " +
         "independiente con parentId nulo. Un solo nivel de anidado; mismas reglas que arrastrar una " +
         "tarea en la web: el destino no puede ser a su vez una subtarea, tiene que pertenecer al mismo " +
-        "proyecto/sector, la tarea a mover no puede tener hijas abiertas propias, y si no tiene EXEC " +
-        "propio hereda los del nuevo padre.",
+        "proyecto/sector, la tarea a mover no puede tener hijas propias (ni siquiera terminadas), y si " +
+        "no tiene EXEC propio hereda los del nuevo padre. Al colgarla toma el objetivo del padre (si eso " +
+        "la cambia de objetivo, hace falta operar el proyecto); al promoverla conserva el suyo.",
       inputSchema: { taskId: z.string().uuid(), parentId: z.string().uuid().nullable() },
     },
     async ({ taskId, parentId: nextParentId }) => {
@@ -422,8 +417,9 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         // compartido con PATCH /api/tasks/[id] (revisión final, hallazgo
         // Importante 5 — antes era una copia literal de ~50 líneas acá y allá,
         // para que mover una tarea por MCP o por drag-and-drop en la web deje
-        // el mismo resultado).
-        const updated = await setTaskParent(task, nextParentId);
+        // el mismo resultado). objetivos: con `ctx`, para exigir operar el
+        // proyecto si la tarea cambia de objetivo al colgarla.
+        const updated = await setTaskParent(ctx.userContext, task, nextParentId);
 
         // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o
         // con todas terminadas) y el padre nuevo (una hija recién llegada puede

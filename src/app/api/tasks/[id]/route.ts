@@ -47,7 +47,9 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     // Núcleo de validación + herencia de EXEC + recálculo de `position`
     // compartido con el MCP `task.setParent` (revisión final, hallazgo
     // Importante 5 — antes era una copia literal de ~50 líneas acá y allá).
-    const updated = await setTaskParent(task, nextParentId);
+    // objetivos: recibe `ctx` porque anidar bajo un padre de otro objetivo
+    // exige operar el proyecto (no alcanza con el `canToggle` de arriba).
+    const updated = await setTaskParent(ctx, task, nextParentId);
 
     // Sincronizar los dos extremos: el padre viejo (puede quedar sin hijas o con
     // todas terminadas) y el padre nuevo (una hija recién llegada puede reabrirlo).

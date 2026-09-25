@@ -54,12 +54,16 @@ interface FakeTask {
   // su ámbito de hermanas — la necesita `nextPosition` (real, la usa
   // `setTaskParent`) para tener algo que agregar.
   position: number;
+  // objetivos: sección de la tarea (null = general); `setTaskParent` la hereda
+  // del padre al colgar y la conserva al promover.
+  objectiveId: string | null;
 }
 
 interface FakeWork {
   id: string;
   groupId: string | null;
   ownerId: string | null;
+  status: "ACTIVE" | "ARCHIVED";
   group: { publicRead: boolean } | null;
 }
 
@@ -75,6 +79,9 @@ const AJENA_ID = randomUUID();
 const TAREA_SUELTA_ID = randomUUID();
 const SECTOR_A = randomUUID();
 const SECTOR_C = randomUUID();
+// objetivos: padre raíz dentro de un objetivo de WORK_1 (anidar entre secciones).
+const OBJETIVO_1 = randomUUID();
+const PADRE_OBJETIVO_ID = randomUUID();
 
 const db = vi.hoisted(() => ({
   tasks: [] as FakeTask[],
@@ -111,6 +118,7 @@ vi.mock("@/server/tasks", async (importOriginal) => {
           status: IN_PROGRESS,
           links: [],
           position: 0,
+          objectiveId: null,
         };
         const idx = db.tasks.findIndex((t) => t.id === id);
         if (idx >= 0) db.tasks[idx] = task;
@@ -155,10 +163,17 @@ vi.mock("@/lib/db/client", () => ({
           data,
         }: {
           where: { id: string };
-          data: { parentId?: string | null; position?: number; links?: { create?: FakeLink[] } };
+          data: {
+            parentId?: string | null;
+            objectiveId?: string | null;
+            position?: number;
+            links?: { create?: FakeLink[] };
+          };
         }) => {
           const t = db.tasks.find((x) => x.id === id)!;
           if ("parentId" in data) t.parentId = data.parentId ?? null;
+          // objetivos: `setTaskParent` manda la sección en el mismo update.
+          if (data.objectiveId !== undefined) t.objectiveId = data.objectiveId;
           // 062-subtareas (revisión final, hallazgo Importante 4): `setTaskParent`
           // real ahora manda `position` en el mismo update.
           if (data.position !== undefined) t.position = data.position;
@@ -180,18 +195,26 @@ vi.mock("@/lib/db/client", () => ({
       // 062-subtareas (revisión final, hallazgo Importante 4): la usa
       // `nextPosition` (real) para calcular la posición dentro del nuevo
       // ámbito de hermanas.
+      // objetivos (crítica, Menor): también filtra por `objectiveId` — si lo
+      // ignorara, no serviría para probar el ámbito por sección de las raíces.
       aggregate: vi.fn(
         async ({
           where,
         }: {
-          where: { parentId: string | null; workId?: string | null; sectorId?: string | null };
+          where: {
+            parentId: string | null;
+            workId?: string | null;
+            sectorId?: string | null;
+            objectiveId?: string | null;
+          };
         }) => {
           const positions = db.tasks
             .filter(
               (t) =>
                 t.parentId === where.parentId &&
                 (where.workId === undefined || t.workId === where.workId) &&
-                (where.sectorId === undefined || t.sectorId === where.sectorId),
+                (where.sectorId === undefined || t.sectorId === where.sectorId) &&
+                (where.objectiveId === undefined || t.objectiveId === where.objectiveId),
             )
             .map((t) => t.position);
           return { _max: { position: positions.length ? Math.max(...positions) : null } };
@@ -212,7 +235,7 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 const { registerTaskTools } = await import("@/lib/mcp/tools/tasks");
-const { syncParentStatus } = await import("@/server/tasks");
+const { syncParentStatus, toTaskRef } = await import("@/server/tasks");
 const { logMcpActivity } = await import("@/lib/mcp/activity");
 
 type ToolResult = {
@@ -245,13 +268,13 @@ function makeCtx(overrides: Partial<UserContext> = {}): UserContext {
   };
 }
 
-function auth(): McpAuth {
-  return { userId: "user-1", connectionId: "conn-1", userContext: makeCtx() };
+function auth(overrides: Partial<UserContext> = {}): McpAuth {
+  return { userId: "user-1", connectionId: "conn-1", userContext: makeCtx(overrides) };
 }
 
-function tools() {
+function tools(overrides: Partial<UserContext> = {}) {
   const { server, handlers } = createServer();
-  registerTaskTools(server, auth());
+  registerTaskTools(server, auth(overrides));
   return handlers;
 }
 
@@ -263,13 +286,14 @@ function handlerOf(handlers: Map<string, ToolHandler>, name: string): ToolHandle
 
 beforeEach(() => {
   vi.clearAllMocks();
-  db.works = [{ id: WORK_1, groupId: null, ownerId: "user-1", group: null }];
+  db.works = [{ id: WORK_1, groupId: null, ownerId: "user-1", status: "ACTIVE", group: null }];
   db.tasks = [
-    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Padre", dueDate: null, status: IN_PROGRESS, links: [], position: 0 },
-    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Otro padre", dueDate: null, status: IN_PROGRESS, links: [], position: 1 },
-    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, displayText: "Hija", dueDate: null, status: IN_PROGRESS, links: [], position: 0 },
-    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, displayText: "Ajena", dueDate: null, status: IN_PROGRESS, links: [], position: 0 },
-    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Suelta", dueDate: null, status: IN_PROGRESS, links: [], position: 2 },
+    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Padre", dueDate: null, status: IN_PROGRESS, links: [], position: 0, objectiveId: null },
+    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Otro padre", dueDate: null, status: IN_PROGRESS, links: [], position: 1, objectiveId: null },
+    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, displayText: "Hija", dueDate: null, status: IN_PROGRESS, links: [], position: 0, objectiveId: null },
+    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, displayText: "Ajena", dueDate: null, status: IN_PROGRESS, links: [], position: 0, objectiveId: null },
+    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Suelta", dueDate: null, status: IN_PROGRESS, links: [], position: 2, objectiveId: null },
+    { id: PADRE_OBJETIVO_ID, parentId: null, workId: WORK_1, sectorId: null, displayText: "Padre de objetivo", dueDate: null, status: IN_PROGRESS, links: [], position: 0, objectiveId: OBJETIVO_1 },
   ];
 });
 
@@ -292,6 +316,7 @@ describe("task.list — parentId, subtaskCount, subtaskDone", () => {
       status: FINAL,
       links: [],
       position: 1,
+      objectiveId: null,
     });
     const handlers = tools();
     const result = await handlerOf(handlers, "task.list")({ workId: WORK_1 });
@@ -415,6 +440,57 @@ describe("task.setParent — mismas reglas que PATCH /api/tasks/[id] (Tarea 8)",
     expect(logMcpActivity).toHaveBeenCalledWith(
       expect.objectContaining({ toolName: "task.setParent", targetId: HIJA_ID }),
     );
+  });
+
+  it("objetivos: rechaza mover una tarea con subtareas aunque estén todas terminadas", async () => {
+    db.tasks.find((t) => t.id === HIJA_ID)!.status = FINAL;
+    const handlers = tools();
+    const result = await handlerOf(handlers, "task.setParent")({ taskId: PADRE_ID, parentId: OTRO_PADRE_ID });
+    expect(result.isError).toBe(true);
+    expect(db.tasks.find((t) => t.id === PADRE_ID)!.parentId).toBeNull();
+  });
+
+  it("objetivos: colgar bajo un padre de un objetivo hereda su objetivo (paridad con la web)", async () => {
+    const handlers = tools();
+    const result = await handlerOf(handlers, "task.setParent")({ taskId: TAREA_SUELTA_ID, parentId: PADRE_OBJETIVO_ID });
+    expect(result.isError).toBeUndefined();
+    expect(db.tasks.find((t) => t.id === TAREA_SUELTA_ID)).toMatchObject({
+      parentId: PADRE_OBJETIVO_ID,
+      objectiveId: OBJETIVO_1,
+      position: 0,
+    });
+  });
+
+  it("objetivos: promover una hija de un objetivo la deja al final de ESE objetivo", async () => {
+    const hijaId = randomUUID();
+    db.tasks.push({ id: hijaId, parentId: PADRE_OBJETIVO_ID, workId: WORK_1, sectorId: null, displayText: "Hija de objetivo", dueDate: null, status: IN_PROGRESS, links: [], position: 0, objectiveId: OBJETIVO_1 });
+    const handlers = tools();
+    const result = await handlerOf(handlers, "task.setParent")({ taskId: hijaId, parentId: null });
+    expect(result.isError).toBeUndefined();
+    expect(db.tasks.find((t) => t.id === hijaId)).toMatchObject({ parentId: null, objectiveId: OBJETIVO_1, position: 1 });
+  });
+
+  it("objetivos (crítica I5): sin operar el proyecto no cambia la tarea de objetivo (paridad con la web)", async () => {
+    // Opera la tarea por un sector otorgado (pasa `canToggle`), pero el
+    // proyecto es de un grupo ajeno con lectura pública: solo lo lee.
+    const sectorOtorgado = randomUUID();
+    const grupoAjeno = randomUUID();
+    db.works = [{ id: WORK_1, groupId: grupoAjeno, ownerId: null, status: "ACTIVE", group: { publicRead: true } }];
+    vi.mocked(toTaskRef).mockResolvedValueOnce({
+      workScope: { groupId: grupoAjeno, ownerId: null, groupPublicRead: true },
+      homeSector: null,
+      execSectors: [{ id: sectorOtorgado, groupId: null, ownerId: null }],
+      refSectors: [],
+      refUserIds: new Set(),
+    });
+    const handlers = tools({ globalRole: "MEMBER", grantedSectorIds: new Set([sectorOtorgado]) });
+
+    const result = await handlerOf(handlers, "task.setParent")({ taskId: TAREA_SUELTA_ID, parentId: PADRE_OBJETIVO_ID });
+
+    expect(result.isError).toBe(true);
+    // El 403 del gate de proyecto (`requireWorkAccess`), no un error interno.
+    expect(result.content[0].text).toBe("No tenés permiso para esta acción");
+    expect(db.tasks.find((t) => t.id === TAREA_SUELTA_ID)).toMatchObject({ parentId: null, objectiveId: null });
   });
 
   it("no requiere permiso (ni existencia) sobre el padre para permisos — solo sobre la tarea movida", async () => {

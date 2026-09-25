@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
+import { OBJECTIVE_REF_SELECT } from "@/lib/domain/objectives/select";
 
 /**
  * 062-subtareas: shape base compartida por padre e hija (una subtarea no puede
@@ -19,6 +20,11 @@ export const taskWithParentInclude = {
   labels: { include: { value: { include: { key: true } } } },
   status: true,
   parent: { select: { id: true, displayText: true } },
+  // objetivos (crítica B1): cada tarea viaja con su objetivo (`objectiveId` ya
+  // es escalar de la fila) para el chip "Proyecto › Objetivo" y para que la
+  // página agrupe la lista plana de raíces por sección. Módulo hoja: ver
+  // `objectives/select.ts` sobre el import circular con `tasks.ts`.
+  objective: OBJECTIVE_REF_SELECT,
 } satisfies Prisma.TaskInclude;
 
 /** Include completo para el nivel raíz: agrega la relación `subtasks` (un solo nivel). */

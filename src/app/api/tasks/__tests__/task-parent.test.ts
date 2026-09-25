@@ -43,6 +43,18 @@ interface FakeTask {
   // su ámbito de hermanas — necesaria para que `nextPosition` (real, la usa
   // `setTaskParent`) tenga algo que agregar.
   position: number;
+  // objetivos: sección de la tarea (null = general). `setTaskParent` la hereda
+  // del padre al colgar y la conserva al promover; `nextPosition` la usa como
+  // ámbito de las raíces.
+  objectiveId: string | null;
+}
+
+interface FakeWork {
+  id: string;
+  groupId: string | null;
+  ownerId: string | null;
+  status: "ACTIVE" | "ARCHIVED";
+  group: { publicRead: boolean } | null;
 }
 
 const PADRE_ID = randomUUID();
@@ -65,8 +77,14 @@ const SECTOR_C = randomUUID();
 // para los escenarios de herencia de EXEC al colgarla de un padre.
 const TAREA_SUELTA_ID = randomUUID();
 
+// objetivos: padre raíz dentro de un objetivo de WORK_1 (anidar entre secciones).
+const OBJETIVO_1 = randomUUID();
+const PADRE_OBJETIVO_ID = randomUUID();
+const GRUPO_AJENO = randomUUID();
+
 const db = vi.hoisted(() => ({
   tasks: [] as FakeTask[],
+  works: [] as FakeWork[],
 }));
 
 vi.mock("@/server/auth", () => ({
@@ -107,6 +125,12 @@ vi.mock("@/server/tasks", async (importOriginal) => {
 
 vi.mock("@/lib/db/client", () => ({
   prisma: {
+    // objetivos: lo lee `requireWorkAccess` cuando la tarea cambia de objetivo.
+    work: {
+      findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
+        db.works.find((w) => w.id === id) ?? null,
+      ),
+    },
     task: {
       findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
         db.tasks.find((t) => t.id === id) ?? null,
@@ -127,12 +151,15 @@ vi.mock("@/lib/db/client", () => ({
           where: { id: string };
           data: {
             parentId: string | null;
+            objectiveId?: string | null;
             position?: number;
             links?: { create?: { type: "EXEC" | "REF"; sectorId: string | null }[] };
           };
         }) => {
           const t = db.tasks.find((x) => x.id === id)!;
           t.parentId = data.parentId;
+          // objetivos: `setTaskParent` manda la sección en el mismo update.
+          if (data.objectiveId !== undefined) t.objectiveId = data.objectiveId;
           // 062-subtareas (revisión final, hallazgo Importante 4): `setTaskParent`
           // real ahora manda `position` en el mismo update.
           if (data.position !== undefined) t.position = data.position;
@@ -159,18 +186,27 @@ vi.mock("@/lib/db/client", () => ({
       // `nextPosition` (real) para calcular la posición dentro del nuevo
       // ámbito de hermanas — hijas del padre nuevo, o raíces del proyecto/
       // sector si se promueve.
+      // objetivos: también filtra por `objectiveId` (ámbito de las raíces de un
+      // proyecto = una sección); si lo ignorara, promover dentro de un objetivo
+      // no se podría distinguir de promover a las generales.
       aggregate: vi.fn(
         async ({
           where,
         }: {
-          where: { parentId: string | null; workId?: string | null; sectorId?: string | null };
+          where: {
+            parentId: string | null;
+            workId?: string | null;
+            sectorId?: string | null;
+            objectiveId?: string | null;
+          };
         }) => {
           const positions = db.tasks
             .filter(
               (t) =>
                 t.parentId === where.parentId &&
                 (where.workId === undefined || t.workId === where.workId) &&
-                (where.sectorId === undefined || t.sectorId === where.sectorId),
+                (where.sectorId === undefined || t.sectorId === where.sectorId) &&
+                (where.objectiveId === undefined || t.objectiveId === where.objectiveId),
             )
             .map((t) => t.position);
           return { _max: { position: positions.length ? Math.max(...positions) : null } };
@@ -204,7 +240,8 @@ vi.mock("@/lib/db/client", () => ({
 }));
 
 const { PATCH, DELETE } = await import("@/app/api/tasks/[id]/route");
-const { syncParentStatus } = await import("@/server/tasks");
+const { syncParentStatus, toTaskRef } = await import("@/server/tasks");
+const { getUserContext } = await import("@/server/user-context");
 
 function req(body: unknown) {
   return new Request("http://localhost/api/tasks/x", {
@@ -217,15 +254,19 @@ const params = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
   db.tasks = [
-    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
-    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 1 },
-    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
-    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
-    { id: PADRE_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
-    { id: HIJA_SECTOR_ID, parentId: PADRE_SECTOR_ID, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
-    { id: PADRE_OTRO_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_B, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0 },
-    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 2 },
+    { id: PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: null },
+    { id: OTRO_PADRE_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 1, objectiveId: null },
+    { id: HIJA_ID, parentId: PADRE_ID, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: null },
+    { id: AJENA_ID, parentId: null, workId: WORK_2, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: null },
+    { id: PADRE_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: null },
+    { id: HIJA_SECTOR_ID, parentId: PADRE_SECTOR_ID, workId: null, sectorId: SECTOR_A, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: null },
+    { id: PADRE_OTRO_SECTOR_ID, parentId: null, workId: null, sectorId: SECTOR_B, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: null },
+    { id: TAREA_SUELTA_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 2, objectiveId: null },
+    { id: PADRE_OBJETIVO_ID, parentId: null, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: OBJETIVO_1 },
   ];
+  // WORK_1 vive en un grupo con lectura pública del que el usuario de sector
+  // NO es miembro: lo ve, pero no lo opera (caso I5 de abajo).
+  db.works = [{ id: WORK_1, groupId: GRUPO_AJENO, ownerId: null, status: "ACTIVE", group: { publicRead: true } }];
 });
 
 describe("PATCH /api/tasks/[id] con parentId", () => {
@@ -268,6 +309,79 @@ describe("PATCH /api/tasks/[id] con parentId", () => {
     const res = await PATCH(req({ parentId: OTRO_PADRE_ID }), params(PADRE_ID));
     expect(res.status).toBe(400);
     expect(db.tasks.find((t) => t.id === PADRE_ID)!.parentId).toBeNull();
+  });
+
+  it("objetivos: rechaza mover una tarea con subtareas aunque estén todas terminadas", async () => {
+    // Antes solo contaba las abiertas: con hijas FINAL quedaban dos niveles de
+    // anidado (y, con objetivos, hijas en otra sección que su padre).
+    const hija = db.tasks.find((t) => t.id === HIJA_ID)!;
+    hija.status = { id: "hecha", type: "FINAL" };
+    hija.statusId = "hecha";
+
+    const res = await PATCH(req({ parentId: OTRO_PADRE_ID }), params(PADRE_ID));
+
+    expect(res.status).toBe(400);
+    expect(db.tasks.find((t) => t.id === PADRE_ID)!.parentId).toBeNull();
+  });
+});
+
+describe("PATCH /api/tasks/[id] con parentId — objetivos", () => {
+  it("colgar bajo un padre de un objetivo hereda su objetivo y queda al final de sus hermanas", async () => {
+    const res = await PATCH(req({ parentId: PADRE_OBJETIVO_ID }), params(TAREA_SUELTA_ID));
+
+    expect(res.status).toBe(200);
+    expect(db.tasks.find((t) => t.id === TAREA_SUELTA_ID)).toMatchObject({
+      parentId: PADRE_OBJETIVO_ID,
+      objectiveId: OBJETIVO_1,
+      position: 0,
+    });
+  });
+
+  it("promover una hija de un objetivo conserva el objetivo y va al final de ESE objetivo", async () => {
+    const hijaId = randomUUID();
+    db.tasks.push({ id: hijaId, parentId: PADRE_OBJETIVO_ID, workId: WORK_1, sectorId: null, statusId: "pendiente", status: { id: "pendiente", type: "IN_PROGRESS" }, links: [], position: 0, objectiveId: OBJETIVO_1 });
+
+    const res = await PATCH(req({ parentId: null }), params(hijaId));
+
+    expect(res.status).toBe(200);
+    // Las generales de WORK_1 llegan a la posición 2; el objetivo solo tiene
+    // al padre en la 0, así que la hija promovida va a la 1.
+    expect(db.tasks.find((t) => t.id === hijaId)).toMatchObject({
+      parentId: null,
+      objectiveId: OBJETIVO_1,
+      position: 1,
+    });
+  });
+
+  it("crítica I5: anidar bajo un padre de otro objetivo sin operar el proyecto da 403 y no toca nada", async () => {
+    // Opera la tarea por un sector otorgado (pasa `canToggle`), pero el
+    // proyecto solo lo lee: cambiar la tarea de sección no le corresponde.
+    const sectorOtorgado = randomUUID();
+    vi.mocked(getUserContext).mockResolvedValueOnce({
+      id: "user-2",
+      globalRole: "MEMBER",
+      memberGroupIds: new Set(),
+      adminGroupIds: new Set(),
+      grantedSectorIds: new Set([sectorOtorgado]),
+      readerGroupIds: new Set(),
+      clientWorkIds: new Set(),
+    });
+    vi.mocked(toTaskRef).mockResolvedValueOnce({
+      workScope: { groupId: GRUPO_AJENO, ownerId: null, groupPublicRead: true },
+      homeSector: null,
+      execSectors: [{ id: sectorOtorgado, groupId: null, ownerId: null }],
+      refSectors: [],
+      refUserIds: new Set(),
+    });
+
+    const res = await PATCH(req({ parentId: PADRE_OBJETIVO_ID }), params(TAREA_SUELTA_ID));
+
+    expect(res.status).toBe(403);
+    expect(db.tasks.find((t) => t.id === TAREA_SUELTA_ID)).toMatchObject({
+      parentId: null,
+      objectiveId: null,
+      position: 2,
+    });
   });
 });
 

@@ -29,9 +29,20 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
       tasks: {
         // 062-subtareas: las hijas viajan anidadas bajo su padre (subtasks), no
         // sueltas a nivel raíz del listado.
+        // objetivos (crítica B1): sigue siendo la lista plana de TODAS las
+        // raíces (generales y de objetivos), cada una con `objectiveId` y
+        // `objective`. Las posiciones son por sección, así que `createdAt`
+        // desempata entre secciones con la misma posición.
         where: { parentId: null },
-        orderBy: { position: "asc" },
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
         include: rootTaskWithSubtasksInclude,
+      },
+      // objetivos (crítica B1/B3): solo metadatos, en la MISMA consulta; las
+      // tareas de cada objetivo son las raíces de `tasks` con su `objectiveId`
+      // y el progreso lo deriva el cliente.
+      objectives: {
+        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        select: { id: true, title: true, description: true, position: true, sourceTemplateId: true },
       },
       archive: true,
       labels: { include: { value: { include: { key: true } } } },
@@ -40,9 +51,12 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   if (!full) return NextResponse.json(full);
 
   // FR-408/409: no exponemos el include crudo de Prisma, aplanamos al shape del contrato
-  const { labels, tasks, ...rest } = full;
+  const { labels, tasks, objectives, ...rest } = full;
   return NextResponse.json({
     ...rest,
+    // objetivos: una plantilla nunca tiene objetivos (invariante); `[]` por
+    // defensa, así su editor no muestra secciones aunque un dato roto las tenga.
+    objectives: full.isTemplate ? [] : objectives,
     access: level,
     // Feature 059: quién puede administrar el acceso de clientes externos a este
     // proyecto. Es más estricto que `access`: operar el proyecto no alcanza, hace
