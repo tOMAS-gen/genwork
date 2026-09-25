@@ -8,6 +8,11 @@ interface TaskBoardViewProps {
   context: { workId?: string; sectorId?: string };
   canToggle: boolean;
   onChanged: () => void;
+  /**
+   * objetivos: objetivos del proyecto para el "Mover a objetivo…" del ⋮ de
+   * cada tarjeta. Solo lo pasa el tablero del proyecto cuando el usuario opera.
+   */
+  objectiveOptions?: { id: string; title: string }[];
 }
 
 /**
@@ -23,7 +28,7 @@ interface TaskBoardViewProps {
  * Se aplanan padres + hijas antes de repartir por columna; cada tarjeta se
  * identifica sola con `parentBreadcrumb` cuando cuelga de otra.
  */
-export function TaskBoardView({ tasks, context, canToggle, onChanged }: TaskBoardViewProps) {
+export function TaskBoardView({ tasks, context, canToggle, onChanged, objectiveOptions }: TaskBoardViewProps) {
   const flatTasks = tasks.flatMap((t) => [t, ...(t.subtasks ?? [])]);
 
   const columnsMap = new Map<string, { id: string; name: string; color: string; sortOrder: number }>();
@@ -62,6 +67,7 @@ export function TaskBoardView({ tasks, context, canToggle, onChanged }: TaskBoar
                       canToggle={canToggle}
                       onChanged={onChanged}
                       variant="board"
+                      objectiveOptions={objectiveOptions}
                     />
                     {breadcrumb && <p className="muted task-board-breadcrumb">{breadcrumb}</p>}
                   </div>

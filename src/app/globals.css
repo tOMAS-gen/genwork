@@ -6137,7 +6137,7 @@ dialog.dialog--overflow-visible {
 
 @media (max-width: 600px) {
   .work-tasks-title { flex-direction: column; align-items: flex-start; }
-  .work-tasks-heading > [role="group"] { margin-left: auto; }
+  .work-tasks-heading > .work-tasks-actions { margin-left: auto; }
 }
 
 /* Sector detail shares the project overview and task surfaces. */
@@ -6207,7 +6207,7 @@ dialog.dialog--overflow-visible {
 }
 
 /* Keep dividers between tasks, without a closing line on each list. */
-:is(.work-task-list, .sector-task-group, .subtask-list) > .task:nth-last-child(1 of .task),
+:is(.work-task-list, .objective-task-list, .sector-task-group, .subtask-list) > .task:nth-last-child(1 of .task),
 .task-sortable-row:nth-last-child(1 of .task-sortable-row) > .task,
 .task-sortable-row:nth-last-child(1 of .task-sortable-row) > div > .task {
   border-bottom: 0;
@@ -6523,4 +6523,333 @@ dialog.dialog--overflow-visible {
   border-radius: 8px;
   color: var(--muted);
   font-size: var(--text-sm);
+}
+
+/* objetivos: proyecto
+   Secciones de objetivo en la lista del proyecto, chip de objetivo en las
+   tareas y diálogos. Radios por rol (DESIGN.md): chips 4px, controles y
+   encabezados 6px; nada ovalado salvo el badge numérico y la barra. */
+.work-tasks-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.work-tasks-actions > .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.work-section-heading {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.work-section-empty {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--outline);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.work-general-tasks + .objective-section {
+  margin-top: 24px;
+}
+.objective-section {
+  margin-top: 12px;
+  min-width: 0;
+}
+.objective-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 2px 4px 2px 0;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 6px;
+  background: var(--field);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.objective-section.is-open > .objective-header {
+  border-left-color: var(--accent);
+}
+.objective-section.is-complete > .objective-header {
+  border-left-color: var(--ok);
+}
+.objective-heading {
+  min-width: 0;
+  margin: 0;
+  font: inherit;
+}
+.objective-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.objective-toggle:hover {
+  background: var(--hover-soft);
+}
+.objective-chev {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 150ms ease;
+}
+.objective-toggle[aria-expanded="true"] .objective-chev {
+  transform: rotate(90deg);
+}
+.objective-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.objective-complete {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+.objective-progress {
+  width: 140px;
+}
+.objective-progress .progress-bar {
+  margin: 0;
+}
+.objective-section.is-complete .progress-fill {
+  background: var(--ok);
+}
+.objective-empty-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.objective-description {
+  margin: 8px 0 0 13px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: pre-line;
+}
+.objective-body {
+  padding: 4px 0 8px 12px;
+}
+.objective-body[hidden] {
+  display: none;
+}
+.objective-task-list {
+  min-width: 0;
+}
+.work-task-composer.is-inline {
+  margin: 8px 0 0;
+  background: transparent;
+  border-color: transparent;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.work-task-composer.is-inline:hover,
+.work-task-composer.is-inline:focus-within {
+  background: var(--field);
+  border-color: var(--outline);
+}
+.work-task-composer.is-inline:focus-within {
+  border-color: var(--accent);
+}
+/* Destino al arrastrar entre secciones: mismo lenguaje que .task-nest-target. */
+.task-drop-target,
+.objective-header.is-drop-target,
+.work-section-heading.is-drop-target,
+.work-section-empty.is-drop-target {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+  background: var(--hover-soft);
+}
+/* Chip de objetivo: reusa .tag (radio 4px) con icono de bandera. */
+.tag.tag-objective {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-left: 6px;
+  border: 1px solid var(--border);
+  background: var(--field);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.tag.tag-objective:hover {
+  color: var(--text);
+  background: var(--hover-soft);
+}
+.tag-objective-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-move-group {
+  margin: 8px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.objective-move-list {
+  display: grid;
+  gap: 2px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.objective-move-list .menu-item {
+  justify-content: space-between;
+}
+.objective-move-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.template-objective-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--field);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.template-objective-note > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.template-option-list {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.template-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+.template-option:hover {
+  background: var(--hover-soft);
+}
+.template-option.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.template-option-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.template-option-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.template-option-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.objective-mode {
+  align-self: flex-start;
+}
+.objective-template-notice {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--field);
+  font-size: 13px;
+  color: var(--muted);
+}
+.objective-template-notice p {
+  margin: 0;
+}
+.objective-template-notice .objective-template-desc {
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.objective-delete-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 600px) {
+  .objective-header {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 0;
+  }
+  .objective-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: auto;
+    padding: 0 12px 8px 36px;
+  }
+  .objective-body {
+    padding-left: 4px;
+  }
+}
+@media (pointer: coarse) {
+  .objective-toggle,
+  .template-option {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .objective-chev,
+  .objective-header,
+  .work-task-composer.is-inline,
+  .template-option {
+    transition: none;
+  }
 }

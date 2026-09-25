@@ -3,13 +3,45 @@
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { api } from "@/components/ui/useApi";
+import { groupTasksByObjective } from "@/lib/domain/objectives/grouping";
 import type { TaskDto } from "./TaskItem";
 
 /** Candidata a padre: solo lo que hace falta para listarla y elegirla. */
-interface CandidateTask {
+export interface CandidateTask {
   id: string;
   displayText: string;
   parentId: string | null;
+  /** objetivos: sección de la candidata (null = generales). */
+  objectiveId?: string | null;
+}
+
+export interface CandidateGroup {
+  key: string;
+  /** null = sin encabezado (proyecto sin objetivos o sector). */
+  title: string | null;
+  tasks: CandidateTask[];
+}
+
+/**
+ * objetivos: agrupa las candidatas por sección ("Tareas generales" + un grupo
+ * por objetivo, con la misma función de agrupado que la página). Descarta la
+ * propia tarea y las hijas (el anidado es de un solo nivel) y omite grupos
+ * vacíos. Sin objetivos devuelve un único grupo sin título, como antes.
+ */
+export function groupMoveCandidates(
+  tasks: readonly CandidateTask[],
+  objectives: readonly { id: string; title: string }[],
+  excludeId: string,
+): CandidateGroup[] {
+  const candidates = tasks.filter((t) => t.id !== excludeId && !t.parentId);
+  if (objectives.length === 0) {
+    return candidates.length > 0 ? [{ key: "all", title: null, tasks: candidates }] : [];
+  }
+  const grouped = groupTasksByObjective(candidates, objectives);
+  return [
+    { key: "general", title: "Tareas generales", tasks: grouped.general },
+    ...grouped.sections.map((s) => ({ key: s.objective.id, title: s.objective.title, tasks: s.tasks })),
+  ].filter((g) => g.tasks.length > 0);
 }
 
 /**
@@ -37,22 +69,32 @@ export function TaskMoveDialog({
   task: TaskDto;
   onMoved: () => void;
 }) {
-  const [candidates, setCandidates] = useState<CandidateTask[] | null>(null);
+  const [groups, setGroups] = useState<CandidateGroup[] | null>(null);
+  const [hasObjectives, setHasObjectives] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setCandidates(null);
+    setGroups(null);
     setError(null);
     const homeSectorId = task.homeSector?.id;
-    const request = task.workId
-      ? api<{ tasks: CandidateTask[] }>(`/api/works/${task.workId}`).then((w) => w.tasks)
-      : homeSectorId
-        ? api<{ loose: CandidateTask[] }>(`/api/sectors/${homeSectorId}/tasks`).then((v) => v.loose)
-        : Promise.resolve([]);
+    const request: Promise<{ tasks: CandidateTask[]; objectives: { id: string; title: string }[] }> =
+      task.workId
+        ? api<{ tasks: CandidateTask[]; objectives?: { id: string; title: string }[] }>(
+            `/api/works/${task.workId}`,
+          ).then((w) => ({ tasks: w.tasks, objectives: w.objectives ?? [] }))
+        : homeSectorId
+          ? api<{ loose: CandidateTask[] }>(`/api/sectors/${homeSectorId}/tasks`).then((v) => ({
+              tasks: v.loose,
+              objectives: [],
+            }))
+          : Promise.resolve({ tasks: [], objectives: [] });
     request
-      .then((tasks) => setCandidates(tasks.filter((t) => t.id !== task.id && !t.parentId)))
+      .then(({ tasks, objectives }) => {
+        setHasObjectives(objectives.length > 0);
+        setGroups(groupMoveCandidates(tasks, objectives, task.id));
+      })
       .catch((err) => setError((err as Error).message));
   }, [open, task.id, task.workId, task.homeSector?.id]);
 
@@ -75,27 +117,37 @@ export function TaskMoveDialog({
 
   return (
     <Dialog open={open} onClose={onClose} title="Mover bajo otra tarea">
-      {candidates === null && !error && <p className="muted">Cargando…</p>}
+      {groups === null && !error && <p className="muted">Cargando…</p>}
       {error && (
         <p role="alert" style={{ color: "var(--danger)", margin: 0 }}>
           {error}
         </p>
       )}
-      {candidates && candidates.length === 0 && (
+      {groups && groups.length === 0 && (
         <p className="muted">No hay otra tarea en este proyecto o sector para colgar esta tarea.</p>
       )}
-      {candidates && candidates.length > 0 && (
+      {groups && groups.length > 0 && hasObjectives && (
+        <p className="muted" style={{ margin: 0 }}>
+          Si elegís una tarea de otro objetivo, esta pasa a ese objetivo.
+        </p>
+      )}
+      {groups && groups.length > 0 && (
         <div className="dialog-field" style={{ maxHeight: 280, overflowY: "auto" }}>
-          {candidates.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className="menu-item"
-              disabled={saving}
-              onClick={() => void move(c.id)}
-            >
-              {c.displayText}
-            </button>
+          {groups.map((g) => (
+            <div key={g.key} role={g.title ? "group" : undefined} aria-label={g.title ?? undefined}>
+              {g.title && <p className="task-move-group">{g.title}</p>}
+              {g.tasks.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="menu-item"
+                  disabled={saving}
+                  onClick={() => void move(c.id)}
+                >
+                  {c.displayText}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       )}

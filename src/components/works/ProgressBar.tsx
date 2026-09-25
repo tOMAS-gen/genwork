@@ -8,10 +8,13 @@ export function ProgressBar({
   done,
   total,
   size = "md",
+  ariaLabel,
 }: {
   done: number;
   total: number;
   size?: "md" | "sm";
+  /** Nombre accesible de la barra (objetivos: "Progreso de <objetivo>"). */
+  ariaLabel?: string;
 }) {
   const result = progress(done, total);
   if (!result) return null;
@@ -20,6 +23,7 @@ export function ProgressBar({
     <div className={`progress-bar progress-bar-${size}`}>
       <div
         role="progressbar"
+        aria-label={ariaLabel}
         aria-valuenow={result.pct}
         aria-valuemin={0}
         aria-valuemax={100}
