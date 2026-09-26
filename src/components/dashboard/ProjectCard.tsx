@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Star, MoreHorizontal, Calendar, BookTemplate } from "@/components/ui/icons";
+import {
+  Star,
+  MoreHorizontal,
+  Calendar,
+  BookTemplate,
+  Archive,
+  ArchiveRestore,
+} from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
@@ -43,10 +50,14 @@ const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
 
 export function ProjectCard({
   project,
+  archived,
   onToggleFavorite,
+  onArchiveToggle,
 }: {
   project: DashboardWork;
+  archived: boolean;
   onToggleFavorite: (workId: string) => void;
+  onArchiveToggle: (project: DashboardWork) => void;
 }) {
   const color = getProjectColor(project.labels);
   const prog = progress(project.taskCounts.done, project.taskCounts.total);
@@ -99,9 +110,9 @@ export function ProjectCard({
                 },
               },
               {
-                label: "Archivar",
-                onSelect: () => {},
-                disabled: true,
+                label: archived ? "Desarchivar" : "Archivar",
+                icon: archived ? <ArchiveRestore size={16} /> : <Archive size={16} />,
+                onSelect: () => onArchiveToggle(project),
               },
             ]}
           />

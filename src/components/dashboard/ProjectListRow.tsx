@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MoreHorizontal } from "@/components/ui/icons";
+import { MoreHorizontal, Archive, ArchiveRestore } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
 import { getProjectStatus, getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
@@ -22,8 +22,12 @@ const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
 
 export function ProjectListRow({
   project,
+  archived,
+  onArchiveToggle,
 }: {
   project: DashboardWork;
+  archived: boolean;
+  onArchiveToggle: (project: DashboardWork) => void;
 }) {
   const router = useRouter();
   const color = getProjectColor(project.labels);
@@ -109,6 +113,11 @@ export function ProjectListRow({
               {
                 label: "Abrir proyecto",
                 onSelect: open,
+              },
+              {
+                label: archived ? "Desarchivar" : "Archivar",
+                icon: archived ? <ArchiveRestore size={16} /> : <Archive size={16} />,
+                onSelect: () => onArchiveToggle(project),
               },
             ]}
           />
