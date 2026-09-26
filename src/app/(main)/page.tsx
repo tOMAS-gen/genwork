@@ -18,6 +18,7 @@ import { usePageTitle } from "@/lib/usePageTitle";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
+import { Dialog } from "@/components/ui/Dialog";
 
 type ViewMode = "grid" | "list";
 type SortBy = "recent" | "name" | "progress";
@@ -138,6 +139,7 @@ function HomePageContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<DashboardWork | null>(null);
 
   const load = useCallback(() => {
     const worksUrl = queryStatus
@@ -187,6 +189,29 @@ function HomePageContent() {
       toast("No se pudo actualizar el favorito", "error");
     }
   }, [works, toast]);
+
+  // Archivar/desarchivar desde el menú ⋮ de la card o fila: mismo PATCH que
+  // ProjectMenu. El proyecto sale de la vista actual (activos ↔ archivados).
+  const setArchived = useCallback(async (project: DashboardWork, archive: boolean) => {
+    try {
+      await api(`/api/works/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: archive ? "ARCHIVED" : "ACTIVE" }),
+      });
+      setWorks((prev) => prev.filter((work) => work.id !== project.id));
+      toast(archive ? "Proyecto archivado" : "Proyecto desarchivado", "success");
+    } catch {
+      toast(archive ? "Error al archivar" : "Error al desarchivar", "error");
+    }
+  }, [toast]);
+
+  const handleArchiveToggle = useCallback((project: DashboardWork) => {
+    if (queryStatus === "ARCHIVED") {
+      void setArchived(project, false);
+    } else {
+      setArchiveTarget(project);
+    }
+  }, [queryStatus, setArchived]);
 
   const labelKeys = useMemo(() => {
     const seen = new Map<string, DashboardWork["labels"][number]>();
@@ -340,7 +365,13 @@ function HomePageContent() {
       ) : viewMode === "grid" ? (
         <div className="project-grid">
           {pagedWorks.map((project) => (
-            <ProjectCard key={project.id} project={project} onToggleFavorite={handleToggleFavorite} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              archived={queryStatus === "ARCHIVED"}
+              onToggleFavorite={handleToggleFavorite}
+              onArchiveToggle={handleArchiveToggle}
+            />
           ))}
           {sortedWorks.length === 0 && (
             <p className="muted">Sin proyectos que coincidan con el filtro.</p>
@@ -363,7 +394,12 @@ function HomePageContent() {
             </thead>
             <tbody>
               {pagedWorks.map((project) => (
-                <ProjectListRow key={project.id} project={project} />
+                <ProjectListRow
+                  key={project.id}
+                  project={project}
+                  archived={queryStatus === "ARCHIVED"}
+                  onArchiveToggle={handleArchiveToggle}
+                />
               ))}
             </tbody>
           </table>
@@ -402,6 +438,30 @@ function HomePageContent() {
         </div>
       )}
 
+      <Dialog
+        open={archiveTarget !== null}
+        onClose={() => setArchiveTarget(null)}
+        title="Archivar proyecto"
+      >
+        <p className="muted" style={{ margin: 0 }}>
+          <strong>{archiveTarget?.name}</strong> pasará a la sección de archivados y dejará de verse en las vistas activas.
+        </p>
+        <div className="dialog-actions">
+          <button className="btn" onClick={() => setArchiveTarget(null)}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              const target = archiveTarget;
+              setArchiveTarget(null);
+              if (target) void setArchived(target, true);
+            }}
+          >
+            Archivar
+          </button>
+        </div>
+      </Dialog>
     </div>
   );
 }
