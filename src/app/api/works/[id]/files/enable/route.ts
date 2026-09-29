@@ -19,7 +19,6 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { canEnableWorkFolder } from "@/lib/storage/access-check";
 import { enqueue } from "@/lib/storage/queue";
-import { buildProjectCode } from "@/lib/domain/works/projectCode";
 
 export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
   const session = await requireInternal();
@@ -51,13 +50,12 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
   });
 
   if (claimed.count === 1) {
-    // Código de referencia (feature 035): la carpeta se nombra
-    // GRUPO-SEQ-PROYECTO, igual que hacía la creación del work.
-    const code = buildProjectCode(work.group?.name ?? null, work.folderSeq, work.name);
+    // La cola arma el nombre `NOMBRE_007` (formatFolderName): el grupo ya está
+    // en la carpeta contenedora y el código de referencia es folderSeq.
     await enqueue({
       kind: "CREATE_WORK_FOLDER",
       workId: work.id,
-      workName: code,
+      workName: work.name,
       groupId: work.groupId,
       ownerUserId: work.ownerId,
     });

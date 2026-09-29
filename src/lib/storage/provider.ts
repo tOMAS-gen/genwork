@@ -14,6 +14,14 @@ export interface StorageFileInfo {
   mimeType: string;
 }
 
+/**
+ * Ámbito de la carpeta de un trabajo: la carpeta del grupo (compartida con su
+ * grupo en la nube) o la carpeta personal del dueño, nombrada con su email.
+ */
+export type WorkFolderScope =
+  | { groupName: string; storageGroupId?: string | null }
+  | { personalStorageUserId: string; personalEmail: string };
+
 export interface StorageProvider {
   /** FR-033: crea la cuenta espejo del usuario en la nube. Idempotente. */
   provisionUser(input: { userId: string; email: string; displayName: string }): Promise<{
@@ -37,7 +45,7 @@ export interface StorageProvider {
    * carpeta personal del creador). Devuelve el path raíz de la carpeta.
    */
   createWorkFolder(input: {
-    scope: { groupName: string } | { personalStorageUserId: string };
+    scope: WorkFolderScope;
     workName: string;
   }): Promise<{ folderPath: string }>;
 
@@ -58,6 +66,12 @@ export interface StorageProvider {
   /** FR-001: crea una carpeta hija dentro del path indicado. */
   createFolder(input: { folderPath: string; name: string }): Promise<{ path: string }>;
 
+  /**
+   * Renombra un archivo o carpeta dentro de su mismo directorio. Falla con
+   * `ALREADY_EXISTS` si ya hay otro elemento con ese nombre.
+   */
+  rename(input: { path: string; newName: string }): Promise<{ path: string }>;
+
   /** FR-003: elimina un archivo o carpeta; si es carpeta, recursivo. */
   delete(path: string): Promise<void>;
 
@@ -72,6 +86,13 @@ export interface StorageProvider {
 
   /** FR-004/FR-010: revoca un acceso compartido existente. */
   unshare(providerShareId: string): Promise<void>;
+
+  /**
+   * Comparte una carpeta de ámbito con su grupo o usuario, igual que la carpeta
+   * original (p. ej. `_archivados/{GRUPO}` al archivar). Idempotente. Opcional:
+   * los proveedores sin compartición por usuario (Drive) no lo implementan.
+   */
+  shareScopeFolder?(input: { path: string; scope: WorkFolderScope }): Promise<void>;
 
   /** Mueve una carpeta (archivado/desarchivado). */
   moveFolder(from: string, to: string): Promise<void>;

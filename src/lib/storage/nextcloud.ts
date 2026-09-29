@@ -1,9 +1,13 @@
 /**
  * NextcloudProvider — implementación v1 de StorageProvider (research R6).
  *
- * Diseño: la cuenta de servicio admin es dueña de la estructura de carpetas:
- *   /genwork/{grupo}/{trabajo}         → compartida con el grupo Nextcloud (sync para miembros)
- *   /genwork-personal/{usuario}/{trabajo} → compartida solo con ese usuario
+ * Diseño: la cuenta de servicio admin es dueña de la estructura de carpetas.
+ * Con `GENWORK_ORG` definida (raíz por empresa, ver `root.ts`):
+ *   /GENWORK_{EMPRESA}/{GRUPO}/{PROYECTO_007}  → compartida con el grupo Nextcloud
+ *   /GENWORK_{EMPRESA}/{email}/{PROYECTO_007}  → compartida solo con ese usuario
+ *   /GENWORK_{EMPRESA}/_archivados/…           → misma organización, proyectos archivados
+ * Sin `GENWORK_ORG` (instalaciones previas):
+ *   /genwork/{grupo}/{trabajo}, /genwork-personal/{usuario}/{trabajo}
  * Compartir por grupo cubre las altas/bajas de miembros automáticamente vía la
  * membresía del grupo Nextcloud (FR-034/035). Todas las operaciones son idempotentes:
  * los reintentos de la cola no duplican recursos.
@@ -11,15 +15,18 @@
 
 import { createClient, type WebDAVClient, type FileStat } from "webdav";
 import { Readable } from "node:stream";
-import type { NextcloudConfig, StorageFileInfo, StorageProvider } from "./provider";
+import type {
+  NextcloudConfig,
+  StorageFileInfo,
+  StorageProvider,
+  WorkFolderScope,
+} from "./provider";
+import { folderSegment, sanitizeSegment } from "./paths";
+import { storageRootName } from "./root";
 
 const SHARE_TYPE_USER = 0;
 const SHARE_TYPE_GROUP = 1;
 const PERM_ALL = 31; // read+update+create+delete+share
-
-function sanitizeSegment(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "-").trim();
-}
 
 /**
  * Error reconocible para FR-001: `createFolder` es una acción explícita del
@@ -100,6 +107,73 @@ export class NextcloudProvider implements StorageProvider {
     return meta?.statuscode ?? null;
   }
 
+  /** Montajes de shares que ve el usuario: file id → ruta en su raíz. Uno por instancia (request). */
+  private userMounts?: Promise<Map<string, string>>;
+
+  /**
+   * Operación "as user" (FR-011): la cuenta del usuario no ve la estructura del
+   * admin (`/GENWORK_GEN/VENTAS/...`) sino cada share montado en SU raíz
+   * (`file_target`, que puede llevar sufijo " (2)" si choca con otra carpeta).
+   * Traduce buscando, de arriba hacia abajo, el ancestro compartido por file id.
+   * Devuelve la ruta a usar y cómo volver a la ruta del admin. Como admin, no
+   * traduce. Sin share que cubra la ruta → `StorageNotFoundError`.
+   */
+  private async userView(adminPath: string): Promise<{ path: string; toAdmin: (p: string) => string }> {
+    if (!this.cfg.userCredential) return { path: adminPath, toAdmin: (p) => p };
+    this.userMounts ??= this.loadUserMounts();
+    const mounts = await this.userMounts;
+    const segments = adminPath.split("/").filter(Boolean);
+    for (let i = 1; i <= segments.length; i++) {
+      const prefix = `/${segments.slice(0, i).join("/")}`;
+      const fileId = await this.adminFileId(prefix);
+      const target = fileId ? mounts.get(fileId) : undefined;
+      if (target) {
+        return {
+          path: target + adminPath.slice(prefix.length),
+          toAdmin: (p) => prefix + p.slice(target.length),
+        };
+      }
+    }
+    throw new StorageNotFoundError(`Sin acceso en la nube a "${adminPath}"`);
+  }
+
+  private async loadUserMounts(): Promise<Map<string, string>> {
+    const { data } = await this.ocs(
+      "GET",
+      "/ocs/v2.php/apps/files_sharing/api/v1/shares?shared_with_me=true",
+    );
+    const list = (data as { ocs?: { data?: unknown } })?.ocs?.data;
+    const mounts = new Map<string, string>();
+    if (Array.isArray(list)) {
+      for (const share of list as { file_source?: number | string; file_target?: string }[]) {
+        if (share.file_source != null && share.file_target) {
+          mounts.set(String(share.file_source), share.file_target.replace(/\/+$/, ""));
+        }
+      }
+    }
+    return mounts;
+  }
+
+  /** File id de una ruta del admin (PROPFIND con la cuenta admin), o null si no existe. */
+  private async adminFileId(path: string): Promise<string | null> {
+    const encoded = path.split("/").map(encodeURIComponent).join("/");
+    const res = await fetch(
+      `${this.cfg.url.replace(/\/$/, "")}/remote.php/dav/files/${encodeURIComponent(this.cfg.adminUser)}${encoded}`,
+      {
+        method: "PROPFIND",
+        headers: {
+          Depth: "0",
+          "Content-Type": "application/xml",
+          Authorization:
+            "Basic " + Buffer.from(`${this.cfg.adminUser}:${this.cfg.adminPassword}`).toString("base64"),
+        },
+        body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop><oc:fileid/></d:prop></d:propfind>',
+      },
+    );
+    if (res.status !== 207) return null;
+    return /<oc:fileid>(\d+)<\/oc:fileid>/.exec(await res.text())?.[1] ?? null;
+  }
+
   private async ensureDir(path: string): Promise<void> {
     const parts = path.split("/").filter(Boolean);
     let acc = "";
@@ -156,10 +230,38 @@ export class NextcloudProvider implements StorageProvider {
     if (code !== null && ![100, 200, 102].includes(code)) {
       throw new Error(`Nextcloud create group failed (${code}) for ${storageGroupId}`);
     }
-    const folderPath = `/genwork/${sanitizeSegment(input.groupName)}`;
+    const folderPath = this.groupFolderPath(input.groupName);
     await this.ensureDir(folderPath);
     await this.shareWith(folderPath, storageGroupId, SHARE_TYPE_GROUP);
     return { storageGroupId, storageFolderId: folderPath };
+  }
+
+  /** Carpeta del grupo: bajo la raíz de la empresa o, sin ella, bajo `/genwork`. */
+  private groupFolderPath(groupName: string): string {
+    const root = storageRootName();
+    return root
+      ? `/${root}/${folderSegment(groupName)}`
+      : `/genwork/${sanitizeSegment(groupName)}`;
+  }
+
+  async shareScopeFolder(input: { path: string; scope: WorkFolderScope }): Promise<void> {
+    await this.ensureDir(input.path);
+    if ("groupName" in input.scope) {
+      if (input.scope.storageGroupId) {
+        await this.shareWith(input.path, input.scope.storageGroupId, SHARE_TYPE_GROUP);
+      }
+    } else {
+      await this.shareWith(input.path, input.scope.personalStorageUserId, SHARE_TYPE_USER);
+    }
+  }
+
+  /** Primer path libre: `base`, `base-2`, `base-3`… (red de seguridad ante carpetas creadas a mano). */
+  private async freePath(base: string): Promise<string> {
+    if (!(await this.dav.exists(base))) return base;
+    for (let n = 2; ; n++) {
+      const candidate = `${base}-${n}`;
+      if (!(await this.dav.exists(candidate))) return candidate;
+    }
   }
 
   async addMember(input: { storageGroupId: string; storageUserId: string }) {
@@ -201,22 +303,21 @@ export class NextcloudProvider implements StorageProvider {
       .map((storageUserId) => ({ storageUserId }));
   }
 
-  async createWorkFolder(input: {
-    scope: { groupName: string } | { personalStorageUserId: string };
-    workName: string;
-  }) {
-    const work = sanitizeSegment(input.workName);
-    let folderPath: string;
+  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+    const root = storageRootName();
+    let container: string;
     if ("groupName" in input.scope) {
-      folderPath = `/genwork/${sanitizeSegment(input.scope.groupName)}/${work}`;
-      await this.ensureDir(folderPath);
+      container = this.groupFolderPath(input.scope.groupName);
     } else {
-      const base = `/genwork-personal/${sanitizeSegment(input.scope.personalStorageUserId)}`;
-      await this.ensureDir(base);
-      await this.shareWith(base, input.scope.personalStorageUserId, SHARE_TYPE_USER);
-      folderPath = `${base}/${work}`;
-      await this.ensureDir(folderPath);
+      container = root
+        ? `/${root}/${sanitizeSegment(input.scope.personalEmail.toLowerCase())}`
+        : `/genwork-personal/${sanitizeSegment(input.scope.personalStorageUserId)}`;
     }
+    // Idempotente (403 = ya compartida): garantiza el acceso aunque la carpeta
+    // del ámbito se haya creado recién (raíz nueva o grupo renombrado).
+    await this.shareScopeFolder({ path: container, scope: input.scope });
+    const folderPath = await this.freePath(`${container}/${sanitizeSegment(input.workName)}`);
+    await this.ensureDir(folderPath);
     return { folderPath };
   }
 
@@ -228,7 +329,8 @@ export class NextcloudProvider implements StorageProvider {
   }
 
   async read(filePath: string): Promise<Readable> {
-    const stream = this.dav.createReadStream(filePath);
+    const { path } = await this.userView(filePath);
+    const stream = this.dav.createReadStream(path);
     return stream as unknown as Readable;
   }
 
@@ -270,7 +372,8 @@ export class NextcloudProvider implements StorageProvider {
    */
   async createFolder(input: { folderPath: string; name: string }): Promise<{ path: string }> {
     const name = sanitizeSegment(input.name);
-    const path = `${input.folderPath}/${name}`;
+    const view = await this.userView(input.folderPath);
+    const path = `${view.path}/${name}`;
     if (await this.dav.exists(path)) {
       throw new StorageAlreadyExistsError(`Ya existe "${name}" en esta carpeta`);
     }
@@ -284,7 +387,22 @@ export class NextcloudProvider implements StorageProvider {
       }
       throw err;
     }
-    return { path };
+    return { path: view.toAdmin(path) };
+  }
+
+  async rename(input: { path: string; newName: string }): Promise<{ path: string }> {
+    const view = await this.userView(input.path);
+    if (!(await this.dav.exists(view.path))) {
+      throw new StorageNotFoundError(`No existe "${input.path}"`);
+    }
+    const name = sanitizeSegment(input.newName);
+    const target = `${view.path.substring(0, view.path.lastIndexOf("/"))}/${name}`;
+    if (target === view.path) return { path: input.path };
+    if (await this.dav.exists(target)) {
+      throw new StorageAlreadyExistsError(`Ya existe "${name}" en esta carpeta`);
+    }
+    await this.dav.moveFile(view.path, target);
+    return { path: view.toAdmin(target) };
   }
 
   /**
@@ -293,9 +411,10 @@ export class NextcloudProvider implements StorageProvider {
    * no hace falta recorrerlo a mano). Si `path` no existe, falla con
    * `StorageNotFoundError` (código `NOT_FOUND`) en vez de no-opear en silencio.
    */
-  async delete(path: string): Promise<void> {
+  async delete(adminPath: string): Promise<void> {
+    const { path } = await this.userView(adminPath);
     if (!(await this.dav.exists(path))) {
-      throw new StorageNotFoundError(`No existe "${path}"`);
+      throw new StorageNotFoundError(`No existe "${adminPath}"`);
     }
     await this.dav.deleteFile(path);
   }
@@ -317,8 +436,9 @@ export class NextcloudProvider implements StorageProvider {
     targetIdentity?: string;
   }): Promise<{ providerShareId: string; linkUrl?: string }> {
     const SHARE_TYPE_LINK = 3;
+    const { path } = await this.userView(input.path);
     const body: Record<string, string> = {
-      path: input.path,
+      path,
       shareType: String(input.mode === "LINK" ? SHARE_TYPE_LINK : SHARE_TYPE_USER),
     };
     if (input.mode === "INTERNAL") {

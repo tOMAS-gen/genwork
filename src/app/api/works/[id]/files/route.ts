@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
-import { ApiError, notFound, withApi } from "@/server/api";
+import { ApiError, badRequest, notFound, withApi } from "@/server/api";
 import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
@@ -8,6 +8,9 @@ import { getStorageProvider } from "@/lib/storage";
 import { NextcloudProvider } from "@/lib/storage/nextcloud";
 import { assertWorkAccess, canEnableWorkFolder, confineWorkPath } from "@/lib/storage/access-check";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
+import { SNAPSHOT_FOLDER } from "@/lib/domain/archive/snapshot";
+import { emit } from "@/server/events";
+import { rebaseFileShares } from "@/lib/storage/fileShares";
 
 async function getWorkWithAccess(userId: string, id: string) {
   const ctx = await getUserContext(userId);
@@ -63,10 +66,13 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   try {
     const raw = await storage.listShallow(work.nextcloudFolderPath, subpath);
     const basePath = work.nextcloudFolderPath;
-    const files = raw.map((f) => ({
-      ...f,
-      path: f.path.startsWith(basePath) ? f.path.slice(basePath.length + 1) : f.path,
-    }));
+    const files = raw
+      // Los datos que deja el archivado (`_genwork/`) no se muestran en proyectos activos.
+      .filter((f) => subpath || work.status === "ARCHIVED" || f.name !== SNAPSHOT_FOLDER)
+      .map((f) => ({
+        ...f,
+        path: f.path.startsWith(basePath) ? f.path.slice(basePath.length + 1) : f.path,
+      }));
     let nextcloudUrl: string | null = null;
     if (storage instanceof NextcloudProvider) {
       const ncUrl = process.env.NEXTCLOUD_URL?.replace(/\/$/, "") ?? "";
@@ -153,4 +159,77 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, {
   }
 
   return new NextResponse(null, { status: 204 });
+});
+
+/**
+ * Renombra un archivo o carpeta dentro del Work, en su mismo directorio. Mismo
+ * guard que DELETE: permiso "operate" antes de tocar el proveedor (FR-005) y
+ * `path` confinado a la carpeta del Work (FR-007). 409 si el nombre ya existe.
+ */
+export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
+  const session = await requireInternal();
+  const { id } = await params;
+
+  const { work } = await assertWorkAccess(session.user.id, id, "operate");
+
+  if (!work.nextcloudFolderPath) {
+    throw notFound("Sin carpeta de archivos configurada");
+  }
+
+  let body: { path?: unknown; newName?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    throw badRequest("Body inválido");
+  }
+
+  const newName = typeof body.newName === "string" ? body.newName.trim() : "";
+  if (!newName || newName.includes("/") || newName === "." || newName === "..") {
+    throw new ApiError(400, "INVALID_NAME", "El nombre no es válido");
+  }
+
+  const clientPath = typeof body.path === "string" ? body.path : null;
+  const fullPath = confineWorkPath(work.nextcloudFolderPath, clientPath);
+
+  if (fullPath === work.nextcloudFolderPath.replace(/\/+$/, "")) {
+    throw new ApiError(400, "INVALID_PATH", "No se puede renombrar la carpeta raíz del trabajo");
+  }
+
+  let storage;
+  try {
+    storage = await getStorageProvider(session.user.id);
+  } catch (err) {
+    if (err instanceof StorageIdentityMissingError) {
+      throw new ApiError(424, "STORAGE_IDENTITY_MISSING", err.message, {
+        linkUrl: "/settings",
+      });
+    }
+    throw err;
+  }
+
+  if (!storage) {
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
+      { status: 503 },
+    );
+  }
+
+  try {
+    const { path } = await storage.rename({ path: fullPath, newName });
+    await rebaseFileShares(id, fullPath, path);
+    emit({ type: "work-changed", workId: id });
+    return NextResponse.json({ path });
+  } catch (err) {
+    const code = (err as { code?: string } | null)?.code;
+    if (code === "ALREADY_EXISTS") {
+      throw new ApiError(409, "ALREADY_EXISTS", (err as Error).message);
+    }
+    if (code === "NOT_FOUND") {
+      throw notFound("El archivo o carpeta no existe");
+    }
+    return NextResponse.json(
+      { error: { code: "STORAGE_UNAVAILABLE", message: "Nextcloud no disponible" } },
+      { status: 503 },
+    );
+  }
 });

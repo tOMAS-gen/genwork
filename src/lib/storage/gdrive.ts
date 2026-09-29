@@ -14,7 +14,14 @@
 
 import { Readable } from "node:stream";
 import { getAccessToken } from "./google-auth";
-import type { GoogleDriveConfig, StorageFileInfo, StorageProvider } from "./provider";
+import type {
+  GoogleDriveConfig,
+  StorageFileInfo,
+  StorageProvider,
+  WorkFolderScope,
+} from "./provider";
+import { folderSegment } from "./paths";
+import { storageRootName } from "./root";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
@@ -99,13 +106,23 @@ export class GoogleDriveProvider implements StorageProvider {
     return created.id;
   }
 
+  /**
+   * Carpeta raíz de genwork: `GENWORK_<EMPRESA>` bajo la raíz configurada si
+   * hay `GENWORK_ORG`; si no, la raíz configurada tal cual (instalaciones previas).
+   */
+  private async genworkRoot(): Promise<string> {
+    const root = storageRootName();
+    return root ? this.findOrCreateFolder(root, this.rootParent()) : this.rootParent();
+  }
+
   async provisionUser(input: { userId: string; email: string; displayName: string }) {
     // Modelo centralizado: no hay cuenta espejo en Drive.
     return { storageUserId: input.userId };
   }
 
   async createGroupFolder(input: { groupId: string; groupName: string }) {
-    const folderId = await this.findOrCreateFolder(input.groupName, this.rootParent());
+    const groupName = storageRootName() ? folderSegment(input.groupName) : input.groupName;
+    const folderId = await this.findOrCreateFolder(groupName, await this.genworkRoot());
     return { storageGroupId: folderId, storageFolderId: folderId };
   }
 
@@ -113,15 +130,17 @@ export class GoogleDriveProvider implements StorageProvider {
   async addMember(): Promise<void> {}
   async removeMember(): Promise<void> {}
 
-  async createWorkFolder(input: {
-    scope: { groupName: string } | { personalStorageUserId: string };
-    workName: string;
-  }) {
+  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+    const withRoot = storageRootName() != null;
+    const root = await this.genworkRoot();
     let containerId: string;
     if ("groupName" in input.scope) {
-      containerId = await this.findOrCreateFolder(input.scope.groupName, this.rootParent());
+      const groupName = withRoot ? folderSegment(input.scope.groupName) : input.scope.groupName;
+      containerId = await this.findOrCreateFolder(groupName, root);
+    } else if (withRoot) {
+      containerId = await this.findOrCreateFolder(input.scope.personalEmail.toLowerCase(), root);
     } else {
-      const personalRoot = await this.findOrCreateFolder("Personales", this.rootParent());
+      const personalRoot = await this.findOrCreateFolder("Personales", root);
       containerId = await this.findOrCreateFolder(input.scope.personalStorageUserId, personalRoot);
     }
     const folderId = await this.findOrCreateFolder(input.workName, containerId);
@@ -245,6 +264,14 @@ export class GoogleDriveProvider implements StorageProvider {
       query: { fields: "id" },
     })) as DriveFile;
     return { path: created.id };
+  }
+
+  async rename(input: { path: string; newName: string }): Promise<{ path: string }> {
+    await this.api("PATCH", `/files/${encodeURIComponent(input.path)}`, {
+      body: { name: input.newName },
+      query: { fields: "id" },
+    });
+    return { path: input.path };
   }
 
   /**

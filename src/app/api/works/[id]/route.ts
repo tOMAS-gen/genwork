@@ -7,10 +7,10 @@ import { getWorkWithAccess } from "@/server/works";
 import { canManageClientAccess } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { enqueue } from "@/lib/storage/queue";
-import { computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
+import { computeArchivePath, computeRenamePath, formatFolderName } from "@/lib/storage/paths";
+import { storageRootName } from "@/lib/storage/root";
 import { emit } from "@/server/events";
 import { labelScopeOf } from "@/lib/domain/labels/availability";
-import { buildProjectCode } from "@/lib/domain/works/projectCode";
 import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
 
 /** Página completa del trabajo: doc + tareas + adjuntos (Principio III). */
@@ -63,7 +63,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
     // falta administrar su ámbito (ADMIN del grupo, dueño personal o super-admin).
     canManageClients: canManageClientAccess(ctx, { groupId: work.groupId, ownerId: work.ownerId }),
     // Código de referencia legible de la carpeta del proyecto (feature 035)
-    code: buildProjectCode(full.group?.name ?? null, full.folderSeq, full.name),
+    code: formatFolderName(full.folderSeq, full.name),
     labels: labels.map((l) => ({
       keyId: l.keyId,
       keyName: l.value.key.name,
@@ -144,7 +144,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   if (work.nextcloudFolderPath) {
     if (body.status && body.status !== work.status) {
       const direction = body.status === "ARCHIVED" ? "archive" : "unarchive";
-      const toPath = computeArchivePath(work.nextcloudFolderPath, direction);
+      const toPath = computeArchivePath(work.nextcloudFolderPath, direction, storageRootName());
       await enqueue({
         kind: "MOVE_WORK_FOLDER",
         workId: id,

@@ -177,12 +177,59 @@ describe("GoogleDriveProvider — requests a la Drive API", () => {
 
       const provider = new GoogleDriveProvider(cfg);
       const result = await provider.createWorkFolder({
-        scope: { personalStorageUserId: "user@mail.com" },
+        scope: { personalStorageUserId: "user@mail.com", personalEmail: "user@mail.com" },
         workName: "Trabajo 1",
       });
 
       expect(result).toEqual({ folderPath: "work-folder-id" });
       expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    describe("con raíz por empresa (GENWORK_ORG)", () => {
+      beforeEach(() => vi.stubEnv("GENWORK_ORG", "Gen"));
+      afterEach(() => vi.unstubAllEnvs());
+
+      const createdNames = () =>
+        fetchMock.mock.calls
+          .filter((c) => (c[1] as RequestInit).method === "POST")
+          .map((c) => JSON.parse((c[1] as RequestInit).body as string).name);
+
+      it("grupo: GENWORK_GEN/{GRUPO}/{proyecto}", async () => {
+        fetchMock
+          .mockResolvedValueOnce(jsonResponse({ files: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: "root-id" }))
+          .mockResolvedValueOnce(jsonResponse({ files: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: "group-id" }))
+          .mockResolvedValueOnce(jsonResponse({ files: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: "work-id" }));
+
+        const provider = new GoogleDriveProvider(cfg);
+        const result = await provider.createWorkFolder({
+          scope: { groupName: "Grupo A" },
+          workName: "INFORME_007",
+        });
+
+        expect(result).toEqual({ folderPath: "work-id" });
+        expect(createdNames()).toEqual(["GENWORK_GEN", "GRUPO-A", "INFORME_007"]);
+      });
+
+      it("personal: GENWORK_GEN/{email}/{proyecto}, sin 'Personales'", async () => {
+        fetchMock
+          .mockResolvedValueOnce(jsonResponse({ files: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: "root-id" }))
+          .mockResolvedValueOnce(jsonResponse({ files: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: "user-id" }))
+          .mockResolvedValueOnce(jsonResponse({ files: [] }))
+          .mockResolvedValueOnce(jsonResponse({ id: "work-id" }));
+
+        const provider = new GoogleDriveProvider(cfg);
+        await provider.createWorkFolder({
+          scope: { personalStorageUserId: "u-1", personalEmail: "User@Mail.com" },
+          workName: "MI-PROYECTO_012",
+        });
+
+        expect(createdNames()).toEqual(["GENWORK_GEN", "user@mail.com", "MI-PROYECTO_012"]);
+      });
     });
   });
 

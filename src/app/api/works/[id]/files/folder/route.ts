@@ -90,6 +90,9 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
     if (code === "INVALID_NAME") {
       throw new ApiError(400, "INVALID_NAME", (err as Error).message);
     }
+    if (code === "NOT_FOUND") {
+      throw new ApiError(404, "NOT_FOUND", "La carpeta no existe o no tenés acceso en la nube");
+    }
     console.error("createFolder error:", err);
     return NextResponse.json(
       { error: { code: "STORAGE_UNAVAILABLE", message: "Nextcloud no disponible" } },

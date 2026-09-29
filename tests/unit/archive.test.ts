@@ -57,6 +57,18 @@ describe("buildArchivePackage (FR-030/031)", () => {
     expect(zipStat.size).toBeGreaterThan(0);
   });
 
+  it("no incluye el snapshot `_genwork/` de un archivado anterior", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "gw-archive-"));
+
+    const manifest = await buildArchivePackage(
+      mockStorage({ "plano.pdf": "PDF", "_genwork/tareas.md": "viejo", "_genwork/proyecto.json": "{}" }),
+      { workName: "Tina", folderPath: "/GENWORK_GEN/PRODUCCION/TINA_001", docContent: null, tasks: [task] },
+      path.join(dir, "tina.zip"),
+    );
+
+    expect(manifest.files).toEqual(["plano.pdf"]);
+  });
+
   it("falla completa si un archivo no se puede leer → sin paquete usable (atómico)", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "gw-archive-"));
     const zipPath = path.join(dir, "fail.zip");

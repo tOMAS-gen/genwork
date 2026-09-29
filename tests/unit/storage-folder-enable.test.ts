@@ -138,7 +138,7 @@ describe("POST /api/works/[id]/files/enable — permisos de habilitación", () =
       expect.objectContaining({
         kind: "CREATE_WORK_FOLDER",
         workId: "work-1",
-        workName: "GRUPO_TEST-7-PROYECTO_TEST",
+        workName: "Proyecto Test",
         groupId: "group-1",
         ownerUserId: null,
       }),
@@ -168,7 +168,7 @@ describe("POST /api/works/[id]/files/enable — permisos de habilitación", () =
       expect.objectContaining({
         kind: "CREATE_WORK_FOLDER",
         workId: "work-1",
-        workName: "PERSONAL-7-PROYECTO_TEST",
+        workName: "Proyecto Test",
         groupId: null,
         ownerUserId: "user-1",
       }),
