@@ -5,6 +5,9 @@ import {
   parseFolderCode,
   computeArchivePath,
   computeRenamePath,
+  computeProjectFolderPath,
+  projectFolderContainerPath,
+  archiveScopePath,
 } from "@/lib/storage/paths";
 import { storageRootName } from "@/lib/storage/root";
 import { confineWorkPath } from "@/lib/storage/access-check";
@@ -299,5 +302,68 @@ describe("NextcloudProvider.createFolder — validación de nombre", () => {
 
     expect(davMock.exists).toHaveBeenCalledWith("/genwork/Grupo/001-Test/planos");
     expect(davMock.createDirectory).toHaveBeenCalledWith("/genwork/Grupo/001-Test/planos");
+  });
+});
+
+describe("carpetas de proyectos (feature 063)", () => {
+  const root = "GENWORK_GEN";
+
+  it("computeProjectFolderPath inserta la carpeta entre el ámbito y el proyecto", () => {
+    expect(computeProjectFolderPath("/GENWORK_GEN/VENTAS/INFORME_007", "Acme SA", root)).toBe(
+      "/GENWORK_GEN/VENTAS/ACME-SA/INFORME_007",
+    );
+  });
+
+  it("computeProjectFolderPath cambia de carpeta y la quita con null", () => {
+    expect(computeProjectFolderPath("/GENWORK_GEN/VENTAS/ACME/INFORME_007", "Beta", root)).toBe(
+      "/GENWORK_GEN/VENTAS/BETA/INFORME_007",
+    );
+    expect(computeProjectFolderPath("/GENWORK_GEN/VENTAS/ACME/INFORME_007", null, root)).toBe(
+      "/GENWORK_GEN/VENTAS/INFORME_007",
+    );
+  });
+
+  it("computeProjectFolderPath conserva el archivado y el ámbito personal", () => {
+    expect(
+      computeProjectFolderPath("/GENWORK_GEN/_archivados/VENTAS/INFORME_007", "Acme", root),
+    ).toBe("/GENWORK_GEN/_archivados/VENTAS/ACME/INFORME_007");
+    expect(computeProjectFolderPath("/GENWORK_GEN/tomas@gen.net.ar/MIO_003", "Casa", root)).toBe(
+      "/GENWORK_GEN/tomas@gen.net.ar/CASA/MIO_003",
+    );
+  });
+
+  it("computeProjectFolderPath no toca rutas sin raíz por empresa ni ids de Drive", () => {
+    expect(computeProjectFolderPath("/genwork/Ventas/INFORME_007", "Acme", root)).toBe(
+      "/genwork/Ventas/INFORME_007",
+    );
+    expect(computeProjectFolderPath("/GENWORK_GEN/VENTAS/INFORME_007", "Acme", null)).toBe(
+      "/GENWORK_GEN/VENTAS/INFORME_007",
+    );
+    expect(computeProjectFolderPath("1AbCdriveId", "Acme", root)).toBe("1AbCdriveId");
+  });
+
+  it("archivar un proyecto en carpeta replica la carpeta dentro de _archivados", () => {
+    const archived = computeArchivePath("/GENWORK_GEN/VENTAS/ACME/INFORME_007", "archive", root);
+    expect(archived).toBe("/GENWORK_GEN/_archivados/VENTAS/ACME/INFORME_007");
+    expect(computeArchivePath(archived, "unarchive", root)).toBe("/GENWORK_GEN/VENTAS/ACME/INFORME_007");
+  });
+
+  it("projectFolderContainerPath devuelve la carpeta solo si el proyecto está en una", () => {
+    expect(projectFolderContainerPath("/GENWORK_GEN/VENTAS/ACME/INFORME_007", root)).toBe(
+      "/GENWORK_GEN/VENTAS/ACME",
+    );
+    expect(projectFolderContainerPath("/GENWORK_GEN/_archivados/VENTAS/ACME/INFORME_007", root)).toBe(
+      "/GENWORK_GEN/_archivados/VENTAS/ACME",
+    );
+    expect(projectFolderContainerPath("/GENWORK_GEN/VENTAS/INFORME_007", root)).toBeNull();
+  });
+
+  it("archiveScopePath comparte _archivados/{ámbito} aunque haya carpeta", () => {
+    expect(archiveScopePath("/GENWORK_GEN/_archivados/VENTAS/ACME/INFORME_007", root)).toBe(
+      "/GENWORK_GEN/_archivados/VENTAS",
+    );
+    expect(archiveScopePath("/genwork/Ventas/_archivados/INFORME_007", null)).toBe(
+      "/genwork/Ventas/_archivados",
+    );
   });
 });

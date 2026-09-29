@@ -43,10 +43,13 @@ export interface StorageProvider {
   /**
    * FR-029: carpeta del trabajo dentro de su ámbito (Group Folder del grupo o
    * carpeta personal del creador). Devuelve el path raíz de la carpeta.
+   * Feature 063: con `projectFolderName` (y raíz por empresa) la carpeta cuelga
+   * de ese nivel intermedio: `{ámbito}/{CARPETA}/{proyecto}`.
    */
   createWorkFolder(input: {
     scope: WorkFolderScope;
     workName: string;
+    projectFolderName?: string | null;
   }): Promise<{ folderPath: string }>;
 
   /** Sube un archivo a un path dentro de la carpeta de un trabajo. */

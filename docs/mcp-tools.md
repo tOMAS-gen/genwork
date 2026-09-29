@@ -31,13 +31,22 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 
 | Herramienta | Qué hace | Notas |
 |---|---|---|
-| `work.list` | Lista proyectos visibles, filtrables por grupo o estado. | Solo lectura. |
+| `work.list` | Lista proyectos visibles, filtrables por grupo, estado o carpeta de proyectos. | Solo lectura. `projectFolderId: "none"` = sin carpeta. |
 | `work.get` | Datos completos de un proyecto: grupo, etiquetas, contador de tareas y sus objetivos con progreso, más `generalTaskCounts`. | Solo lectura. En una plantilla (`isTemplate`) `objectives` viene vacío. |
-| `work.create` | Crea un proyecto; sin `groupId` va al espacio personal. | Con `templateId` nace con esa plantilla insertada como objetivo (igual que *Nuevo proyecto desde plantilla*; `objectiveTitle` opcional). Con `isTemplate: true` crea una plantilla. |
-| `work.update` | Actualiza nombre, descripción o vencimiento. | — |
+| `work.create` | Crea un proyecto; sin `groupId` va al espacio personal. | `projectFolderId` opcional (carpeta del mismo ámbito). Con `templateId` nace con esa plantilla insertada como objetivo (igual que *Nuevo proyecto desde plantilla*; `objectiveTitle` opcional). Con `isTemplate: true` crea una plantilla. |
+| `work.update` | Actualiza nombre, descripción, vencimiento o carpeta de proyectos. | `projectFolderId: null` lo saca de su carpeta; en la nube se mueve su carpeta. |
 | `work.archive` | Archiva un proyecto. | Reversible. |
 | `work.restore` | Restaura un proyecto archivado. | — |
 | `work.delete` | Borra un proyecto y todos sus datos. | **[destructiva]** |
+
+## Carpetas de proyectos (`projectFolder.*`)
+
+| Herramienta | Qué hace | Notas |
+|---|---|---|
+| `projectFolder.list` | Carpetas de proyectos visibles (cliente, organización o tipo de trabajo) con ámbito y `workCount`. | Solo lectura. Filtros opcionales `groupId` y `personal`. |
+| `projectFolder.create` | Crea una carpeta en un grupo o en el espacio personal. | Nombre único por ámbito (comparado como carpeta de la nube). |
+| `projectFolder.rename` | Renombra una carpeta. | Mueve en la nube las carpetas de sus proyectos. |
+| `projectFolder.delete` | Elimina una carpeta. | Sus proyectos no se borran: quedan sin carpeta. |
 
 ## Tareas (`task.*`)
 

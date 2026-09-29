@@ -18,17 +18,26 @@ export const GET = withApi(async (req) => {
   const status = url.searchParams.get("status") === "ARCHIVED" ? "ARCHIVED" : "ACTIVE";
   const filter = url.searchParams.get("filter");
   const groupId = z.string().uuid().optional().parse(url.searchParams.get("groupId") ?? undefined);
+  // Feature 063: `?projectFolderId=<id>` o `none` (proyectos sin carpeta).
+  const projectFolderId = z
+    .union([z.literal("none"), z.string().uuid()])
+    .optional()
+    .parse(url.searchParams.get("projectFolderId") ?? undefined);
+  const folderWhere: Prisma.WorkWhereInput = projectFolderId
+    ? { projectFolderId: projectFolderId === "none" ? null : projectFolderId }
+    : {};
 
   const where: Prisma.WorkWhereInput =
     filter === "templates"
       ? { ...ACTIVE_TEMPLATE_WORK, ...(groupId ? { groupId } : {}) }
-      : { ...NOT_TEMPLATE_WORK, status, ...(groupId ? { groupId } : {}) };
+      : { ...NOT_TEMPLATE_WORK, status, ...(groupId ? { groupId } : {}), ...folderWhere };
 
   const works = await prisma.work.findMany({
     where,
     include: {
       group: { select: { id: true, name: true, publicRead: true } },
       stage: { select: { id: true, name: true, color: true } },
+      projectFolder: { select: { name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -108,7 +117,7 @@ export const GET = withApi(async (req) => {
     labelsByWorkId.set(l.workId, list);
   }
 
-  const result = visible.map((w) => {
+  const result = visible.map(({ projectFolder, ...w }) => {
     const done = doneByWorkId.get(w.id) ?? 0;
     const total = totalByWorkId.get(w.id) ?? 0;
     return {
@@ -116,6 +125,7 @@ export const GET = withApi(async (req) => {
       // 054-T002: grupo explícito en el payload (null en proyectos personales)
       groupId: w.groupId,
       groupName: w.group?.name ?? null,
+      projectFolderName: projectFolder?.name ?? null,
       taskCounts: { done, total },
       // feature 054: pendingCount = tareas cuyo status NO es FINAL. Se deriva de
       // total - done porque `taskCounts.total` cubre todas las tareas del work
@@ -141,6 +151,8 @@ const createSchema = z.object({
   /** objetivos: título del objetivo insertado; por defecto, el nombre de la plantilla. */
   objectiveTitle: objectiveTitleSchema.optional(),
   isTemplate: z.boolean().optional(),
+  /** Feature 063: carpeta de proyectos del mismo ámbito. */
+  projectFolderId: z.string().uuid().nullable().optional(),
 });
 
 /**
@@ -153,9 +165,8 @@ const createSchema = z.object({
 export const POST = withApi(async (req) => {
   const session = await requireWriter();
   const ctx = await getUserContext(session.user.id);
-  const { name, description, groupId, cloneFromId, objectiveTitle, isTemplate } = createSchema.parse(
-    await req.json(),
-  );
+  const { name, description, groupId, cloneFromId, objectiveTitle, isTemplate, projectFolderId } =
+    createSchema.parse(await req.json());
 
   const { work } = await createWork(ctx, {
     name,
@@ -164,6 +175,7 @@ export const POST = withApi(async (req) => {
     isTemplate,
     templateId: cloneFromId,
     objectiveTitle,
+    projectFolderId,
   });
 
   // Código de referencia (feature 035): la carpeta del proyecto en el

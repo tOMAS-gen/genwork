@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
-import { ApiError, conflict, withApi } from "@/server/api";
+import { ApiError, badRequest, conflict, withApi } from "@/server/api";
 import { requireInternal, requireWriter } from "@/server/guards";
 import { getWorkWithAccess } from "@/server/works";
 import { canManageClientAccess } from "@/lib/domain/permissions";
@@ -10,6 +10,7 @@ import { enqueue } from "@/lib/storage/queue";
 import { computeArchivePath, computeRenamePath, formatFolderName } from "@/lib/storage/paths";
 import { storageRootName } from "@/lib/storage/root";
 import { emit } from "@/server/events";
+import { enqueueProjectFolderMove, resolveFolderForWork } from "@/server/projectFolders";
 import { labelScopeOf } from "@/lib/domain/labels/availability";
 import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
 
@@ -24,6 +25,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
     include: {
       group: { select: { id: true, name: true } },
       stage: { select: { id: true, name: true, color: true } },
+      projectFolder: { select: { id: true, name: true } },
       doc: true,
       attachments: { orderBy: { createdAt: "desc" } },
       tasks: {
@@ -89,6 +91,8 @@ const patchSchema = z
     stageId: z.string().uuid().nullable().optional(),
     isTemplate: z.boolean().optional(),
     status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
+    /** Feature 063: carpeta de proyectos (null = sin carpeta). */
+    projectFolderId: z.string().uuid().nullable().optional(),
   })
   .refine(
     (v) =>
@@ -97,7 +101,8 @@ const patchSchema = z
       v.dueDate !== undefined ||
       v.stageId !== undefined ||
       v.isTemplate !== undefined ||
-      v.status !== undefined,
+      v.status !== undefined ||
+      v.projectFolderId !== undefined,
     { message: "Nada para actualizar" },
   );
 
@@ -128,6 +133,19 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     }
   }
 
+  // Feature 063: la carpeta tiene que ser del mismo ámbito que el proyecto.
+  const folderChanged =
+    body.projectFolderId !== undefined && body.projectFolderId !== work.projectFolderId;
+  const folder = folderChanged
+    ? await resolveFolderForWork(
+        { groupId: work.groupId, ownerId: work.ownerId, isTemplate: body.isTemplate ?? work.isTemplate },
+        body.projectFolderId ?? null,
+      )
+    : null;
+  if (body.isTemplate === true && !folderChanged && work.projectFolderId) {
+    throw badRequest("Sacá el proyecto de su carpeta antes de convertirlo en plantilla");
+  }
+
   const updated = await prisma.work.update({
     where: { id },
     data: {
@@ -139,21 +157,24 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
       ...(body.stageId !== undefined ? { stageId: body.stageId } : {}),
       ...(body.isTemplate !== undefined ? { isTemplate: body.isTemplate } : {}),
       ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(folderChanged ? { projectFolderId: folder?.id ?? null } : {}),
     },
   });
   if (work.nextcloudFolderPath) {
+    // Los jobs corren en orden: cada uno parte de la ruta que deja el anterior.
+    let currentPath = work.nextcloudFolderPath;
     if (body.status && body.status !== work.status) {
       const direction = body.status === "ARCHIVED" ? "archive" : "unarchive";
-      const toPath = computeArchivePath(work.nextcloudFolderPath, direction, storageRootName());
+      const toPath = computeArchivePath(currentPath, direction, storageRootName());
       await enqueue({
         kind: "MOVE_WORK_FOLDER",
         workId: id,
-        fromPath: work.nextcloudFolderPath,
+        fromPath: currentPath,
         toPath,
       });
+      currentPath = toPath;
     }
     if (body.name && body.name !== work.name) {
-      const currentPath = updated.nextcloudFolderPath ?? work.nextcloudFolderPath;
       const toPath = computeRenamePath(currentPath, work.folderSeq, body.name);
       await enqueue({
         kind: "RENAME_WORK_FOLDER",
@@ -161,6 +182,10 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
         fromPath: currentPath,
         toPath,
       });
+      currentPath = toPath;
+    }
+    if (folderChanged) {
+      await enqueueProjectFolderMove(work, folder?.name ?? null, currentPath);
     }
   }
 

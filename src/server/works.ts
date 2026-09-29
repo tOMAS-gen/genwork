@@ -5,6 +5,7 @@ import { emit } from "@/server/events";
 import { getUserContext } from "@/server/user-context";
 import { access, isWriterRole, type UserContext } from "@/lib/domain/permissions";
 import { cloneTaskTree, insertTemplateAsObjectiveTx } from "@/lib/domain/works/cloneFromTemplate";
+import { resolveFolderForWork } from "@/server/projectFolders";
 
 /** Cliente Prisma o de transacción (mismo alias que `src/server/tasks.ts`). */
 type DbClient = typeof prisma | Prisma.TransactionClient;
@@ -117,6 +118,8 @@ export interface CreateWorkInput {
   templateId?: string;
   /** Título del objetivo insertado; por defecto, el nombre de la plantilla. */
   objectiveTitle?: string;
+  /** Feature 063: carpeta de proyectos, del mismo ámbito que el proyecto. */
+  projectFolderId?: string | null;
 }
 
 /**
@@ -148,6 +151,7 @@ export async function createWork(ctx: UserContext, input: CreateWorkInput) {
   if (dup) throw conflict(`Ya existe un proyecto llamado "${name}" en este ámbito`);
 
   const template = templateId ? await requireReadableTemplate(ctx, templateId) : null;
+  const folder = await resolveFolderForWork({ ...scope, isTemplate }, input.projectFolderId ?? null);
 
   const { copiedSectorIds, firstCopiedTaskId, ...result } = await prisma.$transaction(
     async (tx) => {
@@ -159,9 +163,13 @@ export async function createWork(ctx: UserContext, input: CreateWorkInput) {
           createdById: ctx.id,
           isTemplate,
           dueDate: input.dueDate ?? null,
+          projectFolderId: folder?.id ?? null,
           doc: { create: {} },
         },
-        include: { group: { select: { id: true, name: true, publicRead: true } } },
+        include: {
+          group: { select: { id: true, name: true, publicRead: true } },
+          projectFolder: { select: { id: true, name: true } },
+        },
       });
       if (!template) {
         return { work, objective: null, copiedTasks: 0, copiedSectorIds: [], firstCopiedTaskId: null };

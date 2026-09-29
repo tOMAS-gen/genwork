@@ -6,7 +6,13 @@
 
 import { prisma } from "@/lib/db/client";
 import { getStorageProvider } from "./index";
-import { ARCHIVE_FOLDER, formatFolderName } from "./paths";
+import {
+  ARCHIVE_FOLDER,
+  archiveScopePath,
+  formatFolderName,
+  projectFolderContainerPath,
+} from "./paths";
+import { storageRootName } from "./root";
 import type { WorkFolderScope } from "./provider";
 import { loadArchivableWork } from "@/lib/domain/archive/load";
 import { writeArchiveSnapshot } from "@/lib/domain/archive/snapshot";
@@ -56,6 +62,27 @@ class StorageUnavailableError extends Error {}
  * (research.md R1). Distinto de un error genérico, que sí cuenta como intento.
  */
 class DependencyNotReadyError extends Error {}
+
+/**
+ * Feature 063: al sacar un proyecto de una carpeta de proyectos (cambio de
+ * carpeta, renombre o borrado de la carpeta, archivado), la carpeta de origen
+ * se borra si quedó vacía. Si tiene cualquier contenido (otro proyecto o algo
+ * subido a mano) no se toca. Best-effort: un fallo no reintenta el movimiento.
+ */
+async function removeEmptyProjectFolder(
+  storage: NonNullable<Awaited<ReturnType<typeof getStorageProvider>>>,
+  fromPath: string,
+  toPath: string,
+): Promise<void> {
+  const container = projectFolderContainerPath(fromPath, storageRootName());
+  if (!container || toPath.startsWith(`${container}/`)) return;
+  try {
+    const remaining = await storage.listShallow(container);
+    if (remaining.length === 0) await storage.deleteFolder(container);
+  } catch {
+    // La carpeta vacía queda: es solo prolijidad, no afecta al proyecto.
+  }
+}
 
 /** Exportada para poder testear el caso de cliente externo (feature 059, FR-007). */
 export async function runJob(payload: JobPayload): Promise<void> {
@@ -107,7 +134,10 @@ export async function runJob(payload: JobPayload): Promise<void> {
     }
     case "CREATE_WORK_FOLDER": {
       // Trabajo borrado antes de correr el job: no hay carpeta que crear
-      const work = await prisma.work.findUnique({ where: { id: payload.workId } });
+      const work = await prisma.work.findUnique({
+        where: { id: payload.workId },
+        include: { projectFolder: { select: { name: true } } },
+      });
       if (!work) return;
       // Defensa ante jobs viejos encolados antes del flujo de carpetas bajo
       // demanda (research.md D10): sin habilitación explícita, no se crea
@@ -128,6 +158,7 @@ export async function runJob(payload: JobPayload): Promise<void> {
       const { folderPath } = await storage.createWorkFolder({
         scope,
         workName: folderName,
+        projectFolderName: work.projectFolder?.name ?? null,
       });
       await prisma.work.update({
         where: { id: payload.workId },
@@ -175,12 +206,15 @@ export async function runJob(payload: JobPayload): Promise<void> {
             ? { personalStorageUserId: work.owner.nextcloudUserId, personalEmail: work.owner.email }
             : null;
         if (scope && storage.shareScopeFolder) {
-          const scopePath = payload.toPath.substring(0, payload.toPath.lastIndexOf("/"));
+          // Feature 063: se comparte `_archivados/{ámbito}` aunque el proyecto
+          // esté dentro de una carpeta de proyectos (la hereda por debajo).
+          const scopePath = archiveScopePath(payload.toPath, storageRootName());
           await storage.shareScopeFolder({ path: scopePath, scope });
         }
         const archived = await loadArchivableWork(payload.workId);
         await writeArchiveSnapshot(storage, archived, payload.toPath);
       }
+      await removeEmptyProjectFolder(storage, payload.fromPath, payload.toPath);
       return;
     }
     case "AUDIT_GROUP_PERMISSIONS": {

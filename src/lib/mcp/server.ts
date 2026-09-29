@@ -16,6 +16,7 @@ import { registerGroupTools } from "@/lib/mcp/tools/groups";
 import { registerSectorTools } from "@/lib/mcp/tools/sectors";
 import { registerAdminTools } from "@/lib/mcp/tools/admin";
 import { registerTaskStatusTools } from "@/lib/mcp/tools/taskStatus";
+import { registerProjectFolderTools } from "@/lib/mcp/tools/projectFolders";
 
 const SERVER_INFO = { name: "genwork", version: "1.0.0" };
 
@@ -31,6 +32,7 @@ export type ToolRegistrar = (server: McpServer, ctx: McpAuth) => void;
 export const TOOL_REGISTRARS: readonly ToolRegistrar[] = [
   registerConnectionTools,
   registerWorkTools,
+  registerProjectFolderTools,
   registerTaskTools,
   registerObjectiveTools,
   registerTemplateTools,

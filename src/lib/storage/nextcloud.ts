@@ -4,6 +4,7 @@
  * Diseño: la cuenta de servicio admin es dueña de la estructura de carpetas.
  * Con `GENWORK_ORG` definida (raíz por empresa, ver `root.ts`):
  *   /GENWORK_{EMPRESA}/{GRUPO}/{PROYECTO_007}  → compartida con el grupo Nextcloud
+ *   /GENWORK_{EMPRESA}/{GRUPO}/{CARPETA}/{PROYECTO_007} → con carpeta de proyectos (feature 063)
  *   /GENWORK_{EMPRESA}/{email}/{PROYECTO_007}  → compartida solo con ese usuario
  *   /GENWORK_{EMPRESA}/_archivados/…           → misma organización, proyectos archivados
  * Sin `GENWORK_ORG` (instalaciones previas):
@@ -303,7 +304,11 @@ export class NextcloudProvider implements StorageProvider {
       .map((storageUserId) => ({ storageUserId }));
   }
 
-  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+  async createWorkFolder(input: {
+    scope: WorkFolderScope;
+    workName: string;
+    projectFolderName?: string | null;
+  }) {
     const root = storageRootName();
     let container: string;
     if ("groupName" in input.scope) {
@@ -316,6 +321,11 @@ export class NextcloudProvider implements StorageProvider {
     // Idempotente (403 = ya compartida): garantiza el acceso aunque la carpeta
     // del ámbito se haya creado recién (raíz nueva o grupo renombrado).
     await this.shareScopeFolder({ path: container, scope: input.scope });
+    // Feature 063: la carpeta de proyectos hereda el compartido del ámbito.
+    if (root && input.projectFolderName) {
+      container = `${container}/${folderSegment(input.projectFolderName)}`;
+      await this.ensureDir(container);
+    }
     const folderPath = await this.freePath(`${container}/${sanitizeSegment(input.workName)}`);
     await this.ensureDir(folderPath);
     return { folderPath };

@@ -68,3 +68,20 @@ export function getDueDateUrgency(dueDate: Date | null): DueDateUrgency | null {
 
   return { label, color };
 }
+
+/** Valor del filtro de carpeta del dashboard que elige los proyectos sin carpeta (feature 063). */
+export const NO_PROJECT_FOLDER = 'none';
+
+/**
+ * ¿El proyecto pasa el filtro de carpeta de proyectos? `''` = todas,
+ * `NO_PROJECT_FOLDER` = solo los que no están en ninguna carpeta, otro valor =
+ * el id de la carpeta.
+ */
+export function matchesProjectFolder(
+  projectFolderId: string | null | undefined,
+  filter: string,
+): boolean {
+  if (!filter) return true;
+  if (filter === NO_PROJECT_FOLDER) return !projectFolderId;
+  return projectFolderId === filter;
+}

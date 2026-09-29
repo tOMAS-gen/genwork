@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
 import { RenameDialog } from "@/components/ui/RenameDialog";
-import { Archive, ArchiveRestore, Pencil, Trash2 } from "@/components/ui/icons";
+import { Archive, ArchiveRestore, Folder, Pencil, Trash2 } from "@/components/ui/icons";
 import { api } from "@/components/ui/useApi";
 import { useToast } from "@/components/ui/Toast";
 
@@ -15,12 +15,15 @@ export function ProjectMenu({
   workStatus,
   canRename,
   onRenamed,
+  onMoveToFolder,
 }: {
   workId: string;
   workName: string;
   workStatus: "ACTIVE" | "ARCHIVED";
   canRename: boolean;
   onRenamed?: () => void;
+  /** Feature 063: "Mover a carpeta…"; sin callback no se ofrece. */
+  onMoveToFolder?: () => void;
 }) {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -68,6 +71,10 @@ export function ProjectMenu({
     }
   };
 
+  const moveItem = onMoveToFolder
+    ? [{ label: "Mover a carpeta…", icon: <Folder size={16} />, onSelect: onMoveToFolder }]
+    : [];
+
   // objetivos: "Guardar como plantilla" pasó al menú de cada objetivo (una
   // plantilla es UN objetivo); el proyecto entero ya no se guarda como plantilla.
   const items =
@@ -82,6 +89,7 @@ export function ProjectMenu({
                 },
               ]
             : []),
+          ...moveItem,
           {
             label: "Archivar",
             icon: <Archive size={16} />,
@@ -113,6 +121,7 @@ export function ProjectMenu({
                 },
               ]
             : []),
+          ...moveItem,
           {
             label: "Eliminar definitivamente…",
             icon: <Trash2 size={16} />,

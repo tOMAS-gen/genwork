@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getProjectStatus, getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
+import {
+  getProjectStatus,
+  getDueDateUrgency,
+  matchesProjectFolder,
+  NO_PROJECT_FOLDER,
+} from "@/lib/domain/works/dashboardUtils";
 
 describe("getProjectStatus", () => {
   it("sin tareas (total 0) → pending", () => {
@@ -51,5 +56,24 @@ describe("getDueDateUrgency", () => {
     past.setDate(past.getDate() - 2);
     const result = getDueDateUrgency(past);
     expect(result).toEqual({ label: "Vencido", color: "red" });
+  });
+});
+
+describe("matchesProjectFolder (feature 063)", () => {
+  it("sin filtro → pasan todos, con o sin carpeta", () => {
+    expect(matchesProjectFolder("f1", "")).toBe(true);
+    expect(matchesProjectFolder(null, "")).toBe(true);
+  });
+
+  it("'Sin carpeta' → solo los proyectos sin carpeta", () => {
+    expect(matchesProjectFolder(null, NO_PROJECT_FOLDER)).toBe(true);
+    expect(matchesProjectFolder(undefined, NO_PROJECT_FOLDER)).toBe(true);
+    expect(matchesProjectFolder("f1", NO_PROJECT_FOLDER)).toBe(false);
+  });
+
+  it("una carpeta → solo los proyectos de esa carpeta", () => {
+    expect(matchesProjectFolder("f1", "f1")).toBe(true);
+    expect(matchesProjectFolder("f2", "f1")).toBe(false);
+    expect(matchesProjectFolder(null, "f1")).toBe(false);
   });
 });

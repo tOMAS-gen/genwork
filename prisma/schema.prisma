@@ -98,37 +98,38 @@ model User {
   /// todavía no entró (null) de uno activo, sin heurísticas sobre createdAt.
   firstLoginAt    DateTime?
 
-  memberships        GroupMembership[]
-  ownedGroups        Group[]            @relation("GroupOwner")
-  ownedSectors       Sector[]           @relation("OwnedSectors")
-  sectorGrants       SectorGrant[]
-  readerGrants       ReaderGrant[]
-  ownedWorks         Work[]             @relation("WorkOwner")
-  createdWorks       Work[]             @relation("WorkCreator")
-  createdTasks       Task[]             @relation("TaskCreator")
-  completedTasks     Task[]             @relation("TaskCompleter")
-  lastEditedTasks    Task[]             @relation("TaskLastEditor")
-  statusChangedTasks Task[]             @relation("TaskStatusChanger")
-  taskStatuses       TaskStatus[]       @relation("PersonalTaskStatuses")
-  taskStatusChanges  TaskStatusChange[]
-  taskRefs           TaskLink[]         @relation("LinkUser")
-  attachments        Attachment[]
-  archives           ArchiveRecord[]
-  labelKeys          LabelKey[]         @relation("LabelKeyOwner")
-  favorites          UserFavorite[]
-  notes              Note[]
-  personalStages     ProjectStage[]     @relation("PersonalStages")
-  mcpConnections     McpConnection[]
-  reminders          Reminder[]         @relation("ReminderOwner")
-  createdReminders   Reminder[]         @relation("ReminderCreator")
-  reminderDeliveries ReminderDelivery[]
-  errorLogs          ErrorLog[]
-  storageIdentities  StorageIdentity[]
-  createdFileShares  FileShare[]        @relation("FileShareCreator")
-  targetFileShares   FileShare[]        @relation("FileShareTarget")
-  clientGrants       ClientWorkGrant[]  @relation("ClientGrants")
-  issuedClientGrants ClientWorkGrant[]  @relation("ClientGrantsIssued")
-  createdObjectives  Objective[]        @relation("ObjectiveCreator")
+  memberships            GroupMembership[]
+  ownedGroups            Group[]            @relation("GroupOwner")
+  ownedSectors           Sector[]           @relation("OwnedSectors")
+  sectorGrants           SectorGrant[]
+  readerGrants           ReaderGrant[]
+  ownedWorks             Work[]             @relation("WorkOwner")
+  createdWorks           Work[]             @relation("WorkCreator")
+  createdTasks           Task[]             @relation("TaskCreator")
+  completedTasks         Task[]             @relation("TaskCompleter")
+  lastEditedTasks        Task[]             @relation("TaskLastEditor")
+  statusChangedTasks     Task[]             @relation("TaskStatusChanger")
+  taskStatuses           TaskStatus[]       @relation("PersonalTaskStatuses")
+  taskStatusChanges      TaskStatusChange[]
+  taskRefs               TaskLink[]         @relation("LinkUser")
+  attachments            Attachment[]
+  archives               ArchiveRecord[]
+  labelKeys              LabelKey[]         @relation("LabelKeyOwner")
+  favorites              UserFavorite[]
+  notes                  Note[]
+  personalStages         ProjectStage[]     @relation("PersonalStages")
+  personalProjectFolders ProjectFolder[]    @relation("PersonalProjectFolders")
+  mcpConnections         McpConnection[]
+  reminders              Reminder[]         @relation("ReminderOwner")
+  createdReminders       Reminder[]         @relation("ReminderCreator")
+  reminderDeliveries     ReminderDelivery[]
+  errorLogs              ErrorLog[]
+  storageIdentities      StorageIdentity[]
+  createdFileShares      FileShare[]        @relation("FileShareCreator")
+  targetFileShares       FileShare[]        @relation("FileShareTarget")
+  clientGrants           ClientWorkGrant[]  @relation("ClientGrants")
+  issuedClientGrants     ClientWorkGrant[]  @relation("ClientGrantsIssued")
+  createdObjectives      Objective[]        @relation("ObjectiveCreator")
 }
 
 model AccessConfig {
@@ -159,14 +160,15 @@ model Group {
   nextcloudFolderId String?
   createdAt         DateTime @default(now())
 
-  memberships  GroupMembership[]
-  works        Work[]
-  readerGrants ReaderGrant[]
-  labelKeys    LabelKey[]
-  stages       ProjectStage[]
-  reminders    Reminder[]
-  taskStatuses TaskStatus[]
-  sectors      Sector[]
+  memberships    GroupMembership[]
+  works          Work[]
+  readerGrants   ReaderGrant[]
+  labelKeys      LabelKey[]
+  stages         ProjectStage[]
+  projectFolders ProjectFolder[]
+  reminders      Reminder[]
+  taskStatuses   TaskStatus[]
+  sectors        Sector[]
 }
 
 model GroupMembership {
@@ -260,12 +262,16 @@ model Work {
   createdById         String
   createdAt           DateTime   @default(now())
 
-  stageId String?
+  stageId         String?
+  /// Carpeta de proyectos (feature 063): agrupa proyectos del mismo cliente,
+  /// organización o tipo de trabajo dentro de su ámbito. Opcional.
+  projectFolderId String?
 
   group                  Group?            @relation(fields: [groupId], references: [id], onDelete: Cascade)
   owner                  User?             @relation("WorkOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   createdBy              User              @relation("WorkCreator", fields: [createdById], references: [id])
   stage                  ProjectStage?     @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  projectFolder          ProjectFolder?    @relation(fields: [projectFolderId], references: [id], onDelete: SetNull)
   doc                    DocPage?
   tasks                  Task[]
   attachments            Attachment[]
@@ -283,6 +289,7 @@ model Work {
 
   @@unique([groupId, name])
   @@unique([ownerId, name])
+  @@index([projectFolderId])
 }
 
 model DocPage {
@@ -614,6 +621,25 @@ model ProjectStage {
   ownerId   String?
   group     Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
   owner     User?   @relation("PersonalStages", fields: [ownerId], references: [id], onDelete: Cascade)
+  works     Work[]
+
+  @@unique([groupId, name])
+  @@unique([ownerId, name])
+}
+
+/// Feature 063: carpeta de proyectos. Agrupa proyectos del mismo cliente,
+/// organización o tipo de trabajo dentro de un ámbito (Grupo o Personal, igual
+/// que ProjectStage). En la nube es un nivel intermedio:
+/// /GENWORK_<EMPRESA>/<ÁMBITO>/<CARPETA>/<PROYECTO_007>.
+/// Borrarla deja a sus proyectos sin carpeta (Work.projectFolderId SetNull).
+model ProjectFolder {
+  id        String   @id @default(uuid())
+  name      String
+  groupId   String?
+  ownerId   String?
+  createdAt DateTime @default(now())
+  group     Group?   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  owner     User?    @relation("PersonalProjectFolders", fields: [ownerId], references: [id], onDelete: Cascade)
   works     Work[]
 
   @@unique([groupId, name])

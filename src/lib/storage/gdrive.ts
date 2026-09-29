@@ -130,7 +130,11 @@ export class GoogleDriveProvider implements StorageProvider {
   async addMember(): Promise<void> {}
   async removeMember(): Promise<void> {}
 
-  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+  async createWorkFolder(input: {
+    scope: WorkFolderScope;
+    workName: string;
+    projectFolderName?: string | null;
+  }) {
     const withRoot = storageRootName() != null;
     const root = await this.genworkRoot();
     let containerId: string;
@@ -142,6 +146,10 @@ export class GoogleDriveProvider implements StorageProvider {
     } else {
       const personalRoot = await this.findOrCreateFolder("Personales", root);
       containerId = await this.findOrCreateFolder(input.scope.personalStorageUserId, personalRoot);
+    }
+    // Feature 063: carpeta de proyectos como nivel intermedio (solo con raíz por empresa).
+    if (withRoot && input.projectFolderName) {
+      containerId = await this.findOrCreateFolder(folderSegment(input.projectFolderName), containerId);
     }
     const folderId = await this.findOrCreateFolder(input.workName, containerId);
     return { folderPath: folderId };

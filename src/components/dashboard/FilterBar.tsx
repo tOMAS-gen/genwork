@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Search,
   LayoutGrid,
@@ -10,6 +10,7 @@ import {
   ChevronDown,
   X,
 } from "@/components/ui/icons";
+import { NO_PROJECT_FOLDER } from "@/lib/domain/works/dashboardUtils";
 
 export interface DashboardFilters {
   text: string;
@@ -18,6 +19,8 @@ export interface DashboardFilters {
   status: string;
   /** Grupos seleccionados para filtrar (US3, FR-010): multi-select, [] = todos. */
   groupIds: string[];
+  /** Feature 063: carpeta de proyectos. "" = todas, "none" = sin carpeta, o el id. */
+  projectFolderId: string;
 }
 
 export const EMPTY_DASHBOARD_FILTERS: DashboardFilters = {
@@ -26,6 +29,7 @@ export const EMPTY_DASHBOARD_FILTERS: DashboardFilters = {
   labelValueId: "",
   status: "",
   groupIds: [],
+  projectFolderId: "",
 };
 
 type ViewMode = "grid" | "list";
@@ -34,6 +38,12 @@ type SortBy = "recent" | "name" | "progress";
 export interface GroupOption {
   id: string;
   name: string;
+}
+
+export interface ProjectFolderFilterOption {
+  id: string;
+  name: string;
+  groupName: string | null;
 }
 
 interface FilterBarProps {
@@ -47,6 +57,9 @@ interface FilterBarProps {
   }[];
   /** Grupos visibles para el usuario (US3, FR-010), ya cargados en el dashboard. */
   groups: GroupOption[];
+  /** Carpetas de proyectos visibles (feature 063). */
+  projectFolders: ProjectFolderFilterOption[];
+  onManageFolders: () => void;
   onFilterChange: (filters: DashboardFilters) => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
@@ -60,6 +73,8 @@ export function FilterBar({
   sectors,
   labelKeys,
   groups,
+  projectFolders,
+  onManageFolders,
   onFilterChange,
   viewMode,
   onViewModeChange,
@@ -80,6 +95,17 @@ export function FilterBar({
     onFilterChange(next);
   }
 
+  // Feature 063: si la carpeta filtrada se borró (desde "Gestionar carpetas"
+  // u otra sesión), el filtro vuelve a "Todas" en vez de quedar vacío.
+  const staleFolder =
+    !!filters.projectFolderId &&
+    filters.projectFolderId !== NO_PROJECT_FOLDER &&
+    !projectFolders.some((folder) => folder.id === filters.projectFolderId);
+  useEffect(() => {
+    if (staleFolder) update({ projectFolderId: "" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reacciona a que la carpeta desaparezca
+  }, [staleFolder]);
+
   function toggleGroup(groupId: string) {
     update({
       groupIds: filters.groupIds.includes(groupId)
@@ -94,7 +120,26 @@ export function FilterBar({
   }
 
   const activeLabel = labelKeys.find((label) => label.valueId === filters.labelValueId);
+  const activeFolder = projectFolders.find((folder) => folder.id === filters.projectFolderId);
+  // Carpetas agrupadas por ámbito: dos ámbitos pueden tener una carpeta homónima.
+  const foldersByScope = new Map<string, ProjectFolderFilterOption[]>();
+  for (const folder of projectFolders) {
+    const scope = folder.groupName ? `Grupo ${folder.groupName}` : "Personal";
+    foldersByScope.set(scope, [...(foldersByScope.get(scope) ?? []), folder]);
+  }
   const activeFilters = [
+    ...(filters.projectFolderId
+      ? [
+          {
+            key: "folder",
+            label:
+              filters.projectFolderId === NO_PROJECT_FOLDER
+                ? "Sin carpeta"
+                : `Carpeta: ${activeFolder?.name ?? "Seleccionada"}`,
+            remove: () => update({ projectFolderId: "" }),
+          },
+        ]
+      : []),
     ...(filters.sectorId
       ? [
           {
@@ -228,6 +273,30 @@ export function FilterBar({
         }}
       >
         <div className="project-filter-fields">
+          <div className="project-filter-field">
+            <label htmlFor={`${panelId}-folder`}>Carpeta</label>
+            <select
+              id={`${panelId}-folder`}
+              aria-label="Filtrar por carpeta"
+              value={filters.projectFolderId}
+              onChange={(event) => update({ projectFolderId: event.target.value })}
+            >
+              <option value="">Todas las carpetas</option>
+              <option value={NO_PROJECT_FOLDER}>Sin carpeta</option>
+              {[...foldersByScope.entries()].map(([scope, folders]) => (
+                <optgroup key={scope} label={scope}>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <button type="button" className="project-filter-field-action" onClick={onManageFolders}>
+              Gestionar carpetas
+            </button>
+          </div>
           <label className="project-filter-field">
             <span>Sector</span>
             <select

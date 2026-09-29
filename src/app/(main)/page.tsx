@@ -10,8 +10,15 @@ import { TemplateSelector } from "@/components/works/TemplateSelector";
 import { StatsBar } from "@/components/dashboard/StatsBar";
 import { ProjectCard, type DashboardWork } from "@/components/dashboard/ProjectCard";
 import { ProjectListRow } from "@/components/dashboard/ProjectListRow";
-import { FilterBar, type DashboardFilters } from "@/components/dashboard/FilterBar";
-import { getProjectStatus } from "@/lib/domain/works/dashboardUtils";
+import {
+  FilterBar,
+  EMPTY_DASHBOARD_FILTERS,
+  type DashboardFilters,
+  type ProjectFolderFilterOption,
+} from "@/components/dashboard/FilterBar";
+import { MoveToFolderDialog } from "@/components/projects/MoveToFolderDialog";
+import { ManageProjectFoldersDialog } from "@/components/projects/ManageProjectFoldersDialog";
+import { getProjectStatus, matchesProjectFolder } from "@/lib/domain/works/dashboardUtils";
 import { Plus, FolderOpen, BookTemplate, AlertCircle } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -58,6 +65,10 @@ function filterProjects(
     }
 
     if (filters.groupIds.length > 0 && (!work.groupId || !filters.groupIds.includes(work.groupId))) {
+      return false;
+    }
+
+    if (!matchesProjectFolder(work.projectFolderId, filters.projectFolderId)) {
       return false;
     }
 
@@ -127,13 +138,10 @@ function HomePageContent() {
   const [sectors, setSectors] = useState<SectorOption[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<DashboardFilters>({
-    text: "",
-    sectorId: "",
-    labelValueId: "",
-    status: "",
-    groupIds: [],
-  });
+  const [filters, setFilters] = useState<DashboardFilters>(EMPTY_DASHBOARD_FILTERS);
+  const [projectFolders, setProjectFolders] = useState<ProjectFolderFilterOption[]>([]);
+  const [moveTarget, setMoveTarget] = useState<DashboardWork | null>(null);
+  const [manageFoldersOpen, setManageFoldersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortBy, setSortBy] = useState<SortBy>("recent");
   const [currentPage, setCurrentPage] = useState(1);
@@ -157,6 +165,7 @@ function HomePageContent() {
     void api<GroupOption[]>("/api/groups")
       .then((gs) => setGroups(gs.map((g) => ({ id: g.id, name: g.name }))))
       .catch(() => {});
+    void api<ProjectFolderFilterOption[]>("/api/project-folders").then(setProjectFolders).catch(() => {});
     void api<{ id: string }>("/api/me").then((me) => setCurrentUserId(me.id)).catch(() => {});
   }, [queryStatus, queryFilterKind]);
 
@@ -212,6 +221,9 @@ function HomePageContent() {
       setArchiveTarget(project);
     }
   }, [queryStatus, setArchived]);
+
+  // Feature 063: "Mover a carpeta…" del menú ⋮ (las plantillas no van en carpetas).
+  const handleMoveToFolder = useCallback((project: DashboardWork) => setMoveTarget(project), []);
 
   const labelKeys = useMemo(() => {
     const seen = new Map<string, DashboardWork["labels"][number]>();
@@ -315,6 +327,8 @@ function HomePageContent() {
         sectors={sectors}
         labelKeys={labelKeys}
         groups={groups}
+        projectFolders={projectFolders}
+        onManageFolders={() => setManageFoldersOpen(true)}
         onFilterChange={setFilters}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -371,6 +385,7 @@ function HomePageContent() {
               archived={queryStatus === "ARCHIVED"}
               onToggleFavorite={handleToggleFavorite}
               onArchiveToggle={handleArchiveToggle}
+              onMoveToFolder={handleMoveToFolder}
             />
           ))}
           {sortedWorks.length === 0 && (
@@ -399,6 +414,7 @@ function HomePageContent() {
                   project={project}
                   archived={queryStatus === "ARCHIVED"}
                   onArchiveToggle={handleArchiveToggle}
+                  onMoveToFolder={handleMoveToFolder}
                 />
               ))}
             </tbody>
@@ -437,6 +453,21 @@ function HomePageContent() {
           </button>
         </div>
       )}
+
+      <MoveToFolderDialog
+        work={moveTarget}
+        onClose={() => setMoveTarget(null)}
+        onMoved={(folder) => {
+          toast(folder ? `Movido a ${folder.name}` : "Proyecto sin carpeta", "success");
+          load();
+        }}
+      />
+
+      <ManageProjectFoldersDialog
+        open={manageFoldersOpen}
+        onClose={() => setManageFoldersOpen(false)}
+        onChanged={load}
+      />
 
       <Dialog
         open={archiveTarget !== null}

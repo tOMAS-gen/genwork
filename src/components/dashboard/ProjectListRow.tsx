@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Archive, ArchiveRestore } from "@/components/ui/icons";
+import { MoreHorizontal, Archive, ArchiveRestore, Folder } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
 import { getProjectStatus, getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
@@ -24,10 +24,12 @@ export function ProjectListRow({
   project,
   archived,
   onArchiveToggle,
+  onMoveToFolder,
 }: {
   project: DashboardWork;
   archived: boolean;
   onArchiveToggle: (project: DashboardWork) => void;
+  onMoveToFolder: (project: DashboardWork) => void;
 }) {
   const router = useRouter();
   const color = getProjectColor(project.labels);
@@ -65,7 +67,15 @@ export function ProjectListRow({
           </div>
         </div>
       </td>
-      <td>{project.group ? project.group.name : "Personal"}</td>
+      <td>
+        {project.group ? project.group.name : "Personal"}
+        {project.projectFolderName && (
+          <div className="project-folder-tag" title={`Carpeta ${project.projectFolderName}`}>
+            <Folder size={14} aria-hidden="true" />
+            <span>{project.projectFolderName}</span>
+          </div>
+        )}
+      </td>
       <td>
         {(project.labels.length > 0 || project.stage) && (
           <div className="col-labels">
@@ -114,6 +124,15 @@ export function ProjectListRow({
                 label: "Abrir proyecto",
                 onSelect: open,
               },
+              ...(project.isTemplate
+                ? []
+                : [
+                    {
+                      label: "Mover a carpeta…",
+                      icon: <Folder size={16} />,
+                      onSelect: () => onMoveToFolder(project),
+                    },
+                  ]),
               {
                 label: archived ? "Desarchivar" : "Archivar",
                 icon: archived ? <ArchiveRestore size={16} /> : <Archive size={16} />,

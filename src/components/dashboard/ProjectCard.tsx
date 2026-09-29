@@ -8,6 +8,7 @@ import {
   BookTemplate,
   Archive,
   ArchiveRestore,
+  Folder,
 } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
@@ -21,6 +22,9 @@ export interface DashboardWork {
   groupId: string | null;
   groupName: string | null;
   group: { id: string; name: string } | null;
+  /** Feature 063: carpeta de proyectos (cliente, organización o tipo de trabajo). */
+  projectFolderId: string | null;
+  projectFolderName: string | null;
   createdById: string;
   createdAt: string;
   dueDate: string | null;
@@ -53,11 +57,13 @@ export function ProjectCard({
   archived,
   onToggleFavorite,
   onArchiveToggle,
+  onMoveToFolder,
 }: {
   project: DashboardWork;
   archived: boolean;
   onToggleFavorite: (workId: string) => void;
   onArchiveToggle: (project: DashboardWork) => void;
+  onMoveToFolder: (project: DashboardWork) => void;
 }) {
   const color = getProjectColor(project.labels);
   const prog = progress(project.taskCounts.done, project.taskCounts.total);
@@ -109,6 +115,15 @@ export function ProjectCard({
                   window.location.href = `/works/${project.id}`;
                 },
               },
+              ...(project.isTemplate
+                ? []
+                : [
+                    {
+                      label: "Mover a carpeta…",
+                      icon: <Folder size={16} />,
+                      onSelect: () => onMoveToFolder(project),
+                    },
+                  ]),
               {
                 label: archived ? "Desarchivar" : "Archivar",
                 icon: archived ? <ArchiveRestore size={16} /> : <Archive size={16} />,
@@ -120,7 +135,18 @@ export function ProjectCard({
       </div>
 
       {/* Row 2: grupo */}
-      <div className="pc-group">{project.group ? `Grupo ${project.group.name}` : "Personal"}</div>
+      <div className="pc-group">
+        {project.group ? `Grupo ${project.group.name}` : "Personal"}
+        {project.projectFolderName && (
+          <>
+            {" · "}
+            <span className="project-folder-tag" title={`Carpeta ${project.projectFolderName}`}>
+              <Folder size={14} aria-hidden="true" />
+              <span>{project.projectFolderName}</span>
+            </span>
+          </>
+        )}
+      </div>
 
       {/* Row 3: etiquetas */}
       {project.labels.length > 0 && (

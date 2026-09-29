@@ -8,6 +8,7 @@ import type { TaskDto } from "@/components/tasks/TaskItem";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 import { TaskViewToggle } from "@/components/tasks/TaskViewToggle";
 import { ProjectMenu } from "@/components/projects/ProjectMenu";
+import { MoveToFolderDialog } from "@/components/projects/MoveToFolderDialog";
 import { LabelPicker, type WorkLabelDto } from "@/components/works/LabelPicker";
 import { ProjectTabs } from "@/components/works/ProjectTabs";
 import { StatusBar } from "@/components/works/StatusBar";
@@ -50,6 +51,9 @@ interface WorkFull {
   status: "ACTIVE" | "ARCHIVED";
   groupId: string | null;
   group: { id: string; name: string } | null;
+  /** Feature 063: carpeta de proyectos (cliente, organización o tipo de trabajo). */
+  projectFolderId: string | null;
+  projectFolder: { id: string; name: string } | null;
   doc: { content: unknown } | null;
   /** Todas las raíces del proyecto (generales y de objetivos), cada una con `objectiveId`. */
   tasks: TaskDto[];
@@ -125,6 +129,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
     work !== null,
   );
   const [addObjectiveOpen, setAddObjectiveOpen] = useState(false);
+  const [moveToFolderOpen, setMoveToFolderOpen] = useState(false);
   /** Objetivo al que hay que bajar cuando su sección esté en pantalla. */
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
 
@@ -201,6 +206,8 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const editable = work.status === "ACTIVE";
+  // Feature 063: las plantillas no van en carpetas.
+  const canMoveToFolder = work.access === "operate" && !work.isTemplate;
   // objetivos (crítica I6): gestionar objetivos exige operar el proyecto; en una
   // plantilla no hay objetivos (una plantilla ES un objetivo).
   const canManageObjectives = editable && work.access === "operate" && !work.isTemplate;
@@ -237,6 +244,18 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                   </div>
                   <div className="work-subtitle">
                     <p>{work.group ? `Grupo ${work.group.name}` : "Espacio personal"}</p>
+                    {(work.projectFolder || canMoveToFolder) && (
+                      <button
+                        type="button"
+                        className="work-folder-chip"
+                        disabled={!canMoveToFolder}
+                        onClick={() => setMoveToFolderOpen(true)}
+                        title={canMoveToFolder ? "Mover a carpeta" : undefined}
+                      >
+                        <Folder size={14} aria-hidden="true" />
+                        {work.projectFolder?.name ?? "Sin carpeta"}
+                      </button>
+                    )}
                     <span className="work-state">
                       {work.isTemplate
                         ? "Plantilla de objetivo"
@@ -253,6 +272,19 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                 workStatus={work.status}
                 canRename={work.access === "operate"}
                 onRenamed={load}
+                onMoveToFolder={canMoveToFolder ? () => setMoveToFolderOpen(true) : undefined}
+              />
+              <MoveToFolderDialog
+                work={
+                  moveToFolderOpen
+                    ? { id, name: work.name, groupId: work.groupId, projectFolderId: work.projectFolderId }
+                    : null
+                }
+                onClose={() => setMoveToFolderOpen(false)}
+                onMoved={(folder) => {
+                  toast(folder ? `Movido a ${folder.name}` : "Proyecto sin carpeta", "success");
+                  load();
+                }}
               />
             </div>
 

@@ -5643,7 +5643,7 @@ dialog.dialog--overflow-visible {
 .project-filter-panel[hidden] { display: none; }
 .project-filter-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .project-filter-field { display: grid; min-width: 0; gap: 6px; }
-.project-filter-field > span, .project-filter-groups legend { font-size: 12px; font-weight: 600; color: var(--text); }
+.project-filter-field > span, .project-filter-field > label, .project-filter-groups legend { font-size: 12px; font-weight: 600; color: var(--text); }
 .project-filter-field select { min-width: 0; height: 40px; font-size: 13px; background: var(--surface); }
 .project-filter-groups { min-width: 0; margin: 16px 0 0; padding: 0; border: 0; }
 .project-filter-groups legend { padding: 0; margin-bottom: 8px; }
@@ -6854,3 +6854,30 @@ dialog.dialog--overflow-visible {
     transition: none;
   }
 }
+
+/* ---- Carpetas de proyectos (feature 063) ---- */
+.pf-select { display: grid; gap: 6px; min-width: 0; }
+.pf-select select { width: 100%; }
+.pf-new-row,
+.pf-create { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.pf-new-row input,
+.pf-create input { flex: 1; min-width: 0; }
+.pf-create select { max-width: 40%; }
+.pf-error { margin: 0; color: var(--danger); font-size: 13px; }
+.pf-sections { display: grid; gap: 12px; max-height: 50vh; overflow-y: auto; }
+.pf-section h3 { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.pf-section ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.pf-row { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 2px 4px 2px 8px; border-radius: 6px; color: var(--muted); }
+.pf-row:hover { background: var(--hover-soft); }
+.pf-row input { flex: 1; min-width: 0; }
+.pf-row-name { flex: 1; min-width: 0; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-row-count { font-size: 12px; white-space: nowrap; }
+.pf-row-confirm { flex: 1; min-width: 0; font-size: 13px; color: var(--text); }
+.project-folder-tag { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; color: var(--muted); font-size: var(--text-sm); }
+.project-folder-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-folder-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+.work-folder-chip:hover { background: var(--hover-soft); color: var(--text); }
+.work-folder-chip:disabled { cursor: default; }
+.work-folder-chip:disabled:hover { background: transparent; color: var(--muted); }
+.project-filter-field-action { justify-self: start; padding: 0; border: 0; background: none; color: var(--accent); font-size: 12px; cursor: pointer; }
+.project-filter-field-action:hover { text-decoration: underline; }

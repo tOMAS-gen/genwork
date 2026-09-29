@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/ui/Dialog";
 import { api } from "@/components/ui/useApi";
+import { ProjectFolderSelect } from "@/components/projects/ProjectFolderSelect";
 import { OBJECTIVE_DESCRIPTION_MAX, OBJECTIVE_TITLE_MAX } from "@/lib/domain/objectives/validation";
 
 interface Group {
@@ -37,6 +38,7 @@ export function CreateProjectDialog({
 }) {
   const [groups, setGroups] = useState<Group[]>([]);
   const [scope, setScope] = useState("");
+  const [folderId, setFolderId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [objectiveTitle, setObjectiveTitle] = useState("");
@@ -57,6 +59,7 @@ export function CreateProjectDialog({
     setDescription("");
     setObjectiveTitle("");
     setScope("");
+    setFolderId(null);
     setError("");
   };
 
@@ -78,7 +81,7 @@ export function CreateProjectDialog({
           ...(template && trimmedObjective && trimmedObjective !== template.name
             ? { objectiveTitle: trimmedObjective }
             : {}),
-          ...(isTemplate ? { isTemplate: true } : {}),
+          ...(isTemplate ? { isTemplate: true } : { projectFolderId: folderId }),
         }),
       });
       reset();
@@ -107,7 +110,15 @@ export function CreateProjectDialog({
     >
       <div className="dialog-field">
         <label htmlFor="np-scope">Ámbito</label>
-        <select id="np-scope" value={scope} onChange={(e) => setScope(e.target.value)}>
+        <select
+          id="np-scope"
+          value={scope}
+          onChange={(e) => {
+            setScope(e.target.value);
+            // Las carpetas son por ámbito: al cambiarlo, la elegida deja de valer.
+            setFolderId(null);
+          }}
+        >
           <option value="">Para mí (personal)</option>
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
@@ -116,6 +127,17 @@ export function CreateProjectDialog({
           ))}
         </select>
       </div>
+      {!isTemplate && open && (
+        <div className="dialog-field">
+          <label htmlFor="np-folder">Carpeta (opcional)</label>
+          <ProjectFolderSelect
+            id="np-folder"
+            groupId={scope || null}
+            value={folderId}
+            onChange={(f) => setFolderId(f?.id ?? null)}
+          />
+        </div>
+      )}
       <div className="dialog-field">
         <label htmlFor="np-name">{isTemplate ? "Título del objetivo" : "Nombre"}</label>
         <input

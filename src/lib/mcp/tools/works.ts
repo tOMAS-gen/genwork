@@ -6,10 +6,12 @@ import { access } from "@/lib/domain/permissions";
 import { enqueue } from "@/lib/storage/queue";
 import { getStorageProvider } from "@/lib/storage";
 import { computeArchivePath } from "@/lib/storage/paths";
+import { storageRootName } from "@/lib/storage/root";
 import { formatFolderName } from "@/lib/storage/paths";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
 import { createWork } from "@/server/works";
+import { enqueueProjectFolderMove, resolveFolderForWork } from "@/server/projectFolders";
 import { listObjectives } from "@/server/objectives";
 import { objectiveTitleSchema } from "@/lib/domain/objectives/validation";
 import { summarizeObjectiveWithCounts } from "@/lib/mcp/tools/objectives";
@@ -21,11 +23,13 @@ import { logMcpActivity } from "@/lib/mcp/activity";
 
 type WorkWithGroup = NonNullable<Awaited<ReturnType<typeof loadWork>>>;
 
+const workInclude = {
+  group: { select: { id: true, name: true, publicRead: true } },
+  projectFolder: { select: { id: true, name: true } },
+} as const;
+
 async function loadWork(workId: string) {
-  return prisma.work.findUnique({
-    where: { id: workId },
-    include: { group: { select: { id: true, name: true, publicRead: true } } },
-  });
+  return prisma.work.findUnique({ where: { id: workId }, include: workInclude });
 }
 
 function levelOf(ctx: McpAuth, work: WorkWithGroup) {
@@ -81,6 +85,9 @@ function summarize(work: WorkWithGroup, taskCounts?: { total: number; done: numb
     dueDate: work.dueDate,
     groupId: work.groupId,
     groupName: work.group?.name ?? null,
+    // Feature 063: carpeta de proyectos (cliente, organización o tipo de trabajo).
+    projectFolderId: work.projectFolderId,
+    projectFolderName: work.projectFolder?.name ?? null,
     // objetivos: una plantilla se puede leer por id (work.get) aunque work.list no la liste.
     isTemplate: work.isTemplate,
     code: formatFolderName(work.folderSeq, work.name),
@@ -93,24 +100,28 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     "work.list",
     {
       title: "Listar proyectos",
-      description: "Lista proyectos visibles para el usuario, opcionalmente filtrados por grupo o estado.",
+      description:
+        "Lista proyectos visibles para el usuario, opcionalmente filtrados por grupo, estado o " +
+        'carpeta de proyectos (projectFolderId, ver projectFolder.list; "none" = sin carpeta).',
       inputSchema: {
         groupId: z.string().uuid().optional(),
+        projectFolderId: z.union([z.literal("none"), z.string().uuid()]).optional(),
         status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
         favoritesOnly: z.boolean().optional(),
       },
     },
-    async ({ groupId, status, favoritesOnly }) => {
+    async ({ groupId, projectFolderId, status, favoritesOnly }) => {
       try {
         const works = await prisma.work.findMany({
           where: {
             ...NOT_TEMPLATE_WORK,
             status: status ?? "ACTIVE",
             ...(groupId ? { groupId } : {}),
+            ...(projectFolderId
+              ? { projectFolderId: projectFolderId === "none" ? null : projectFolderId }
+              : {}),
           },
-          include: {
-            group: { select: { id: true, name: true, publicRead: true } },
-          },
+          include: workInclude,
           orderBy: { createdAt: "desc" },
         });
         const visible = works.filter((w) => levelOf(ctx, w) !== "none");
@@ -177,7 +188,8 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
         "Crea un proyecto nuevo. Sin groupId se crea en el espacio personal del usuario. Con " +
         "templateId (ver template.list) nace con esa plantilla insertada como un objetivo " +
         "(objectiveTitle opcional; por defecto, el nombre de la plantilla). Con isTemplate: true " +
-        "crea una plantilla (sin objetivos: con templateId copia sus tareas como generales).",
+        "crea una plantilla (sin objetivos: con templateId copia sus tareas como generales). " +
+        "projectFolderId (ver projectFolder.list) lo guarda en una carpeta de su mismo ámbito.",
       inputSchema: {
         name: z.string().trim().min(1).max(120),
         groupId: z.string().uuid().nullable().optional(),
@@ -186,9 +198,10 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
         isTemplate: z.boolean().optional(),
         templateId: z.string().uuid().optional(),
         objectiveTitle: objectiveTitleSchema.optional(),
+        projectFolderId: z.string().uuid().nullable().optional(),
       },
     },
-    async ({ name, groupId, description, dueDate, isTemplate, templateId, objectiveTitle }) => {
+    async ({ name, groupId, description, dueDate, isTemplate, templateId, objectiveTitle, projectFolderId }) => {
       try {
         if (objectiveTitle !== undefined && (!templateId || isTemplate)) {
           throw badRequest("objectiveTitle solo aplica al crear un proyecto con templateId");
@@ -204,6 +217,7 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
           isTemplate,
           templateId,
           objectiveTitle,
+          projectFolderId,
         });
         const kind = work.isTemplate ? "la plantilla" : "el proyecto";
 
@@ -241,15 +255,18 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     "work.update",
     {
       title: "Actualizar proyecto",
-      description: "Actualiza nombre, descripción o fecha de vencimiento de un proyecto.",
+      description:
+        "Actualiza nombre, descripción, fecha de vencimiento o carpeta de proyectos " +
+        "(projectFolderId, null = sin carpeta) de un proyecto.",
       inputSchema: {
         workId: z.string().uuid(),
+        projectFolderId: z.string().uuid().nullable().optional(),
         name: z.string().trim().min(1).max(120).optional(),
         description: z.string().trim().max(280).nullable().optional(),
         dueDate: z.string().datetime().nullable().optional(),
       },
     },
-    async ({ workId, name, description, dueDate }) => {
+    async ({ workId, name, description, dueDate, projectFolderId }) => {
       try {
         const work = await getWorkWithAccess(ctx, workId, "operate");
         if (name && name !== work.name) {
@@ -258,6 +275,9 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
           });
           if (dup) throw conflict(`Ya existe un proyecto llamado "${name}" en este ámbito`);
         }
+        // Feature 063: misma validación que PATCH /api/works/{id}.
+        const folderChanged = projectFolderId !== undefined && projectFolderId !== work.projectFolderId;
+        const folder = folderChanged ? await resolveFolderForWork(work, projectFolderId ?? null) : null;
 
         const updated = await prisma.work.update({
           where: { id: workId },
@@ -265,9 +285,11 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
             ...(name !== undefined ? { name } : {}),
             ...(description !== undefined ? { description: description || null } : {}),
             ...(dueDate !== undefined ? { dueDate: dueDate ? new Date(dueDate) : null } : {}),
+            ...(folderChanged ? { projectFolderId: folder?.id ?? null } : {}),
           },
-          include: { group: { select: { id: true, name: true, publicRead: true } } },
+          include: workInclude,
         });
+        if (folderChanged) await enqueueProjectFolderMove(work, folder?.name ?? null);
 
         await logMcpActivity({
           connectionId: ctx.connectionId,
@@ -297,6 +319,7 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
       const toPath = computeArchivePath(
         work.nextcloudFolderPath,
         status === "ARCHIVED" ? "archive" : "unarchive",
+        storageRootName(),
       );
       await enqueue({ kind: "MOVE_WORK_FOLDER", workId, fromPath: work.nextcloudFolderPath, toPath });
     }
