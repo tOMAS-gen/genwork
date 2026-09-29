@@ -6,7 +6,7 @@ import { access } from "@/lib/domain/permissions";
 import { enqueue } from "@/lib/storage/queue";
 import { getStorageProvider } from "@/lib/storage";
 import { computeArchivePath } from "@/lib/storage/paths";
-import { buildProjectCode } from "@/lib/domain/works/projectCode";
+import { formatFolderName } from "@/lib/storage/paths";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
 import { createWork } from "@/server/works";
@@ -83,7 +83,7 @@ function summarize(work: WorkWithGroup, taskCounts?: { total: number; done: numb
     groupName: work.group?.name ?? null,
     // objetivos: una plantilla se puede leer por id (work.get) aunque work.list no la liste.
     isTemplate: work.isTemplate,
-    code: buildProjectCode(work.group?.name ?? null, work.folderSeq, work.name),
+    code: formatFolderName(work.folderSeq, work.name),
     ...(taskCounts ? { taskCounts } : {}),
   };
 }

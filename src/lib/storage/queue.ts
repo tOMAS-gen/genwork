@@ -6,8 +6,12 @@
 
 import { prisma } from "@/lib/db/client";
 import { getStorageProvider } from "./index";
-import { formatFolderName } from "./paths";
+import { ARCHIVE_FOLDER, formatFolderName } from "./paths";
+import type { WorkFolderScope } from "./provider";
+import { loadArchivableWork } from "@/lib/domain/archive/load";
+import { writeArchiveSnapshot } from "@/lib/domain/archive/snapshot";
 import { permissionAudit } from "./permissionAudit";
+import { rebaseFileShares } from "./fileShares";
 import type { JobKind, Prisma } from "@prisma/client";
 
 const MAX_ATTEMPTS = 10;
@@ -110,16 +114,16 @@ export async function runJob(payload: JobPayload): Promise<void> {
       // carpeta.
       if (!work.folderEnabledAt) return;
       const folderName = formatFolderName(work.folderSeq, payload.workName);
-      let scope: { groupName: string } | { personalStorageUserId: string };
+      let scope: WorkFolderScope;
       if (payload.groupId) {
         const group = await prisma.group.findUniqueOrThrow({ where: { id: payload.groupId } });
-        scope = { groupName: group.name };
+        scope = { groupName: group.name, storageGroupId: group.nextcloudGroupId };
       } else {
         const owner = await prisma.user.findUniqueOrThrow({
           where: { id: payload.ownerUserId! },
         });
         if (!owner.nextcloudUserId) throw new Error("Dueño sin cuenta Nextcloud aún (reintentar)");
-        scope = { personalStorageUserId: owner.nextcloudUserId };
+        scope = { personalStorageUserId: owner.nextcloudUserId, personalEmail: owner.email };
       }
       const { folderPath } = await storage.createWorkFolder({
         scope,
@@ -145,7 +149,11 @@ export async function runJob(payload: JobPayload): Promise<void> {
       // llamar al provider (research.md D10, FR-008).
       const work = await prisma.work.findUnique({
         where: { id: payload.workId },
-        select: { nextcloudFolderPath: true },
+        select: {
+          nextcloudFolderPath: true,
+          group: { select: { name: true, nextcloudGroupId: true } },
+          owner: { select: { email: true, nextcloudUserId: true } },
+        },
       });
       if (!work?.nextcloudFolderPath) return;
       await storage.moveFolder(payload.fromPath, payload.toPath);
@@ -154,6 +162,25 @@ export async function runJob(payload: JobPayload): Promise<void> {
         where: { id: payload.workId },
         data: { nextcloudFolderPath: payload.toPath },
       });
+      await rebaseFileShares(payload.workId, payload.fromPath, payload.toPath);
+      // Archivado: `_archivados/{ámbito}` se comparte igual que el ámbito
+      // original, y junto a los archivos quedan los datos del proyecto (JSON,
+      // tareas.md, documentacion.html). Va después de actualizar la ruta: si
+      // falla, el reintento encuentra la carpeta ya movida (moveFolder es no-op)
+      // y repite ambos pasos, que son idempotentes.
+      if (payload.kind === "MOVE_WORK_FOLDER" && payload.toPath.includes(`/${ARCHIVE_FOLDER}/`)) {
+        const scope: WorkFolderScope | null = work.group
+          ? { groupName: work.group.name, storageGroupId: work.group.nextcloudGroupId }
+          : work.owner?.nextcloudUserId
+            ? { personalStorageUserId: work.owner.nextcloudUserId, personalEmail: work.owner.email }
+            : null;
+        if (scope && storage.shareScopeFolder) {
+          const scopePath = payload.toPath.substring(0, payload.toPath.lastIndexOf("/"));
+          await storage.shareScopeFolder({ path: scopePath, scope });
+        }
+        const archived = await loadArchivableWork(payload.workId);
+        await writeArchiveSnapshot(storage, archived, payload.toPath);
+      }
       return;
     }
     case "AUDIT_GROUP_PERMISSIONS": {

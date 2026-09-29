@@ -7,7 +7,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { buildArchivePackage } from "@/lib/domain/archive/builder";
-import type { ArchivableObjective, ArchivableTask } from "@/lib/domain/archive/render";
+import { loadArchivableWork } from "@/lib/domain/archive/load";
 import type { Prisma } from "@prisma/client";
 
 const ARCHIVE_DIR = process.env.ARCHIVE_DIR ?? "./storage/archives";
@@ -50,47 +50,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
   // Armado en background; el cliente hace polling del estado
   void (async () => {
     try {
-      const full = await prisma.work.findUniqueOrThrow({
-        where: { id },
-        include: {
-          doc: true,
-          // objetivos (D12): `tareas.md` se agrupa por objetivo, en su orden.
-          objectives: {
-            orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-            select: { id: true, title: true, description: true },
-          },
-          tasks: {
-            // objetivos: antes sin orden; `position` es por sección, así que
-            // `createdAt` desempata (mismo criterio que works/[id]).
-            orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-            include: {
-              creator: { select: { name: true } },
-              completedBy: { select: { name: true } },
-              links: { include: { sector: true, user: { select: { name: true } } } },
-              status: { select: { type: true } },
-            },
-          },
-        },
-      });
-
-      const tasks: ArchivableTask[] = full.tasks.map((t) => ({
-        id: t.id,
-        parentId: t.parentId,
-        objectiveId: t.objectiveId,
-        displayText: t.displayText,
-        rawText: t.rawText,
-        statusType: t.status.type,
-        createdAt: t.createdAt,
-        completedAt: t.completedAt,
-        creatorName: t.creator.name,
-        completedByName: t.completedBy?.name ?? null,
-        tags: t.links.map((l) => ({
-          symbol: l.type === "EXEC" ? "#" : l.targetType === "USER" ? "@" : "@",
-          name: l.sector?.name ?? l.user?.name ?? "?",
-        })),
-      }));
-
-      const objectives: ArchivableObjective[] = full.objectives;
+      const full = await loadArchivableWork(id);
 
       const storage = await getStorageProvider();
       if (!storage) throw new Error("Almacenamiento no configurado");
@@ -99,10 +59,10 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (_req, { 
         storage,
         {
           workName: full.name,
-          folderPath: full.nextcloudFolderPath,
-          docContent: full.doc?.content ?? null,
-          tasks,
-          objectives,
+          folderPath: full.folderPath,
+          docContent: full.docContent,
+          tasks: full.tasks,
+          objectives: full.objectives,
         },
         zipPath,
       );

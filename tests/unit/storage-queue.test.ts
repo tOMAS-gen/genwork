@@ -38,6 +38,11 @@ const mocks = vi.hoisted(() => ({
   createWorkFolder: vi.fn(),
   deleteFolder: vi.fn(),
   moveFolder: vi.fn(),
+  loadArchivableWork: vi.fn(),
+  writeArchiveSnapshot: vi.fn(),
+  shareScopeFolder: vi.fn(),
+  fileShareFindMany: vi.fn(),
+  fileShareUpdate: vi.fn(),
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -52,6 +57,10 @@ vi.mock("@/lib/db/client", () => ({
     user: {
       findUniqueOrThrow: (...args: unknown[]) => mocks.userFindUniqueOrThrow(...args),
     },
+    fileShare: {
+      findMany: (...args: unknown[]) => mocks.fileShareFindMany(...args),
+      update: (...args: unknown[]) => mocks.fileShareUpdate(...args),
+    },
     work: {
       findUnique: (...args: unknown[]) => mocks.workFindUnique(...args),
       update: (...args: unknown[]) => mocks.workUpdate(...args),
@@ -62,6 +71,14 @@ vi.mock("@/lib/db/client", () => ({
 
 vi.mock("@/lib/storage/index", () => ({
   getStorageProvider: (...args: unknown[]) => mocks.getStorageProvider(...args),
+}));
+
+vi.mock("@/lib/domain/archive/load", () => ({
+  loadArchivableWork: (...args: unknown[]) => mocks.loadArchivableWork(...args),
+}));
+
+vi.mock("@/lib/domain/archive/snapshot", () => ({
+  writeArchiveSnapshot: (...args: unknown[]) => mocks.writeArchiveSnapshot(...args),
 }));
 
 // Importado después de registrar los mocks.
@@ -105,8 +122,10 @@ beforeEach(() => {
     createWorkFolder: mocks.createWorkFolder,
     deleteFolder: mocks.deleteFolder,
     moveFolder: mocks.moveFolder,
+    shareScopeFolder: mocks.shareScopeFolder,
   });
   mocks.provisioningJobUpdate.mockResolvedValue(undefined);
+  mocks.fileShareFindMany.mockResolvedValue([]);
 });
 
 describe("processPending — ADD_MEMBER/REMOVE_MEMBER vs. dependencia todavía no lista (R1)", () => {
@@ -315,5 +334,150 @@ describe("processPending — ADD_MEMBER/REMOVE_MEMBER con dependencia YA resuelt
       where: { id: "job-1" },
       data: { status: "DONE", lastError: null },
     });
+  });
+});
+
+describe("processPending — carpetas bajo GENWORK_<EMPRESA> y archivado con datos", () => {
+  it("CREATE_WORK_FOLDER de grupo: nombre NOMBRE_código y scope con el grupo de la nube", async () => {
+    queueSingleJob(
+      makeJob({
+        kind: "CREATE_WORK_FOLDER",
+        payload: {
+          kind: "CREATE_WORK_FOLDER",
+          workId: "work-1",
+          workName: "Campaña otoño",
+          groupId: "group-1",
+          ownerUserId: null,
+        },
+      }),
+    );
+    mocks.workFindUnique.mockResolvedValue({ id: "work-1", folderSeq: 7, folderEnabledAt: NOW });
+    mocks.groupFindUniqueOrThrow.mockResolvedValue({ name: "Ventas", nextcloudGroupId: "gw-Ventas" });
+    mocks.createWorkFolder.mockResolvedValue({ folderPath: "/GENWORK_GEN/VENTAS/CAMPAÑA-OTOÑO_007" });
+
+    await processPending();
+
+    expect(mocks.createWorkFolder).toHaveBeenCalledWith({
+      scope: { groupName: "Ventas", storageGroupId: "gw-Ventas" },
+      workName: "CAMPAÑA-OTOÑO_007",
+    });
+    expect(mocks.workUpdate).toHaveBeenCalledWith({
+      where: { id: "work-1" },
+      data: { nextcloudFolderPath: "/GENWORK_GEN/VENTAS/CAMPAÑA-OTOÑO_007" },
+    });
+  });
+
+  it("CREATE_WORK_FOLDER personal: scope con el email del dueño", async () => {
+    queueSingleJob(
+      makeJob({
+        kind: "CREATE_WORK_FOLDER",
+        payload: {
+          kind: "CREATE_WORK_FOLDER",
+          workId: "work-1",
+          workName: "Mi proyecto",
+          groupId: null,
+          ownerUserId: "user-1",
+        },
+      }),
+    );
+    mocks.workFindUnique.mockResolvedValue({ id: "work-1", folderSeq: 12, folderEnabledAt: NOW });
+    mocks.userFindUniqueOrThrow.mockResolvedValue({
+      email: "tomas@gen.net.ar",
+      nextcloudUserId: "tomas@gen.net.ar",
+    });
+    mocks.createWorkFolder.mockResolvedValue({ folderPath: "/x" });
+
+    await processPending();
+
+    expect(mocks.createWorkFolder).toHaveBeenCalledWith({
+      scope: { personalStorageUserId: "tomas@gen.net.ar", personalEmail: "tomas@gen.net.ar" },
+      workName: "MI-PROYECTO_012",
+    });
+  });
+
+  it("MOVE_WORK_FOLDER hacia _archivados: mueve, actualiza la ruta y escribe el snapshot", async () => {
+    const toPath = "/GENWORK_GEN/_archivados/VENTAS/INFORME_007";
+    queueSingleJob(
+      makeJob({
+        kind: "MOVE_WORK_FOLDER",
+        payload: {
+          kind: "MOVE_WORK_FOLDER",
+          workId: "work-1",
+          fromPath: "/GENWORK_GEN/VENTAS/INFORME_007",
+          toPath,
+        },
+      }),
+    );
+    mocks.workFindUnique.mockResolvedValue({
+      nextcloudFolderPath: "/GENWORK_GEN/VENTAS/INFORME_007",
+      group: { name: "Ventas", nextcloudGroupId: "gw-Ventas" },
+      owner: null,
+    });
+    const archived = { id: "work-1", name: "Informe" };
+    mocks.loadArchivableWork.mockResolvedValue(archived);
+
+    await processPending();
+
+    expect(mocks.moveFolder).toHaveBeenCalledWith("/GENWORK_GEN/VENTAS/INFORME_007", toPath);
+    expect(mocks.workUpdateMany).toHaveBeenCalledWith({
+      where: { id: "work-1" },
+      data: { nextcloudFolderPath: toPath },
+    });
+    expect(mocks.shareScopeFolder).toHaveBeenCalledWith({
+      path: "/GENWORK_GEN/_archivados/VENTAS",
+      scope: { groupName: "Ventas", storageGroupId: "gw-Ventas" },
+    });
+    expect(mocks.writeArchiveSnapshot).toHaveBeenCalledWith(expect.anything(), archived, toPath);
+    expect(mocks.provisioningJobUpdate).toHaveBeenCalledWith({
+      where: { id: "job-1" },
+      data: { status: "DONE", lastError: null },
+    });
+  });
+
+  it("MOVE/RENAME re-basa las rutas de los FileShare del proyecto", async () => {
+    const from = "/GENWORK_GEN/VENTAS/INFORME_007";
+    const to = "/GENWORK_GEN/VENTAS/REPORTE_007";
+    queueSingleJob(
+      makeJob({
+        kind: "RENAME_WORK_FOLDER",
+        payload: { kind: "RENAME_WORK_FOLDER", workId: "work-1", fromPath: from, toPath: to },
+      }),
+    );
+    mocks.workFindUnique.mockResolvedValue({ nextcloudFolderPath: from, group: null, owner: null });
+    mocks.fileShareFindMany.mockResolvedValue([
+      { id: "s1", path: `${from}/a.pdf` },
+      { id: "s2", path: `${from}/planos/b.pdf` },
+    ]);
+
+    await processPending();
+
+    expect(mocks.fileShareUpdate).toHaveBeenCalledWith({ where: { id: "s1" }, data: { path: `${to}/a.pdf` } });
+    expect(mocks.fileShareUpdate).toHaveBeenCalledWith({
+      where: { id: "s2" },
+      data: { path: `${to}/planos/b.pdf` },
+    });
+  });
+
+  it("MOVE_WORK_FOLDER de desarchivado: no escribe snapshot", async () => {
+    queueSingleJob(
+      makeJob({
+        kind: "MOVE_WORK_FOLDER",
+        payload: {
+          kind: "MOVE_WORK_FOLDER",
+          workId: "work-1",
+          fromPath: "/GENWORK_GEN/_archivados/VENTAS/INFORME_007",
+          toPath: "/GENWORK_GEN/VENTAS/INFORME_007",
+        },
+      }),
+    );
+    mocks.workFindUnique.mockResolvedValue({
+      nextcloudFolderPath: "/GENWORK_GEN/_archivados/VENTAS/INFORME_007",
+    });
+
+    await processPending();
+
+    expect(mocks.moveFolder).toHaveBeenCalled();
+    expect(mocks.shareScopeFolder).not.toHaveBeenCalled();
+    expect(mocks.writeArchiveSnapshot).not.toHaveBeenCalled();
   });
 });

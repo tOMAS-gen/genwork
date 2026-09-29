@@ -46,7 +46,18 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     );
   }
 
-  const stream = await storage.read(fullPath);
+  let stream;
+  try {
+    stream = await storage.read(fullPath);
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code === "NOT_FOUND") {
+      return NextResponse.json(
+        { error: { code: "NOT_FOUND", message: "El archivo no existe o no tenés acceso en la nube" } },
+        { status: 404 },
+      );
+    }
+    throw err;
+  }
   const fileName = relPath.split("/").pop() || "archivo";
 
   return new Response(Readable.toWeb(stream) as ReadableStream, {

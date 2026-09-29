@@ -10,6 +10,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { Readable } from "node:stream";
 import { docToHtml, tasksToMarkdown, type ArchivableObjective, type ArchivableTask } from "./render";
+import { SNAPSHOT_FOLDER } from "./snapshot";
 
 /** Subconjunto de StorageProvider que necesita el export (mockeable en tests). */
 export interface ArchiveStorage {
@@ -64,6 +65,9 @@ export async function buildArchivePackage(
       const rel = entry.path.startsWith(input.folderPath)
         ? entry.path.slice(input.folderPath.length).replace(/^\//, "")
         : entry.name;
+      // El snapshot de un archivado anterior queda viejo: el paquete ya trae
+      // su propia documentación y tareas al día.
+      if (rel.startsWith(`${SNAPSHOT_FOLDER}/`)) continue;
       const stream = await storage.read(entry.path);
       zip.append(stream, { name: `${root}/archivos/${rel}` });
       manifest.files.push(rel);

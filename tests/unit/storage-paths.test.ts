@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatFolderName, computeArchivePath, computeRenamePath } from "@/lib/storage/paths";
+import {
+  folderSegment,
+  formatFolderName,
+  parseFolderCode,
+  computeArchivePath,
+  computeRenamePath,
+} from "@/lib/storage/paths";
+import { storageRootName } from "@/lib/storage/root";
 import { confineWorkPath } from "@/lib/storage/access-check";
 import { NextcloudProvider } from "@/lib/storage/nextcloud";
 import type { NextcloudConfig } from "@/lib/storage/provider";
@@ -13,41 +20,118 @@ vi.mock("webdav", () => ({
   createClient: vi.fn(() => davMock),
 }));
 
-describe("formatFolderName — numeración y sanitización", () => {
-  it("pad de 3 dígitos con nombre simple, en minúsculas", () => {
-    expect(formatFolderName(1, "Proyecto Tina")).toBe("001-proyecto tina");
+describe("folderSegment — MAYÚSCULAS y guion en lugar de espacios", () => {
+  it("pasa a mayúsculas y cambia espacios por guion", () => {
+    expect(folderSegment("Campaña otoño")).toBe("CAMPAÑA-OTOÑO");
   });
 
-  it("secuencia de dos dígitos también se paddea a 3, en minúsculas", () => {
-    expect(formatFolderName(42, "Mueble García")).toBe("042-mueble garcía");
+  it("colapsa espacios y guiones repetidos y recorta los extremos", () => {
+    expect(folderSegment("  Mueble   -  Living  ")).toBe("MUEBLE-LIVING");
   });
 
-  it("más de 3 dígitos no se trunca, en minúsculas", () => {
-    expect(formatFolderName(1000, "Test")).toBe("1000-test");
+  it("reemplaza el set completo de caracteres inválidos de filesystem", () => {
+    expect(folderSegment('a\\b:c*d?e"f<g>h|i/j')).toBe("A-B-C-D-E-F-G-H-I-J");
   });
 
-  it("sanitiza caracteres especiales del nombre y baja a minúsculas", () => {
-    expect(formatFolderName(1, 'Nombre con /slash y *star')).toBe("001-nombre con -slash y -star");
-  });
-
-  it("sanitiza el set completo de caracteres inválidos de filesystem, en minúsculas", () => {
-    expect(formatFolderName(2, 'a\\b:c*d?e"f<g>h|i')).toBe("002-a-b-c-d-e-f-g-h-i");
-  });
-
-  it("recorta espacios sobrantes tras sanitizar, en minúsculas", () => {
-    expect(formatFolderName(3, "  Con espacios  ")).toBe("003-con espacios");
-  });
-
-  it("el resultado siempre va en minúsculas (ejemplo spec.md)", () => {
-    expect(formatFolderName(23, "Mueble Living")).toBe("023-mueble living");
-  });
-
-  it("baja a minúsculas nombres con acentos y caracteres especiales", () => {
-    expect(formatFolderName(4, "Ñandú & Sofá N°2")).toBe("004-ñandú & sofá n°2");
+  it("conserva `_`, acentos y ñ", () => {
+    expect(folderSegment("Balance_2024 Ñandú")).toBe("BALANCE_2024-ÑANDÚ");
   });
 });
 
-describe("computeArchivePath — mover a/desde _archivados", () => {
+describe("formatFolderName — NOMBRE_código", () => {
+  it("nombre en mayúsculas con guiones + código de 3 dígitos al final", () => {
+    expect(formatFolderName(7, "Campaña otoño")).toBe("CAMPAÑA-OTOÑO_007");
+  });
+
+  it("más de 3 dígitos no se trunca", () => {
+    expect(formatFolderName(1000, "Test")).toBe("TEST_1000");
+  });
+
+  it("sanitiza caracteres inválidos del nombre", () => {
+    expect(formatFolderName(1, "Nombre con /slash y *star")).toBe("NOMBRE-CON-SLASH-Y-STAR_001");
+  });
+
+  it("homónimos no chocan: el código (folderSeq) los distingue", () => {
+    expect(formatFolderName(7, "Informe")).not.toBe(formatFolderName(15, "Informe"));
+  });
+});
+
+describe("parseFolderCode — leer el código desde el último `_`", () => {
+  it("lee el código de un nombre simple", () => {
+    expect(parseFolderCode("INFORME_007")).toBe(7);
+  });
+
+  it("el nombre puede contener `_`: manda el último", () => {
+    expect(parseFolderCode("BALANCE_2024_007")).toBe(7);
+  });
+
+  it("tolera el sufijo anti-duplicado -N", () => {
+    expect(parseFolderCode("INFORME_007-2")).toBe(7);
+  });
+
+  it("null si el nombre no sigue el formato", () => {
+    expect(parseFolderCode("carpeta suelta")).toBeNull();
+    expect(parseFolderCode("007-viejo")).toBeNull();
+  });
+});
+
+describe("storageRootName — raíz GENWORK_<EMPRESA> desde GENWORK_ORG", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("sin la variable → null (estructura previa)", () => {
+    vi.stubEnv("GENWORK_ORG", "");
+    expect(storageRootName()).toBeNull();
+  });
+
+  it("nombre simple", () => {
+    vi.stubEnv("GENWORK_ORG", "gen");
+    expect(storageRootName()).toBe("GENWORK_GEN");
+  });
+
+  it("nombre con espacios y caracteres inválidos", () => {
+    vi.stubEnv("GENWORK_ORG", " Gen SA / Norte ");
+    expect(storageRootName()).toBe("GENWORK_GEN-SA-NORTE");
+  });
+});
+
+describe("computeArchivePath — raíz por empresa: _archivados replica la organización", () => {
+  const root = "GENWORK_GEN";
+
+  it("archive: /{root}/{GRUPO}/{proy} → /{root}/_archivados/{GRUPO}/{proy}", () => {
+    expect(computeArchivePath("/GENWORK_GEN/VENTAS/INFORME_007", "archive", root)).toBe(
+      "/GENWORK_GEN/_archivados/VENTAS/INFORME_007",
+    );
+  });
+
+  it("archive de proyecto personal (email como ámbito)", () => {
+    expect(
+      computeArchivePath("/GENWORK_GEN/user@mail.com/MI-PROYECTO_012", "archive", root),
+    ).toBe("/GENWORK_GEN/_archivados/user@mail.com/MI-PROYECTO_012");
+  });
+
+  it("unarchive vuelve al ámbito original", () => {
+    expect(
+      computeArchivePath("/GENWORK_GEN/_archivados/VENTAS/INFORME_007", "unarchive", root),
+    ).toBe("/GENWORK_GEN/VENTAS/INFORME_007");
+  });
+
+  it("archive ya archivado y unarchive no archivado son no-op", () => {
+    const archived = "/GENWORK_GEN/_archivados/VENTAS/INFORME_007";
+    const active = "/GENWORK_GEN/VENTAS/INFORME_007";
+    expect(computeArchivePath(archived, "archive", root)).toBe(archived);
+    expect(computeArchivePath(active, "unarchive", root)).toBe(active);
+  });
+
+  it("una ruta previa a la raíz por empresa conserva el formato viejo", () => {
+    expect(computeArchivePath("/genwork/Grupo/001-Test", "archive", root)).toBe(
+      "/genwork/Grupo/_archivados/001-Test",
+    );
+  });
+});
+
+describe("computeArchivePath — rutas previas (sin raíz por empresa)", () => {
   it("archive agrega el segmento _archivados antes del folder", () => {
     expect(computeArchivePath("/genwork/Grupo/001-Test", "archive")).toBe(
       "/genwork/Grupo/_archivados/001-Test",
@@ -73,22 +157,16 @@ describe("computeArchivePath — mover a/desde _archivados", () => {
   });
 });
 
-describe("computeRenamePath — renombrar carpeta manteniendo secuencia", () => {
-  it("reemplaza el último segmento con el nuevo nombre formateado, en minúsculas", () => {
-    expect(computeRenamePath("/genwork/Grupo/001-Viejo", 1, "Nuevo")).toBe(
-      "/genwork/Grupo/001-nuevo",
+describe("computeRenamePath — renombrar carpeta manteniendo el código", () => {
+  it("reemplaza el último segmento con el nuevo nombre formateado", () => {
+    expect(computeRenamePath("/GENWORK_GEN/VENTAS/VIEJO_001", 1, "Nuevo nombre")).toBe(
+      "/GENWORK_GEN/VENTAS/NUEVO-NOMBRE_001",
     );
   });
 
-  it("permite cambiar también la secuencia del folder, en minúsculas", () => {
-    expect(computeRenamePath("/genwork/Grupo/001-Viejo", 7, "Nuevo")).toBe(
-      "/genwork/Grupo/007-nuevo",
-    );
-  });
-
-  it("sanitiza el nuevo nombre igual que formatFolderName, en minúsculas", () => {
-    expect(computeRenamePath("/genwork/Grupo/001-Viejo", 1, "Nuevo/Nombre")).toBe(
-      "/genwork/Grupo/001-nuevo-nombre",
+  it("sanitiza el nuevo nombre igual que formatFolderName", () => {
+    expect(computeRenamePath("/GENWORK_GEN/VENTAS/VIEJO_001", 1, "Nuevo/Nombre")).toBe(
+      "/GENWORK_GEN/VENTAS/NUEVO-NOMBRE_001",
     );
   });
 });

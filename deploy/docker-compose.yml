@@ -73,6 +73,7 @@ services:
       NEXTCLOUD_URL: http://nextcloud
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-ncadmin}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      GENWORK_ORG: ${GENWORK_ORG:?definir en .env}
       ARCHIVE_DIR: /data/archives
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?definir en .env}
     volumes:

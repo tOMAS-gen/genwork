@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Upload, Folder, FileText, Download, Trash2, Share2, Copy, Check, Clock } from "@/components/ui/icons";
+import { Upload, Folder, FileText, Download, Trash2, Share2, Copy, Check, Clock, Pencil } from "@/components/ui/icons";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -95,8 +95,8 @@ function formatRelativeDate(iso: string): string {
 
 /**
  * Explorador de la carpeta de almacenamiento del proyecto (feature 028, extendido
- * por feature 051): listar/navegar, subir, crear carpetas, descargar, eliminar y
- * compartir (link público o alta interna de un usuario de genwork).
+ * por feature 051): listar/navegar, subir, crear carpetas, descargar, renombrar,
+ * eliminar y compartir (link público o alta interna de un usuario de genwork).
  */
 export function FilesBrowser({
   workId,
@@ -127,6 +127,11 @@ export function FilesBrowser({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteLinkUrl, setDeleteLinkUrl] = useState<string | null>(null);
+  const [renameTarget, setRenameTarget] = useState<StorageFileInfo | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameLinkUrl, setRenameLinkUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Compartir (T034, FR-004/FR-010/FR-009) ---
@@ -305,6 +310,32 @@ export function FilesBrowser({
       setDeleting(false);
     }
   }, [workId, deleteTarget, load]);
+
+  const confirmRename = useCallback(async () => {
+    const trimmed = renameValue.trim();
+    if (!renameTarget || !trimmed || trimmed === renameTarget.name) return;
+    setRenaming(true);
+    setRenameError(null);
+    setRenameLinkUrl(null);
+    try {
+      await api<{ path: string }>(`/api/works/${workId}/files`, {
+        method: "PATCH",
+        body: JSON.stringify({ path: renameTarget.path, newName: trimmed }),
+      });
+      setRenameTarget(null);
+      load();
+    } catch (err) {
+      const identity = parseStorageIdentityError(err);
+      if (identity) {
+        setRenameError(STORAGE_IDENTITY_MESSAGE);
+        setRenameLinkUrl(identity.linkUrl);
+      } else {
+        setRenameError((err as Error).message || "No se pudo renombrar");
+      }
+    } finally {
+      setRenaming(false);
+    }
+  }, [workId, renameTarget, renameValue, load]);
 
   /** Re-fetch de los shares vigentes del elemento (FR-009: refresco inmediato). */
   const loadShares = useCallback(
@@ -622,6 +653,21 @@ export function FilesBrowser({
                 <button
                   type="button"
                   className="icon-btn"
+                  title="Renombrar"
+                  aria-label={`Renombrar ${file.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRenameError(null);
+                    setRenameLinkUrl(null);
+                    setRenameValue(file.name);
+                    setRenameTarget(file);
+                  }}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
                   title="Eliminar"
                   aria-label={`Eliminar ${file.name}`}
                   onClick={(e) => {
@@ -671,6 +717,46 @@ export function FilesBrowser({
             onClick={() => void createFolder(newFolderName)}
           >
             {creatingFolder ? "Creando…" : "Crear carpeta"}
+          </button>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={renameTarget !== null}
+        onClose={() => setRenameTarget(null)}
+        title="Renombrar"
+      >
+        <div className="dialog-field">
+          <label htmlFor="rename-name">Nombre</label>
+          <input
+            id="rename-name"
+            autoFocus
+            value={renameValue}
+            disabled={renaming}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void confirmRename()}
+          />
+        </div>
+        {renameError && renameLinkUrl && (
+          <StorageIdentityNotice message={renameError} linkUrl={renameLinkUrl} />
+        )}
+        {renameError && !renameLinkUrl && (
+          <p style={{ color: "var(--danger)", margin: 0 }}>{renameError}</p>
+        )}
+        <div className="dialog-actions">
+          <button className="btn" onClick={() => setRenameTarget(null)} disabled={renaming}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={
+              renaming ||
+              renameValue.trim().length === 0 ||
+              renameValue.trim() === renameTarget?.name
+            }
+            onClick={() => void confirmRename()}
+          >
+            {renaming ? "Renombrando…" : "Renombrar"}
           </button>
         </div>
       </Dialog>
