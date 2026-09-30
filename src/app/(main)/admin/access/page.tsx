@@ -26,9 +26,9 @@ export default function AccessAdminPage() {
   if (!config) return <p className="muted">Cargando…</p>;
 
   const save = async (next: AccessConfig) => {
-    setConfig(next);
     try {
       await api("/api/admin/access", { method: "PUT", body: JSON.stringify(next) });
+      setConfig(next);
       setStatus("Guardado");
     } catch (err) {
       setStatus((err as Error).message);
@@ -51,9 +51,13 @@ export default function AccessAdminPage() {
   };
 
   const removeEmail = async (email: string) => {
-    await api("/api/admin/access/emails", { method: "DELETE", body: JSON.stringify({ email }) });
-    setEmails((prev) => prev.filter((e) => e !== email));
-    setStatus("Correo quitado; pierde el acceso en su próximo ingreso");
+    try {
+      await api("/api/admin/access/emails", { method: "DELETE", body: JSON.stringify({ email }) });
+      setEmails((prev) => prev.filter((e) => e !== email));
+      setStatus("Correo quitado; pierde el acceso en su próximo ingreso");
+    } catch (err) {
+      setStatus((err as Error).message);
+    }
   };
 
   return (

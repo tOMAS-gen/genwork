@@ -22,3 +22,17 @@ export function isEmailAllowed(rules: AccessRules, email: string): boolean {
   }
   return rules.allowedEmails.has(e);
 }
+
+/**
+ * ¿Puede volver a ingresar un usuario ya creado? El SUPERADMIN (evita quedarse sin
+ * acceso al panel) y los CLIENT del portal (feature 059, se invitan por otra vía y
+ * no están en la allowlist) siempre pasan; el resto sigue las reglas vigentes, de
+ * modo que quitar un correo o cambiar el modo revoca el acceso en el próximo ingreso.
+ */
+export function canExistingUserSignIn(
+  rules: AccessRules,
+  user: { email: string; globalRole: string },
+): boolean {
+  if (user.globalRole === "SUPERADMIN" || user.globalRole === "CLIENT") return true;
+  return isEmailAllowed(rules, user.email);
+}

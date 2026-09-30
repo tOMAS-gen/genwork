@@ -20,7 +20,7 @@ export default async function AdminHome() {
             <User size={20} />
             <div>
               <div><strong>Mi cuenta</strong></div>
-              <span className="muted">Almacenamiento vinculado y preferencias de tu cuenta</span>
+              <span className="muted">Almacenamiento vinculado, versión y estado del sistema</span>
             </div>
           </div>
         </Link>
