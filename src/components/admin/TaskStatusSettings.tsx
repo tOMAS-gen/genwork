@@ -124,8 +124,8 @@ export function TaskStatusSettings({ scope, title = "Estados de tarea" }: { scop
       <h3>{title}</h3>
       {inherited && (
         <p className="muted" style={{ fontSize: 13 }}>
-          Usando el conjunto general de la organización. Cualquier cambio acá crea un conjunto
-          propio para este sector, sin afectar a los demás.
+          Este sector usa el conjunto general. Cualquier cambio acá crea un conjunto propio para
+          este sector, sin afectar a los demás.
         </p>
       )}
 

@@ -3,6 +3,7 @@ import {
   resolveApplicableStatusSet,
   initialStatus,
   finalStatus,
+  pickStatusSectorId,
   reassignOnSectorChange,
   type TaskStatusRef,
 } from "@/lib/domain/tasks/statusResolution";
@@ -103,8 +104,12 @@ describe("initialStatus/finalStatus", () => {
     expect(finalStatus(set).id).toBe("c");
   });
 
-  it("initialStatus tira error si no hay ningún IN_PROGRESS", () => {
-    expect(() => initialStatus([status({ id: "c", type: "FINAL" })])).toThrow();
+  it("initialStatus sin IN_PROGRESS cae al primer estado del conjunto", () => {
+    expect(initialStatus([status({ id: "c", type: "FINAL" })]).id).toBe("c");
+  });
+
+  it("initialStatus tira error si el conjunto está vacío", () => {
+    expect(() => initialStatus([])).toThrow();
   });
 });
 
@@ -128,5 +133,22 @@ describe("reassignOnSectorChange — FR-015", () => {
   it("si el estado actual ya pertenece al conjunto destino, no cambia", () => {
     const actual = destino[1];
     expect(reassignOnSectorChange(actual, destino).id).toBe("d-en-proceso");
+  });
+});
+
+describe("pickStatusSectorId — sector que aporta el override", () => {
+  it("prefiere el sector EXEC con conjunto propio, sin importar el orden de los links", () => {
+    expect(pickStatusSectorId(["b", "a"], new Set(["b"]), null)).toBe("b");
+    expect(pickStatusSectorId(["a", "b"], new Set(["b"]), null)).toBe("b");
+  });
+
+  it("con varios con conjunto propio o ninguno, elige el primero por id (estable)", () => {
+    expect(pickStatusSectorId(["b", "a"], new Set(["a", "b"]), null)).toBe("a");
+    expect(pickStatusSectorId(["b", "a"], new Set(), null)).toBe("a");
+  });
+
+  it("sin EXEC cae al sector hogar, y sin nada devuelve null", () => {
+    expect(pickStatusSectorId([], new Set(), "home")).toBe("home");
+    expect(pickStatusSectorId([], new Set(), null)).toBeNull();
   });
 });

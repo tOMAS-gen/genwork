@@ -8,6 +8,7 @@
 
 import { prisma } from "@/lib/db/client";
 import { validateStatusSet, canDeleteStatus } from "@/lib/domain/taskStatus/validate";
+import { pickStatusSectorId, reassignOnSectorChange } from "@/lib/domain/tasks/statusResolution";
 import { conflict, notFound } from "@/server/api";
 import type { Prisma, TaskStatus, TaskStatusType } from "@prisma/client";
 
@@ -52,6 +53,16 @@ export async function listApplicableSet(
     where: scopeWhere(scope),
     orderBy: { sortOrder: "asc" },
   });
+  if (statuses.length === 0 && "sectorId" in scope) {
+    // Un sector sin override se muestra con el conjunto general como punto de partida: editarlo
+    // (PATCH/DELETE con `asSectorId`) lo forkea al sector y agregar uno nuevo (`createStatus`)
+    // siembra el conjunto base antes de sumarlo.
+    const general = await prisma.taskStatus.findMany({
+      where: scopeWhere({ global: true }),
+      orderBy: { sortOrder: "asc" },
+    });
+    return { inherited: true, statuses: general };
+  }
   return { inherited: false, statuses };
 }
 
@@ -67,7 +78,7 @@ async function forkIfInherited(sectorId: string, defaultScope: StatusScope): Pro
   const defaults = await prisma.taskStatus.findMany({ where: scopeWhere(defaultScope) });
   if (defaults.length === 0) return;
 
-  const forked = await prisma.taskStatus.createManyAndReturn({
+  await prisma.taskStatus.createMany({
     data: defaults.map((s) => ({
       name: s.name,
       color: s.color,
@@ -77,27 +88,70 @@ async function forkIfInherited(sectorId: string, defaultScope: StatusScope): Pro
     })),
   });
 
-  // Las tareas de este sector que referenciaban el conjunto heredado deben
-  // pasar a apuntar a la copia recién forkeada (mismo nombre = mismo estado
-  // semántico), o quedarían con un statusId ausente del nuevo conjunto propio.
-  const newIdByName = new Map(forked.map((s) => [s.name, s.id]));
-  const oldIds = defaults.map((s) => s.id);
+  await repointSectorTasks(sectorId);
+}
 
-  const affected = await prisma.task.findMany({
-    where: {
-      statusId: { in: oldIds },
-      OR: [{ sectorId }, { links: { some: { type: "EXEC", sectorId } } }],
-    },
-    select: { id: true, statusId: true },
+/**
+ * Conjunto base de un sector que todavía no tiene el suyo: clon del conjunto general o, si
+ * no hay, "Pendiente"/"Hecha". Garantiza que el conjunto propio nazca con un estado en curso
+ * y uno final, para que los estados que se le agreguen después sean válidos.
+ */
+async function baseSectorSet(): Promise<{ name: string; color: string; type: TaskStatusType }[]> {
+  const general = await prisma.taskStatus.findMany({
+    where: scopeWhere({ global: true }),
+    orderBy: { sortOrder: "asc" },
   });
-  const oldNameById = new Map(defaults.map((s) => [s.id, s.name]));
+  if (general.length > 0) return general.map((s) => ({ name: s.name, color: s.color, type: s.type }));
+  return [
+    { name: "Pendiente", color: "#94a3b8", type: "IN_PROGRESS" },
+    { name: "Hecha", color: "#22c55e", type: "FINAL" },
+  ];
+}
+
+/**
+ * Las tareas cuyo estado aplicable sale de este sector (EXEC, o "hogar" sin EXEC) pero que
+ * todavía apuntan a un estado de otro conjunto (el del proyecto/personal/general) pasan al
+ * estado equivalente del conjunto del sector: mismo nombre, o mismo tipo si no hay (FR-015).
+ * Sin esto quedarían con un statusId ausente de las opciones del selector.
+ */
+async function repointSectorTasks(sectorId: string): Promise<void> {
+  const own = await prisma.taskStatus.findMany({ where: { sectorId }, orderBy: { sortOrder: "asc" } });
+  if (own.length === 0) return;
+  const ownIds = new Set(own.map((s) => s.id));
+  const ownByName = new Map(own.map((s) => [s.name.trim().toLowerCase(), s]));
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      statusId: { notIn: [...ownIds] },
+      OR: [{ links: { some: { type: "EXEC", sectorId } } }, { sectorId, links: { none: { type: "EXEC" } } }],
+    },
+    include: { status: true, links: { where: { type: "EXEC" }, select: { sectorId: true } } },
+  });
+  if (tasks.length === 0) return;
+
+  // Una tarea con varios sectores EXEC solo se repunta si el que manda es este (ver pickStatusSectorId).
+  const otherIds = [...new Set(tasks.flatMap((t) => t.links.map((l) => l.sectorId as string)))];
+  const withOwn = new Set(
+    (
+      await prisma.taskStatus.findMany({
+        where: { sectorId: { in: otherIds } },
+        select: { sectorId: true },
+        distinct: ["sectorId"],
+      })
+    ).map((r) => r.sectorId as string),
+  );
+
+  const idsByTarget = new Map<string, string[]>();
+  for (const t of tasks) {
+    const execIds = t.links.map((l) => l.sectorId as string);
+    if (pickStatusSectorId(execIds, withOwn, t.sectorId) !== sectorId) continue;
+    const target = ownByName.get(t.status.name.trim().toLowerCase()) ?? reassignOnSectorChange(t.status, own);
+    idsByTarget.set(target.id, [...(idsByTarget.get(target.id) ?? []), t.id]);
+  }
   await Promise.all(
-    affected.map((t) => {
-      const name = oldNameById.get(t.statusId);
-      const newId = name ? newIdByName.get(name) : undefined;
-      if (!newId) return Promise.resolve();
-      return prisma.task.update({ where: { id: t.id }, data: { statusId: newId } });
-    }),
+    [...idsByTarget].map(([statusId, ids]) =>
+      prisma.task.updateMany({ where: { id: { in: ids } }, data: { statusId } }),
+    ),
   );
 }
 
@@ -130,16 +184,25 @@ export async function createStatus(
   data: { name: string; color: string; type: TaskStatusType },
 ): Promise<TaskStatus> {
   // Los sectores son catálogo global (feature 044): ya no heredan un default de
-  // grupo/personal, así que crear directo en su scope no forkea nada previo.
+  // grupo/personal. Un sector sin conjunto propio arranca con el conjunto base sembrado
+  // (si no, el primer estado agregado nunca formaría un conjunto válido).
   const columns = scopeColumns(scope);
-  const existing = await prisma.taskStatus.findMany({ where: columns });
+  const stored = await prisma.taskStatus.findMany({ where: columns });
+  const seed = "sectorId" in scope && stored.length === 0 ? await baseSectorSet() : [];
+  const existing = [...stored, ...seed.map((b, i) => ({ ...b, id: `__seed${i}__` }))];
   const candidate = [...existing, { id: "__new__", name: data.name, type: data.type }];
+  // Se valida antes de escribir nada: un alta rechazada no deja el conjunto base sembrado.
   const errors = validateStatusSet(candidate);
   if (errors.length > 0) throw conflict(errors[0].message, { errors });
 
-  return prisma.taskStatus.create({
+  if (seed.length > 0) {
+    await prisma.taskStatus.createMany({ data: seed.map((b, i) => ({ ...b, ...columns, sortOrder: i })) });
+  }
+  const created = await prisma.taskStatus.create({
     data: { ...data, ...columns, sortOrder: existing.length },
   });
+  if (seed.length > 0 && "sectorId" in scope) await repointSectorTasks(scope.sectorId);
+  return created;
 }
 
 export async function updateStatus(
@@ -153,7 +216,8 @@ export async function updateStatus(
   const candidate = siblings.map((s) =>
     s.id === target.id ? { id: s.id, name: data.name ?? s.name, type: data.type ?? s.type } : s,
   );
-  const errors = validateStatusSet(candidate);
+  // Cambiar el tipo no puede dejar al conjunto sin estado en curso (no habría estado inicial).
+  const errors = validateStatusSet(candidate, { requireInProgress: data.type !== undefined });
   if (errors.length > 0) throw conflict(errors[0].message, { errors });
 
   return prisma.taskStatus.update({ where: { id: target.id }, data });

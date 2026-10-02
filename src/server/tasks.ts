@@ -12,6 +12,7 @@ import {
   resolveApplicableStatusSet,
   initialStatus,
   reassignOnSectorChange,
+  pickStatusSectorId,
   type TaskScopeRef,
   type TaskStatusRef,
 } from "@/lib/domain/tasks/statusResolution";
@@ -119,7 +120,18 @@ export async function resolveStatusScope(
     if (work) workScope = { groupId: work.groupId, ownerId: work.ownerId };
   }
 
-  const sectorId = execSectorIds[0] ?? homeSectorId ?? null;
+  // Con varios sectores EXEC, el que aporta el override se elige de forma estable (ver
+  // `pickStatusSectorId`); la consulta solo hace falta cuando hay más de uno para elegir.
+  let sectorsWithOwn = new Set<string>();
+  if (execSectorIds.length > 1) {
+    const rows = await db.taskStatus.findMany({
+      where: { sectorId: { in: [...execSectorIds] } },
+      select: { sectorId: true },
+      distinct: ["sectorId"],
+    });
+    sectorsWithOwn = new Set(rows.map((r) => r.sectorId as string));
+  }
+  const sectorId = pickStatusSectorId(execSectorIds, sectorsWithOwn, homeSectorId);
   if (sectorId) {
     const sector = await db.sector.findUnique({ where: { id: sectorId } });
     // El sector es catálogo global (feature 044): ya no aporta groupId/ownerId; solo su

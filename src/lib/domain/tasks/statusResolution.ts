@@ -77,13 +77,31 @@ export function resolveApplicableStatusSet(
   return globalFallback(statuses);
 }
 
-/** Estado inicial de una tarea nueva: el primer IN_PROGRESS del conjunto aplicable (FR-009). */
+/**
+ * Sector que aporta el override de estados de una tarea. Con varios sectores EXEC se prefiere
+ * el primero (orden estable por id) que tenga conjunto propio, para que el resultado no
+ * dependa del orden en que la DB devuelva los links; si ninguno tiene, el primero. Sin EXEC
+ * cae al sector "hogar" de la tarea.
+ */
+export function pickStatusSectorId(
+  execSectorIds: readonly string[],
+  sectorsWithOwnStatuses: ReadonlySet<string>,
+  homeSectorId: string | null,
+): string | null {
+  const sorted = [...execSectorIds].sort();
+  return sorted.find((id) => sectorsWithOwnStatuses.has(id)) ?? sorted[0] ?? homeSectorId ?? null;
+}
+
+/**
+ * Estado inicial de una tarea nueva: el primer IN_PROGRESS del conjunto aplicable (FR-009).
+ * Un conjunto sin IN_PROGRESS no debería existir (se valida al editar); si pasa igual, se usa
+ * el primer estado en vez de romper la creación de la tarea.
+ */
 export function initialStatus(applicableSet: readonly TaskStatusRef[]): TaskStatusRef {
-  const inProgress = sortByOrder(applicableSet.filter((s) => s.type === "IN_PROGRESS"));
-  if (inProgress.length === 0) {
-    throw new Error("El conjunto de estados no tiene ningún estado IN_PROGRESS");
-  }
-  return inProgress[0];
+  const sorted = sortByOrder([...applicableSet]);
+  const first = sorted.find((s) => s.type === "IN_PROGRESS") ?? sorted[0];
+  if (!first) throw new Error("El conjunto de estados está vacío");
+  return first;
 }
 
 export function finalStatus(applicableSet: readonly TaskStatusRef[]): TaskStatusRef {
