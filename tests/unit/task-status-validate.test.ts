@@ -62,3 +62,27 @@ describe("canDeleteStatus — FR-008", () => {
     expect(result.allowed).toBe(true);
   });
 });
+
+describe("validateStatusSet — requireInProgress", () => {
+  const soloFinal = [{ id: "1", name: "Hecha", type: "FINAL" as const }];
+
+  it("sin la opción, un conjunto solo FINAL es válido (bootstrap)", () => {
+    expect(validateStatusSet(soloFinal)).toEqual([]);
+  });
+
+  it("con la opción, un conjunto sin IN_PROGRESS da NO_IN_PROGRESS", () => {
+    const errors = validateStatusSet(soloFinal, { requireInProgress: true });
+    expect(errors.map((e) => e.code)).toEqual(["NO_IN_PROGRESS"]);
+  });
+
+  it("con la opción, un conjunto con IN_PROGRESS y FINAL es válido", () => {
+    const errors = validateStatusSet(
+      [
+        { id: "1", name: "Pendiente", type: "IN_PROGRESS" },
+        { id: "2", name: "Hecha", type: "FINAL" },
+      ],
+      { requireInProgress: true },
+    );
+    expect(errors).toEqual([]);
+  });
+});

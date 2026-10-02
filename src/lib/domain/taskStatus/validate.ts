@@ -6,7 +6,7 @@
 
 import type { TaskStatusRef } from "@/lib/domain/tasks/statusResolution";
 
-export type StatusSetErrorCode = "DUPLICATE_NAME" | "NO_FINAL" | "MULTIPLE_FINAL";
+export type StatusSetErrorCode = "DUPLICATE_NAME" | "NO_FINAL" | "MULTIPLE_FINAL" | "NO_IN_PROGRESS";
 
 export interface StatusSetError {
   code: StatusSetErrorCode;
@@ -16,8 +16,13 @@ export interface StatusSetError {
 /**
  * Valida un conjunto completo de estados (el estado que se está creando/editando
  * ya debe estar incluido en `statuses`, reemplazando o agregándose a los existentes).
+ * Con `requireInProgress` exige además al menos un estado en curso (sin él, una tarea nueva
+ * no tiene estado inicial); se usa al editar, no al armar un conjunto desde cero.
  */
-export function validateStatusSet(statuses: readonly Pick<TaskStatusRef, "id" | "name" | "type">[]): StatusSetError[] {
+export function validateStatusSet(
+  statuses: readonly Pick<TaskStatusRef, "id" | "name" | "type">[],
+  options: { requireInProgress?: boolean } = {},
+): StatusSetError[] {
   const errors: StatusSetError[] = [];
 
   const namesSeen = new Set<string>();
@@ -38,6 +43,10 @@ export function validateStatusSet(statuses: readonly Pick<TaskStatusRef, "id" | 
     errors.push({ code: "NO_FINAL", message: "El conjunto debe tener exactamente un estado final" });
   } else if (finalCount > 1) {
     errors.push({ code: "MULTIPLE_FINAL", message: "El conjunto no puede tener más de un estado final" });
+  }
+
+  if (options.requireInProgress && !statuses.some((s) => s.type === "IN_PROGRESS")) {
+    errors.push({ code: "NO_IN_PROGRESS", message: "El conjunto debe tener al menos un estado en curso" });
   }
 
   return errors;
