@@ -1,0 +1,37 @@
+name: Release Please
+
+# Cada push a main actualiza el PR de release (bump de versión + CHANGELOG según
+# Conventional Commits). Al mergear ese PR se crea el tag vX.Y.Z y el release.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # El tag creado con GITHUB_TOKEN no dispara docker-publish por su cuenta, así
+  # que la imagen con el número de versión se publica desde acá.
+  docker:
+    needs: release
+    if: needs.release.outputs.release_created == 'true'
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    permissions:
+      contents: read
+      packages: write

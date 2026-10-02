@@ -7,13 +7,14 @@ import { Skeleton } from "@/components/ui/Skeleton";
 
 interface SystemInfo {
   version: string;
+  commit: string | null;
   environment: "development" | "production";
   storage: { provider: "NEXTCLOUD" | "GDRIVE"; configured: boolean };
 }
 
 const PROVIDER_LABEL = { NEXTCLOUD: "Nextcloud", GDRIVE: "Google Drive" } as const;
 
-/** Versión de Genwork, entorno actual y estado de la nube del sistema. */
+/** Versión y commit de Genwork, entorno actual y estado de la nube del sistema. */
 export function SystemInfoSection({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const { toast } = useToast();
   const [info, setInfo] = useState<SystemInfo | null>(null);
@@ -78,7 +79,7 @@ export function SystemInfoSection({ isSuperAdmin = false }: { isSuperAdmin?: boo
     <section className="section-panel">
       <h2>Sistema</h2>
       <p style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span>genwork v{info.version}</span>
+        <span>genwork v{info.version}{info.commit ? ` (${info.commit})` : ""}</span>
         <span className={`badge${isDev ? " badge-warning" : ""}`}>
           {isDev ? "Desarrollo" : "Producción"}
         </span>
