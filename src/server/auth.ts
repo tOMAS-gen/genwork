@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db/client";
-import { isEmailAllowed, normalizeEmail } from "@/lib/domain/access";
+import { canExistingUserSignIn, isEmailAllowed, normalizeEmail } from "@/lib/domain/access";
 import { enqueue } from "@/lib/storage/queue";
 import type { GlobalRole } from "@prisma/client";
 
@@ -89,6 +89,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       const existing = await prisma.user.findUnique({ where: { email } });
       if (existing) {
+        const config = await prisma.accessConfig.findUnique({ where: { id: 1 } });
+        const allowed = await prisma.allowedEmail.findMany();
+        const stillAllowed = canExistingUserSignIn(
+          {
+            mode: config?.mode ?? "LIST",
+            domain: config?.domain ?? null,
+            allowedEmails: new Set(allowed.map((a) => normalizeEmail(a.email))),
+          },
+          existing,
+        );
+        if (!stillAllowed) return "/login?error=AccessDenied";
+
         // Feature 059: se marca el primer ingreso efectivo para distinguir un
         // cliente invitado que todavía no entró de uno activo (FR-012). Solo la
         // primera vez: después el valor no se toca.

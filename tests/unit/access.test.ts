@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isEmailAllowed, normalizeEmail } from "@/lib/domain/access";
+import { canExistingUserSignIn, isEmailAllowed, normalizeEmail } from "@/lib/domain/access";
 
 const listRules = (emails: string[]) => ({
   mode: "LIST" as const,
@@ -45,5 +45,24 @@ describe("isEmailAllowed — modo DOMAIN (FR-019a)", () => {
     expect(isEmailAllowed({ mode: "DOMAIN", domain: null, allowedEmails: new Set() }, "a@b.c")).toBe(
       false,
     );
+  });
+});
+
+describe("canExistingUserSignIn — usuarios ya creados", () => {
+  const member = { email: "ana@gen.net.ar", globalRole: "MEMBER" };
+
+  it("un MEMBER quitado de la lista pierde el acceso", () => {
+    expect(canExistingUserSignIn(listRules([]), member)).toBe(false);
+    expect(canExistingUserSignIn(listRules(["ana@gen.net.ar"]), member)).toBe(true);
+  });
+
+  it("respeta el modo dominio", () => {
+    expect(canExistingUserSignIn(domainRules("gen.net.ar"), member)).toBe(true);
+    expect(canExistingUserSignIn(domainRules("otra.com"), member)).toBe(false);
+  });
+
+  it("SUPERADMIN y CLIENT entran siempre", () => {
+    expect(canExistingUserSignIn(listRules([]), { ...member, globalRole: "SUPERADMIN" })).toBe(true);
+    expect(canExistingUserSignIn(listRules([]), { ...member, globalRole: "CLIENT" })).toBe(true);
   });
 });

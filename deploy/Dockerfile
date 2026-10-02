@@ -7,6 +7,9 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Commit del build, para mostrarlo en Mi cuenta (next.config.ts lo inlinea).
+ARG GIT_SHA=""
+ENV GIT_SHA=$GIT_SHA
 RUN npx prisma generate && npm run build
 
 FROM node:20-alpine AS run
