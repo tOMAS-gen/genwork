@@ -6,7 +6,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { NextcloudProvider } from "@/lib/storage/nextcloud";
-import { assertWorkAccess, canEnableWorkFolder, confineWorkPath } from "@/lib/storage/access-check";
+import { assertWorkAccess, canEnableWorkFolder, resolveWorkPath } from "@/lib/storage/access-check";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
 import { SNAPSHOT_FOLDER } from "@/lib/domain/archive/snapshot";
 import { emit } from "@/server/events";
@@ -63,6 +63,11 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     return NextResponse.json({ files: [], nextcloudUrl: null, folderSeq: work.folderSeq });
   }
 
+  // Drive navega por IDs: se valida que la subcarpeta pedida sea del trabajo.
+  if (subpath && storage.resolveItem) {
+    await resolveWorkPath(storage, work.nextcloudFolderPath, subpath);
+  }
+
   try {
     const raw = await storage.listShallow(work.nextcloudFolderPath, subpath);
     const basePath = work.nextcloudFolderPath;
@@ -109,11 +114,6 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, {
 
   const { searchParams } = new URL(req.url);
   const subpath = searchParams.get("path");
-  const fullPath = confineWorkPath(work.nextcloudFolderPath, subpath);
-
-  if (fullPath === work.nextcloudFolderPath.replace(/\/+$/, "")) {
-    throw new ApiError(400, "INVALID_PATH", "No se puede eliminar la carpeta raíz del trabajo");
-  }
 
   let storage;
   try {
@@ -132,6 +132,11 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (req, {
       { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
       { status: 503 },
     );
+  }
+
+  const fullPath = await resolveWorkPath(storage, work.nextcloudFolderPath, subpath);
+  if (fullPath === work.nextcloudFolderPath.replace(/\/+$/, "")) {
+    throw new ApiError(400, "INVALID_PATH", "No se puede eliminar la carpeta raíz del trabajo");
   }
 
   if (typeof storage.delete !== "function") {
@@ -189,11 +194,6 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   }
 
   const clientPath = typeof body.path === "string" ? body.path : null;
-  const fullPath = confineWorkPath(work.nextcloudFolderPath, clientPath);
-
-  if (fullPath === work.nextcloudFolderPath.replace(/\/+$/, "")) {
-    throw new ApiError(400, "INVALID_PATH", "No se puede renombrar la carpeta raíz del trabajo");
-  }
 
   let storage;
   try {
@@ -212,6 +212,11 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
       { error: { code: "STORAGE_UNAVAILABLE", message: "Almacenamiento no configurado" } },
       { status: 503 },
     );
+  }
+
+  const fullPath = await resolveWorkPath(storage, work.nextcloudFolderPath, clientPath);
+  if (fullPath === work.nextcloudFolderPath.replace(/\/+$/, "")) {
+    throw new ApiError(400, "INVALID_PATH", "No se puede renombrar la carpeta raíz del trabajo");
   }
 
   try {

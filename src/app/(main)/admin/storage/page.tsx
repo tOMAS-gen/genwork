@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Check, X } from "@/components/ui/icons";
+import { DriveFolderPicker, type DriveFolderRef } from "@/components/admin/DriveFolderPicker";
+import { rootNameFor } from "@/lib/storage/root";
 
 type StatusTone = "ok" | "error" | "neutral";
 interface StatusMessage {
@@ -23,7 +25,11 @@ interface StorageConfig {
   connected?: boolean;
   connectedEmail?: string | null;
   sharedDriveId?: string;
+  rootFolderId?: string;
+  orgName?: string;
+  defaultOrgName?: string;
 }
+
 
 interface Job {
   id: string;
@@ -42,6 +48,10 @@ export default function StorageAdminPage() {
   const [adminUser, setAdminUser] = useState("");
   const [password, setPassword] = useState("");
   const [sharedDriveId, setSharedDriveId] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [rootFolderId, setRootFolderId] = useState<string | null>(null);
+  const [rootPath, setRootPath] = useState<DriveFolderRef[] | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [redirectUri, setRedirectUri] = useState("");
@@ -56,6 +66,17 @@ export default function StorageAdminPage() {
       setUrl(c.url ?? "");
       setAdminUser(c.adminUser ?? "");
       setSharedDriveId(c.sharedDriveId ?? "");
+      setOrgName(c.orgName ?? "");
+      setRootFolderId(c.rootFolderId || null);
+      setRootPath(null);
+      // Camino legible de la carpeta guardada (necesita la cuenta conectada).
+      if (c.provider === "GDRIVE" && c.connected) {
+        const params = new URLSearchParams({ sharedDriveId: c.sharedDriveId ?? "" });
+        if (c.rootFolderId) params.set("parent", c.rootFolderId);
+        void api<{ path: DriveFolderRef[] }>(`/api/admin/storage/google/folders?${params}`)
+          .then((r) => setRootPath(r.path))
+          .catch(() => {});
+      }
     }).catch(() => {});
 
   useEffect(() => {
@@ -77,11 +98,18 @@ export default function StorageAdminPage() {
     try {
       const body =
         provider === "GDRIVE"
-          ? { provider: "GDRIVE", sharedDriveId }
+          ? { provider: "GDRIVE", sharedDriveId, rootFolderId, orgName }
           : { provider: "NEXTCLOUD", url, adminUser, ...(password ? { adminPassword: password } : {}) };
-      await api("/api/admin/storage", { method: "PUT", body: JSON.stringify(body) });
+      const result = await api<{ relocation?: "moved" | "unchanged" | "none" }>("/api/admin/storage", {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
       setPassword("");
-      setStatus({ text: "Configuración guardada", tone: "neutral" });
+      setStatus(
+        result.relocation === "moved"
+          ? { text: "Configuración guardada: la carpeta de la empresa se movió a la nueva ubicación", tone: "ok" }
+          : { text: "Configuración guardada", tone: "neutral" },
+      );
       loadConfig();
     } catch (err) {
       setStatus({ text: (err as Error).message, tone: "error" });
@@ -154,6 +182,57 @@ export default function StorageAdminPage() {
                   : "No conectado"}
               </span>
             </div>
+            {config.connected && (
+              <>
+                <label>
+                  Nombre de la empresa
+                  <input
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    placeholder={config.defaultOrgName || "Ej.: Gen"}
+                    maxLength={80}
+                  />
+                </label>
+                <div>
+                  <span style={{ display: "block", marginBottom: 4 }}>Carpeta en Drive</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <code
+                      style={{
+                        background: "var(--field)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 4,
+                        padding: "4px 8px",
+                        fontSize: 13,
+                      }}
+                    >
+                      {[
+                        ...(rootPath ? rootPath.map((f) => f.name) : [rootFolderId ? "…" : "Raíz del Drive"]),
+                        rootNameFor(orgName || config.defaultOrgName) ?? "",
+                      ]
+                        .filter(Boolean)
+                        .join(" / ")}
+                    </code>
+                    <button type="button" className="btn btn-outline" onClick={() => setPickerOpen(true)}>
+                      Cambiar carpeta
+                    </button>
+                  </div>
+                  <p className="muted" style={{ margin: "4px 0 0" }}>
+                    Ahí se crean las carpetas de grupos y proyectos. Si cambiás la carpeta o el nombre, al
+                    guardar se mueve la carpeta de la empresa entera; los proyectos siguen funcionando.
+                  </p>
+                </div>
+                <DriveFolderPicker
+                  open={pickerOpen}
+                  onClose={() => setPickerOpen(false)}
+                  initialFolderId={rootFolderId ?? undefined}
+                  sharedDriveId={sharedDriveId}
+                  onPick={({ id, path }) => {
+                    setRootFolderId(id);
+                    setRootPath(path);
+                  }}
+                />
+              </>
+            )}
             <label>
               ID del Shared Drive (opcional — solo Google Workspace)
               <input

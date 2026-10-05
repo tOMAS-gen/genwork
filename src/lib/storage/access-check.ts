@@ -16,6 +16,7 @@ import { ApiError, forbidden } from "@/server/api";
 import { notFound } from "@/server/api";
 import { getUserContext } from "@/server/user-context";
 import { access, type Access, type UserContext } from "@/lib/domain/permissions";
+import type { StorageProvider } from "./provider";
 
 /** Nivel de acceso mínimo requerido por la operación. */
 export type RequiredAccess = "read" | "operate";
@@ -145,4 +146,26 @@ export function confineWorkPath(rootFolderPath: string, clientPath: string | nul
   }
 
   return full;
+}
+
+/**
+ * Igual que `confineWorkPath`, pero delegando en el proveedor cuando sus
+ * "paths" no son rutas (Google Drive: IDs opacos). El proveedor valida que el
+ * elemento esté dentro de la carpeta del trabajo (FR-007) y sus códigos de
+ * error se traducen a los del contrato.
+ */
+export async function resolveWorkPath(
+  storage: Pick<StorageProvider, "resolveItem">,
+  rootFolderPath: string,
+  clientPath: string | null | undefined,
+): Promise<string> {
+  if (!storage.resolveItem) return confineWorkPath(rootFolderPath, clientPath);
+  try {
+    return await storage.resolveItem(rootFolderPath, clientPath);
+  } catch (err) {
+    const code = (err as { code?: string } | null)?.code;
+    if (code === "INVALID_PATH") throw invalidPath((err as Error).message);
+    if (code === "NOT_FOUND") throw notFound("El archivo o carpeta no existe");
+    throw err;
+  }
 }

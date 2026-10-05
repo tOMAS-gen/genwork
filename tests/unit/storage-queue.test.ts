@@ -481,3 +481,90 @@ describe("processPending — carpetas bajo GENWORK_<EMPRESA> y archivado con dat
     expect(mocks.writeArchiveSnapshot).not.toHaveBeenCalled();
   });
 });
+
+describe("processPending — Google Drive (carpetas por ID)", () => {
+  const archiveWorkFolder = vi.fn();
+  const rename = vi.fn();
+
+  beforeEach(() => {
+    archiveWorkFolder.mockReset();
+    rename.mockReset();
+    mocks.getStorageProvider.mockResolvedValue({
+      moveFolder: mocks.moveFolder,
+      archiveWorkFolder,
+      rename,
+    });
+    mocks.workFindUnique.mockResolvedValue({
+      nextcloudFolderPath: "drive-folder-id",
+      group: { name: "Ventas", nextcloudGroupId: "group-folder-id" },
+      owner: null,
+    });
+  });
+
+  it("archivar: mueve por ID a _archivados, deja el ID en la BD y escribe el snapshot en la carpeta", async () => {
+    queueSingleJob(
+      makeJob({
+        kind: "MOVE_WORK_FOLDER",
+        payload: {
+          kind: "MOVE_WORK_FOLDER",
+          workId: "work-1",
+          fromPath: "drive-folder-id",
+          toPath: "_archivados/drive-folder-id",
+          direction: "archive",
+        },
+      }),
+    );
+    const archived = { id: "work-1", name: "Informe" };
+    mocks.loadArchivableWork.mockResolvedValue(archived);
+
+    await processPending();
+
+    expect(archiveWorkFolder).toHaveBeenCalledWith({
+      folderPath: "drive-folder-id",
+      direction: "archive",
+      scope: { groupName: "Ventas", storageGroupId: "group-folder-id" },
+    });
+    expect(mocks.moveFolder).not.toHaveBeenCalled();
+    expect(mocks.workUpdateMany).not.toHaveBeenCalled();
+    expect(mocks.writeArchiveSnapshot).toHaveBeenCalledWith(expect.anything(), archived, "drive-folder-id");
+  });
+
+  it("job viejo sin direction: la deduce de toPath", async () => {
+    queueSingleJob(
+      makeJob({
+        kind: "MOVE_WORK_FOLDER",
+        payload: {
+          kind: "MOVE_WORK_FOLDER",
+          workId: "work-1",
+          fromPath: "drive-folder-id",
+          toPath: "drive-folder-id",
+        },
+      }),
+    );
+
+    await processPending();
+
+    expect(archiveWorkFolder).toHaveBeenCalledWith(expect.objectContaining({ direction: "unarchive" }));
+    expect(mocks.writeArchiveSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("renombrar: cambia el nombre de la carpeta por ID", async () => {
+    queueSingleJob(
+      makeJob({
+        kind: "RENAME_WORK_FOLDER",
+        payload: {
+          kind: "RENAME_WORK_FOLDER",
+          workId: "work-1",
+          fromPath: "drive-folder-id",
+          toPath: "REPORTE_007",
+        },
+      }),
+    );
+
+    await processPending();
+
+    expect(rename).toHaveBeenCalledWith({ path: "drive-folder-id", newName: "REPORTE_007" });
+    expect(mocks.moveFolder).not.toHaveBeenCalled();
+    expect(mocks.workUpdateMany).not.toHaveBeenCalled();
+  });
+});

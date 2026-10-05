@@ -97,6 +97,32 @@ export interface StorageProvider {
   /** Mueve una carpeta (archivado/desarchivado). */
   moveFolder(from: string, to: string): Promise<void>;
 
+  /**
+   * Proveedores cuyos "paths" son IDs opacos (Drive), donde no se puede confinar
+   * concatenando rutas: valida que `clientPath` (un ID) esté dentro de la carpeta
+   * del trabajo y devuelve el path a usar. Vacío/ausente → la raíz del trabajo.
+   * Falla con `code: "INVALID_PATH"` si está fuera, o `"NOT_FOUND"` si no existe.
+   * Sin implementar → se confina por ruta (`confineWorkPath`).
+   */
+  resolveItem?(rootFolderPath: string, clientPath: string | null | undefined): Promise<string>;
+
+  /**
+   * Proveedores por ID (Drive): mueve la carpeta del trabajo entre su ámbito y
+   * `_archivados/{ámbito}`. El ID no cambia. Idempotente. Sin implementar → la
+   * cola usa `moveFolder` con rutas.
+   */
+  archiveWorkFolder?(input: {
+    folderPath: string;
+    direction: "archive" | "unarchive";
+    scope: WorkFolderScope;
+  }): Promise<void>;
+
+  /**
+   * Busca (o crea) una subcarpeta por nombre y devuelve su path. Para
+   * proveedores por ID; los de rutas suben a `{parent}/{name}` directamente.
+   */
+  childFolder?(parentPath: string, name: string): Promise<string>;
+
   /** FR-032: borra la carpeta completa de un trabajo (eliminación definitiva). */
   deleteFolder(folderPath: string): Promise<void>;
 
@@ -128,9 +154,14 @@ export interface GoogleDriveConfig {
   refreshToken: string;
   /** Shared Drive dedicado (Workspace). Vacío/ausente = usar Mi Drive. */
   sharedDriveId?: string;
-  /** Carpeta raíz dentro del Drive (Shared o Mi Drive). */
+  /** Carpeta elegida por el admin donde vive `GENWORK_<EMPRESA>` (Shared o Mi Drive). */
   rootFolderId?: string;
-  /** Credencial propia de usuario, ya descifrada, para operaciones interactivas (FR-011). */
+  /** Empresa definida en el panel admin; sin valor se usa `GENWORK_ORG`. */
+  orgName?: string;
+  /**
+   * Credencial propia de usuario. Hoy no se usa: Drive opera siempre con la
+   * cuenta principal (el vínculo por usuario queda para una mejora futura).
+   */
   userCredential?: GoogleDriveUserCredential;
 }
 

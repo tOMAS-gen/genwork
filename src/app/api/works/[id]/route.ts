@@ -156,6 +156,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
         workId: id,
         fromPath: work.nextcloudFolderPath,
         toPath,
+        direction,
       });
     }
     if (body.name && body.name !== work.name) {

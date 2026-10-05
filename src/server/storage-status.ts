@@ -5,6 +5,8 @@ export type StorageProviderName = "NEXTCLOUD" | "GDRIVE";
 export interface StorageStatus {
   provider: StorageProviderName;
   configured: boolean;
+  /** Drive: email de la cuenta principal con la que se opera (todas las acciones pasan por ella). */
+  account?: string;
 }
 
 interface StorageStatusInput {
@@ -20,10 +22,15 @@ interface StorageStatusInput {
  */
 export function computeStorageStatus({ provider, storageConfig, env }: StorageStatusInput): StorageStatus {
   if (provider === "GDRIVE") {
-    const gd = storageConfig as { refreshTokenEnc?: string } | null;
+    const gd = storageConfig as { refreshTokenEnc?: string; connectedEmail?: string } | null;
     const clientId = env.GDRIVE_CLIENT_ID ?? env.GOOGLE_CLIENT_ID;
     const clientSecret = env.GDRIVE_CLIENT_SECRET ?? env.GOOGLE_CLIENT_SECRET;
-    return { provider, configured: Boolean(gd?.refreshTokenEnc && clientId && clientSecret) };
+    const configured = Boolean(gd?.refreshTokenEnc && clientId && clientSecret);
+    return {
+      provider,
+      configured,
+      ...(configured && gd?.connectedEmail ? { account: gd.connectedEmail } : {}),
+    };
   }
 
   const stored = storageConfig as {

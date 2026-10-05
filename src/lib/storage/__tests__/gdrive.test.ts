@@ -318,4 +318,228 @@ describe("GoogleDriveProvider — requests a la Drive API", () => {
       await expect(provider.deleteFolder("folder-id")).rejects.toThrow(/HTTP 500/);
     });
   });
+
+  describe("resolveItem — confinamiento por IDs dentro de la carpeta del trabajo", () => {
+    it("vacío → la carpeta del trabajo, sin llamar a Drive", async () => {
+      const provider = new GoogleDriveProvider(cfg);
+      await expect(provider.resolveItem("work-id", "")).resolves.toBe("work-id");
+      await expect(provider.resolveItem("work-id", null)).resolves.toBe("work-id");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("ID en una subcarpeta del trabajo → devuelve el ID tal cual", async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ id: "file-id", parents: ["sub-id"] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "sub-id", parents: ["work-id"] }));
+
+      const provider = new GoogleDriveProvider(cfg);
+      await expect(provider.resolveItem("work-id", "file-id")).resolves.toBe("file-id");
+    });
+
+    it("ID fuera del trabajo → INVALID_PATH", async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ id: "other-id", parents: ["group-id"] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "group-id", parents: ["root-id"] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "root-id" }));
+
+      const provider = new GoogleDriveProvider(cfg);
+      await expect(provider.resolveItem("work-id", "other-id")).rejects.toMatchObject({
+        code: "INVALID_PATH",
+      });
+    });
+
+    it("rutas con '/' o '..' → INVALID_PATH sin llamar a Drive", async () => {
+      const provider = new GoogleDriveProvider(cfg);
+      await expect(provider.resolveItem("work-id", "work-id/x")).rejects.toMatchObject({ code: "INVALID_PATH" });
+      await expect(provider.resolveItem("work-id", "..")).rejects.toMatchObject({ code: "INVALID_PATH" });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("ID inexistente → NOT_FOUND", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({}, { ok: false, status: 404 }));
+
+      const provider = new GoogleDriveProvider(cfg);
+      await expect(provider.resolveItem("work-id", "missing-id")).rejects.toMatchObject({
+        code: "NOT_FOUND",
+      });
+    });
+  });
+
+  describe("archiveWorkFolder — mueve por ID entre ámbito y _archivados", () => {
+    beforeEach(() => vi.stubEnv("GENWORK_ORG", "Gen"));
+    afterEach(() => vi.unstubAllEnvs());
+
+    const patchCall = () =>
+      fetchMock.mock.calls.find((c) => (c[1] as RequestInit).method === "PATCH") as [string, RequestInit];
+
+    it("archivar: GENWORK_GEN/_archivados/{GRUPO}", async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "root-id", name: "GENWORK_GEN" }] }))
+        .mockResolvedValueOnce(jsonResponse({ files: [] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "archived-id" }))
+        .mockResolvedValueOnce(jsonResponse({ files: [] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "archived-group-id" }))
+        .mockResolvedValueOnce(jsonResponse({ parents: ["group-id"] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "work-id", parents: ["archived-group-id"] }));
+
+      const provider = new GoogleDriveProvider(cfg);
+      await provider.archiveWorkFolder({
+        folderPath: "work-id",
+        direction: "archive",
+        scope: { groupName: "Grupo A" },
+      });
+
+      const created = fetchMock.mock.calls
+        .filter((c) => (c[1] as RequestInit).method === "POST")
+        .map((c) => JSON.parse((c[1] as RequestInit).body as string));
+      expect(created).toEqual([
+        { name: "_archivados", mimeType: "application/vnd.google-apps.folder", parents: ["root-id"] },
+        { name: "GRUPO-A", mimeType: "application/vnd.google-apps.folder", parents: ["archived-id"] },
+      ]);
+      const [url] = patchCall();
+      expect(url).toContain("/files/work-id?");
+      expect(url).toContain("addParents=archived-group-id");
+      expect(url).toContain("removeParents=group-id");
+    });
+
+    it("desarchivar: vuelve a GENWORK_GEN/{GRUPO}", async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "root-id", name: "GENWORK_GEN" }] }))
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "group-id", name: "GRUPO-A" }] }))
+        .mockResolvedValueOnce(jsonResponse({ parents: ["archived-group-id"] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "work-id", parents: ["group-id"] }));
+
+      const provider = new GoogleDriveProvider(cfg);
+      await provider.archiveWorkFolder({
+        folderPath: "work-id",
+        direction: "unarchive",
+        scope: { groupName: "Grupo A" },
+      });
+
+      const [url] = patchCall();
+      expect(url).toContain("addParents=group-id");
+      expect(url).toContain("removeParents=archived-group-id");
+    });
+
+    it("ya en destino (reintento) → no mueve", async () => {
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "root-id", name: "GENWORK_GEN" }] }))
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "group-id", name: "GRUPO-A" }] }))
+        .mockResolvedValueOnce(jsonResponse({ parents: ["group-id"] }));
+
+      const provider = new GoogleDriveProvider(cfg);
+      await provider.archiveWorkFolder({
+        folderPath: "work-id",
+        direction: "unarchive",
+        scope: { groupName: "Grupo A" },
+      });
+
+      expect(patchCall()).toBeUndefined();
+    });
+  });
+
+  describe("carpeta y empresa configurables desde el panel admin", () => {
+    beforeEach(() => vi.stubEnv("GENWORK_ORG", "Gen"));
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("orgName del panel tiene prioridad sobre GENWORK_ORG", () => {
+      expect(new GoogleDriveProvider(cfg).rootLocation()).toEqual({ parentId: "root-folder-id", name: "GENWORK_GEN" });
+      expect(new GoogleDriveProvider({ ...cfg, orgName: "Acme SA" }).rootLocation()).toEqual({
+        parentId: "root-folder-id",
+        name: "GENWORK_ACME-SA",
+      });
+    });
+
+    it("folderPath: camino desde la raíz del Drive hasta la carpeta", async () => {
+      const myDrive = { ...cfg, sharedDriveId: undefined };
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse({ id: "b", name: "Clientes", mimeType: "application/vnd.google-apps.folder", parents: ["a"] }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({ id: "a", name: "Trabajo", mimeType: "application/vnd.google-apps.folder", parents: ["real-root"] }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ id: "real-root", name: "Mi unidad", mimeType: "application/vnd.google-apps.folder" }));
+
+      await expect(new GoogleDriveProvider(myDrive).folderPath("b")).resolves.toEqual([
+        { id: "root", name: "Mi unidad" },
+        { id: "a", name: "Trabajo" },
+        { id: "b", name: "Clientes" },
+      ]);
+    });
+
+    it("folderPath: un archivo no sirve como carpeta → NOT_FOLDER", async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse({ id: "f", name: "doc.pdf", mimeType: "application/pdf", parents: ["a"] }));
+      await expect(new GoogleDriveProvider({ ...cfg, sharedDriveId: undefined }).folderPath("f")).rejects.toMatchObject({
+        code: "NOT_FOLDER",
+      });
+    });
+
+    it("relocateGenworkRoot: mueve y renombra GENWORK_<EMPRESA> a la carpeta nueva", async () => {
+      const from = new GoogleDriveProvider({ ...cfg, sharedDriveId: undefined, rootFolderId: "old-parent" });
+      const to = new GoogleDriveProvider({
+        ...cfg,
+        sharedDriveId: undefined,
+        rootFolderId: "new-parent",
+        orgName: "Acme",
+      });
+      fetchMock
+        // busca GENWORK_GEN en la ubicación vieja
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "gw-root", name: "GENWORK_GEN" }] }))
+        // camino del destino (no está adentro de gw-root)
+        .mockResolvedValueOnce(
+          jsonResponse({ id: "new-parent", name: "Nueva", mimeType: "application/vnd.google-apps.folder", parents: ["real-root"] }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ id: "real-root", name: "Mi unidad", mimeType: "application/vnd.google-apps.folder" }))
+        // no hay GENWORK_ACME en el destino
+        .mockResolvedValueOnce(jsonResponse({ files: [] }))
+        // parents actuales + PATCH
+        .mockResolvedValueOnce(jsonResponse({ parents: ["old-parent"] }))
+        .mockResolvedValueOnce(jsonResponse({ id: "gw-root" }));
+
+      await expect(from.relocateGenworkRoot(to)).resolves.toBe("moved");
+
+      const [url, options] = fetchMock.mock.calls[5] as [string, RequestInit];
+      expect(options.method).toBe("PATCH");
+      expect(url).toContain("/files/gw-root?");
+      expect(url).toContain("addParents=new-parent");
+      expect(url).toContain("removeParents=old-parent");
+      expect(JSON.parse(options.body as string)).toEqual({ name: "GENWORK_ACME" });
+    });
+
+    it("relocateGenworkRoot: sin cambios → unchanged; sin carpeta previa → none", async () => {
+      const p = new GoogleDriveProvider(cfg);
+      fetchMock.mockResolvedValueOnce(jsonResponse({ files: [{ id: "gw-root", name: "GENWORK_GEN" }] }));
+      await expect(p.relocateGenworkRoot(new GoogleDriveProvider(cfg))).resolves.toBe("unchanged");
+
+      fetchMock.mockResolvedValueOnce(jsonResponse({ files: [] }));
+      await expect(p.relocateGenworkRoot(new GoogleDriveProvider({ ...cfg, orgName: "Otra" }))).resolves.toBe("none");
+    });
+
+    it("relocateGenworkRoot: destino con una carpeta del mismo nombre → ALREADY_EXISTS", async () => {
+      const from = new GoogleDriveProvider(cfg);
+      const to = new GoogleDriveProvider({ ...cfg, orgName: "Acme" });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "gw-root", name: "GENWORK_GEN" }] }))
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "other", name: "GENWORK_ACME" }] }));
+
+      await expect(from.relocateGenworkRoot(to)).rejects.toMatchObject({ code: "ALREADY_EXISTS" });
+    });
+
+    it("relocateGenworkRoot: no permite mover la raíz adentro de sí misma", async () => {
+      const from = new GoogleDriveProvider({ ...cfg, sharedDriveId: undefined, rootFolderId: "p" });
+      const to = new GoogleDriveProvider({ ...cfg, sharedDriveId: undefined, rootFolderId: "inside" });
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ files: [{ id: "gw-root", name: "GENWORK_GEN" }] }))
+        .mockResolvedValueOnce(
+          jsonResponse({ id: "inside", name: "VENTAS", mimeType: "application/vnd.google-apps.folder", parents: ["gw-root"] }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({ id: "gw-root", name: "GENWORK_GEN", mimeType: "application/vnd.google-apps.folder", parents: ["p"] }),
+        )
+        .mockResolvedValueOnce(jsonResponse({ id: "p", name: "Base", mimeType: "application/vnd.google-apps.folder" }));
+
+      await expect(from.relocateGenworkRoot(to)).rejects.toMatchObject({ code: "INVALID_TARGET" });
+    });
+  });
 });

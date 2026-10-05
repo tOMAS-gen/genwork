@@ -164,6 +164,10 @@ export function StorageAccountLink() {
     );
   }
 
+  // Google Drive opera siempre con la cuenta principal de la organización: no
+  // hay vínculo por usuario que gestionar (el estado se ve en "Sistema").
+  if (status.provider === "GDRIVE") return null;
+
   const providerLabel = PROVIDER_LABEL[status.provider];
 
   return (

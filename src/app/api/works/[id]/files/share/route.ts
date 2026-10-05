@@ -3,7 +3,7 @@ import type { ShareMode } from "@prisma/client";
 import { prisma } from "@/lib/db/client";
 import { ApiError, badRequest, withApi } from "@/server/api";
 import { requireInternal } from "@/server/guards";
-import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
+import { assertWorkAccess, confineWorkPath, resolveWorkPath } from "@/lib/storage/access-check";
 import { getStorageProvider } from "@/lib/storage";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
 import { encryptSecret } from "@/lib/crypto";
@@ -32,7 +32,11 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     throw badRequest("Falta el parámetro path");
   }
 
-  const fullPath = confineWorkPath(work.nextcloudFolderPath, searchParams.get("path"));
+  // Drive: el path es el ID y así se guardó el FileShare; Nextcloud: ruta confinada.
+  const storage = await getStorageProvider();
+  const fullPath = storage
+    ? await resolveWorkPath(storage, work.nextcloudFolderPath, searchParams.get("path"))
+    : confineWorkPath(work.nextcloudFolderPath, searchParams.get("path"));
 
   const shares = await prisma.fileShare.findMany({
     where: {
@@ -106,8 +110,6 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
     throw new ApiError(409, "CONFLICT", "La carpeta del proyecto todavía no está lista; reintentá en unos segundos");
   }
 
-  const fullPath = confineWorkPath(work.nextcloudFolderPath, clientPath);
-
   const targetUserId = typeof body.targetUserId === "string" && body.targetUserId ? body.targetUserId : undefined;
   const targetSectorId =
     typeof body.targetSectorId === "string" && body.targetSectorId ? body.targetSectorId : undefined;
@@ -156,6 +158,8 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
     );
   }
 
+  const fullPath = await resolveWorkPath(storage, work.nextcloudFolderPath, clientPath);
+
   if (typeof storage.share !== "function") {
     return NextResponse.json(
       {
@@ -184,20 +188,16 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
     const accessConfig = await prisma.accessConfig.findUnique({ where: { id: 1 } });
     const activeProvider = accessConfig?.storageProvider ?? "NEXTCLOUD";
 
-    const targetIdentityRow = await prisma.storageIdentity.findFirst({
-      where: { userId: targetUserId, provider: activeProvider, revokedAt: null },
-    });
-
-    if (!targetIdentityRow) {
-      throw new ApiError(
-        400,
-        "TARGET_STORAGE_IDENTITY_MISSING",
-        "El usuario destinatario no vinculó su cuenta de almacenamiento",
-      );
+    if (activeProvider === "GDRIVE") {
+      // Drive opera con la cuenta principal: se comparte directo al email de
+      // Google del destinatario, sin exigir que haya vinculado su cuenta.
+      targetIdentity = targetUser.email;
+    } else {
+      const targetIdentityRow = await prisma.storageIdentity.findFirst({
+        where: { userId: targetUserId, provider: activeProvider, revokedAt: null },
+      });
+      targetIdentity = targetIdentityRow?.nextcloudLoginName ?? undefined;
     }
-
-    targetIdentity =
-      activeProvider === "GDRIVE" ? targetUser.email : (targetIdentityRow.nextcloudLoginName ?? undefined);
 
     if (!targetIdentity) {
       throw new ApiError(

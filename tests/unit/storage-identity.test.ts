@@ -214,4 +214,27 @@ describe("getStorageProvider(userId) — sin fallback silencioso a la cuenta adm
 
     expect(provider).not.toBeNull();
   });
+
+  it("Google Drive con userId → NO pide vínculo del usuario: opera con la cuenta principal", async () => {
+    vi.stubEnv("GDRIVE_CLIENT_ID", "client-id");
+    vi.stubEnv("GDRIVE_CLIENT_SECRET", "client-secret");
+    accessConfigFindUnique.mockResolvedValue({
+      storageProvider: "GDRIVE",
+      storageConfig: { refreshTokenEnc: "enc:admin-refresh" },
+    });
+    storageIdentityFindFirst.mockResolvedValue(null); // el usuario nunca vinculó Drive
+    decryptSecret.mockReturnValue("admin-refresh-plain");
+
+    const provider = await getStorageProvider("user-1");
+
+    expect(provider).not.toBeNull();
+    expect(storageIdentityFindFirst).not.toHaveBeenCalled();
+    expect((provider as unknown as { cfg: { refreshToken: string; userCredential?: unknown } }).cfg).toMatchObject({
+      refreshToken: "admin-refresh-plain",
+    });
+    expect(
+      (provider as unknown as { cfg: { userCredential?: unknown } }).cfg.userCredential,
+    ).toBeUndefined();
+    vi.unstubAllEnvs();
+  });
 });

@@ -19,6 +19,8 @@ export interface SnapshotStorage {
   upload(input: { folderPath: string; fileName: string; data: Buffer }): Promise<{
     filePath: string;
   }>;
+  /** Proveedores por ID (Drive): resuelve/crea la subcarpeta `_genwork`. */
+  childFolder?(parentPath: string, name: string): Promise<string>;
 }
 
 export async function writeArchiveSnapshot(
@@ -26,7 +28,9 @@ export async function writeArchiveSnapshot(
   work: ArchivableWork,
   folderPath: string,
 ): Promise<string[]> {
-  const target = `${folderPath}/${SNAPSHOT_FOLDER}`;
+  const target = storage.childFolder
+    ? await storage.childFolder(folderPath, SNAPSHOT_FOLDER)
+    : `${folderPath}/${SNAPSHOT_FOLDER}`;
   const { docContent, tasks, objectives, ...info } = work;
   const files: [string, string][] = [
     [

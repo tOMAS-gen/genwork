@@ -6,6 +6,7 @@ import { access } from "@/lib/domain/permissions";
 import { enqueue } from "@/lib/storage/queue";
 import { getStorageProvider } from "@/lib/storage";
 import { computeArchivePath } from "@/lib/storage/paths";
+import { storageRootName } from "@/lib/storage/root";
 import { formatFolderName } from "@/lib/storage/paths";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { emit } from "@/server/events";
@@ -294,11 +295,15 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
     }
     const updated = await prisma.work.update({ where: { id: workId }, data: { status } });
     if (work.nextcloudFolderPath) {
-      const toPath = computeArchivePath(
-        work.nextcloudFolderPath,
-        status === "ARCHIVED" ? "archive" : "unarchive",
-      );
-      await enqueue({ kind: "MOVE_WORK_FOLDER", workId, fromPath: work.nextcloudFolderPath, toPath });
+      const direction = status === "ARCHIVED" ? "archive" : "unarchive";
+      const toPath = computeArchivePath(work.nextcloudFolderPath, direction, storageRootName());
+      await enqueue({
+        kind: "MOVE_WORK_FOLDER",
+        workId,
+        fromPath: work.nextcloudFolderPath,
+        toPath,
+        direction,
+      });
     }
     await logMcpActivity({
       connectionId: ctx.connectionId,

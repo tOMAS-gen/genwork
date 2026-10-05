@@ -9,7 +9,7 @@ interface SystemInfo {
   version: string;
   commit: string | null;
   environment: "development" | "production";
-  storage: { provider: "NEXTCLOUD" | "GDRIVE"; configured: boolean };
+  storage: { provider: "NEXTCLOUD" | "GDRIVE"; configured: boolean; account?: string };
 }
 
 const PROVIDER_LABEL = { NEXTCLOUD: "Nextcloud", GDRIVE: "Google Drive" } as const;
@@ -73,7 +73,7 @@ export function SystemInfoSection({ isSuperAdmin = false }: { isSuperAdmin?: boo
   }
 
   const isDev = info.environment === "development";
-  const { provider, configured } = info.storage;
+  const { provider, configured, account } = info.storage;
 
   return (
     <section className="section-panel">
@@ -89,6 +89,7 @@ export function SystemInfoSection({ isSuperAdmin = false }: { isSuperAdmin?: boo
         <span className={`badge${configured ? "" : " badge-warning"}`}>
           {configured ? "Conectada" : "Sin configurar"}
         </span>
+        {account && <span className="muted">como {account}</span>}
         {isSuperAdmin && configured && (
           <button className="btn btn-outline" onClick={testConnection} disabled={testing}>
             {testing ? "Probando…" : "Probar conexión"}

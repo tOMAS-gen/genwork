@@ -6,7 +6,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { emit } from "@/server/events";
-import { confineWorkPath } from "@/lib/storage/access-check";
+import { resolveWorkPath } from "@/lib/storage/access-check";
 
 /**
  * Subida de archivos al visor del proyecto (feature 034, T011). Sube uno o
@@ -50,7 +50,7 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
   const form = await req.formData();
   // El visor manda el path relativo a la carpeta del proyecto: se confina ahí
   // (FR-007) para no subir fuera de ella.
-  const path = confineWorkPath(work.nextcloudFolderPath, form.get("path") as string | null);
+  const path = await resolveWorkPath(storage, work.nextcloudFolderPath, form.get("path") as string | null);
   const files = form.getAll("file").filter((f): f is File => f instanceof File);
   if (files.length === 0) throw conflict("Falta el archivo (campo 'file')");
 

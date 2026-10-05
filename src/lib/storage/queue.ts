@@ -33,7 +33,14 @@ export type JobPayload =
       ownerUserId: string | null;
     }
   | { kind: "DELETE_WORK_FOLDER"; folderPath: string }
-  | { kind: "MOVE_WORK_FOLDER"; workId: string; fromPath: string; toPath: string }
+  | {
+      kind: "MOVE_WORK_FOLDER";
+      workId: string;
+      fromPath: string;
+      toPath: string;
+      /** Ausente en jobs viejos: se deduce de `toPath`. */
+      direction?: "archive" | "unarchive";
+    }
   | { kind: "RENAME_WORK_FOLDER"; workId: string; fromPath: string; toPath: string }
   | { kind: "AUDIT_GROUP_PERMISSIONS"; groupId: string };
 
@@ -156,6 +163,38 @@ export async function runJob(payload: JobPayload): Promise<void> {
         },
       });
       if (!work?.nextcloudFolderPath) return;
+      const scope: WorkFolderScope | null = work.group
+        ? { groupName: work.group.name, storageGroupId: work.group.nextcloudGroupId }
+        : work.owner?.nextcloudUserId
+          ? { personalStorageUserId: work.owner.nextcloudUserId, personalEmail: work.owner.email }
+          : null;
+      const archiving =
+        payload.kind === "MOVE_WORK_FOLDER" &&
+        (payload.direction ?? (payload.toPath.split("/").includes(ARCHIVE_FOLDER) ? "archive" : "unarchive")) ===
+          "archive";
+
+      // Proveedores por ID (Drive): la carpeta conserva su ID, no hay rutas que
+      // recalcular. Se mueve entre ámbito y `_archivados/{ámbito}` o se renombra.
+      if (storage.archiveWorkFolder) {
+        const folderId = work.nextcloudFolderPath;
+        if (payload.kind === "RENAME_WORK_FOLDER") {
+          const newName = payload.toPath.split("/").pop()!;
+          await storage.rename({ path: folderId, newName });
+          return;
+        }
+        if (!scope) return;
+        await storage.archiveWorkFolder({
+          folderPath: folderId,
+          direction: archiving ? "archive" : "unarchive",
+          scope,
+        });
+        if (archiving) {
+          const archived = await loadArchivableWork(payload.workId);
+          await writeArchiveSnapshot(storage, archived, folderId);
+        }
+        return;
+      }
+
       await storage.moveFolder(payload.fromPath, payload.toPath);
       // updateMany: si el trabajo fue borrado entre el enqueue y el job, no falla
       await prisma.work.updateMany({
@@ -168,12 +207,7 @@ export async function runJob(payload: JobPayload): Promise<void> {
       // tareas.md, documentacion.html). Va después de actualizar la ruta: si
       // falla, el reintento encuentra la carpeta ya movida (moveFolder es no-op)
       // y repite ambos pasos, que son idempotentes.
-      if (payload.kind === "MOVE_WORK_FOLDER" && payload.toPath.includes(`/${ARCHIVE_FOLDER}/`)) {
-        const scope: WorkFolderScope | null = work.group
-          ? { groupName: work.group.name, storageGroupId: work.group.nextcloudGroupId }
-          : work.owner?.nextcloudUserId
-            ? { personalStorageUserId: work.owner.nextcloudUserId, personalEmail: work.owner.email }
-            : null;
+      if (archiving && payload.toPath.includes(`/${ARCHIVE_FOLDER}/`)) {
         if (scope && storage.shareScopeFolder) {
           const scopePath = payload.toPath.substring(0, payload.toPath.lastIndexOf("/"));
           await storage.shareScopeFolder({ path: scopePath, scope });

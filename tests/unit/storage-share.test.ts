@@ -32,6 +32,8 @@ vi.mock("@/server/auth", () => ({
 vi.mock("@/lib/storage/access-check", () => ({
   assertWorkAccess: (...args: unknown[]) => mocks.assertWorkAccess(...args),
   confineWorkPath: (...args: unknown[]) => mocks.confineWorkPath(...args),
+  // Provider de rutas (sin resolveItem): delega en confineWorkPath.
+  resolveWorkPath: async (_storage: unknown, ...args: unknown[]) => mocks.confineWorkPath(...args),
 }));
 
 vi.mock("@/lib/storage", () => ({
