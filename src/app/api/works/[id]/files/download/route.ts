@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { badRequest, notFound, withApi } from "@/server/api";
 import { requireInternal } from "@/server/guards";
 import { getStorageProvider } from "@/lib/storage";
-import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
+import { assertWorkAccess, resolveWorkPath } from "@/lib/storage/access-check";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
 import { Readable } from "node:stream";
 
@@ -19,8 +19,6 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
   const { searchParams } = new URL(req.url);
   const relPath = searchParams.get("path");
   if (!relPath) throw badRequest("Falta el parámetro path");
-
-  const fullPath = confineWorkPath(work.nextcloudFolderPath, relPath);
 
   let storage;
   try {
@@ -46,6 +44,8 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     );
   }
 
+  const fullPath = await resolveWorkPath(storage, work.nextcloudFolderPath, relPath);
+
   let stream;
   try {
     stream = await storage.read(fullPath);
@@ -58,7 +58,8 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
     }
     throw err;
   }
-  const fileName = relPath.split("/").pop() || "archivo";
+  // Drive manda IDs como path: el visor pasa el nombre visible aparte.
+  const fileName = searchParams.get("name") || relPath.split("/").pop() || "archivo";
 
   return new Response(Readable.toWeb(stream) as ReadableStream, {
     headers: {

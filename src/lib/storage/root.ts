@@ -12,6 +12,15 @@
 import { folderSegment } from "./paths";
 
 export function storageRootName(): string | null {
-  const org = folderSegment(process.env.GENWORK_ORG ?? "");
-  return org ? `GENWORK_${org}` : null;
+  return rootNameFor(process.env.GENWORK_ORG);
+}
+
+/**
+ * `GENWORK_<EMPRESA>` para un nombre de empresa dado, o `null` si está vacío.
+ * Google Drive permite que el admin defina la empresa desde el panel
+ * (`storageConfig.orgName`), con `GENWORK_ORG` como valor por defecto.
+ */
+export function rootNameFor(org: string | null | undefined): string | null {
+  const segment = folderSegment(org ?? "");
+  return segment ? `GENWORK_${segment}` : null;
 }

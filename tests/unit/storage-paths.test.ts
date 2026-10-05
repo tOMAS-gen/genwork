@@ -6,7 +6,7 @@ import {
   computeArchivePath,
   computeRenamePath,
 } from "@/lib/storage/paths";
-import { storageRootName } from "@/lib/storage/root";
+import { rootNameFor, storageRootName } from "@/lib/storage/root";
 import { confineWorkPath } from "@/lib/storage/access-check";
 import { NextcloudProvider } from "@/lib/storage/nextcloud";
 import type { NextcloudConfig } from "@/lib/storage/provider";
@@ -299,5 +299,13 @@ describe("NextcloudProvider.createFolder — validación de nombre", () => {
 
     expect(davMock.exists).toHaveBeenCalledWith("/genwork/Grupo/001-Test/planos");
     expect(davMock.createDirectory).toHaveBeenCalledWith("/genwork/Grupo/001-Test/planos");
+  });
+});
+
+describe("rootNameFor — empresa definida desde el panel admin", () => {
+  it("arma GENWORK_<EMPRESA> normalizado o null si está vacía", () => {
+    expect(rootNameFor("Acme SA")).toBe("GENWORK_ACME-SA");
+    expect(rootNameFor("  ")).toBeNull();
+    expect(rootNameFor(null)).toBeNull();
   });
 });

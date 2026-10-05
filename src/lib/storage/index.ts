@@ -15,46 +15,31 @@ import type {
  * Prioridad: AccessConfig.storageConfig (panel admin) → variables de entorno
  * (valores del Nextcloud incluido en el docker-compose).
  *
- * @param userId  Si se pasa, el provider se instancia "as user" (FR-011):
- *   se resuelve la identidad propia del usuario vía `resolveStorageIdentity` y
- *   las operaciones se autentican con SU credencial, nunca con la cuenta admin.
+ * @param userId  Nextcloud: si se pasa, el provider se instancia "as user"
+ *   (FR-011): se resuelve la identidad propia del usuario vía
+ *   `resolveStorageIdentity` y las operaciones se autentican con SU credencial.
  *   Si el usuario no vinculó su cuenta, `resolveStorageIdentity` lanza
  *   `StorageIdentityMissingError` (code `STORAGE_IDENTITY_MISSING`) y ese error
  *   se propaga: NO se cae a la cuenta admin como fallback.
+ *   Google Drive: se ignora. Toda operación, la dispare quien la dispare, se
+ *   hace con la cuenta principal vinculada por el admin (no hay vínculo ni
+ *   permisos por usuario en Drive; queda como mejora futura).
  *   Sin `userId` (uso de sistema: provisioning, cola, MCP) se opera "as admin".
  */
 export async function getStorageProvider(userId?: string): Promise<StorageProvider | null> {
   const config = await prisma.accessConfig.findUnique({ where: { id: 1 } });
 
-  // Operación interactiva: resolver la identidad del usuario ANTES de armar la
-  // config. Si no hay identidad vinculada, el error se propaga (FR-011).
-  const userCredential: StorageUserCredential | undefined = userId
-    ? await resolveStorageIdentity(userId)
-    : undefined;
+  // Operación interactiva en Nextcloud: resolver la identidad del usuario ANTES
+  // de armar la config. Si no hay identidad vinculada, el error se propaga (FR-011).
+  const userCredential: StorageUserCredential | undefined =
+    userId && config?.storageProvider !== "GDRIVE"
+      ? await resolveStorageIdentity(userId)
+      : undefined;
 
   if (config?.storageProvider === "GDRIVE") {
     // Google Drive (feature 034): OAuth del admin (refresh token cifrado) + Shared Drive.
-    const gd = config.storageConfig as {
-      refreshTokenEnc?: string;
-      sharedDriveId?: string;
-      rootFolderId?: string;
-    } | null;
-    const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
-    const clientSecret = process.env.GDRIVE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
-    if (!gd?.refreshTokenEnc || !clientId || !clientSecret) {
-      return null; // storage opcional (FR-006): sin config completa, no disponible
-    }
-    const gdConfig: GoogleDriveConfig = {
-      clientId,
-      clientSecret,
-      refreshToken: decryptSecret(gd.refreshTokenEnc),
-      sharedDriveId: gd.sharedDriveId || undefined,
-      rootFolderId: gd.rootFolderId,
-    };
-    if (userCredential?.provider === "GDRIVE") {
-      gdConfig.userCredential = { gdriveRefreshToken: userCredential.gdriveRefreshToken };
-    }
-    return new GoogleDriveProvider(gdConfig);
+    const gdConfig = googleDriveConfig(config.storageConfig);
+    return gdConfig ? new GoogleDriveProvider(gdConfig) : null; // storage opcional (FR-006)
   }
 
   const stored = config?.storageConfig as {
@@ -89,4 +74,36 @@ export async function getStorageProvider(userId?: string): Promise<StorageProvid
   }
 
   return new NextcloudProvider(nc);
+}
+
+/** Datos de Google Drive guardados en `AccessConfig.storageConfig`. */
+export interface StoredGoogleDriveConfig {
+  refreshTokenEnc?: string;
+  connectedEmail?: string;
+  sharedDriveId?: string | null;
+  rootFolderId?: string | null;
+  orgName?: string | null;
+}
+
+/**
+ * Config resuelta de Google Drive a partir de lo guardado (con `overrides` para
+ * armar la config "nueva" antes de persistirla, p. ej. al cambiar la carpeta
+ * desde el panel). `null` si falta la cuenta principal o las credenciales.
+ */
+export function googleDriveConfig(
+  storageConfig: unknown,
+  overrides: Partial<Pick<StoredGoogleDriveConfig, "sharedDriveId" | "rootFolderId" | "orgName">> = {},
+): GoogleDriveConfig | null {
+  const gd = { ...((storageConfig as StoredGoogleDriveConfig | null) ?? {}), ...overrides };
+  const clientId = process.env.GDRIVE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? "";
+  const clientSecret = process.env.GDRIVE_CLIENT_SECRET ?? process.env.GOOGLE_CLIENT_SECRET ?? "";
+  if (!gd.refreshTokenEnc || !clientId || !clientSecret) return null;
+  return {
+    clientId,
+    clientSecret,
+    refreshToken: decryptSecret(gd.refreshTokenEnc),
+    sharedDriveId: gd.sharedDriveId || undefined,
+    rootFolderId: gd.rootFolderId || undefined,
+    orgName: gd.orgName || undefined,
+  };
 }

@@ -20,12 +20,14 @@ import type {
   StorageProvider,
   WorkFolderScope,
 } from "./provider";
-import { folderSegment } from "./paths";
-import { storageRootName } from "./root";
+import { ARCHIVE_FOLDER, folderSegment } from "./paths";
+import { rootNameFor, storageRootName } from "./root";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+/** Tope de niveles al subir por `parents` para validar que un ID está dentro del trabajo. */
+const MAX_FOLDER_DEPTH = 32;
 
 interface DriveFile {
   id: string;
@@ -80,15 +82,29 @@ export class GoogleDriveProvider implements StorageProvider {
   }
 
   private rootParent(): string {
-    return this.cfg.rootFolderId ?? this.cfg.sharedDriveId ?? "root";
+    return this.cfg.rootFolderId || this.cfg.sharedDriveId || "root";
   }
 
-  /** Busca una subcarpeta por nombre bajo un parent; la crea si no existe (idempotente). */
-  private async findOrCreateFolder(name: string, parentId: string): Promise<string> {
+  /** Raíz del Drive (Mi unidad o el Shared Drive): tope del selector de carpetas. */
+  private driveBase(): string {
+    return this.cfg.sharedDriveId || "root";
+  }
+
+  /** `GENWORK_<EMPRESA>`: empresa del panel admin o, si no hay, `GENWORK_ORG`. */
+  private rootName(): string | null {
+    return this.cfg.orgName ? rootNameFor(this.cfg.orgName) : storageRootName();
+  }
+
+  /** Dónde vive (o va a vivir) la carpeta `GENWORK_<EMPRESA>` con esta config. */
+  rootLocation(): { parentId: string; name: string | null } {
+    return { parentId: this.rootParent(), name: this.rootName() };
+  }
+
+  /** Busca una subcarpeta por nombre bajo un parent, sin crearla. */
+  private async findFolder(name: string, parentId: string): Promise<string | null> {
     const safe = name.replace(/'/g, "\\'");
-    const q = `name = '${safe}' and '${parentId}' in parents and mimeType = '${FOLDER_MIME}' and trashed = false`;
     const listQuery: Record<string, string> = {
-      q,
+      q: `name = '${safe}' and '${parentId}' in parents and mimeType = '${FOLDER_MIME}' and trashed = false`,
       includeItemsFromAllDrives: "true",
       fields: "files(id,name)",
     };
@@ -97,7 +113,13 @@ export class GoogleDriveProvider implements StorageProvider {
       listQuery.driveId = this.cfg.sharedDriveId!;
     }
     const found = (await this.api("GET", "/files", { query: listQuery })) as { files?: DriveFile[] };
-    if (found.files && found.files.length > 0) return found.files[0].id;
+    return found.files?.[0]?.id ?? null;
+  }
+
+  /** Busca una subcarpeta por nombre bajo un parent; la crea si no existe (idempotente). */
+  private async findOrCreateFolder(name: string, parentId: string): Promise<string> {
+    const found = await this.findFolder(name, parentId);
+    if (found) return found;
 
     const created = (await this.api("POST", "/files", {
       body: { name, mimeType: FOLDER_MIME, parents: [parentId] },
@@ -107,11 +129,12 @@ export class GoogleDriveProvider implements StorageProvider {
   }
 
   /**
-   * Carpeta raíz de genwork: `GENWORK_<EMPRESA>` bajo la raíz configurada si
-   * hay `GENWORK_ORG`; si no, la raíz configurada tal cual (instalaciones previas).
+   * Carpeta raíz de genwork: `GENWORK_<EMPRESA>` bajo la carpeta elegida por
+   * el admin si hay empresa definida; si no, esa carpeta tal cual
+   * (instalaciones previas).
    */
   private async genworkRoot(): Promise<string> {
-    const root = storageRootName();
+    const root = this.rootName();
     return root ? this.findOrCreateFolder(root, this.rootParent()) : this.rootParent();
   }
 
@@ -121,7 +144,7 @@ export class GoogleDriveProvider implements StorageProvider {
   }
 
   async createGroupFolder(input: { groupId: string; groupName: string }) {
-    const groupName = storageRootName() ? folderSegment(input.groupName) : input.groupName;
+    const groupName = this.rootName() ? folderSegment(input.groupName) : input.groupName;
     const folderId = await this.findOrCreateFolder(groupName, await this.genworkRoot());
     return { storageGroupId: folderId, storageFolderId: folderId };
   }
@@ -130,21 +153,79 @@ export class GoogleDriveProvider implements StorageProvider {
   async addMember(): Promise<void> {}
   async removeMember(): Promise<void> {}
 
-  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
-    const withRoot = storageRootName() != null;
+  /**
+   * Carpeta del ámbito de un trabajo (grupo o personal), activa o dentro de
+   * `_archivados`. Misma organización que en Nextcloud: bajo la raíz de la
+   * empresa `{root}/_archivados/{ámbito}`; sin raíz (instalaciones previas)
+   * `{ámbito}/_archivados`.
+   */
+  private async scopeFolder(scope: WorkFolderScope, archived = false): Promise<string> {
     const root = await this.genworkRoot();
-    let containerId: string;
-    if ("groupName" in input.scope) {
-      const groupName = withRoot ? folderSegment(input.scope.groupName) : input.scope.groupName;
-      containerId = await this.findOrCreateFolder(groupName, root);
-    } else if (withRoot) {
-      containerId = await this.findOrCreateFolder(input.scope.personalEmail.toLowerCase(), root);
-    } else {
-      const personalRoot = await this.findOrCreateFolder("Personales", root);
-      containerId = await this.findOrCreateFolder(input.scope.personalStorageUserId, personalRoot);
+    if (this.rootName() != null) {
+      const base = archived ? await this.findOrCreateFolder(ARCHIVE_FOLDER, root) : root;
+      const name = "groupName" in scope ? folderSegment(scope.groupName) : scope.personalEmail.toLowerCase();
+      return this.findOrCreateFolder(name, base);
     }
+    const container =
+      "groupName" in scope
+        ? await this.findOrCreateFolder(scope.groupName, root)
+        : await this.findOrCreateFolder(
+            scope.personalStorageUserId,
+            await this.findOrCreateFolder("Personales", root),
+          );
+    return archived ? this.findOrCreateFolder(ARCHIVE_FOLDER, container) : container;
+  }
+
+  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+    const containerId = await this.scopeFolder(input.scope);
     const folderId = await this.findOrCreateFolder(input.workName, containerId);
     return { folderPath: folderId };
+  }
+
+  async archiveWorkFolder(input: {
+    folderPath: string;
+    direction: "archive" | "unarchive";
+    scope: WorkFolderScope;
+  }): Promise<void> {
+    const target = await this.scopeFolder(input.scope, input.direction === "archive");
+    await this.moveFolder(input.folderPath, target);
+  }
+
+  async childFolder(parentPath: string, name: string): Promise<string> {
+    return this.findOrCreateFolder(name, parentPath);
+  }
+
+  /**
+   * En Drive el cliente navega con IDs: se valida que `clientPath` sea la
+   * carpeta del trabajo o esté debajo de ella, subiendo por `parents`.
+   */
+  async resolveItem(rootFolderPath: string, clientPath: string | null | undefined): Promise<string> {
+    const id = clientPath?.trim();
+    if (!id) return rootFolderPath;
+    if (!/^[\w-]+$/.test(id)) {
+      throw Object.assign(new Error("Ruta de archivo inválida"), { code: "INVALID_PATH" });
+    }
+    let current = id;
+    for (let depth = 0; depth < MAX_FOLDER_DEPTH; depth++) {
+      if (current === rootFolderPath) return id;
+      let info: DriveFile;
+      try {
+        info = (await this.api("GET", `/files/${encodeURIComponent(current)}`, {
+          query: { fields: "id,parents" },
+        })) as DriveFile;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("HTTP 404")) {
+          throw Object.assign(new Error(`No existe "${id}"`), { code: "NOT_FOUND" });
+        }
+        throw err;
+      }
+      const parent = info.parents?.[0];
+      if (!parent) break;
+      current = parent;
+    }
+    throw Object.assign(new Error("La ruta no puede salir de la carpeta del trabajo"), {
+      code: "INVALID_PATH",
+    });
   }
 
   async upload(input: { folderPath: string; fileName: string; data: Buffer | Readable }) {
@@ -377,6 +458,8 @@ export class GoogleDriveProvider implements StorageProvider {
     const info = (await this.api("GET", `/files/${from}`, {
       query: { fields: "parents", supportsAllDrives: "true" },
     })) as DriveFile;
+    // Ya está en destino (reintento de la cola): no-op.
+    if (info.parents?.length === 1 && info.parents[0] === to) return;
     const oldParents = (info.parents ?? []).join(",");
     await this.api("PATCH", `/files/${from}`, {
       query: {
@@ -401,6 +484,117 @@ export class GoogleDriveProvider implements StorageProvider {
     // Google Drive no tiene concepto de "grupo" con membresía consultable: el acceso lo intermedia la plataforma.
     void input;
     throw new Error("Google Drive no soporta auditoría de miembros de grupo");
+  }
+
+  /** Nombre visible de la raíz del Drive para las migas del selector. */
+  private async baseName(): Promise<string> {
+    if (!this.useSharedDrive()) return "Mi unidad";
+    const drive = (await this.api("GET", `/drives/${this.cfg.sharedDriveId}`, {
+      query: { fields: "name" },
+    })) as { name?: string };
+    return drive.name ?? "Shared Drive";
+  }
+
+  /**
+   * Camino desde la raíz del Drive hasta `folderId` (inclusive), para las migas
+   * del selector. Falla con `NOT_FOUND` si no existe y `NOT_FOLDER` si no es carpeta.
+   */
+  async folderPath(folderId: string): Promise<{ id: string; name: string }[]> {
+    const base = this.driveBase();
+    const out: { id: string; name: string }[] = [];
+    let current = folderId;
+    for (let depth = 0; depth < MAX_FOLDER_DEPTH; depth++) {
+      if (current === base) break;
+      let info: DriveFile;
+      try {
+        info = (await this.api("GET", `/files/${encodeURIComponent(current)}`, {
+          query: { fields: "id,name,mimeType,parents" },
+        })) as DriveFile;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes("HTTP 404")) {
+          throw Object.assign(new Error("La carpeta no existe o no hay acceso"), { code: "NOT_FOUND" });
+        }
+        throw err;
+      }
+      if (info.mimeType !== FOLDER_MIME) {
+        throw Object.assign(new Error(`"${info.name}" no es una carpeta`), { code: "NOT_FOLDER" });
+      }
+      // Sin parent = raíz real de Mi unidad (su ID no es el alias "root").
+      const parent = info.parents?.[0];
+      if (!parent) break;
+      out.unshift({ id: info.id, name: info.name });
+      current = parent;
+    }
+    out.unshift({ id: base, name: await this.baseName() });
+    return out;
+  }
+
+  /**
+   * Selector de carpetas del panel admin: subcarpetas de `parentId` (por
+   * defecto la raíz del Drive) y el camino hasta ella.
+   */
+  async browseFolders(parentId?: string): Promise<{
+    path: { id: string; name: string }[];
+    folders: { id: string; name: string }[];
+  }> {
+    const currentId = parentId || this.driveBase();
+    const path = await this.folderPath(currentId);
+    const listQuery: Record<string, string> = {
+      q: `'${currentId}' in parents and mimeType = '${FOLDER_MIME}' and trashed = false`,
+      includeItemsFromAllDrives: "true",
+      fields: "files(id,name)",
+      orderBy: "name",
+      pageSize: "1000",
+    };
+    if (this.useSharedDrive()) {
+      listQuery.corpora = "drive";
+      listQuery.driveId = this.cfg.sharedDriveId!;
+    }
+    const data = (await this.api("GET", "/files", { query: listQuery })) as { files?: DriveFile[] };
+    return { path, folders: (data.files ?? []).map((f) => ({ id: f.id, name: f.name })) };
+  }
+
+  /**
+   * Cuando el admin cambia la carpeta o la empresa: mueve y/o renombra la
+   * carpeta `GENWORK_<EMPRESA>` existente a donde indica `target` (la config
+   * nueva). En Drive los IDs no cambian, así que proyectos, grupos y archivos
+   * compartidos siguen funcionando. Sin carpeta previa no hay nada que mover.
+   */
+  async relocateGenworkRoot(target: GoogleDriveProvider): Promise<"moved" | "unchanged" | "none"> {
+    const from = this.rootLocation();
+    const to = target.rootLocation();
+    if (!from.name || !to.name) return "none";
+    const rootId = await this.findFolder(from.name, from.parentId);
+    if (!rootId) return "none";
+
+    const sameParent = from.parentId === to.parentId;
+    if (sameParent && from.name === to.name) return "unchanged";
+
+    if (!sameParent) {
+      const chain = await target.folderPath(to.parentId);
+      if (chain.some((f) => f.id === rootId)) {
+        throw Object.assign(new Error(`No se puede mover ${from.name} adentro de sí misma`), {
+          code: "INVALID_TARGET",
+        });
+      }
+    }
+    if (await target.findFolder(to.name, to.parentId)) {
+      throw Object.assign(new Error(`Ya existe una carpeta ${to.name} en el destino`), {
+        code: "ALREADY_EXISTS",
+      });
+    }
+
+    const query: Record<string, string> = { fields: "id" };
+    if (!sameParent) {
+      const info = (await this.api("GET", `/files/${rootId}`, { query: { fields: "parents" } })) as DriveFile;
+      query.addParents = to.parentId;
+      query.removeParents = (info.parents ?? []).join(",");
+    }
+    await this.api("PATCH", `/files/${rootId}`, {
+      query,
+      ...(from.name !== to.name ? { body: { name: to.name } } : {}),
+    });
+    return "moved";
   }
 
   async test(): Promise<{ ok: boolean; detail: string }> {

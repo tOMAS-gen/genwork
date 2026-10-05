@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ApiError, badRequest, conflict, withApi } from "@/server/api";
 import { requireInternal } from "@/server/guards";
-import { assertWorkAccess, confineWorkPath } from "@/lib/storage/access-check";
+import { assertWorkAccess, resolveWorkPath } from "@/lib/storage/access-check";
 import { getStorageProvider } from "@/lib/storage";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
 
@@ -38,8 +38,6 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
   if (!work.nextcloudFolderPath) {
     throw conflict("La carpeta del proyecto todavía no está lista; reintentá en unos segundos");
   }
-
-  const folderPath = confineWorkPath(work.nextcloudFolderPath, clientPath);
 
   let storage;
   try {
@@ -78,6 +76,8 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
       { status: 501 },
     );
   }
+
+  const folderPath = await resolveWorkPath(storage, work.nextcloudFolderPath, clientPath);
 
   try {
     const { path } = await storage.createFolder({ folderPath, name });

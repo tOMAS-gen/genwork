@@ -103,7 +103,9 @@ export function FilesBrowser({
 }: {
   workId: string;
 }) {
-  const [currentPath, setCurrentPath] = useState("");
+  // Migas de navegación: path (ruta en Nextcloud, ID en Drive) + nombre visible.
+  const [trail, setTrail] = useState<{ path: string; name: string }[]>([]);
+  const currentPath = trail.length > 0 ? trail[trail.length - 1].path : "";
   const [files, setFiles] = useState<StorageFileInfo[]>([]);
   const [nextcloudUrl, setNextcloudUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -276,7 +278,7 @@ export function FilesBrowser({
   );
 
   const openFolder = (file: StorageFileInfo) => {
-    setCurrentPath(file.path);
+    setTrail((prev) => [...prev, { path: file.path, name: file.name }]);
   };
 
   const openFile = () => {
@@ -284,7 +286,7 @@ export function FilesBrowser({
   };
 
   const downloadUrl = (file: StorageFileInfo) =>
-    `/api/works/${workId}/files/download?path=${encodeURIComponent(file.path)}`;
+    `/api/works/${workId}/files/download?path=${encodeURIComponent(file.path)}&name=${encodeURIComponent(file.name)}`;
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -460,7 +462,6 @@ export function FilesBrowser({
     });
   }, []);
 
-  const pathParts = currentPath.split("/").filter(Boolean);
   // Sin carpeta creada todavía (no habilitada, o habilitada pero el job de
   // creación no terminó): oculta subida/nueva carpeta/breadcrumb (T006).
   const folderPending = folderEnabled !== undefined;
@@ -530,18 +531,18 @@ export function FilesBrowser({
 
       {!folderPending && currentPath && (
         <div className="file-explorer-breadcrumb">
-          <button type="button" onClick={() => setCurrentPath("")}>
+          <button type="button" onClick={() => setTrail([])}>
             Raíz
           </button>
-          {pathParts.map((part, i) => (
-            <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
+          {trail.map((crumb, i) => (
+            <span key={crumb.path} style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}>
               <span>/</span>
-              {i < pathParts.length - 1 ? (
-                <button type="button" onClick={() => setCurrentPath(pathParts.slice(0, i + 1).join("/"))}>
-                  {part}
+              {i < trail.length - 1 ? (
+                <button type="button" onClick={() => setTrail((prev) => prev.slice(0, i + 1))}>
+                  {crumb.name}
                 </button>
               ) : (
-                <span>{part}</span>
+                <span>{crumb.name}</span>
               )}
             </span>
           ))}
