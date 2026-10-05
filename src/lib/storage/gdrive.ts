@@ -26,6 +26,11 @@ import { rootNameFor, storageRootName } from "./root";
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+/** Hasta este tamaño se sube en un solo pedido multipart; más grande, reanudable. */
+const MULTIPART_MAX_BYTES = 5 * 1024 * 1024;
+/** Reintentos ante errores temporales de Drive (red, 429, 5xx). */
+const UPLOAD_RETRIES = 3;
+const RETRY_BASE_MS = 1_000;
 /** Tope de niveles al subir por `parents` para validar que un ID está dentro del trabajo. */
 const MAX_FOLDER_DEPTH = 32;
 
@@ -228,23 +233,35 @@ export class GoogleDriveProvider implements StorageProvider {
     });
   }
 
+  /**
+   * Sube un archivo. Hasta 5MB va en un solo pedido multipart; más grande, por
+   * subida reanudable (lo que recomienda Google: multipart con archivos grandes
+   * falla seguido). Errores temporales (red, 429, 5xx) se reintentan con espera
+   * creciente. Drive permite nombres duplicados: cada subida crea un archivo nuevo.
+   */
   async upload(input: { folderPath: string; fileName: string; data: Buffer | Readable }) {
-    const token = await this.token();
     const buffer = Buffer.isBuffer(input.data)
       ? input.data
       : await streamToBuffer(input.data as Readable);
+    const metadata = { name: input.fileName, parents: [input.folderPath] };
 
-    // Multipart related: metadata JSON + contenido. Drive permite nombres duplicados
-    // (versiona: cada subida crea un archivo nuevo, no reemplaza).
+    const created = await withRetry(() =>
+      buffer.length > MULTIPART_MAX_BYTES
+        ? this.resumableUpload(buffer, metadata)
+        : this.multipartUpload(buffer, metadata),
+    );
+    return { filePath: created.id };
+  }
+
+  private async multipartUpload(buffer: Buffer, metadata: object): Promise<DriveFile> {
+    const token = await this.token();
     const boundary = `gw${Date.now().toString(36)}`;
-    const metadata = JSON.stringify({ name: input.fileName, parents: [input.folderPath] });
     const pre = Buffer.from(
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
         `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`,
       "utf8",
     );
     const post = Buffer.from(`\r\n--${boundary}--`, "utf8");
-    const body = Buffer.concat([pre, buffer, post]);
 
     const res = await fetch(`${DRIVE_UPLOAD}?uploadType=multipart&supportsAllDrives=true&fields=id`, {
       method: "POST",
@@ -252,14 +269,36 @@ export class GoogleDriveProvider implements StorageProvider {
         Authorization: `Bearer ${token}`,
         "Content-Type": `multipart/related; boundary=${boundary}`,
       },
-      body,
+      body: Buffer.concat([pre, buffer, post]),
     });
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new Error(`Google Drive upload falló (HTTP ${res.status}): ${detail}`);
-    }
-    const created = (await res.json()) as DriveFile;
-    return { filePath: created.id };
+    await assertUploadOk(res);
+    return (await res.json()) as DriveFile;
+  }
+
+  /** Subida reanudable: abre la sesión con la metadata y manda el contenido. */
+  private async resumableUpload(buffer: Buffer, metadata: object): Promise<DriveFile> {
+    const token = await this.token();
+    const session = await fetch(`${DRIVE_UPLOAD}?uploadType=resumable&supportsAllDrives=true&fields=id`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Type": "application/octet-stream",
+        "X-Upload-Content-Length": String(buffer.length),
+      },
+      body: JSON.stringify(metadata),
+    });
+    await assertUploadOk(session);
+    const location = session.headers.get("location");
+    if (!location) throw new Error("Google Drive no devolvió la URL de subida reanudable");
+
+    const res = await fetch(location, {
+      method: "PUT",
+      headers: { "Content-Type": "application/octet-stream" },
+      body: buffer as unknown as BodyInit, // Buffer es un Uint8Array válido como body
+    });
+    await assertUploadOk(res);
+    return (await res.json()) as DriveFile;
   }
 
   async read(filePath: string): Promise<Readable> {
@@ -612,6 +651,29 @@ export class GoogleDriveProvider implements StorageProvider {
       return { ok: true, detail: `Conectado a Mi Drive (${who})` };
     } catch (err) {
       return { ok: false, detail: `Sin acceso a Google Drive: ${(err as Error).message}` };
+    }
+  }
+}
+
+/** Error de subida que vale la pena reintentar (Drive lo pide para 429 y 5xx). */
+class RetryableUploadError extends Error {}
+
+async function assertUploadOk(res: Response): Promise<void> {
+  if (res.ok) return;
+  const detail = await res.text().catch(() => "");
+  const message = `Google Drive upload falló (HTTP ${res.status}): ${detail}`;
+  throw res.status === 429 || res.status >= 500 ? new RetryableUploadError(message) : new Error(message);
+}
+
+async function withRetry<T>(op: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await op();
+    } catch (err) {
+      // TypeError = fallo de red de fetch (conexión cortada, timeout).
+      const retryable = err instanceof RetryableUploadError || err instanceof TypeError;
+      if (!retryable || attempt >= UPLOAD_RETRIES) throw err;
+      await new Promise((r) => setTimeout(r, RETRY_BASE_MS * 2 ** attempt));
     }
   }
 }

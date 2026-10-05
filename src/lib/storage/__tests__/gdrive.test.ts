@@ -272,6 +272,56 @@ describe("GoogleDriveProvider — requests a la Drive API", () => {
         provider.upload({ folderPath: "folder-id", fileName: "x.txt", data: Buffer.from("x") }),
       ).rejects.toThrow(/HTTP 403/);
     });
+
+    it("archivo de más de 5MB: subida reanudable (sesión + PUT del contenido)", async () => {
+      const big = Buffer.alloc(6 * 1024 * 1024, 1);
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ location: "https://upload.example/session-1" }),
+          text: async () => "",
+        } as Response)
+        .mockResolvedValueOnce(jsonResponse({ id: "big-file-id" }));
+
+      const result = await new GoogleDriveProvider(cfg).upload({
+        folderPath: "folder-id",
+        fileName: "plano.pdf",
+        data: big,
+      });
+
+      expect(result).toEqual({ filePath: "big-file-id" });
+      const [initUrl, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(initUrl).toContain("uploadType=resumable");
+      expect(JSON.parse(init.body as string)).toEqual({ name: "plano.pdf", parents: ["folder-id"] });
+      expect((init.headers as Record<string, string>)["X-Upload-Content-Length"]).toBe(String(big.length));
+      const [putUrl, put] = fetchMock.mock.calls[1] as [string, RequestInit];
+      expect(putUrl).toBe("https://upload.example/session-1");
+      expect(put.method).toBe("PUT");
+      expect((put.body as Buffer).length).toBe(big.length);
+    });
+
+    it("error temporal de Drive (503) o de red: reintenta y termina subiendo", async () => {
+      vi.useFakeTimers();
+      try {
+        fetchMock
+          .mockResolvedValueOnce(jsonResponse({ error: "backend" }, { ok: false, status: 503 }))
+          .mockRejectedValueOnce(new TypeError("fetch failed"))
+          .mockResolvedValueOnce(jsonResponse({ id: "new-file-id" }));
+
+        const pending = new GoogleDriveProvider(cfg).upload({
+          folderPath: "folder-id",
+          fileName: "x.txt",
+          data: Buffer.from("x"),
+        });
+        await vi.runAllTimersAsync();
+
+        await expect(pending).resolves.toEqual({ filePath: "new-file-id" });
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("test — chequeo de conectividad del panel admin", () => {

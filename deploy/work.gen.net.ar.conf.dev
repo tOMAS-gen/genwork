@@ -23,6 +23,10 @@ server {
     access_log /var/log/nginx/work_access.log;
     error_log /var/log/nginx/work_error.log;
 
+    # Subida de archivos: nginx corta en 1MB por defecto (413). Mismo tope que
+    # la app (MAX_UPLOAD_MB). Sin buffer ni timeout corto para archivos grandes.
+    client_max_body_size 50m;
+
     location / {
         # 127.0.0.1:18010 = extremo local del túnel SSH inverso abierto por
         # la notebook (GatewayPorts no -> solo localhost del server).
@@ -36,5 +40,9 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+
+        proxy_request_buffering off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
     }
 }

@@ -23,6 +23,7 @@ import type {
 } from "./provider";
 import { folderSegment, sanitizeSegment } from "./paths";
 import { storageRootName } from "./root";
+import { nextcloudPublicUrl } from "./nextcloud-url";
 
 const SHARE_TYPE_USER = 0;
 const SHARE_TYPE_GROUP = 1;
@@ -152,6 +153,18 @@ export class NextcloudProvider implements StorageProvider {
       }
     }
     return mounts;
+  }
+
+  /**
+   * Link para abrir una carpeta en la web de Nextcloud. Se usa el link por id
+   * (`/f/{fileid}`): la ruta del admin (`/genwork/{grupo}/…`) no es la que ve
+   * cada usuario, que tiene la carpeta compartida montada en otro lado.
+   */
+  async webUrl(path: string): Promise<string | null> {
+    const base = nextcloudPublicUrl(this.cfg.url);
+    if (!base) return null;
+    const fileId = await this.adminFileId(path).catch(() => null);
+    return fileId ? `${base}/f/${fileId}` : `${base}/apps/files/?dir=${encodeURIComponent(path)}`;
   }
 
   /** File id de una ruta del admin (PROPFIND con la cuenta admin), o null si no existe. */

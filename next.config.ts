@@ -25,6 +25,9 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "50mb",
     },
+    // `proxy.ts` hace que Next bufferee el body con tope de 10MB y corte el
+    // resto sin error: las subidas de archivos más grandes llegaban truncadas.
+    proxyClientMaxBodySize: "50mb",
   },
 };
 

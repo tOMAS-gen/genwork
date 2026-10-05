@@ -21,7 +21,8 @@ Nextcloud incluido; también podés conectar un Nextcloud externo desde el panel
 | AUTH_URL | URL pública de la aplicación (ej. https://genwork.example.com) | Sí | — |
 | GOOGLE_CLIENT_ID | Client ID de Google OAuth | Sí | — |
 | GOOGLE_CLIENT_SECRET | Client Secret de Google OAuth | Sí | — |
-| NEXTCLOUD_URL | URL del servidor Nextcloud | No | — |
+| NEXTCLOUD_URL | URL del servidor Nextcloud (la que usa la app; puede ser interna de Docker) | No | — |
+| NEXTCLOUD_PUBLIC_URL | URL de Nextcloud que abre el navegador ("Abrir en Nextcloud"); sin ella, `https://NEXTCLOUD_HOST` o `NEXTCLOUD_URL` | No | — |
 | NEXTCLOUD_ADMIN_USER | Usuario administrador de Nextcloud | No | — |
 | NEXTCLOUD_ADMIN_PASSWORD | Contraseña del admin de Nextcloud | No | — |
 | APP_ENCRYPTION_KEY | Clave para encriptar secretos almacenados | No* | — |

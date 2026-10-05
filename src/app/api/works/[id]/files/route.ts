@@ -80,11 +80,10 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       }));
     let nextcloudUrl: string | null = null;
     if (storage instanceof NextcloudProvider) {
-      const ncUrl = process.env.NEXTCLOUD_URL?.replace(/\/$/, "") ?? "";
       const dir = subpath
         ? `${work.nextcloudFolderPath}/${subpath}`
         : work.nextcloudFolderPath;
-      nextcloudUrl = ncUrl ? `${ncUrl}/apps/files/?dir=${encodeURIComponent(dir)}` : null;
+      nextcloudUrl = await storage.webUrl(dir);
     }
 
     return NextResponse.json({ files, nextcloudUrl, folderSeq: work.folderSeq });

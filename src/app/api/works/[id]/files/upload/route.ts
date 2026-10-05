@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db/client";
-import { conflict, forbidden, notFound, withApi } from "@/server/api";
+import { ApiError, conflict, forbidden, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { emit } from "@/server/events";
 import { resolveWorkPath } from "@/lib/storage/access-check";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@/lib/storage/limits";
 
 /**
  * Subida de archivos al visor del proyecto (feature 034, T011). Sube uno o
@@ -53,6 +54,10 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
   const path = await resolveWorkPath(storage, work.nextcloudFolderPath, form.get("path") as string | null);
   const files = form.getAll("file").filter((f): f is File => f instanceof File);
   if (files.length === 0) throw conflict("Falta el archivo (campo 'file')");
+  const tooBig = files.find((f) => f.size > MAX_UPLOAD_BYTES);
+  if (tooBig) {
+    throw new ApiError(413, "FILE_TOO_LARGE", `"${tooBig.name}" supera el máximo de ${MAX_UPLOAD_MB} MB`);
+  }
 
   const uploaded: { name: string; path: string; size: number }[] = [];
   for (const file of files) {

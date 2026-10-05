@@ -5,6 +5,7 @@ import { getStorageProvider } from "@/lib/storage";
 import { assertWorkAccess, resolveWorkPath } from "@/lib/storage/access-check";
 import { StorageIdentityMissingError } from "@/lib/storage/identity";
 import { Readable } from "node:stream";
+import { contentDisposition } from "@/server/content-disposition";
 
 /** Descarga un archivo puntual de la carpeta del trabajo (FR-002, FR-005, FR-007). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { params }) => {
@@ -63,7 +64,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
 
   return new Response(Readable.toWeb(stream) as ReadableStream, {
     headers: {
-      "Content-Disposition": `attachment; filename="${fileName}"`,
+      "Content-Disposition": contentDisposition(fileName),
       "Content-Type": "application/octet-stream",
     },
   });

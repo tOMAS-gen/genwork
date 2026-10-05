@@ -71,6 +71,10 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?definir en .env}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?definir en .env}
       NEXTCLOUD_URL: http://nextcloud
+      # Links "Abrir en Nextcloud": dirección pública, no la interna de Docker.
+      # (vacía → https://NEXTCLOUD_HOST).
+      NEXTCLOUD_PUBLIC_URL: ${NEXTCLOUD_PUBLIC_URL:-}
+      NEXTCLOUD_HOST: ${NEXTCLOUD_HOST:-nube.localhost}
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-ncadmin}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       GENWORK_ORG: ${GENWORK_ORG:?definir en .env}

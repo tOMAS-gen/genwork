@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Upload, Folder, FileText, Download, Trash2, Share2, Copy, Check, Clock, Pencil } from "@/components/ui/icons";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@/lib/storage/limits";
 
 interface StorageFileInfo {
   name: string;
@@ -41,6 +42,23 @@ interface FileShare {
   /** Nombre/email legible del destinatario interno — solo para mostrar "a quién". */
   targetUserName?: string;
   targetSectorName?: string;
+}
+
+/**
+ * Mensaje legible de una subida fallida. Un 413 puede venir del nginx/Caddy
+ * delante de la app (HTML, no JSON), así que se traduce por status.
+ */
+async function uploadErrorMessage(res: Response): Promise<string> {
+  const body = await res.json().catch(() => null);
+  if (body?.error?.message) return body.error.message;
+  if (res.status === 413) return `supera el tamaño máximo permitido (${MAX_UPLOAD_MB} MB)`;
+  if (res.status === 502 || res.status === 504) return "el servidor tardó demasiado; probá de nuevo";
+  return `error del servidor (HTTP ${res.status})`;
+}
+
+/** El nombre va aparte: en Drive el `path` es un ID, no sirve como nombre del archivo. */
+function fileDownloadUrl(workId: string, file: StorageFileInfo): string {
+  return `/api/works/${workId}/files/download?path=${encodeURIComponent(file.path)}&name=${encodeURIComponent(file.name)}`;
 }
 
 /** Mensaje consistente para 424 STORAGE_IDENTITY_MISSING (FR-011, T026). */
@@ -119,6 +137,7 @@ export function FilesBrowser({
   const [enableErrorLinkUrl, setEnableErrorLinkUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -184,37 +203,69 @@ export function FilesBrowser({
 
   useEffect(load, [load]);
 
+  /**
+   * Sube los archivos de a uno (un pedido por archivo): uno grande o con error
+   * no arrastra a los demás, y se ve el avance. Al final se informa cuáles fallaron.
+   */
   const handleUpload = useCallback(
     async (fileList: FileList | File[]) => {
       const list = Array.from(fileList);
       if (list.length === 0) return;
       setUploading(true);
       setUploadError(null);
-      try {
-        const fd = new FormData();
-        if (currentPath) fd.set("path", currentPath);
-        for (const f of list) fd.append("file", f);
-        const res = await fetch(`/api/works/${workId}/files/upload`, {
-          method: "POST",
-          body: fd,
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          const code = body?.error?.code;
-          throw new Error(
-            code === "STORAGE_UNAVAILABLE"
-              ? "El almacenamiento no está configurado"
-              : body?.error?.message || "No se pudo subir el archivo",
-          );
+      const failed: string[] = [];
+      for (const [i, f] of list.entries()) {
+        setUploadProgress({ done: i, total: list.length });
+        if (f.size > MAX_UPLOAD_BYTES) {
+          failed.push(`"${f.name}" supera el máximo de ${MAX_UPLOAD_MB} MB`);
+          continue;
         }
-        load();
-      } catch (err) {
-        setUploadError((err as Error).message);
-      } finally {
-        setUploading(false);
+        try {
+          const fd = new FormData();
+          if (currentPath) fd.set("path", currentPath);
+          fd.append("file", f);
+          const res = await fetch(`/api/works/${workId}/files/upload`, { method: "POST", body: fd });
+          if (!res.ok) throw new Error(await uploadErrorMessage(res));
+        } catch (err) {
+          failed.push(`"${f.name}": ${(err as Error).message}`);
+        }
       }
+      setUploadProgress(null);
+      setUploading(false);
+      if (failed.length > 0) {
+        setUploadError(`No se pudo subir ${failed.length === 1 ? "1 archivo" : `${failed.length} archivos`}: ${failed.join(" · ")}`);
+      }
+      load();
     },
     [workId, currentPath, load],
+  );
+
+  /**
+   * Descarga por fetch: si el servidor responde con error se muestra el
+   * mensaje, en vez de que el navegador guarde la respuesta como `download.json`.
+   */
+  const handleDownload = useCallback(
+    async (file: StorageFileInfo) => {
+      setUploadError(null);
+      try {
+        const res = await fetch(fileDownloadUrl(workId, file));
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error?.message || "No se pudo descargar el archivo");
+        }
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      } catch (err) {
+        setUploadError(`No se pudo descargar "${file.name}": ${(err as Error).message}`);
+      }
+    },
+    [workId],
   );
 
   /** Habilita la carpeta de storage del proyecto (T004) y refresca el listado. */
@@ -284,9 +335,6 @@ export function FilesBrowser({
   const openFile = () => {
     if (nextcloudUrl) window.open(nextcloudUrl, "_blank");
   };
-
-  const downloadUrl = (file: StorageFileInfo) =>
-    `/api/works/${workId}/files/download?path=${encodeURIComponent(file.path)}&name=${encodeURIComponent(file.name)}`;
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -501,7 +549,11 @@ export function FilesBrowser({
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <Upload size={16} />
-            {uploading ? "Subiendo…" : "Subir archivo"}
+            {uploading
+              ? uploadProgress && uploadProgress.total > 1
+                ? `Subiendo ${uploadProgress.done + 1} de ${uploadProgress.total}…`
+                : "Subiendo…"
+              : "Subir archivo"}
           </button>
           <button
             type="button"
@@ -629,12 +681,16 @@ export function FilesBrowser({
               <span style={{ display: "inline-flex", gap: "var(--space-1)", flexShrink: 0 }}>
                 {!file.isDirectory && (
                   <a
-                    href={downloadUrl(file)}
+                    href={fileDownloadUrl(workId, file)}
                     download
                     className="icon-btn"
                     title="Descargar"
                     aria-label={`Descargar ${file.name}`}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      void handleDownload(file);
+                    }}
                   >
                     <Download size={16} />
                   </a>
