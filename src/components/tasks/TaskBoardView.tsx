@@ -1,11 +1,11 @@
 "use client";
 
-import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import { TaskItem, type TaskDto, type TaskItemContext } from "@/components/tasks/TaskItem";
 import { parentBreadcrumb } from "@/components/tasks/SubtaskList";
 
 interface TaskBoardViewProps {
   tasks: TaskDto[];
-  context: { workId?: string; sectorId?: string };
+  context: TaskItemContext;
   canToggle: boolean;
   onChanged: () => void;
   /**

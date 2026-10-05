@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db/client";
 import { ApiError, conflict, withApi } from "@/server/api";
 import { requireInternal, requireWriter } from "@/server/guards";
 import { getWorkWithAccess } from "@/server/works";
-import { canManageClientAccess } from "@/lib/domain/permissions";
+import { canManageClientAccess, canManageMyDay } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { enqueue } from "@/lib/storage/queue";
 import { computeArchivePath, computeRenamePath, formatFolderName } from "@/lib/storage/paths";
@@ -62,6 +62,12 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
     // proyecto. Es más estricto que `access`: operar el proyecto no alcanza, hace
     // falta administrar su ámbito (ADMIN del grupo, dueño personal o super-admin).
     canManageClients: canManageClientAccess(ctx, { groupId: work.groupId, ownerId: work.ownerId }),
+    // Mi día: quién pone/quita tareas de este proyecto en Mi día (admin del
+    // ámbito). Las plantillas y los archivados no participan de Mi día.
+    canManageMyDay:
+      !full.isTemplate &&
+      full.status === "ACTIVE" &&
+      canManageMyDay(ctx, { workScope: { groupId: work.groupId, ownerId: work.ownerId }, homeSector: null }),
     // Código de referencia legible de la carpeta del proyecto (feature 035)
     code: formatFolderName(full.folderSeq, full.name),
     labels: labels.map((l) => ({

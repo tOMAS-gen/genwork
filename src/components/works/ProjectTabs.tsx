@@ -13,14 +13,16 @@ export function ProjectTabs({
   activeKey,
   onChange,
   panelId,
+  ariaLabel = "Secciones del proyecto",
 }: {
   items: TabItem[];
   activeKey: string;
   onChange: (key: string) => void;
   panelId?: string;
+  ariaLabel?: string;
 }) {
   return (
-    <div className="project-tabs" role="tablist" aria-label="Secciones del proyecto">
+    <div className="project-tabs" role="tablist" aria-label={ariaLabel}>
       {items.map((item, index) => {
         const Icon = item.icon;
         return (

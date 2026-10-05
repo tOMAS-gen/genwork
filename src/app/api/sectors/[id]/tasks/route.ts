@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/client";
 import { notFound, withApi } from "@/server/api";
 import { requireInternal } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
-import { accessSector } from "@/lib/domain/permissions";
+import { accessSector, canManageMyDay, type UserContext } from "@/lib/domain/permissions";
 import { applyTaskFilters, type TaskFilters } from "@/lib/domain/views/filters";
 import { loadApplicableStatusSet, execSectorIdsOf, statusOptionDto } from "@/server/tasks";
 import { isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
@@ -17,8 +17,14 @@ import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
 // (la anidación visible en ESTA página) se arma aparte, ver `nestByParent`.
 const taskInclude = {
   links: { include: { sector: true, user: { select: { id: true, name: true } } } },
-  work: { select: { id: true, name: true, status: true, groupId: true, group: { select: { id: true, name: true } } } },
-  homeSector: { select: { id: true, name: true, group: { select: { id: true, name: true } } } },
+  // Mi día: `ownerId` (proyecto) y `groupId`/`ownerId` (sector hogar) para
+  // decidir por tarea quién la puede poner en Mi día (`withMyDayPermission`).
+  work: {
+    select: { id: true, name: true, status: true, groupId: true, ownerId: true, group: { select: { id: true, name: true } } },
+  },
+  homeSector: {
+    select: { id: true, name: true, groupId: true, ownerId: true, group: { select: { id: true, name: true } } },
+  },
   labels: { include: { value: { include: { key: true } } } },
   status: true,
   parent: { select: { id: true, displayText: true } },
@@ -135,6 +141,27 @@ function withFlatLabels<
     subtasks,
     subtaskCount: _count?.subtasks ?? 0,
     subtaskDone: doneByParentId.get(task.id) ?? 0,
+  };
+}
+
+/**
+ * Mi día: en un sector conviven tareas de distintos proyectos, así que el
+ * permiso de ponerlas en Mi día va por tarea (no por página como en el
+ * proyecto). Recursivo sobre las hijas anidadas.
+ */
+function withMyDayPermission<
+  T extends {
+    work: { groupId: string | null; ownerId: string | null } | null;
+    homeSector: { groupId: string | null; ownerId: string | null } | null;
+    subtasks: unknown[];
+  },
+>(ctx: UserContext, task: T): T & { canManageMyDay: boolean } {
+  const scopeOf = (e: { groupId: string | null; ownerId: string | null } | null) =>
+    e ? { groupId: e.groupId, ownerId: e.ownerId } : null;
+  return {
+    ...task,
+    canManageMyDay: canManageMyDay(ctx, { workScope: scopeOf(task.work), homeSector: scopeOf(task.homeSector) }),
+    subtasks: (task.subtasks as T[]).map((s) => withMyDayPermission(ctx, s)),
   };
 }
 
@@ -333,12 +360,12 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
           : { type: "GLOBAL" },
     },
     level,
-    loose: looseExec.map((t) => withFlatLabels(t, doneByParentId)),
+    loose: looseExec.map((t) => withMyDayPermission(ctx, withFlatLabels(t, doneByParentId))),
     byWork: byWork.map((entry) => ({
       ...entry,
-      tasks: entry.tasks.map((t) => withFlatLabels(t, doneByParentId)),
+      tasks: entry.tasks.map((t) => withMyDayPermission(ctx, withFlatLabels(t, doneByParentId))),
     })),
-    refs: refs.map((t) => withFlatLabels(t, doneByParentId)),
+    refs: refs.map((t) => withMyDayPermission(ctx, withFlatLabels(t, doneByParentId))),
     metrics: { total: totalCount, done: doneCount },
   });
 });

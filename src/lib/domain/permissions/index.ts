@@ -141,6 +141,21 @@ export function canManageClientAccess(user: UserContext, scope: Scope): boolean 
 }
 
 /**
+ * Mi día: quién pone o quita una tarea de "Mi día". Es una decisión de quien
+ * administra el ámbito de la tarea (mismo criterio que canManageClientAccess):
+ * el ámbito es el del proyecto si la tarea tiene uno; si no, el de su sector hogar.
+ * Una tarea sin proyecto ni sector hogar solo la maneja el super-admin.
+ */
+export function canManageMyDay(
+  user: UserContext,
+  task: { workScope: Scope | null; homeSector: Scope | null },
+): boolean {
+  const scope = task.workScope ?? task.homeSector;
+  if (!scope) return user.globalRole === "SUPERADMIN";
+  return canManageClientAccess(user, scope);
+}
+
+/**
  * Acceso a un sector (feature 046): SUPERADMIN siempre opera; si no, el acceso
  * automático por ámbito (Grupo/Personal/Global) vía access(); si eso no basta, el
  * SectorGrant individual (FR-022) es la excepción puntual que otorga operate fuera

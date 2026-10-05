@@ -5,7 +5,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
   Archive,
-  AtSign,
   BookTemplate,
   Calendar,
   ChevronRight,
@@ -15,6 +14,7 @@ import {
   LayoutGrid,
   Settings,
   Star,
+  Sun,
   User,
   Users,
 } from "@/components/ui/icons";
@@ -168,8 +168,8 @@ export function DrawerNav({
           <Link href="/notes" onClick={closeMobileDrawer} className={`rail-link${isActive("/notes") ? " nav-active" : ""}`} aria-current={isActive("/notes") ? "page" : undefined} data-tooltip="Mis notas" aria-label="Mis notas">
             <FileText size={18} />
           </Link>
-          <Link href="/references" onClick={closeMobileDrawer} className={`rail-link${isActive("/references") ? " nav-active" : ""}`} aria-current={isActive("/references") ? "page" : undefined} data-tooltip="Mis referencias" aria-label="Mis referencias">
-            <AtSign size={18} />
+          <Link href="/references" onClick={closeMobileDrawer} className={`rail-link${isActive("/references") ? " nav-active" : ""}`} aria-current={isActive("/references") ? "page" : undefined} data-tooltip="Mi día y referencias" aria-label="Mi día y referencias">
+            <Sun size={18} />
           </Link>
           <Link href="/" onClick={closeMobileDrawer} className={`rail-link${isActive("/") ? " nav-active" : ""}`} aria-current={isActive("/") ? "page" : undefined} data-tooltip="Proyectos" aria-label="Proyectos">
             <FileText size={18} />
@@ -415,7 +415,7 @@ export function DrawerNav({
           onClick={closeMobileDrawer}
           style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
         >
-          <AtSign size={16} className="muted" /> Mis referencias
+          <Sun size={16} className="muted" /> Mi día y referencias
         </Link>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", marginTop: "var(--space-2)" }}>
           {group("Proyectos", "/", openWorks, setOpenWorks, works, "/works", FileText)}

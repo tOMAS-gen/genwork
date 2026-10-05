@@ -50,6 +50,8 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 | `task.delete` | Borra una tarea de forma permanente. | **[destructiva]** |
 | `task.setParent` | Cuelga una tarea como subtarea de otra, o la promueve a tarea independiente con `parentId: null`. | Un solo nivel; mismo proyecto o sector; hereda los sectores de ejecución y el objetivo del padre. |
 | `task.setObjective` | Mueve una tarea raíz (con sus subtareas) a otro objetivo del mismo proyecto, o a generales con `objectiveId: null`. | Requiere operar el proyecto. `index` opcional (desde 0); sin él queda al final. |
+| `task.setMyDay` | Agrega (`inMyDay: true`) o quita una tarea de Mi día: marca global "para hoy", sin fecha. | Solo quien administra el ámbito (ADMIN del grupo, dueño personal o super-admin). Idempotente. |
+| `task.listMyDay` | Lista Mi día del usuario: tareas marcadas que puede ver, en orden de agregado, con su proyecto/sector y tarea padre. | Pendientes + completadas hoy. Excluye plantillas y proyectos archivados. |
 
 ## Objetivos (`objective.*`)
 

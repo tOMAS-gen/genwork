@@ -19,6 +19,7 @@ import { emit } from "@/server/events";
 import { getObjectiveWithAccess, setTaskObjective } from "@/server/objectives";
 import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
 import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
+import { listMyDay, setTaskMyDay } from "@/server/myDay";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -542,6 +543,87 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
             ? `Tarea "${updated.displayText}" reordenada.`
             : `Tarea "${updated.displayText}" movida ${where}.`,
           await summarizeTaskWithLabels(updated),
+        );
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "task.setMyDay",
+    {
+      title: "Agregar o quitar tarea de Mi día",
+      description:
+        "Mi día: marca global \"para hacer hoy\", sin fecha (estilo Microsoft To Do). Con " +
+        "inMyDay=true la tarea aparece en Mi día de todo usuario que puede verla; con false se " +
+        "quita. Solo quien administra el ámbito de la tarea (ADMIN del grupo, dueño del ámbito " +
+        "personal o super-admin). Idempotente.",
+      inputSchema: { taskId: z.string().uuid(), inMyDay: z.boolean() },
+    },
+    async ({ taskId, inMyDay }) => {
+      try {
+        const task = await getTaskOrThrow(taskId);
+        const wasInMyDay = task.myDayAt !== null;
+        await setTaskMyDay(ctx.userContext, taskId, inMyDay);
+        if (wasInMyDay === inMyDay) {
+          return toolSuccess(
+            inMyDay ? `"${task.displayText}" ya estaba en Mi día.` : `"${task.displayText}" no estaba en Mi día.`,
+          );
+        }
+
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "task.setMyDay",
+          targetType: "Task",
+          targetId: taskId,
+          workId: task.workId ?? undefined,
+          summary: inMyDay
+            ? `El asistente de IA agregó la tarea "${task.displayText}" a Mi día.`
+            : `El asistente de IA quitó la tarea "${task.displayText}" de Mi día.`,
+        });
+
+        return toolSuccess(
+          inMyDay ? `"${task.displayText}" agregada a Mi día.` : `"${task.displayText}" quitada de Mi día.`,
+        );
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "task.listMyDay",
+    {
+      title: "Ver Mi día",
+      description:
+        "Lista Mi día del usuario: tareas marcadas \"para hoy\" que puede ver, en orden de " +
+        "agregado. Incluye pendientes y las completadas hoy, con su proyecto/sector, objetivo y " +
+        "tarea padre.",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        const tasks = await listMyDay(ctx.userContext);
+        const summary = tasks.map((t) => ({
+          id: t.id,
+          text: t.displayText,
+          status: { name: t.status.name, type: t.status.type },
+          workName: t.work?.name ?? null,
+          sectorName: t.homeSector?.name ?? null,
+          objectiveTitle: t.objective?.title ?? null,
+          parentText: t.parentText ?? null,
+          subtasks: (t.subtasks ?? []).map((s) => ({
+            id: s.id,
+            text: s.displayText,
+            status: { name: s.status.name, type: s.status.type },
+          })),
+          addedAt: t.myDayAt,
+        }));
+        return toolSuccess(
+          tasks.length === 0 ? "Mi día está vacío." : `${tasks.length} tareas en Mi día.`,
+          { tasks: summary },
         );
       } catch (err) {
         return toToolErrorResult(err);

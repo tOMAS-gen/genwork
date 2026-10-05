@@ -7,6 +7,7 @@ import {
   Layers,
   LayoutDashboard,
   Settings,
+  Sun,
   Users,
 } from "@/components/ui/icons";
 
@@ -16,6 +17,7 @@ const PAGE_ICONS = {
   groups: Users,
   notes: FileText,
   references: AtSign,
+  myDay: Sun,
   reminders: Bell,
   settings: Settings,
   board: LayoutDashboard,
