@@ -5,34 +5,44 @@ import Link from "next/link";
 import { api } from "@/components/ui/useApi";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Sun } from "@/components/ui/icons";
+import { AtSign, Sun } from "@/components/ui/icons";
 import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { myDayProgress, myDaySourceLabel } from "@/lib/domain/tasks/myDayProgress";
+import { mergeMyDayAndReferences } from "./mergeMyDayAndReferences";
 
 type MyDayTask = TaskDto & { canToggle: boolean; canManageMyDay: boolean };
 
 /**
- * Mi día: tareas marcadas "para hoy" por quien administra el proyecto/sector,
- * en orden de agregado. Cada fila dice de dónde viene (proyecto › objetivo ›
- * tarea padre) porque la lista mezcla ámbitos. Las completadas hoy quedan
- * tachadas hasta medianoche para que se vea qué se cumplió.
+ * Lista continua: Mi día en orden de agregado, seguido de las referencias.
+ * El progreso cuenta solo Mi día; cada fila conserva su origen y permisos.
  */
-export function MyDayList() {
-  const [tasks, setTasks] = useState<MyDayTask[]>([]);
+export function MyDayAndReferencesList() {
+  const [data, setData] = useState<{ myDay: MyDayTask[]; references: TaskDto[] }>({
+    myDay: [],
+    references: [],
+  });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(() => {
-    void api<MyDayTask[]>("/api/me/my-day")
-      .then(setTasks)
-      .catch(() => {})
+    void Promise.all([
+      api<MyDayTask[]>("/api/me/my-day"),
+      api<TaskDto[]>("/api/me/references?type=IN_PROGRESS"),
+    ])
+      .then(([myDay, references]) => {
+        setData({ myDay, references });
+        setError(false);
+      })
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(load, [load]);
   useLiveRefresh(load);
 
-  const progress = useMemo(() => myDayProgress(tasks), [tasks]);
+  const progress = useMemo(() => myDayProgress(data.myDay), [data.myDay]);
+  const tasks = useMemo(() => mergeMyDayAndReferences(data.myDay, data.references), [data]);
 
   if (loading) {
     return (
@@ -45,48 +55,79 @@ export function MyDayList() {
     );
   }
 
-  if (tasks.length === 0) {
+  if (tasks.length === 0 && !error) {
     return (
       <EmptyState
         icon={Sun}
-        title="No hay tareas para hoy"
-        description="Cuando quien administra un proyecto o sector agregue tareas a Mi día (☀), aparecen acá."
+        title="No tenés tareas para hoy ni referencias pendientes"
+        description="Las tareas que agreguen a Mi día y las que te mencionen con @ aparecerán juntas acá."
       />
     );
   }
 
   return (
     <div className="my-day">
-      <p className="my-day-progress" aria-live="polite">
-        <strong>
-          {progress.done} de {progress.total}
-        </strong>{" "}
-        completadas hoy
-      </p>
-      <section className="reference-panel my-day-list">
-        {tasks.map((task) => {
-          const source = myDaySourceLabel(task);
-          const href = task.work ? `/works/${task.work.id}` : task.homeSector ? `/sectors/${task.homeSector.id}` : null;
-          return (
-            <div key={task.id} className="my-day-row">
-              {source &&
-                (href ? (
-                  <Link className="my-day-source muted" href={href}>
-                    {source}
-                  </Link>
-                ) : (
-                  <span className="my-day-source muted">{source}</span>
-                ))}
-              <TaskItem
-                task={task}
-                context={{ suppressObjectiveChip: true }}
-                canToggle={task.canToggle}
-                onChanged={load}
-              />
-            </div>
-          );
-        })}
-      </section>
+      {error && (
+        <p className="my-day-progress" role="alert">
+          No pudimos actualizar tus tareas.{" "}
+          <button type="button" className="btn" onClick={load}>
+            Reintentar
+          </button>
+        </p>
+      )}
+      {data.myDay.length > 0 && (
+        <p className="my-day-progress" aria-live="polite">
+          <Sun size={14} aria-hidden="true" />
+          <span>
+            Mi día:{" "}
+            <strong>
+              {progress.done} de {progress.total}
+            </strong>{" "}
+            completadas hoy
+          </span>
+        </p>
+      )}
+      {tasks.length > 0 && (
+        <ol className="reference-panel my-day-list" aria-label="Mi día y referencias">
+          {tasks.map(({ task, isMyDay, isReference }) => {
+            const source = myDaySourceLabel(task);
+            const href = task.work
+              ? `/works/${task.work.id}`
+              : task.homeSector
+                ? `/sectors/${task.homeSector.id}`
+                : null;
+            return (
+              <li key={task.id} className="my-day-row">
+                <div className="my-day-row-meta">
+                  <span className="my-day-kind">
+                    {isMyDay ? (
+                      <Sun size={14} aria-hidden="true" />
+                    ) : (
+                      <AtSign size={14} aria-hidden="true" />
+                    )}
+                    {isMyDay ? "Mi día" : "Referencia"}
+                    {isMyDay && isReference && <span className="muted">· Referencia</span>}
+                  </span>
+                  {source &&
+                    (href ? (
+                      <Link className="my-day-source muted" href={href}>
+                        {source}
+                      </Link>
+                    ) : (
+                      <span className="my-day-source muted">{source}</span>
+                    ))}
+                </div>
+                <TaskItem
+                  task={task}
+                  context={{ suppressObjectiveChip: true, suppressWorkTag: true }}
+                  canToggle={task.canToggle ?? false}
+                  onChanged={load}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }
