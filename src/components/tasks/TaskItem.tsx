@@ -6,7 +6,7 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { X, Calendar, GripVertical, Plus, ChevronDown, ChevronRight } from "@/components/ui/icons";
+import { X, Calendar, GripVertical, Plus, ChevronDown, ChevronRight, Sun } from "@/components/ui/icons";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag, shouldShowObjectiveChip } from "@/lib/domain/tasks/workTagVisibility";
@@ -75,6 +75,13 @@ export interface TaskDto {
   objectiveId?: string | null;
   /** objetivos: referencia mínima al objetivo (chip "Proyecto › Objetivo"). */
   objective?: { id: string; title: string; position?: number } | null;
+  /** Mi día: cuándo se marcó "para hoy" (null/undefined = no está en Mi día). */
+  myDayAt?: string | null;
+  /**
+   * Mi día: permiso por tarea de ponerla/quitarla (vista de sector y Mi día,
+   * donde conviven tareas de distintos ámbitos). Si no viene, manda el del contexto.
+   */
+  canManageMyDay?: boolean;
 }
 
 /**
@@ -89,6 +96,8 @@ export interface TaskItemContext {
   suppressWorkTag?: boolean;
   objectiveId?: string | null;
   suppressObjectiveChip?: boolean;
+  /** Mi día: permiso de página (vista de proyecto) de poner/quitar tareas de Mi día. */
+  canManageMyDay?: boolean;
 }
 
 type InlineMark =
@@ -327,6 +336,18 @@ export function TaskItem({
     }
   };
 
+  const inMyDay = !!task.myDayAt;
+  const manageMyDay = task.canManageMyDay ?? context.canManageMyDay ?? false;
+  const toggleMyDay = async () => {
+    try {
+      await api(`/api/tasks/${task.id}/my-day`, { method: inMyDay ? "DELETE" : "POST" });
+      onChanged();
+    } catch (err) {
+      showToast({ message: (err as Error).message });
+    }
+  };
+  const myDayLabel = inMyDay ? "Quitar de Mi día" : "Agregar a Mi día";
+
   const handleDescriptionChange = async (value: string) => {
     if (value === (task.description ?? "")) return;
     try {
@@ -459,6 +480,9 @@ export function TaskItem({
     (objectiveOptions?.length ?? 0) > 0;
   const objectiveItems: MenuItem[] = canMoveToObjective
     ? [{ label: "Mover a objetivo…", onSelect: () => setObjectiveMoveOpen(true) }]
+    : [];
+  const myDayItems: MenuItem[] = manageMyDay
+    ? [{ label: myDayLabel, icon: <Sun size={14} />, onSelect: () => void toggleMyDay() }]
     : [];
   // objetivos: chip del objetivo (regla pura compartida con las vistas externas).
   const objectiveChip =
@@ -628,6 +652,30 @@ export function TaskItem({
             sola con el `aria-label`. Se revela al pasar el mouse por la fila o al
             enfocarla (`.task-add-subtask`, en globals.css), así una lista larga no
             se llena de botones compitiendo por atención. */}
+        {/* Mi día: quien administra el ámbito lo pone/quita con el sol (revelado
+            al pasar el mouse, como el "+"; fijo y resaltado si ya está). El
+            resto solo ve el sol fijo como indicador. En el tablero la acción
+            va al ⋮ y queda solo el indicador. */}
+        {manageMyDay && variant === "list" ? (
+          <button
+            type="button"
+            className={`icon-btn task-my-day ${inMyDay ? "is-active" : ""}`}
+            style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
+            onClick={() => void toggleMyDay()}
+            aria-pressed={inMyDay}
+            aria-label={`${myDayLabel}: "${task.displayText}"`}
+            title={myDayLabel}
+            tabIndex={editing ? -1 : 0}
+          >
+            <Sun size={15} />
+          </button>
+        ) : (
+          inMyDay && (
+            <span className="task-my-day-indicator" title="En Mi día" aria-label="En Mi día" role="img">
+              <Sun size={14} />
+            </span>
+          )
+        )}
         {showsSubtasks && canToggle && (
           <button
             type="button"
@@ -677,13 +725,14 @@ export function TaskItem({
         {/* 062-subtareas (Tarea 13): el mismo menú de "cambiar estado" (variant
             board) suma ahora "Mover bajo otra tarea…"/"Sacar de …" — reusa el
             único ⋮ que ya tiene la tarjeta en vez de agregar un segundo botón. */}
-        {canToggle &&
-          variant === "board" &&
-          (task.statusOptions.length > 1 || reparentItems.length > 0 || objectiveItems.length > 0) && (
+        {variant === "board" &&
+          ((canToggle &&
+            (task.statusOptions.length > 1 || reparentItems.length > 0 || objectiveItems.length > 0)) ||
+            myDayItems.length > 0) && (
           <Menu
             label={`Acciones de "${task.displayText}"`}
             items={[
-              ...task.statusOptions
+              ...(canToggle ? task.statusOptions : [])
                 .filter((s) => s.id !== task.status.id)
                 .map((s) => ({
                   label: s.name,
@@ -697,6 +746,7 @@ export function TaskItem({
                 })),
               ...reparentItems,
               ...objectiveItems,
+              ...myDayItems,
             ]}
           />
         )}

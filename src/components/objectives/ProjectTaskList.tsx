@@ -92,6 +92,7 @@ export function ProjectTaskList({
   objectives,
   editable,
   canManageObjectives,
+  canManageMyDay = false,
   isOpen,
   onToggle,
   onExpand,
@@ -107,6 +108,8 @@ export function ProjectTaskList({
   editable: boolean;
   /** Objetivos: ⋮, composers de sección y mover entre secciones (operar + no plantilla). */
   canManageObjectives: boolean;
+  /** Mi día: poner/quitar tareas de este proyecto en Mi día (admin del ámbito). */
+  canManageMyDay?: boolean;
   isOpen: (objectiveId: string) => boolean;
   onToggle: (objectiveId: string) => void;
   onExpand: (objectiveId: string) => void;
@@ -181,7 +184,7 @@ export function ProjectTaskList({
 
   /** Filas de una sección: ordenables si se puede editar, planas si no. */
   const renderRows = (list: TaskDto[], objectiveId: string | null) => {
-    const context = { workId, objectiveId };
+    const context = { workId, objectiveId, canManageMyDay };
     if (!editable) {
       return list.map((task) => (
         <TaskItem key={task.id} task={task} context={context} canToggle={false} onChanged={onReload} />

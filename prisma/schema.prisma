@@ -129,6 +129,7 @@ model User {
   clientGrants       ClientWorkGrant[]  @relation("ClientGrants")
   issuedClientGrants ClientWorkGrant[]  @relation("ClientGrantsIssued")
   createdObjectives  Objective[]        @relation("ObjectiveCreator")
+  myDayTasks         Task[]             @relation("TaskMyDayBy")
 }
 
 model AccessConfig {
@@ -320,6 +321,10 @@ model Task {
   /// general). La tarea conserva workId = proyecto; SetNull para que borrar un
   /// objetivo nunca se lleve tareas en silencio.
   objectiveId    String?
+  /// Mi día: marca global "para hacer hoy", sin fecha. null = no está. La ve
+  /// todo usuario con acceso a la tarea; la ponen/quitan admins del ámbito.
+  myDayAt        DateTime?
+  myDayById      String?
 
   work            Work?              @relation(fields: [workId], references: [id], onDelete: Cascade)
   homeSector      Sector?            @relation("TaskHomeSector", fields: [sectorId], references: [id], onDelete: Cascade)
@@ -335,11 +340,13 @@ model Task {
   links           TaskLink[]
   labels          TaskLabel[]
   statusChanges   TaskStatusChange[]
+  myDayBy         User?              @relation("TaskMyDayBy", fields: [myDayById], references: [id], onDelete: SetNull)
 
   @@index([workId, position])
   @@index([statusId])
   @@index([parentId, position])
   @@index([objectiveId, position])
+  @@index([myDayAt])
 }
 
 /// objetivos: agrupa tareas de un proyecto bajo un título y una descripción.

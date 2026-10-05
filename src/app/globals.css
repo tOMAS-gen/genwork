@@ -895,6 +895,46 @@ textarea:focus {
   }
 }
 
+/* Mi día: el sol sigue el patrón del "+" (atenuado, pleno al hover). Si la
+   tarea ya está en Mi día queda fijo y en color de aviso, para que se vea de
+   un vistazo qué se hace hoy. */
+.task-my-day {
+  opacity: 0.35;
+  transition: opacity 150ms ease, color 150ms ease;
+}
+
+.task-row:hover .task-my-day,
+.task-my-day:focus-visible,
+.task-my-day.is-active {
+  opacity: 1;
+}
+
+.task-my-day.is-active,
+.task-my-day.is-active:hover,
+.task-my-day-indicator {
+  color: var(--color-warning);
+}
+
+.task-my-day-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  height: 28px;
+}
+
+@media (hover: none) {
+  .task-my-day {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-my-day {
+    transition: none;
+  }
+}
+
 .tag {
   display: inline-block;
   border-radius: var(--radius-sm);
@@ -6243,7 +6283,8 @@ dialog.dialog--overflow-visible {
 }
 
 .task-row > .task-delete,
-.task-row > .task-add-subtask {
+.task-row > .task-add-subtask,
+.task-row > .task-my-day {
   flex: 0 0 28px;
 }
 
@@ -6853,4 +6894,31 @@ dialog.dialog--overflow-visible {
   .template-option {
     transition: none;
   }
+}
+
+/* Mi día: progreso del día + filas con su origen (proyecto › objetivo › padre)
+   arriba, porque la lista mezcla tareas de distintos ámbitos. */
+.my-day-progress {
+  margin: 0 0 var(--space-3);
+  color: var(--muted);
+}
+
+.my-day-row + .my-day-row {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.my-day-source {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+a.my-day-source:hover {
+  text-decoration: underline;
 }

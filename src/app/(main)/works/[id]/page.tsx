@@ -68,6 +68,8 @@ interface WorkFull {
   access: "read" | "operate";
   /** Feature 059: si este usuario administra el ámbito y puede dar acceso a clientes. */
   canManageClients: boolean;
+  /** Mi día: si este usuario puede poner/quitar tareas del proyecto en Mi día. */
+  canManageMyDay: boolean;
 }
 
 /**
@@ -385,6 +387,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                   objectives={objectives}
                   editable={editable}
                   canManageObjectives={canManageObjectives}
+                  canManageMyDay={work.canManageMyDay}
                   isOpen={isOpen}
                   onToggle={toggle}
                   onExpand={expand}
@@ -404,7 +407,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                         cada objetivo en orden); cada tarjeta lleva su chip. */}
                     <TaskBoardView
                       tasks={flattenSections(groupTasksByObjective(work.tasks, objectives))}
-                      context={{ workId: id }}
+                      context={{ workId: id, canManageMyDay: work.canManageMyDay }}
                       canToggle={editable}
                       onChanged={load}
                       objectiveOptions={canManageObjectives && objectives.length > 0 ? objectives : undefined}
