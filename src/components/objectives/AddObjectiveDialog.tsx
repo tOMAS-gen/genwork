@@ -7,6 +7,7 @@ import {
   templateTaskLabel,
   type TemplateOptionItem,
 } from "@/components/works/TemplateSelector";
+import { CharLimit } from "@/components/ui/CharLimit";
 import { OBJECTIVE_DESCRIPTION_MAX, OBJECTIVE_TITLE_MAX } from "@/lib/domain/objectives/validation";
 import {
   createObjective,
@@ -172,8 +173,10 @@ export function AddObjectiveDialog({
             rows={2}
             value={description}
             maxLength={OBJECTIVE_DESCRIPTION_MAX}
+            aria-describedby="objective-add-desc-limit"
             onChange={(e) => setDescription(e.target.value)}
           />
+          <CharLimit id="objective-add-desc-limit" length={description.length} max={OBJECTIVE_DESCRIPTION_MAX} />
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/ui/Dialog";
 import { api } from "@/components/ui/useApi";
+import { CharLimit } from "@/components/ui/CharLimit";
 import { OBJECTIVE_DESCRIPTION_MAX, OBJECTIVE_TITLE_MAX } from "@/lib/domain/objectives/validation";
 
 interface Group {
@@ -130,13 +131,16 @@ export function CreateProjectDialog({
       </div>
       <div className="dialog-field">
         <label htmlFor="np-desc">{isTemplate ? "Descripción" : "Descripción (opcional)"}</label>
-        <input
+        <textarea
           id="np-desc"
+          rows={2}
           value={description}
           maxLength={OBJECTIVE_DESCRIPTION_MAX}
+          aria-describedby="np-desc-limit"
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={isTemplate ? "Opcional: se copia al objetivo al insertarla" : "Una línea que resuma el proyecto"}
+          placeholder={isTemplate ? "Opcional: se copia al objetivo al insertarla" : "De qué se trata el proyecto"}
         />
+        <CharLimit id="np-desc-limit" length={description.length} max={OBJECTIVE_DESCRIPTION_MAX} />
       </div>
       {isTemplate && (
         <p className="muted" style={{ margin: 0 }}>

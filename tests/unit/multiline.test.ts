@@ -29,6 +29,14 @@ describe("splitTaskLines — bloc de notas (FR-105)", () => {
     expect(splitTaskLines("A\r\nB")).toEqual(["A", "B"]);
   });
 
+  it("soporta saltos de línea viejos de Mac (\\r), como pega Word/Excel en macOS", () => {
+    expect(splitTaskLines("A\rB\r\rC\r")).toEqual(["A", "B", "C"]);
+  });
+
+  it("soporta separadores Unicode de línea y párrafo (U+2028 / U+2029)", () => {
+    expect(splitTaskLines("A\u2028B\u2029C")).toEqual(["A", "B", "C"]);
+  });
+
   it("texto vacío o solo espacios → sin tareas", () => {
     expect(splitTaskLines("")).toEqual([]);
     expect(splitTaskLines("   \n  ")).toEqual([]);

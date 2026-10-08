@@ -14,7 +14,7 @@ import {
 describe("objetivos — topes", () => {
   it("mismos topes que Work.name / Work.description (plantilla ↔ objetivo 1 a 1)", () => {
     expect(OBJECTIVE_TITLE_MAX).toBe(120);
-    expect(OBJECTIVE_DESCRIPTION_MAX).toBe(280);
+    expect(OBJECTIVE_DESCRIPTION_MAX).toBe(2000);
   });
 });
 

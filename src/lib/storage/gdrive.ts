@@ -262,6 +262,41 @@ export class GoogleDriveProvider implements StorageProvider {
     return { filePath: created.id };
   }
 
+  /**
+   * Subida resumable de Drive: el servidor abre la sesión con la cuenta
+   * principal y el navegador sube el contenido con `PUT` a la URL de sesión,
+   * directo a Google (sin ocupar el ancho de banda de genwork). La URL ya
+   * autoriza esa única subida: el token nunca llega al navegador. Con `origin`
+   * Google responde con CORS habilitado para ese origen.
+   */
+  async createUploadSession(input: {
+    folderPath: string;
+    fileName: string;
+    size: number;
+    mimeType?: string;
+    origin?: string;
+  }): Promise<{ uploadUrl: string }> {
+    const token = await this.token();
+    const res = await fetch(`${DRIVE_UPLOAD}?uploadType=resumable&supportsAllDrives=true&fields=id`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-Upload-Content-Length": String(input.size),
+        ...(input.mimeType ? { "X-Upload-Content-Type": input.mimeType } : {}),
+        ...(input.origin ? { Origin: input.origin } : {}),
+      },
+      body: JSON.stringify({ name: input.fileName, parents: [input.folderPath] }),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new Error(`Google Drive upload session falló (HTTP ${res.status}): ${detail}`);
+    }
+    const uploadUrl = res.headers.get("location");
+    if (!uploadUrl) throw new Error("Google Drive no devolvió la URL de la sesión de subida");
+    return { uploadUrl };
+  }
+
   async read(filePath: string): Promise<Readable> {
     const token = await this.token();
     const res = await fetch(

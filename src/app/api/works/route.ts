@@ -7,7 +7,7 @@ import { requireWriter } from "@/server/guards";
 import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { createWork } from "@/server/works";
-import { objectiveTitleSchema } from "@/lib/domain/objectives/validation";
+import { objectiveDescriptionSchema, objectiveTitleSchema } from "@/lib/domain/objectives/validation";
 import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinishedCount";
 import { ACTIVE_TEMPLATE_WORK, NOT_TEMPLATE_WORK } from "@/server/workFilters";
 
@@ -134,7 +134,7 @@ export const GET = withApi(async (req) => {
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(280).optional(),
+  description: objectiveDescriptionSchema.optional(),
   groupId: z.string().uuid().nullable().optional(),
   /** Plantilla a insertar como objetivo del proyecto nuevo ("Nuevo proyecto desde plantilla"). */
   cloneFromId: z.string().uuid().optional(),

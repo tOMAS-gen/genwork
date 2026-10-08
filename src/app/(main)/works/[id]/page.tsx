@@ -203,6 +203,9 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   }
 
   const editable = work.status === "ACTIVE";
+  // La descripción la edita quien opera el proyecto (miembro del grupo, dueño
+  // personal o super-admin): un lector veía el editor y el guardado fallaba.
+  const canEditDescription = editable && work.access === "operate";
   // objetivos (crítica I6): gestionar objetivos exige operar el proyecto; en una
   // plantilla no hay objetivos (una plantilla ES un objetivo).
   const canManageObjectives = editable && work.access === "operate" && !work.isTemplate;
@@ -258,13 +261,13 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
               />
             </div>
 
-            {(editable || work.description) && (
+            {(canEditDescription || work.description) && (
               <div className="work-description">
                 <span className="work-field-label">Descripción</span>
                 <InlineDescription
                   workId={id}
                   initialValue={work.description}
-                  editable={editable}
+                  editable={canEditDescription}
                 />
               </div>
             )}

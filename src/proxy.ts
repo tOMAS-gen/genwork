@@ -65,5 +65,8 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|site.webmanifest).*)"],
+  // `api/upload-stream` queda afuera: el proxy guarda en memoria el cuerpo (tope
+  // 10 MB, trunca el resto) y esa ruta recibe archivos grandes en streaming.
+  // Se autoriza con sus propios guards.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|site.webmanifest|api/upload-stream).*)"],
 };

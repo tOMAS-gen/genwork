@@ -6,6 +6,7 @@ import { getUserContext } from "@/server/user-context";
 import { access } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { Readable } from "node:stream";
+import { contentDisposition } from "@/lib/http/contentDisposition";
 
 /** Proxy de lectura de archivos desde la mini nube. */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
@@ -38,7 +39,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   return new Response(Readable.toWeb(stream) as ReadableStream, {
     headers: {
       "Content-Type": attachment.mimeType,
-      "Content-Disposition": `inline; filename="${encodeURIComponent(attachment.fileName)}"`,
+      "Content-Disposition": contentDisposition("inline", attachment.fileName),
     },
   });
 });

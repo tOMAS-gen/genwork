@@ -3540,6 +3540,8 @@ dialog.dialog--overflow-visible {
 
 .inline-desc-readonly {
   cursor: default;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .inline-desc-editor {
@@ -3561,6 +3563,25 @@ dialog.dialog--overflow-visible {
 .inline-desc-editor:focus {
   box-shadow: none;
   border: none;
+}
+
+/* Contador de caracteres bajo un campo con tope (CharLimit) */
+.char-limit {
+  margin: 4px 0 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  text-align: right;
+}
+.dialog-field .char-limit {
+  margin: 0;
+}
+.char-limit-near {
+  color: var(--text);
+  font-weight: 500;
+}
+.char-limit-full {
+  color: var(--danger);
+  font-weight: 500;
 }
 
 /* Explorador de archivos */
@@ -3591,6 +3612,168 @@ dialog.dialog--overflow-visible {
 
 .file-explorer-breadcrumb button:hover {
   text-decoration: underline;
+}
+
+/* Cola de subidas del explorador: progreso por archivo */
+.file-uploads {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.file-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+
+.file-upload-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 28px;
+}
+
+.file-upload-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-upload-meta {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 45%;
+  overflow-wrap: anywhere;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.file-upload-percent {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.file-upload-error .file-upload-meta {
+  color: var(--danger);
+}
+
+.file-upload-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  padding: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.file-upload-dismiss:hover {
+  background: var(--hover-soft);
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .file-upload-row {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) 28px;
+    gap: 2px var(--space-2);
+  }
+
+  .file-upload-row > .progress-ring {
+    grid-row: 1 / 3;
+  }
+
+  .file-upload-name {
+    grid-column: 2;
+  }
+
+  .file-upload-meta {
+    grid-column: 2;
+    grid-row: 2;
+    max-width: none;
+    text-align: left;
+  }
+
+  .file-upload-dismiss {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+}
+
+/* Círculo de progreso (ProgressRing) */
+.progress-ring {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-ring-svg {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.progress-ring-track {
+  fill: none;
+  stroke: var(--border);
+}
+
+.progress-ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 200ms ease;
+}
+
+.progress-ring-ok .progress-ring-fill {
+  stroke: var(--ok);
+}
+
+.progress-ring-danger .progress-ring-track {
+  stroke: var(--danger);
+}
+
+.progress-ring-center {
+  position: relative;
+  display: inline-flex;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.progress-ring-ok .progress-ring-center {
+  color: var(--ok);
+}
+
+.progress-ring-danger .progress-ring-center {
+  color: var(--danger);
+}
+
+.btn-primary .progress-ring-track {
+  stroke: rgb(255 255 255 / 0.35);
+}
+
+.btn-primary .progress-ring-fill {
+  stroke: currentColor;
 }
 
 .file-item {
