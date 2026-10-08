@@ -274,6 +274,55 @@ describe("GoogleDriveProvider — requests a la Drive API", () => {
     });
   });
 
+  describe("createUploadSession", () => {
+    it("abre una sesión resumable con tamaño, tipo y origen, y devuelve la URL de Location", async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ location: "https://www.googleapis.com/upload/drive/v3/files?upload_id=abc" }),
+        text: async () => "",
+      } as Response);
+
+      const provider = new GoogleDriveProvider(cfg);
+      const result = await provider.createUploadSession({
+        folderPath: "folder-id",
+        fileName: "video.mp4",
+        size: 123456,
+        mimeType: "video/mp4",
+        origin: "https://genwork.example",
+      });
+
+      expect(result).toEqual({ uploadUrl: "https://www.googleapis.com/upload/drive/v3/files?upload_id=abc" });
+      const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("uploadType=resumable");
+      expect(url).toContain("supportsAllDrives=true");
+      const headers = options.headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer fake-access-token");
+      expect(headers["X-Upload-Content-Length"]).toBe("123456");
+      expect(headers["X-Upload-Content-Type"]).toBe("video/mp4");
+      expect(headers.Origin).toBe("https://genwork.example");
+      expect(JSON.parse(options.body as string)).toEqual({ name: "video.mp4", parents: ["folder-id"] });
+    });
+
+    it("falla si Drive rechaza la sesión o no devuelve Location", async () => {
+      const provider = new GoogleDriveProvider(cfg);
+      fetchMock.mockResolvedValueOnce(jsonResponse({ error: "forbidden" }, { ok: false, status: 403 }));
+      await expect(
+        provider.createUploadSession({ folderPath: "f", fileName: "x", size: 1 }),
+      ).rejects.toThrow(/HTTP 403/);
+
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers(),
+        text: async () => "",
+      } as Response);
+      await expect(
+        provider.createUploadSession({ folderPath: "f", fileName: "x", size: 1 }),
+      ).rejects.toThrow(/URL de la sesión/);
+    });
+  });
+
   describe("test — chequeo de conectividad del panel admin", () => {
     it("ok:true cuando el Shared Drive responde", async () => {
       fetchMock.mockResolvedValueOnce(jsonResponse({ id: cfg.sharedDriveId, name: "Drive Compartido" }));

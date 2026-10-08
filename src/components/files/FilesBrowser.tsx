@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Upload, Folder, FileText, Download, Trash2, Share2, Copy, Check, Clock, Pencil } from "@/components/ui/icons";
+import { Upload, Folder, FileText, Download, Trash2, Share2, Copy, Check, Clock, Pencil, X, AlertCircle } from "@/components/ui/icons";
 import { Dialog } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ProgressRing } from "@/components/ui/ProgressRing";
+import { UploadAbortedError, uploadWorkFile } from "./uploadFile";
 
 interface StorageFileInfo {
   name: string;
@@ -76,6 +78,20 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+/** Archivo en la cola de subida del visor, con su progreso. */
+interface UploadItem {
+  id: string;
+  name: string;
+  size: number;
+  loaded: number;
+  status: "pending" | "uploading" | "done" | "error";
+  error?: string;
+  controller: AbortController;
+}
+
+/** Subidas en paralelo: más no acelera y satura la conexión del usuario. */
+const UPLOAD_CONCURRENCY = 3;
+
 /** Fecha relativa simple (hace N unidades) para el listado de archivos. */
 function formatRelativeDate(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -117,8 +133,7 @@ export function FilesBrowser({
   const [enabling, setEnabling] = useState(false);
   const [enableError, setEnableError] = useState<string | null>(null);
   const [enableErrorLinkUrl, setEnableErrorLinkUrl] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [dragging, setDragging] = useState(false);
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -184,38 +199,86 @@ export function FilesBrowser({
 
   useEffect(load, [load]);
 
+  const uploading = uploads.some((u) => u.status === "pending" || u.status === "uploading");
+
+  const patchUpload = useCallback((id: string, patch: Partial<UploadItem>) => {
+    setUploads((prev) => prev.map((u) => (u.id === id ? { ...u, ...patch } : u)));
+  }, []);
+
   const handleUpload = useCallback(
     async (fileList: FileList | File[]) => {
       const list = Array.from(fileList);
       if (list.length === 0) return;
-      setUploading(true);
-      setUploadError(null);
-      try {
-        const fd = new FormData();
-        if (currentPath) fd.set("path", currentPath);
-        for (const f of list) fd.append("file", f);
-        const res = await fetch(`/api/works/${workId}/files/upload`, {
-          method: "POST",
-          body: fd,
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => null);
-          const code = body?.error?.code;
-          throw new Error(
-            code === "STORAGE_UNAVAILABLE"
-              ? "El almacenamiento no está configurado"
-              : body?.error?.message || "No se pudo subir el archivo",
-          );
+      const jobs = list.map((file) => ({
+        file,
+        item: {
+          id: crypto.randomUUID(),
+          name: file.name,
+          size: file.size,
+          loaded: 0,
+          status: "pending",
+          controller: new AbortController(),
+        } satisfies UploadItem as UploadItem,
+      }));
+      setUploads((prev) => [
+        // Una tanda nueva limpia las subidas terminadas de la anterior.
+        ...prev.filter((u) => u.status !== "done"),
+        ...jobs.map((j) => j.item),
+      ]);
+
+      // La carpeta destino es la navegada al soltar los archivos, aunque el
+      // usuario siga navegando mientras sube.
+      const path = currentPath;
+      let next = 0;
+      const worker = async () => {
+        while (next < jobs.length) {
+          const { file, item } = jobs[next++];
+          if (item.controller.signal.aborted) continue;
+          patchUpload(item.id, { status: "uploading" });
+          try {
+            await uploadWorkFile(workId, file, path, {
+              signal: item.controller.signal,
+              onProgress: (loaded) => patchUpload(item.id, { loaded }),
+            });
+            patchUpload(item.id, { status: "done", loaded: item.size });
+          } catch (err) {
+            if (err instanceof UploadAbortedError) continue;
+            patchUpload(item.id, { status: "error", error: (err as Error).message });
+          }
         }
-        load();
-      } catch (err) {
-        setUploadError((err as Error).message);
-      } finally {
-        setUploading(false);
-      }
+      };
+      await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, jobs.length) }, worker));
+      load();
     },
-    [workId, currentPath, load],
+    [workId, currentPath, load, patchUpload],
   );
+
+  /** Cancela una subida en curso o pendiente y la saca de la lista. */
+  const cancelUpload = useCallback((item: UploadItem) => {
+    item.controller.abort();
+    setUploads((prev) => prev.filter((u) => u.id !== item.id));
+  }, []);
+
+  // Las subidas terminadas OK se van solas; las fallidas quedan a la vista.
+  useEffect(() => {
+    if (uploading || !uploads.some((u) => u.status === "done")) return;
+    const t = setTimeout(() => setUploads((prev) => prev.filter((u) => u.status !== "done")), 4000);
+    return () => clearTimeout(t);
+  }, [uploading, uploads]);
+
+  // Cerrar o recargar la pestaña corta las subidas: se pide confirmación.
+  useEffect(() => {
+    if (!uploading) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [uploading]);
+
+  const uploadTotals = uploads.reduce(
+    (acc, u) => (u.status === "error" ? acc : { loaded: acc.loaded + u.loaded, size: acc.size + u.size }),
+    { loaded: 0, size: 0 },
+  );
+  const uploadPercent = uploadTotals.size > 0 ? Math.round((uploadTotals.loaded / uploadTotals.size) * 100) : 0;
 
   /** Habilita la carpeta de storage del proyecto (T004) y refresca el listado. */
   const handleEnable = useCallback(async () => {
@@ -496,12 +559,17 @@ export function FilesBrowser({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            <Upload size={16} />
-            {uploading ? "Subiendo…" : "Subir archivo"}
+            {uploading ? (
+              <ProgressRing percent={uploadPercent} size={18} stroke={2.5} tone="ok">
+                {null}
+              </ProgressRing>
+            ) : (
+              <Upload size={16} />
+            )}
+            {uploading ? `Subiendo… ${uploadPercent}%` : "Subir archivo"}
           </button>
           <button
             type="button"
@@ -525,8 +593,69 @@ export function FilesBrowser({
         </div>
       )}
 
-      {uploadError && (
-        <p style={{ color: "var(--danger)", marginTop: 0 }}>{uploadError}</p>
+      {uploads.length > 0 && (
+        <ul className="file-uploads" aria-label="Subidas de archivos">
+          {uploads.map((u) => {
+            const percent = u.size > 0 ? Math.round((u.loaded / u.size) * 100) : u.status === "done" ? 100 : 0;
+            return (
+              <li key={u.id} className={`file-upload file-upload-${u.status}`}>
+                <div className="file-upload-row">
+                  {u.status === "done" ? (
+                    <ProgressRing percent={100} size={20} stroke={2} tone="ok" label="Subido">
+                      <Check size={12} />
+                    </ProgressRing>
+                  ) : u.status === "error" ? (
+                    <ProgressRing percent={0} size={20} stroke={2} tone="danger" label="Error al subir">
+                      <AlertCircle size={12} />
+                    </ProgressRing>
+                  ) : (
+                    <ProgressRing
+                      percent={percent}
+                      size={20}
+                      stroke={2}
+                      label={`${u.name}: ${u.status === "pending" ? "En espera" : `${percent}%`}`}
+                    >
+                      {null}
+                    </ProgressRing>
+                  )}
+                  <span className="file-upload-name" title={u.name}>{u.name}</span>
+                  <span className="file-upload-meta">
+                    {u.status === "pending" && "En espera"}
+                    {u.status === "uploading" && (
+                      <>
+                        <span className="file-upload-percent">{percent}%</span>
+                        {` · ${formatSize(u.loaded)} de ${formatSize(u.size)}`}
+                      </>
+                    )}
+                    {u.status === "done" && "Subido"}
+                    {u.status === "error" && (u.error || "Error al subir")}
+                  </span>
+                  {u.status === "pending" || u.status === "uploading" ? (
+                    <button
+                      type="button"
+                      className="file-upload-dismiss"
+                      onClick={() => cancelUpload(u)}
+                      aria-label={`Cancelar subida de ${u.name}`}
+                      title="Cancelar"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : u.status === "error" ? (
+                    <button
+                      type="button"
+                      className="file-upload-dismiss"
+                      onClick={() => setUploads((prev) => prev.filter((x) => x.id !== u.id))}
+                      aria-label={`Descartar ${u.name}`}
+                      title="Descartar"
+                    >
+                      <X size={14} />
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {!folderPending && currentPath && (

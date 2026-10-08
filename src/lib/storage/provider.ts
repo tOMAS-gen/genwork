@@ -54,6 +54,21 @@ export interface StorageProvider {
     filePath: string;
   }>;
 
+  /**
+   * Subida directa desde el navegador: prepara la subida en el proveedor y
+   * devuelve una URL de un solo uso a la que el navegador manda el archivo con
+   * `PUT`, sin pasar por el servidor de genwork. Opcional: los proveedores sin
+   * URL de subida autorizada (Nextcloud) no lo implementan y se sube vía proxy.
+   */
+  createUploadSession?(input: {
+    folderPath: string;
+    fileName: string;
+    size: number;
+    mimeType?: string;
+    /** Origen del navegador que va a subir (CORS de la URL devuelta). */
+    origin?: string;
+  }): Promise<{ uploadUrl: string }>;
+
   /** Lee un archivo como stream (para servirlo o exportarlo). */
   read(filePath: string): Promise<Readable>;
 

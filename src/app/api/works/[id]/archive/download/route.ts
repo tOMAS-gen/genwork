@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import { prisma } from "@/lib/db/client";
 import { conflict, notFound, withApi } from "@/server/api";
 import { requireWriter } from "@/server/guards";
+import { contentDisposition } from "@/lib/http/contentDisposition";
 
 /** Descarga del ZIP (disponible con status READY o CONFIRMED). */
 export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { params }) => {
@@ -25,7 +26,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
   return new Response(Readable.toWeb(stream) as ReadableStream, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(name)}"`,
+      "Content-Disposition": contentDisposition("attachment", name),
     },
   });
 });
