@@ -87,6 +87,9 @@ export function TaskListEditor({
   const submit = async () => {
     const raw = text.trim();
     if (!raw || submitting) return;
+    // Texto con saltos de línea (p. ej. soltado con drag & drop): una tarea por línea.
+    const lines = splitTaskLines(raw);
+    if (lines.length > 1) return createLines(lines);
     setSubmitting(true);
     try {
       const task = await createOne(raw);
@@ -114,12 +117,17 @@ export function TaskListEditor({
     }
   };
 
-  const onPaste = async (e: React.ClipboardEvent) => {
+  const onPaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData("text");
     const lines = splitTaskLines(pasted);
     if (lines.length <= 1) return; // una sola línea: comportamiento normal
-    if (submitting) return;
     e.preventDefault();
+    void createLines(lines);
+  };
+
+  /** Alta en lote: una tarea por línea, en orden. */
+  const createLines = async (lines: string[]) => {
+    if (submitting) return;
     setSubmitting(true);
     try {
       let lastMoved: TaskDto | null = null;
@@ -132,6 +140,8 @@ export function TaskListEditor({
       if (lastMoved) notifyIfMovedAway(lastMoved); // resumen: un solo toast, no spamear
       inputRef.current?.focus();
     } catch (err) {
+      // Las líneas anteriores ya se crearon: recargar para mostrarlas junto al error.
+      onCreated();
       setError((err as Error).message);
     } finally {
       setSubmitting(false);

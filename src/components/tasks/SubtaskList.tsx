@@ -22,6 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { Plus } from "@/components/ui/icons";
+import { splitTaskLines } from "@/lib/domain/tasks/multiline";
 import { useTagAutocomplete, type Suggestion } from "./useTagAutocomplete";
 import { TagSuggestionsMenu } from "./TagSuggestionsMenu";
 import { TagHighlightInput } from "./TagHighlightInput";
@@ -180,6 +181,9 @@ function AddSubtaskInput({
       return;
     }
     if (submitting) return;
+    // Texto con saltos de línea (p. ej. soltado con drag & drop): una subtarea por línea.
+    const lines = splitTaskLines(raw);
+    if (lines.length > 1) return createLines(lines);
     setSubmitting(true);
     try {
       await api("/api/tasks", {
@@ -194,6 +198,38 @@ function AddSubtaskInput({
         .body;
       if (body?.error?.unresolvedTags) setUnresolved(body.error.unresolvedTags);
       else setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /** Igual que TaskListEditor: pegar varias líneas crea una subtarea por línea no vacía. */
+  const onPaste = (e: React.ClipboardEvent) => {
+    const lines = splitTaskLines(e.clipboardData.getData("text"));
+    if (lines.length <= 1) return; // una sola línea: comportamiento normal
+    e.preventDefault();
+    void createLines(lines);
+  };
+
+  /** Alta en lote: una subtarea por línea, en orden. */
+  const createLines = async (lines: string[]) => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      for (const line of lines) {
+        await api("/api/tasks", {
+          method: "POST",
+          body: JSON.stringify({ rawText: line, parentId }),
+        });
+      }
+      setText("");
+      setUnresolved([]);
+      onCreated();
+      inputRef.current?.focus();
+    } catch (err) {
+      // Las líneas anteriores ya se crearon: recargar para mostrarlas junto al error.
+      onCreated();
+      setError((err as Error).message);
     } finally {
       setSubmitting(false);
     }
@@ -239,6 +275,7 @@ function AddSubtaskInput({
             if (unresolved.length === 0 && !text.trim()) onClose();
           }}
           onChange={(e) => void onChange(e.target.value, e.target.selectionStart ?? 0)}
+          onPaste={onPaste}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" && suggestions.length > 0) {
               e.preventDefault();
