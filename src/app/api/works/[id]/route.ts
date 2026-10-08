@@ -11,6 +11,7 @@ import { computeArchivePath, computeRenamePath, formatFolderName } from "@/lib/s
 import { storageRootName } from "@/lib/storage/root";
 import { emit } from "@/server/events";
 import { labelScopeOf } from "@/lib/domain/labels/availability";
+import { objectiveDescriptionSchema } from "@/lib/domain/objectives/validation";
 import { rootTaskWithSubtasksInclude, toTaskDto } from "@/server/taskDto";
 
 /** Página completa del trabajo: doc + tareas + adjuntos (Principio III). */
@@ -86,7 +87,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
 const patchSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
-    description: z.string().trim().max(280).nullable().optional(),
+    description: objectiveDescriptionSchema.nullable().optional(),
     dueDate: z
       .string()
       .refine((v) => !Number.isNaN(new Date(v).getTime()), { message: "Fecha inválida" })

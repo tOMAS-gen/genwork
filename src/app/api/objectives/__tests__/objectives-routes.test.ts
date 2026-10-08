@@ -103,7 +103,7 @@ describe("POST /api/works/[id]/objectives — crear a mano", () => {
     ["sin título", {}],
     ["título vacío", { title: "   " }],
     ["título demasiado largo", { title: "x".repeat(121) }],
-    ["descripción demasiado larga", { title: "A", description: "x".repeat(281) }],
+    ["descripción demasiado larga", { title: "A", description: "x".repeat(2001) }],
   ])("400 %s, sin llamar al servicio", async (_caso, body) => {
     const res = await worksObjectives.POST(req("POST", body), params(WORK_ID));
     expect(res.status).toBe(400);

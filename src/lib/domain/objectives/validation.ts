@@ -9,9 +9,13 @@ import { z } from "zod";
  * como UN objetivo (nombre → título, descripción → descripción) y guardar un
  * objetivo como plantilla hace el camino inverso, así que ambos lados tienen
  * que aceptar los mismos largos.
+ *
+ * La descripción admite 2000 caracteres (igual que la de una tarea): con 280 un
+ * proyecto con el detalle del trabajo no se podía guardar y la UI solo decía
+ * "Error al guardar la descripción".
  */
 export const OBJECTIVE_TITLE_MAX = 120;
-export const OBJECTIVE_DESCRIPTION_MAX = 280;
+export const OBJECTIVE_DESCRIPTION_MAX = 2000;
 
 export const objectiveTitleSchema = z
   .string()
@@ -24,7 +28,10 @@ export const objectiveTitleSchema = z
  * string vacío (o solo espacios) pasa la validación y se guarda como `null`
  * con el patrón `|| null`.
  */
-export const objectiveDescriptionSchema = z.string().trim().max(OBJECTIVE_DESCRIPTION_MAX);
+export const objectiveDescriptionSchema = z
+  .string()
+  .trim()
+  .max(OBJECTIVE_DESCRIPTION_MAX, `La descripción admite hasta ${OBJECTIVE_DESCRIPTION_MAX} caracteres`);
 
 /**
  * Modos de "Eliminar objetivo": borrar sus tareas o pasarlas a las tareas

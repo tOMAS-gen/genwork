@@ -12,7 +12,7 @@ import { countsTowardPending, isContainerTask } from "@/lib/domain/tasks/unfinis
 import { emit } from "@/server/events";
 import { createWork } from "@/server/works";
 import { listObjectives } from "@/server/objectives";
-import { objectiveTitleSchema } from "@/lib/domain/objectives/validation";
+import { objectiveDescriptionSchema, objectiveTitleSchema } from "@/lib/domain/objectives/validation";
 import { summarizeObjectiveWithCounts } from "@/lib/mcp/tools/objectives";
 import { NOT_TEMPLATE_WORK } from "@/server/workFilters";
 import type { McpAuth } from "@/server/mcp-auth";
@@ -182,7 +182,7 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
       inputSchema: {
         name: z.string().trim().min(1).max(120),
         groupId: z.string().uuid().nullable().optional(),
-        description: z.string().trim().max(280).optional(),
+        description: objectiveDescriptionSchema.optional(),
         dueDate: z.string().datetime().optional(),
         isTemplate: z.boolean().optional(),
         templateId: z.string().uuid().optional(),
@@ -246,7 +246,7 @@ export function registerWorkTools(server: McpServer, ctx: McpAuth): void {
       inputSchema: {
         workId: z.string().uuid(),
         name: z.string().trim().min(1).max(120).optional(),
-        description: z.string().trim().max(280).nullable().optional(),
+        description: objectiveDescriptionSchema.nullable().optional(),
         dueDate: z.string().datetime().nullable().optional(),
       },
     },

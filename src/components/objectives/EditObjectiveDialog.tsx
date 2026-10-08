@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
+import { CharLimit } from "@/components/ui/CharLimit";
 import { OBJECTIVE_DESCRIPTION_MAX, OBJECTIVE_TITLE_MAX } from "@/lib/domain/objectives/validation";
 
 /**
@@ -69,8 +70,10 @@ export function EditObjectiveDialog({
           rows={2}
           value={description}
           maxLength={OBJECTIVE_DESCRIPTION_MAX}
+          aria-describedby="objective-edit-desc-limit"
           onChange={(e) => setDescription(e.target.value)}
         />
+        <CharLimit id="objective-edit-desc-limit" length={description.length} max={OBJECTIVE_DESCRIPTION_MAX} />
       </div>
       {error && (
         <p role="alert" style={{ color: "var(--danger)", margin: 0 }}>
