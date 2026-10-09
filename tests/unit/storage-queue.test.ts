@@ -351,7 +351,7 @@ describe("processPending — carpetas bajo GENWORK_<EMPRESA> y archivado con dat
         },
       }),
     );
-    mocks.workFindUnique.mockResolvedValue({ id: "work-1", folderSeq: 7, folderEnabledAt: NOW });
+    mocks.workFindUnique.mockResolvedValue({ id: "work-1", folderSeq: 7, folderEnabledAt: NOW, groupId: "group-1", ownerId: null });
     mocks.groupFindUniqueOrThrow.mockResolvedValue({ name: "Ventas", nextcloudGroupId: "gw-Ventas" });
     mocks.createWorkFolder.mockResolvedValue({ folderPath: "/GENWORK_GEN/VENTAS/CAMPAÑA-OTOÑO_007" });
 
@@ -380,7 +380,7 @@ describe("processPending — carpetas bajo GENWORK_<EMPRESA> y archivado con dat
         },
       }),
     );
-    mocks.workFindUnique.mockResolvedValue({ id: "work-1", folderSeq: 12, folderEnabledAt: NOW });
+    mocks.workFindUnique.mockResolvedValue({ id: "work-1", folderSeq: 12, folderEnabledAt: NOW, groupId: null, ownerId: "user-1" });
     mocks.userFindUniqueOrThrow.mockResolvedValue({
       email: "tomas@gen.net.ar",
       nextcloudUserId: "tomas@gen.net.ar",
@@ -566,5 +566,61 @@ describe("processPending — Google Drive (carpetas por ID)", () => {
     expect(rename).toHaveBeenCalledWith({ path: "drive-folder-id", newName: "REPORTE_007" });
     expect(mocks.moveFolder).not.toHaveBeenCalled();
     expect(mocks.workUpdateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("processPending — RESCOPE_WORK_FOLDER (cambio de grupo del proyecto)", () => {
+  const moveWorkFolderToScope = vi.fn();
+
+  beforeEach(() => {
+    moveWorkFolderToScope.mockReset();
+    mocks.getStorageProvider.mockResolvedValue({ moveWorkFolderToScope });
+    queueSingleJob(
+      makeJob({ kind: "RESCOPE_WORK_FOLDER", payload: { kind: "RESCOPE_WORK_FOLDER", workId: "work-1" } }),
+    );
+  });
+
+  it("mueve la carpeta al grupo actual del proyecto y actualiza ruta y links compartidos", async () => {
+    mocks.workFindUnique.mockResolvedValue({
+      groupId: "group-2",
+      ownerId: null,
+      nextcloudFolderPath: "/GENWORK_GEN/VENTAS/INFORME_007",
+    });
+    mocks.groupFindUniqueOrThrow.mockResolvedValue({ name: "Diseño", nextcloudGroupId: "gw-Diseño" });
+    moveWorkFolderToScope.mockResolvedValue({ folderPath: "/GENWORK_GEN/DISEÑO/INFORME_007" });
+
+    await processPending();
+
+    expect(moveWorkFolderToScope).toHaveBeenCalledWith({
+      folderPath: "/GENWORK_GEN/VENTAS/INFORME_007",
+      scope: { groupName: "Diseño", storageGroupId: "gw-Diseño" },
+    });
+    expect(mocks.workUpdateMany).toHaveBeenCalledWith({
+      where: { id: "work-1" },
+      data: { nextcloudFolderPath: "/GENWORK_GEN/DISEÑO/INFORME_007" },
+    });
+    expect(mocks.fileShareFindMany).toHaveBeenCalled();
+  });
+
+  it("proveedor por ID (ruta igual): no toca la base", async () => {
+    mocks.workFindUnique.mockResolvedValue({ groupId: null, ownerId: "user-1", nextcloudFolderPath: "drive-id" });
+    mocks.userFindUniqueOrThrow.mockResolvedValue({ email: "t@gen.net.ar", nextcloudUserId: "t@gen.net.ar" });
+    moveWorkFolderToScope.mockResolvedValue({ folderPath: "drive-id" });
+
+    await processPending();
+
+    expect(moveWorkFolderToScope).toHaveBeenCalledWith({
+      folderPath: "drive-id",
+      scope: { personalStorageUserId: "t@gen.net.ar", personalEmail: "t@gen.net.ar" },
+    });
+    expect(mocks.workUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("proyecto sin carpeta: nada que mover", async () => {
+    mocks.workFindUnique.mockResolvedValue({ groupId: "group-2", ownerId: null, nextcloudFolderPath: null });
+
+    await processPending();
+
+    expect(moveWorkFolderToScope).not.toHaveBeenCalled();
   });
 });

@@ -133,6 +133,13 @@ export interface StorageProvider {
   }): Promise<void>;
 
   /**
+   * Mueve la carpeta de un trabajo activo a la carpeta de otro ámbito (el
+   * trabajo cambió de grupo o pasó a/desde personal). Devuelve el path final:
+   * en los proveedores por ID no cambia. Idempotente.
+   */
+  moveWorkFolderToScope?(input: { folderPath: string; scope: WorkFolderScope }): Promise<{ folderPath: string }>;
+
+  /**
    * Busca (o crea) una subcarpeta por nombre y devuelve su path. Para
    * proveedores por ID; los de rutas suben a `{parent}/{name}` directamente.
    */

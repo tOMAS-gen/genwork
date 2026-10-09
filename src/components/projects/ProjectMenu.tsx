@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
 import { RenameDialog } from "@/components/ui/RenameDialog";
-import { Archive, ArchiveRestore, Pencil, Trash2 } from "@/components/ui/icons";
+import { Archive, ArchiveRestore, Pencil, Trash2, Users } from "@/components/ui/icons";
 import { api } from "@/components/ui/useApi";
 import { useToast } from "@/components/ui/Toast";
 
@@ -15,17 +15,27 @@ export function ProjectMenu({
   workStatus,
   canRename,
   onRenamed,
+  groupId,
+  canChangeScope = false,
 }: {
   workId: string;
   workName: string;
   workStatus: "ACTIVE" | "ARCHIVED";
   canRename: boolean;
   onRenamed?: () => void;
+  /** Grupo actual del proyecto (null = espacio personal). */
+  groupId?: string | null;
+  /** Admin del ámbito: puede mover el proyecto a otro grupo o a su espacio personal. */
+  canChangeScope?: boolean;
 }) {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [scopeDialogOpen, setScopeDialogOpen] = useState(false);
+  const [scopeGroups, setScopeGroups] = useState<{ id: string; name: string }[] | null>(null);
+  const [scopeTarget, setScopeTarget] = useState("");
+  const [scopeSaving, setScopeSaving] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   const { toast } = useToast();
@@ -56,6 +66,39 @@ export function ProjectMenu({
     }
   };
 
+  const openScopeDialog = () => {
+    setError("");
+    setScopeTarget(groupId ?? "");
+    setScopeGroups(null);
+    setScopeDialogOpen(true);
+    void api<{ groups: { id: string; name: string }[] }>(`/api/works/${workId}/scope`)
+      .then((r) => setScopeGroups(r.groups))
+      .catch((err) => setError((err as Error).message));
+  };
+
+  const changeScope = async () => {
+    setScopeSaving(true);
+    try {
+      const res = await api<{ removedLabels: number }>(`/api/works/${workId}/scope`, {
+        method: "POST",
+        body: JSON.stringify({ groupId: scopeTarget || null }),
+      });
+      setScopeDialogOpen(false);
+      toast(
+        res.removedLabels > 0
+          ? `Proyecto movido. Se quitaron ${res.removedLabels} etiqueta${res.removedLabels === 1 ? "" : "s"} del ámbito anterior`
+          : "Proyecto movido",
+        "success",
+      );
+      if (onRenamed) onRenamed();
+      else router.refresh();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setScopeSaving(false);
+    }
+  };
+
   const deleteProject = async () => {
     try {
       await api(`/api/works/${workId}`, {
@@ -79,6 +122,15 @@ export function ProjectMenu({
                   label: "Renombrar…",
                   icon: <Pencil size={16} />,
                   onSelect: () => setRenameDialogOpen(true),
+                },
+              ]
+            : []),
+          ...(canChangeScope
+            ? [
+                {
+                  label: "Cambiar grupo…",
+                  icon: <Users size={16} />,
+                  onSelect: openScopeDialog,
                 },
               ]
             : []),
@@ -178,6 +230,42 @@ export function ProjectMenu({
             onClick={() => void deleteProject()}
           >
             {workStatus === "ARCHIVED" ? "Eliminar definitivamente" : "Eliminar proyecto"}
+          </button>
+        </div>
+      </Dialog>
+
+      <Dialog open={scopeDialogOpen} onClose={() => setScopeDialogOpen(false)} title="Cambiar grupo">
+        <div className="dialog-field">
+          <label htmlFor="pm-scope">Mover «{workName}» a</label>
+          <select
+            id="pm-scope"
+            value={scopeTarget}
+            disabled={scopeGroups === null}
+            onChange={(e) => setScopeTarget(e.target.value)}
+          >
+            <option value="">Mi espacio personal</option>
+            {(scopeGroups ?? []).map((g) => (
+              <option key={g.id} value={g.id}>
+                Grupo {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          Lo verán los miembros del nuevo grupo y dejará de verse en el actual. Las etiquetas y la
+          etapa propias del ámbito anterior se quitan, y la carpeta de archivos se mueve.
+        </p>
+        {error && <p style={{ color: "var(--danger)", margin: 0 }}>{error}</p>}
+        <div className="dialog-actions">
+          <button className="btn" onClick={() => setScopeDialogOpen(false)}>
+            Cancelar
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={scopeGroups === null || scopeSaving || scopeTarget === (groupId ?? "")}
+            onClick={() => void changeScope()}
+          >
+            Mover proyecto
           </button>
         </div>
       </Dialog>

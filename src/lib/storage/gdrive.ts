@@ -191,6 +191,11 @@ export class GoogleDriveProvider implements StorageProvider {
     await this.moveFolder(input.folderPath, target);
   }
 
+  async moveWorkFolderToScope(input: { folderPath: string; scope: WorkFolderScope }) {
+    await this.moveFolder(input.folderPath, await this.scopeFolder(input.scope));
+    return { folderPath: input.folderPath };
+  }
+
   async childFolder(parentPath: string, name: string): Promise<string> {
     return this.findOrCreateFolder(name, parentPath);
   }
