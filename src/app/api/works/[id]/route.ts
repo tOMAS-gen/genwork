@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/client";
 import { ApiError, conflict, withApi } from "@/server/api";
 import { requireInternal, requireWriter } from "@/server/guards";
 import { getWorkWithAccess } from "@/server/works";
+import { canChangeWorkScope } from "@/server/workScope";
 import { canManageClientAccess, canManageMyDay } from "@/lib/domain/permissions";
 import { getStorageProvider } from "@/lib/storage";
 import { enqueue } from "@/lib/storage/queue";
@@ -69,6 +70,8 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (_req, { p
       !full.isTemplate &&
       full.status === "ACTIVE" &&
       canManageMyDay(ctx, { workScope: { groupId: work.groupId, ownerId: work.ownerId }, homeSector: null }),
+    // Cambiar el grupo del proyecto: admin del ámbito actual y solo si está activo.
+    canChangeScope: full.status === "ACTIVE" && canChangeWorkScope(ctx, work),
     // Código de referencia legible de la carpeta del proyecto (feature 035)
     code: formatFolderName(full.folderSeq, full.name),
     labels: labels.map((l) => ({

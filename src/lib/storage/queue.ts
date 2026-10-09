@@ -42,6 +42,8 @@ export type JobPayload =
       direction?: "archive" | "unarchive";
     }
   | { kind: "RENAME_WORK_FOLDER"; workId: string; fromPath: string; toPath: string }
+  /** El proyecto cambió de grupo (o pasó a/desde personal): su carpeta va al ámbito actual. */
+  | { kind: "RESCOPE_WORK_FOLDER"; workId: string }
   | { kind: "AUDIT_GROUP_PERMISSIONS"; groupId: string };
 
 export async function enqueue(payload: JobPayload): Promise<void> {
@@ -121,19 +123,10 @@ export async function runJob(payload: JobPayload): Promise<void> {
       // carpeta.
       if (!work.folderEnabledAt) return;
       const folderName = formatFolderName(work.folderSeq, payload.workName);
-      let scope: WorkFolderScope;
-      if (payload.groupId) {
-        const group = await prisma.group.findUniqueOrThrow({ where: { id: payload.groupId } });
-        scope = { groupName: group.name, storageGroupId: group.nextcloudGroupId };
-      } else {
-        const owner = await prisma.user.findUniqueOrThrow({
-          where: { id: payload.ownerUserId! },
-        });
-        if (!owner.nextcloudUserId) throw new Error("Dueño sin cuenta Nextcloud aún (reintentar)");
-        scope = { personalStorageUserId: owner.nextcloudUserId, personalEmail: owner.email };
-      }
+      // El ámbito sale del proyecto y no del payload: si cambió de grupo antes
+      // de que corriera el job, la carpeta nace directamente en el nuevo.
       const { folderPath } = await storage.createWorkFolder({
-        scope,
+        scope: await workFolderScope(work.groupId, work.ownerId),
         workName: folderName,
       });
       await prisma.work.update({
@@ -217,6 +210,26 @@ export async function runJob(payload: JobPayload): Promise<void> {
       }
       return;
     }
+    case "RESCOPE_WORK_FOLDER": {
+      const work = await prisma.work.findUnique({
+        where: { id: payload.workId },
+        select: { groupId: true, ownerId: true, nextcloudFolderPath: true },
+      });
+      if (!work?.nextcloudFolderPath) return;
+      if (!storage.moveWorkFolderToScope) throw new Error("El proveedor no permite mover carpetas de ámbito");
+      const fromPath = work.nextcloudFolderPath;
+      const { folderPath } = await storage.moveWorkFolderToScope({
+        folderPath: fromPath,
+        scope: await workFolderScope(work.groupId, work.ownerId),
+      });
+      if (folderPath === fromPath) return;
+      await prisma.work.updateMany({
+        where: { id: payload.workId },
+        data: { nextcloudFolderPath: folderPath },
+      });
+      await rebaseFileShares(payload.workId, fromPath, folderPath);
+      return;
+    }
     case "AUDIT_GROUP_PERMISSIONS": {
       // Grupo borrado entre el encolado y la ejecución: nada que auditar
       const group = await prisma.group.findUnique({ where: { id: payload.groupId } });
@@ -228,6 +241,17 @@ export async function runJob(payload: JobPayload): Promise<void> {
       return;
     }
   }
+}
+
+/** Ámbito de la carpeta de un proyecto en la nube: la del grupo o la personal del dueño. */
+async function workFolderScope(groupId: string | null, ownerId: string | null): Promise<WorkFolderScope> {
+  if (groupId) {
+    const group = await prisma.group.findUniqueOrThrow({ where: { id: groupId } });
+    return { groupName: group.name, storageGroupId: group.nextcloudGroupId };
+  }
+  const owner = await prisma.user.findUniqueOrThrow({ where: { id: ownerId! } });
+  if (!owner.nextcloudUserId) throw new Error("Dueño sin cuenta Nextcloud aún (reintentar)");
+  return { personalStorageUserId: owner.nextcloudUserId, personalEmail: owner.email };
 }
 
 let processing = false;

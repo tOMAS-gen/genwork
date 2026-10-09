@@ -303,21 +303,34 @@ export class NextcloudProvider implements StorageProvider {
       .map((storageUserId) => ({ storageUserId }));
   }
 
-  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+  /** Carpeta del ámbito donde viven los trabajos: la del grupo o la personal del dueño. */
+  private scopeContainer(scope: WorkFolderScope): string {
+    if ("groupName" in scope) return this.groupFolderPath(scope.groupName);
     const root = storageRootName();
-    let container: string;
-    if ("groupName" in input.scope) {
-      container = this.groupFolderPath(input.scope.groupName);
-    } else {
-      container = root
-        ? `/${root}/${sanitizeSegment(input.scope.personalEmail.toLowerCase())}`
-        : `/genwork-personal/${sanitizeSegment(input.scope.personalStorageUserId)}`;
-    }
+    return root
+      ? `/${root}/${sanitizeSegment(scope.personalEmail.toLowerCase())}`
+      : `/genwork-personal/${sanitizeSegment(scope.personalStorageUserId)}`;
+  }
+
+  async createWorkFolder(input: { scope: WorkFolderScope; workName: string }) {
+    const container = this.scopeContainer(input.scope);
     // Idempotente (403 = ya compartida): garantiza el acceso aunque la carpeta
     // del ámbito se haya creado recién (raíz nueva o grupo renombrado).
     await this.shareScopeFolder({ path: container, scope: input.scope });
     const folderPath = await this.freePath(`${container}/${sanitizeSegment(input.workName)}`);
     await this.ensureDir(folderPath);
+    return { folderPath };
+  }
+
+  async moveWorkFolderToScope(input: { folderPath: string; scope: WorkFolderScope }) {
+    const container = this.scopeContainer(input.scope);
+    const name = input.folderPath.substring(input.folderPath.lastIndexOf("/") + 1);
+    if (input.folderPath === `${container}/${name}`) return { folderPath: input.folderPath };
+    await this.shareScopeFolder({ path: container, scope: input.scope });
+    // Reintento tras un move que ya se hizo pero no llegó a guardarse la ruta.
+    if (!(await this.dav.exists(input.folderPath))) return { folderPath: `${container}/${name}` };
+    const folderPath = await this.freePath(`${container}/${name}`);
+    await this.dav.moveFile(input.folderPath, folderPath);
     return { folderPath };
   }
 

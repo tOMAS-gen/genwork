@@ -70,6 +70,8 @@ interface WorkFull {
   canManageClients: boolean;
   /** Mi día: si este usuario puede poner/quitar tareas del proyecto en Mi día. */
   canManageMyDay: boolean;
+  /** Admin del ámbito y proyecto activo: puede cambiarlo de grupo. */
+  canChangeScope: boolean;
 }
 
 /**
@@ -258,6 +260,8 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                 workStatus={work.status}
                 canRename={work.access === "operate"}
                 onRenamed={load}
+                groupId={work.groupId}
+                canChangeScope={work.canChangeScope}
               />
             </div>
 
