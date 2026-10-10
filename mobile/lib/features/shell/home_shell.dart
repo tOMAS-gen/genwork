@@ -308,7 +308,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   DrawerResourceSection(
                     id: 'sectors',
                     title: 'Sectores',
-                    icon: AppIcons.taskView,
+                    icon: AppIcons.sectors,
                     selected: currentBranch == 2,
                     expanded: _sectorsExpanded,
                     onToggle: () =>

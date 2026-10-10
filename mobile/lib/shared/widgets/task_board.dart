@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/task.dart';
 import 'color_dot.dart';
@@ -96,12 +97,12 @@ class TaskViewToggle extends StatelessWidget {
       segments: const [
         ButtonSegment(
           value: false,
-          icon: Icon(Icons.list),
+          icon: Icon(AppIcons.list),
           label: Text('Lista'),
         ),
         ButtonSegment(
           value: true,
-          icon: Icon(Icons.view_column_outlined),
+          icon: Icon(AppIcons.gridView),
           label: Text('Tablero'),
         ),
       ],

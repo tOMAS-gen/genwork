@@ -411,7 +411,8 @@ Patrón común para cada pantalla:
 | DS-16 | D | M | C | ✅ 2026-10-10 — 305 tests verdes (+8 en `works_dashboard_test.dart`, +2 en otros); con `UI_PREVIEWS=true` 309; comparada con la web (3 iteraciones) |
 | DS-17 | D | M | C | ✅ 2026-10-10 — 308 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 312; comparada con la web (2 iteraciones) |
 | DS-18 | D | B | C | ✅ 2026-10-10 — 311 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 315; comparada con la web (lista y detalle) |
-| DS-19…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-19 | D | B | C | ✅ 2026-10-10 — 312 tests verdes (+1 en `day_overview_test.dart`); con `UI_PREVIEWS=true` 316; comparada con la web (`/board`) |
+| DS-20…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -525,3 +526,7 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   El formulario de sector y el diálogo de impacto de eliminación pasaron a `AppWorkDialog`; «Eliminar sector» va en `danger` tras un `PopupMenuDivider`. Nuevos compartidos: `NamePill` (extraído de `WorkCard`), `CardProgress` (barra 8 px + % + «d/t tareas») y `Breadcrumb`.
   Omitido del app (la web lo tiene): «Filtros», el switch grilla/lista y el orden en una sola fila; el app apila ámbito y orden como `DropdownButtonFormField` (keys `sectors_scope_*` / `sectors_sort`). Test ajustado por estructura: `resource_operations_test` busca el nombre dentro de `SectorSummaryPanel` (ahora sale también en las migas).
   Capturas: `../.context/ds-18/` (`web-lista-390.jpg` / `web-detalle-390.jpg` vs `app-lista.png` / `app-detalle.png`).
+- DS-19 (comparada con la web `/board` a 390 px): encabezado «Vista de tareas» + «Avance y pendientes de cada sector.» (ícono `dashboard`), una línea «N tareas pendientes · M sectores» ↔ «D de T finalizadas» (sin barra global: la web no la tiene),
+  y por sector una card con acento de 3 px del color del sector, nombre 14/700, conteo de pendientes en un cuadro de contorno, «D de T finalizadas» / «Sin tareas asignadas» / «Avance en las subtareas» + barra de 4 px, y un pie sobre `field` con las pendientes (líneas entre filas) o «Sin tareas pendientes.».
+  Keys intactas (`board_summary`, `board_sector_<id>`, `board_open_sector_<id>`, `board_task_<sector>_<tarea>`). El resumen usa `Wrap` (a 360 dp / 1.5× el `Row` desbordaba 4 px).
+- DS-19: íconos igualados a la web: Vista de tareas = `dashboard`, Sectores = `layers` (`AppIcons.sectors`, también en el drawer; antes `view_column`) y el toggle Lista/Tablero usa `AppIcons.list` / `AppIcons.gridView`. Capturas: `../.context/ds-19/`.

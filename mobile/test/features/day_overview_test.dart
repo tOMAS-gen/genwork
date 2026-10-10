@@ -380,6 +380,34 @@ void main() {
     expect(find.byType(WorkActionsMenu), findsNothing);
   });
   testWidgets(
+    'DS-19 Vista de tareas como la web: encabezado, resumen y cards',
+    (t) async {
+      final f = Fixture();
+      await mount(t, f);
+      expect(find.text('Vista de tareas'), findsOneWidget);
+      expect(find.text('Avance y pendientes de cada sector.'), findsOneWidget);
+      // Resumen en una línea + «D de T finalizadas» (sin barra global).
+      expect(find.byKey(const ValueKey('board_summary')), findsOneWidget);
+      expect(find.textContaining('finalizadas'), findsWidgets);
+      // Card por sector con acento, conteo y avance.
+      final card = find.byKey(const ValueKey('board_sector_s'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.byType(LinearProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+      // Las tareas pendientes viven en el pie sobre `field`.
+      expect(find.byKey(const ValueKey('board_task_s_a')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('board_task_s_b')),
+        findsNothing,
+      ); // hecha
+    },
+  );
+  testWidgets(
     'sector con solo contenedoras no inventa progreso ni tareas completas',
     (t) async {
       final f = Fixture()
