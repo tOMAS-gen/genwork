@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 import '../../data/models/storage_file.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../works/works_providers.dart';
@@ -66,7 +68,7 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Compartidos')),
         body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             Text(
               widget.file.name,
@@ -144,7 +146,7 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                         onPressed: _busy
                             ? null
                             : () => setState(() => _expires = null),
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(AppIcons.close),
                       ),
                   ],
                 ),
@@ -196,7 +198,7 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                   for (final s in shares)
                     Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(AppSpacing.sm),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -216,7 +218,7 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                                   TextButton.icon(
                                     key: ValueKey('share_copy_${s.id}'),
                                     onPressed: () => _copy(s.link!),
-                                    icon: const Icon(Icons.copy),
+                                    icon: const Icon(AppIcons.copy),
                                     label: const Text('Copiar enlace'),
                                   ),
                                 if (edit)

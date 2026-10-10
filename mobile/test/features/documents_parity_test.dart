@@ -17,6 +17,8 @@ import 'package:genwork_mobile/features/documents/document_draft.dart';
 import 'package:genwork_mobile/features/documents/document_screen.dart';
 import 'package:genwork_mobile/features/documents/rich_document_editor.dart';
 import 'package:genwork_mobile/features/files/files_screen.dart';
+import 'package:genwork_mobile/shared/widgets/app_inline_notice.dart';
+import 'package:genwork_mobile/shared/widgets/workspace_panel.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:genwork_mobile/shared/widgets/gen_section_header.dart';
 import 'package:genwork_mobile/features/files/file_shares_screen.dart';
@@ -425,6 +427,73 @@ void main() {
     expect(f.calls.last.queryParameters['path'], 'opaque-folder-id');
     await tap(t, 'files_up');
     expect(find.text('Plan.md'), findsOneWidget);
+  });
+  testWidgets('DS-22 archivos: encabezado, botones y lista en un panel', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const FilesScreen(workId: 'w'));
+    expect(find.byType(GenSectionHeader), findsOneWidget);
+    expect(find.text('Archivos'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(GenSectionHeader),
+        matching: find.byKey(const ValueKey('files_refresh')),
+      ),
+      findsOneWidget,
+    );
+    // Subir = primario; Nueva carpeta = de contorno (como la web).
+    expect(find.byKey(const ValueKey('files_upload')), findsOneWidget);
+    expect(
+      t.widget(find.byKey(const ValueKey('files_new_folder'))),
+      isA<OutlinedButton>(),
+    );
+    // Las filas viven dentro de un único panel con separadores.
+    expect(find.byType(WorkspaceListPanel), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(WorkspaceListPanel),
+        matching: find.byKey(const ValueKey('file_opaque-folder-id')),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Carpeta'), findsWidgets);
+  });
+  testWidgets('DS-22 StorageError usa AppInlineNotice.error y vincula cuenta', (
+    t,
+  ) async {
+    await t.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: Column(
+              children: [
+                StorageError(
+                  error: ApiException(
+                    status: 409,
+                    code: 'STORAGE_IDENTITY_MISSING',
+                    message: 'Vinculá tu cuenta de almacenamiento.',
+                  ),
+                ),
+                const StorageError(error: FormatException('Nombre inválido')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.byType(AppInlineNotice), findsNWidgets(2));
+    expect(
+      t
+          .widgetList<AppInlineNotice>(find.byType(AppInlineNotice))
+          .map((n) => n.tone)
+          .toSet(),
+      {AppInlineNoticeTone.error},
+    );
+    expect(find.text('Vinculá tu cuenta de almacenamiento.'), findsOneWidget);
+    expect(find.text('Nombre inválido'), findsOneWidget);
+    expect(find.text('Vincular cuenta en la web'), findsOneWidget);
   });
   testWidgets('habilitar carpeta muestra estado de preparación', (t) async {
     final f = Fixture()..enabled = false;

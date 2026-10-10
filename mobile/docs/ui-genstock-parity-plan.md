@@ -414,7 +414,8 @@ Patrón común para cada pantalla:
 | DS-19 | D | B | C | ✅ 2026-10-10 — 312 tests verdes (+1 en `day_overview_test.dart`); con `UI_PREVIEWS=true` 316; comparada con la web (`/board`) |
 | DS-20 | D | B | C | ✅ 2026-10-10 — 313 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 317; comparada con la web (`/notes`) |
 | DS-21 | D | M | C | ✅ 2026-10-10 — 316 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 320; comparada con la web (`/notes`, documentos de proyecto) y verificada en el emulador |
-| DS-22…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-22 | D | B | C | ✅ 2026-10-10 — 318 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 322. comparada con la web una vez resuelto el servidor dev (ver Hallazgos) |
+| DS-23…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -541,3 +542,9 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   código en RobotoMono sobre `field`. Fuentes Montserrat/RobotoMono cargadas desde `../fonts/*.ttf` (CSP con `font-src 'self'`; verificado en el emulador). El aviso «Este documento contiene un formato no compatible…» (el «nota con formato» del plan) ya vivía en el HTML (`#warning`): ahora lleva `warning-fill`/`warning-text`.
   `RichDocumentEditor`: fondo del WebView = `page`, skeleton (`GenSkeleton`) en lugar del spinner, error con `ErrorText`, «Insertar enlace» con `AppWorkDialog`. `DocumentScreen` (notas y documentación de proyecto): AppBar con la marca y un `GenSectionHeader` («Nota»/«Documentación») con ✓ guardar y «⋮» opciones a la derecha, como el encabezado de la web
   (keys `note_save`/`document_save`/`document_options` intactas). La barra de herramientas del editor queda en `surface` con texto `muted` (la web usa su propia barra flotante). Capturas: `../.context/ds-21/`.
+- DS-22 (comparada con la web, pestaña Archivos, y con `FilesBrowser.tsx`): la web muestra botón primario «Subir archivo», «Nueva carpeta» de contorno, «Raíz /» (migas), las filas `.file-item` (ícono, nombre, tamaño, acciones) y estados «Carpeta no habilitada» / «Sin archivos».
+  El app ahora usa `BrandName` en el AppBar + `GenSectionHeader` «Archivos» con «actualizar» a la derecha, «Subir archivos» (primario) y «Nueva carpeta» (`OutlinedButton`, antes `TextButton`), y las filas dentro de un `WorkspaceListPanel` (ícono `muted`, nombre, tamaño en Mono, menú con «Eliminar» en `danger`). `StorageError` pasó a `AppInlineNotice.error` (+ «Vincular cuenta en la web»);
+  8 espaciados sueltos → `AppSpacing`, íconos → `AppIcons` (también en `file_shares_screen.dart`). Estado «archivos no habilitados» con ícono 48 `muted`. Keys intactas.
+- **Servidor dev (2026-10-10, ~09:30)**: `next dev -p 3011` (Turbopack) empezó a devolver 500 con «Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'» (`roboto_mono`, de `src/app/layout.tsx`; la red y la base `:5433` estaban bien; reiniciar con Turbopack no lo arregló).
+  Se reinició (con el visto bueno del usuario) con **webpack**, que sí funciona: `DATABASE_URL=<.env.local con la base genwork_mobile_dev> AUTH_URL=http://localhost:3011 DEV_AUTH=true npx next dev --webpack -p 3011` (log en `/tmp/genwork-next.log`). Es un arreglo local: no se tocó el código web.
+  Con el servidor sano la comparación de DS-22 mostró un único cambio más: el estado «archivos no habilitados» ahora dice «Carpeta no habilitada» + descripción + «Habilitar carpeta» (antes un texto suelto y «Habilitar archivos»). Capturas: `../.context/ds-22/` (`web-archivos-390.jpg` vs `app-archivos.png`).

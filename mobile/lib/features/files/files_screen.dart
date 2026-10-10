@@ -13,7 +13,15 @@ import '../../shared/widgets/async_value_view.dart';
 import '../works/works_providers.dart';
 import 'files_providers.dart';
 import 'file_shares_screen.dart';
-import '../../shared/widgets/error_text.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_inline_notice.dart';
+import '../../shared/widgets/brand_name.dart';
+import '../../shared/widgets/gen_section_header.dart';
+import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/workspace_panel.dart';
 
 class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key, required this.workId});
@@ -242,40 +250,48 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Archivos'),
-          actions: [
-            IconButton(
-              key: const ValueKey('files_refresh'),
-              tooltip: 'Actualizar archivos',
-              onPressed: _busy ? null : _reload,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
+        appBar: AppBar(title: const BrandName(size: 16)),
         body: Column(
           children: [
+            GenSectionHeader(
+              title: 'Archivos',
+              icon: AppIcons.projects,
+              actions: [
+                IconButton(
+                  key: const ValueKey('files_refresh'),
+                  tooltip: 'Actualizar archivos',
+                  onPressed: _busy ? null : _reload,
+                  icon: const Icon(AppIcons.retry),
+                ),
+              ],
+            ),
             if (_trail.isNotEmpty)
               ListTile(
                 key: const ValueKey('files_up'),
-                leading: const Icon(Icons.arrow_upward),
+                leading: const Icon(AppIcons.sortAsc),
                 title: Text(_trail.last.name),
                 subtitle: const Text('Volver a la carpeta anterior'),
                 onTap: _busy ? null : () => setState(() => _trail.removeLast()),
               ),
             if (canEdit && ready)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  0,
+                ),
                 child: Wrap(
-                  spacing: 8,
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
                   children: [
                     FilledButton.icon(
                       key: const ValueKey('files_upload'),
                       onPressed: _busy ? null : _upload,
-                      icon: const Icon(Icons.upload_file),
+                      icon: const Icon(AppIcons.upload),
                       label: const Text('Subir archivos'),
                     ),
-                    TextButton.icon(
+                    OutlinedButton.icon(
                       key: const ValueKey('files_new_folder'),
                       onPressed: _busy
                           ? null
@@ -289,7 +305,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                                 );
                               }
                             },
-                      icon: const Icon(Icons.create_new_folder_outlined),
+                      icon: const Icon(AppIcons.newFolder),
                       label: const Text('Nueva carpeta'),
                     ),
                   ],
@@ -303,7 +319,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                   key: const ValueKey('files_cancel'),
                   tooltip: 'Cancelar transferencia',
                   onPressed: () => _cancel?.cancel(),
-                  icon: const Icon(Icons.close),
+                  icon: const Icon(AppIcons.close),
                 ),
               ),
             if (_error != null) StorageError(error: _error!),
@@ -315,19 +331,36 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                   if (!data.ready) {
                     return Center(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(AppSpacing.lg),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.folder_outlined, size: 48),
-                            const SizedBox(height: 16),
+                            Icon(
+                              AppIcons.projects,
+                              size: AppIconSizes.state,
+                              color: context.colors.muted,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
                             Text(
                               data.folderEnabled == true
                                   ? 'La carpeta se está preparando'
-                                  : 'Los archivos todavía no están habilitados',
+                                  : 'Carpeta no habilitada',
                               textAlign: TextAlign.center,
+                              style: AppTextStyles.dialogTitle.copyWith(
+                                color: context.colors.text,
+                              ),
                             ),
-                            const SizedBox(height: 16),
+                            if (data.folderEnabled != true) ...[
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                'Este proyecto todavía no tiene carpeta de archivos. Habilitala para poder subir, organizar y compartir documentos.',
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.body.copyWith(
+                                  color: context.colors.muted,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: AppSpacing.md),
                             if (data.folderEnabled == false && data.canEnable)
                               FilledButton(
                                 key: const ValueKey('files_enable'),
@@ -338,7 +371,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                                             .read(filesRepositoryProvider)
                                             .enable(widget.workId),
                                       ),
-                                child: const Text('Habilitar archivos'),
+                                child: const Text('Habilitar carpeta'),
                               ),
                             if (data.folderEnabled == true)
                               TextButton(
@@ -346,9 +379,12 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                                 child: const Text('Reintentar'),
                               ),
                             if (data.folderEnabled == false && !data.canEnable)
-                              const Text(
+                              Text(
                                 'Un administrador puede habilitar la carpeta.',
                                 textAlign: TextAlign.center,
+                                style: AppTextStyles.body.copyWith(
+                                  color: context.colors.muted,
+                                ),
                               ),
                           ],
                         ),
@@ -356,7 +392,12 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                     );
                   }
                   if (data.files.isEmpty) {
-                    return const Center(child: Text('Esta carpeta está vacía'));
+                    return const Center(
+                      child: EmptyView(
+                        icon: AppIcons.projects,
+                        message: 'Esta carpeta está vacía',
+                      ),
+                    );
                   }
                   return RefreshIndicator(
                     onRefresh: () async {
@@ -364,55 +405,25 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                           .refresh(workFilesProvider(_key).future)
                           .then((_) {});
                     },
-                    child: ListView.builder(
+                    child: ListView(
                       key: const ValueKey('files_list'),
-                      itemCount: data.files.length,
-                      itemBuilder: (context, index) {
-                        final f = data.files[index];
-                        return ListTile(
-                          key: ValueKey('file_${f.path}'),
-                          leading: Icon(
-                            f.isDirectory
-                                ? Icons.folder_outlined
-                                : Icons.insert_drive_file_outlined,
-                          ),
-                          title: Text(f.name),
-                          subtitle: Text(
-                            f.isDirectory ? 'Carpeta' : f.sizeLabel,
-                          ),
-                          onTap: _busy
-                              ? null
-                              : () => f.isDirectory
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      children: [
+                        WorkspaceListPanel(
+                          children: [
+                            for (final f in data.files)
+                              _FileRow(
+                                file: f,
+                                busy: _busy,
+                                canEdit: canEdit,
+                                onTap: () => f.isDirectory
                                     ? setState(() => _trail.add(f))
                                     : _download(f),
-                          trailing: PopupMenuButton<String>(
-                            tooltip: 'Opciones de ${f.name}',
-                            enabled: !_busy,
-                            onSelected: (v) => _action(v, f),
-                            itemBuilder: (_) => [
-                              if (!f.isDirectory)
-                                const PopupMenuItem(
-                                  value: 'download',
-                                  child: Text('Descargar y abrir'),
-                                ),
-                              const PopupMenuItem(
-                                value: 'share',
-                                child: Text('Compartidos'),
+                                onAction: (v) => _action(v, f),
                               ),
-                              if (canEdit) ...[
-                                const PopupMenuItem(
-                                  value: 'rename',
-                                  child: Text('Renombrar'),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Eliminar'),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      },
+                          ],
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -420,6 +431,73 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Fila de archivo o carpeta: ícono `muted`, nombre y tamaño en Mono, y el menú
+/// de opciones (descargar, compartidos, renombrar, eliminar).
+class _FileRow extends StatelessWidget {
+  const _FileRow({
+    required this.file,
+    required this.busy,
+    required this.canEdit,
+    required this.onTap,
+    required this.onAction,
+  });
+
+  final StorageFile file;
+  final bool busy, canEdit;
+  final VoidCallback onTap;
+  final ValueChanged<String> onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return ListTile(
+      key: ValueKey('file_${file.path}'),
+      leading: Icon(
+        file.isDirectory ? AppIcons.projects : AppIcons.file,
+        color: c.muted,
+      ),
+      title: Text(
+        file.name,
+        style: AppTextStyles.itemTitle.copyWith(
+          fontWeight: FontWeight.w400,
+          color: c.text,
+        ),
+      ),
+      subtitle: Text(
+        file.isDirectory ? 'Carpeta' : file.sizeLabel,
+        style: file.isDirectory
+            ? AppTextStyles.supporting.copyWith(color: c.muted)
+            : AppTextStyles.technical.copyWith(color: c.muted),
+      ),
+      onTap: busy ? null : onTap,
+      trailing: PopupMenuButton<String>(
+        tooltip: 'Opciones de ${file.name}',
+        enabled: !busy,
+        onSelected: onAction,
+        itemBuilder: (_) => [
+          if (!file.isDirectory)
+            const PopupMenuItem(
+              value: 'download',
+              child: Text('Descargar y abrir'),
+            ),
+          const PopupMenuItem(value: 'share', child: Text('Compartidos')),
+          if (canEdit) ...[
+            const PopupMenuItem(value: 'rename', child: Text('Renombrar')),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'delete',
+              child: Text(
+                'Eliminar',
+                style: AppTextStyles.body.copyWith(color: c.danger),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -438,10 +516,11 @@ class StorageError extends ConsumerWidget {
         ? e.message
         : 'No se pudo completar la operación. Reintentá.';
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ErrorText(message),
+          AppInlineNotice.error(message: message),
           if (identity)
             TextButton(
               onPressed: () async {
