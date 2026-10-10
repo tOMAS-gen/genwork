@@ -90,4 +90,29 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('sin tracking heredado de Material (la web usa 0)', (t) async {
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: const Scaffold(
+          body: Column(
+            children: [
+              Text('plano'),
+              Text('con estilo', style: AppTextStyles.body),
+              Text('titulo', style: AppTextStyles.screenTitle),
+            ],
+          ),
+        ),
+      ),
+    );
+    for (final label in ['plano', 'con estilo', 'titulo']) {
+      final ctx = t.element(find.text(label));
+      final style = DefaultTextStyle.of(
+        ctx,
+      ).style.merge(t.widget<Text>(find.text(label)).style);
+      expect(style.letterSpacing, 0, reason: label);
+    }
+    expect(AppTextStyles.sectionLabel.letterSpacing, 1.2);
+  });
 }

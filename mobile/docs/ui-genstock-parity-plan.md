@@ -408,7 +408,8 @@ Patrón común para cada pantalla:
 | DS-13 | C | M | DS-11 | ✅ 2026-10-10 — 284 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 288; captura en `../.context/ds-13/` |
 | DS-14 | D | B | C | ✅ 2026-10-10 — 295 tests verdes (+11 en `test/features/auth_screens_test.dart`); con `UI_PREVIEWS=true` 299; comparada con la web a 390 px |
 | DS-15 | D | B | C | ✅ 2026-10-10 — 297 tests verdes (+2 en `daily_parity_test.dart`); con `UI_PREVIEWS=true` 301; comparada con la web (3 iteraciones) |
-| DS-16…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-16 | D | M | C | ✅ 2026-10-10 — 305 tests verdes (+8 en `works_dashboard_test.dart`, +2 en otros); con `UI_PREVIEWS=true` 309; comparada con la web (3 iteraciones) |
+| DS-17…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -499,3 +500,10 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-15: `TaskTile` ajustado a la web: título 13/400 (no 14/600), pill de estado solo si hay más de 2 estados (`statusOptions.length > 2`, como `TaskItem.tsx`), ícono de «Mi día» activo en ámbar (`warning`, como `--color-warning`); `flat` quita
   el marco de card para filas dentro de un panel. `GenPageScaffold` suma `appBarActions` (la campana va en el AppBar: en el header partía el título en 2 líneas). `LoadingView` va pegado arriba (2 cards con texto grande).
   Diferencias que quedan vs. la web: la web muestra «+» (subtarea) y «✕» (borrar) en cada fila y el ícono de tema arriba a la derecha; el app usa swipe, el detalle y la campana. Capturas: `../.context/ds-15/`.
+- DS-16 (comparada con la web `/` a 390 px): la web arma la pantalla con encabezado (caja de ícono + «Todos los Proyectos» + botón «+» a la derecha), estadísticas en 2×2 (cifra Mono 24/700 y «Total · 100%» Mono 14 muted, card `surface` padding 16),
+  un panel de herramientas (búsqueda 40 px sobre `field`, «Filtros», orden y vista grilla/lista, y «N proyectos» abajo) y `ProjectCard`s: píldora con el nombre en MAYÚSCULAS (color del proyecto o `hover`), estrella, «Grupo X»/«Personal», etiquetas,
+  «Entrega: fecha» + urgencia en cursiva (verde >7 días, naranja 1–7, rojo hoy/vencido), barra de 8 px `ok` con su %, y «d/t tareas». Se replicó con `GenPageScaffold` (el «+» pasó del FAB al header, key `works_create`), `WorkCard` (`work_card.dart`) y
+  `works_dashboard.dart` (`projectStatus`, `WorksStats`, `dueUrgency`: mismas reglas que `dashboardUtils.ts`). Sin equivalente en el app (se omitieron): el menú «···» de la card, el orden y el switch grilla/lista; el app mantiene sus chips Todos/Mis proyectos/Favoritos, Activos/Archivados y el filtro por grupo dentro del panel.
+- DS-16: **hallazgo global**: el texto del app heredaba `letterSpacing: 0.25` del tema de Material (la web usa 0) y salía más ancho (el título «Todos los Proyectos» se partía en 2 líneas). `AppTextStyles` y los roles del `textTheme` ahora fijan `letterSpacing: 0` (salvo `sectionLabel`, 1.2),
+  y `BrandName` también. `GenSectionHeader` mide el título con 4 px de margen. Con las estadísticas arriba, controles y cards quedan bajo el pliegue: `ui_phase3_test.dart` desplaza con `scrollUntilVisible(finder.hitTestable())` antes de tocar el filtro de grupo y la card (cambio de estructura, mismo comportamiento).
+  Los tests `LoadingView`... ver DS-15. Capturas: `../.context/ds-16/` (`web-proyectos-390.jpg` vs `app-v3.png`).

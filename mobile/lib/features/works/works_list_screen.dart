@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
-import '../../shared/widgets/app_drawer_scope.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/async_value_view.dart';
-import '../../shared/widgets/color_dot.dart';
-import '../../shared/widgets/progress_line.dart';
+import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import 'create_work_dialog.dart';
-import 'works_providers.dart';
+import 'work_card.dart';
+import 'works_dashboard.dart';
 import 'works_filter.dart';
+import 'works_providers.dart';
 
 /// Listado de proyectos: búsqueda local, activos/archivados, favoritos primero.
 class WorksListScreen extends ConsumerStatefulWidget {
@@ -67,41 +72,56 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
   Widget build(BuildContext context) {
     final works = ref.watch(worksListProvider(_archived));
     final userId = ref.watch(currentUserProvider)?.id;
+    final c = context.colors;
     final groupLabels = <String, String>{
       for (final work in works.value ?? <WorkSummary>[])
         work.groupId ?? '': work.groupId == null
             ? 'Sin grupo'
             : work.groupName ?? 'Grupo',
     };
+    final all = works.value;
+    final list = all == null ? null : _visible(all, userId);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: const AppDrawerButton(),
-        title: Text(_view == WorksView.all ? 'Proyectos' : _view.label),
-      ),
-      floatingActionButton: _archived
-          ? null
-          : FloatingActionButton(
-              key: const ValueKey('works_create'),
-              tooltip: 'Crear proyecto',
-              onPressed: () async {
-                final id = await showCreateWorkDialog(context);
-                if (id != null && context.mounted) {
-                  context.push(Routes.work(id, view: _view));
-                }
-              },
-              child: const Icon(Icons.add),
-            ),
-      body: Column(
+    return GenPageScaffold(
+      title: _view == WorksView.all ? 'Todos los Proyectos' : _view.label,
+      icon: AppIcons.projects,
+      actions: [
+        if (!_archived)
+          IconButton.filled(
+            key: const ValueKey('works_create'),
+            tooltip: 'Crear proyecto',
+            onPressed: () async {
+              final id = await showCreateWorkDialog(context);
+              if (id != null && context.mounted) {
+                context.push(Routes.work(id, view: _view));
+              }
+            },
+            icon: const Icon(AppIcons.add),
+          ),
+      ],
+      onRefresh: () => ref.refresh(worksListProvider(_archived).future),
+      bodyPadding: EdgeInsets.zero,
+      body: ListView(
+        key: const ValueKey('works_list'),
+        padding: AppSpace.page,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          Padding(
-            padding: AppSpace.page,
+          if (list != null)
+            _StatsGrid(
+              key: const ValueKey('works_stats'),
+              stats: WorksStats.of(list),
+            ),
+          if (list != null) const SizedBox(height: AppSpace.md),
+          WorkspacePanel(
+            key: const ValueKey('works_toolbar'),
+            padding: const EdgeInsets.all(AppSpacing.xs),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextField(
                   key: const ValueKey('works_search'),
                   decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: Icon(AppIcons.search),
                     hintText: 'Buscar proyecto, descripción o grupo',
                   ),
                   onChanged: (v) => setState(() => _query = v),
@@ -153,10 +173,10 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
                       key: const ValueKey('works_group_filter'),
                       tooltip: 'Filtrar por grupo',
                       icon: Icon(
-                        _group == null ? Icons.filter_list : Icons.filter_alt,
-                        color: _group == null
-                            ? null
-                            : Theme.of(context).colorScheme.primary,
+                        _group == null
+                            ? AppIcons.filter
+                            : AppIcons.filterActive,
+                        color: _group == null ? c.muted : c.brand,
                       ),
                       onSelected: (v) =>
                           setState(() => _group = v == '__all__' ? null : v),
@@ -173,125 +193,143 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
                     ),
                   ],
                 ),
-                if (_group != null)
-                  Align(
-                    alignment: Alignment.centerLeft,
+                if (list != null) ...[
+                  const Divider(height: AppSpace.lg),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                    ),
                     child: Text(
-                      'Grupo: ${groupLabels[_group] ?? 'Seleccionado'}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      [
+                        countLabel(list.length, 'proyecto', 'proyectos'),
+                        if (_group != null)
+                          'Grupo: ${groupLabels[_group] ?? 'Seleccionado'}',
+                      ].join(' · '),
+                      style: AppTextStyles.supporting.copyWith(color: c.muted),
                     ),
                   ),
+                ],
               ],
             ),
           ),
-          Expanded(
-            child: AsyncValueView(
-              value: works,
-              onRetry: () => ref.invalidate(worksListProvider(_archived)),
-              data: (all) {
-                final list = _visible(all, userId);
-                return RefreshIndicator(
-                  onRefresh: () =>
-                      ref.refresh(worksListProvider(_archived).future),
-                  child: list.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            const SizedBox(height: AppSpace.emptyLead),
-                            EmptyView(
-                              message: _query.isNotEmpty || _group != null
-                                  ? 'No hay resultados. Probá otra búsqueda o grupo.'
-                                  : switch (_view) {
-                                      WorksView.mine =>
-                                        'Todavía no creaste proyectos.',
-                                      WorksView.favorites =>
-                                        'Todavía no tenés favoritos.\nMarcá un proyecto con la estrella.',
-                                      WorksView.archived =>
-                                        'No hay proyectos archivados.',
-                                      WorksView.all =>
-                                        'Todavía no hay proyectos.\nCreá el primero con el botón +.',
-                                    },
-                            ),
-                          ],
-                        )
-                      : ListView.separated(
-                          key: const ValueKey('works_list'),
-                          padding: AppSpace.list,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: list.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: AppSpace.md),
-                          itemBuilder: (context, i) => _WorkTile(
-                            work: list[i],
-                            onTap: () => context.push(
-                              Routes.work(list[i].id, view: _view),
-                            ),
-                            onFavorite: () => _toggleFavorite(list[i]),
-                          ),
-                        ),
+          const SizedBox(height: AppSpace.md),
+          AsyncValueView(
+            value: works,
+            onRetry: () => ref.invalidate(worksListProvider(_archived)),
+            data: (all) {
+              final visible = _visible(all, userId);
+              if (visible.isEmpty) {
+                return EmptyView(
+                  message: _query.isNotEmpty || _group != null
+                      ? 'No hay resultados. Probá otra búsqueda o grupo.'
+                      : switch (_view) {
+                          WorksView.mine => 'Todavía no creaste proyectos.',
+                          WorksView.favorites =>
+                            'Todavía no tenés favoritos.\nMarcá un proyecto con la estrella.',
+                          WorksView.archived => 'No hay proyectos archivados.',
+                          WorksView.all =>
+                            'Todavía no hay proyectos.\nCreá el primero con el botón +.',
+                        },
                 );
-              },
-            ),
+              }
+              return Column(
+                children: [
+                  for (final work in visible)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpace.md),
+                      child: WorkCard(
+                        work: work,
+                        onTap: () =>
+                            context.push(Routes.work(work.id, view: _view)),
+                        onFavorite: () => _toggleFavorite(work),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
+          const SizedBox(height: AppSpace.xxl),
         ],
       ),
     );
   }
 }
 
-class _WorkTile extends StatelessWidget {
-  const _WorkTile({
-    required this.work,
-    required this.onTap,
-    required this.onFavorite,
-  });
+/// Barra de estadísticas del dashboard: Total, En progreso, Completados y
+/// Pendientes, en 2×2 (cifra en Mono 24/700 y «rótulo · %» en Mono 14 muted).
+class _StatsGrid extends StatelessWidget {
+  const _StatsGrid({super.key, required this.stats});
 
-  final WorkSummary work;
-  final VoidCallback onTap;
-  final VoidCallback onFavorite;
+  final WorksStats stats;
 
   @override
   Widget build(BuildContext context) {
-    final meta = [
-      work.groupName ?? 'Personal',
-      if (work.dueDate != null) 'vence ${formatDay(work.dueDate!)}',
-    ].join(' · ');
-
-    return Card(
-      child: ListTile(
-        key: ValueKey('work_${work.id}'),
-        onTap: onTap,
-        title: Text(work.name),
-        contentPadding: AppSpace.page,
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final items = [
+      ('Total', stats.total, stats.total > 0 ? 100 : 0),
+      ('En progreso', stats.inProgress, stats.pct(stats.inProgress)),
+      ('Completados', stats.completed, stats.pct(stats.completed)),
+      ('Pendientes', stats.pending, stats.pct(stats.pending)),
+    ];
+    Widget tile((String, int, int) i) => Expanded(
+      child: _StatTile(label: i.$1, value: i.$2, pct: i.$3),
+    );
+    return Column(
+      children: [
+        Row(
           children: [
-            Text(meta),
-            const SizedBox(height: AppSpace.sm),
-            ProgressLine(progress: work.progress),
-            if (work.stageName != null || work.labels.isNotEmpty) ...[
-              const SizedBox(height: AppSpace.sm),
-              Wrap(
-                spacing: AppSpace.sm,
-                runSpacing: AppSpace.xs,
-                children: [
-                  if (work.stageName != null)
-                    ColorPill(label: work.stageName!, hex: work.stageColor),
-                  for (final l in work.labels.where((l) => l.isPrimary))
-                    ColorPill(label: l.valueName, hex: l.color),
-                ],
-              ),
-            ],
+            tile(items[0]),
+            const SizedBox(width: AppSpace.md),
+            tile(items[1]),
           ],
         ),
-        trailing: IconButton(
-          key: ValueKey('work_favorite_${work.id}'),
-          tooltip: work.isFavorite
-              ? 'Quitar de favoritos'
-              : 'Agregar a favoritos',
-          icon: Icon(work.isFavorite ? Icons.star : Icons.star_border),
-          onPressed: onFavorite,
+        const SizedBox(height: AppSpace.md),
+        Row(
+          children: [
+            tile(items[2]),
+            const SizedBox(width: AppSpace.md),
+            tile(items[3]),
+          ],
         ),
+      ],
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile({
+    required this.label,
+    required this.value,
+    required this.pct,
+  });
+
+  final String label;
+  final int value, pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return WorkspacePanel(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$value',
+            style: AppTextStyles.technical.copyWith(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: c.text,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            '$label · $pct%',
+            style: AppTextStyles.technical.copyWith(
+              fontSize: 14,
+              color: c.muted,
+            ),
+          ),
+        ],
       ),
     );
   }

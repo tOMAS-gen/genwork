@@ -114,7 +114,7 @@ abstract final class AppTheme {
       colorScheme: scheme,
       fontFamily: 'Montserrat',
     );
-    final typography = base.textTheme
+    final withTracking = base.textTheme
         .copyWith(
           headlineSmall: AppTextStyles.screenTitle.copyWith(color: c.text),
           headlineMedium: AppTextStyles.screenTitle.copyWith(
@@ -135,6 +135,26 @@ abstract final class AppTheme {
           labelSmall: AppTextStyles.sectionLabel.copyWith(color: c.muted),
         )
         .apply(fontFamily: 'Montserrat');
+    // La web no usa tracking: sin esto Material inyecta 0.25 en cada rol.
+    TextStyle? noTracking(TextStyle? s) =>
+        s?.copyWith(letterSpacing: s.letterSpacing ?? 0);
+    final typography = withTracking.copyWith(
+      displayLarge: noTracking(withTracking.displayLarge),
+      displayMedium: noTracking(withTracking.displayMedium),
+      displaySmall: noTracking(withTracking.displaySmall),
+      headlineLarge: noTracking(withTracking.headlineLarge),
+      headlineMedium: noTracking(withTracking.headlineMedium),
+      headlineSmall: noTracking(withTracking.headlineSmall),
+      titleLarge: noTracking(withTracking.titleLarge),
+      titleMedium: noTracking(withTracking.titleMedium),
+      titleSmall: noTracking(withTracking.titleSmall),
+      bodyLarge: noTracking(withTracking.bodyLarge),
+      bodyMedium: noTracking(withTracking.bodyMedium),
+      bodySmall: noTracking(withTracking.bodySmall),
+      labelLarge: noTracking(withTracking.labelLarge),
+      labelMedium: noTracking(withTracking.labelMedium),
+      labelSmall: noTracking(withTracking.labelSmall),
+    );
     final controlShape = const RoundedRectangleBorder(
       borderRadius: AppGeometry.control,
     );

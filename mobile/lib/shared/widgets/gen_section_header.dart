@@ -71,7 +71,10 @@ class GenSectionHeader extends StatelessWidget {
           textDirection: Directionality.of(context),
           textScaler: MediaQuery.textScalerOf(context),
         )..layout();
-        final titleWidth = titlePainter.width + leadingWidth;
+        // Un margen de 4 px: el renglón real puede medir un pelo más que el
+        // `TextPainter` y el título se partiría en dos líneas.
+        final titleWidth =
+            titlePainter.width.ceilToDouble() + leadingWidth + AppSpacing.xxs;
         titlePainter.dispose();
         return Wrap(
           spacing: AppSpacing.sm,

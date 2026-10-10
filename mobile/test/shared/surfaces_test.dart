@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/app_icons.dart';
@@ -231,5 +232,41 @@ void main() {
     );
     expect(t.takeException(), isNull);
     expect(find.textContaining('1.154.300'), findsOneWidget);
+  });
+
+  testWidgets('GenSectionHeader: título con acción entra en un renglón a 411', (
+    t,
+  ) async {
+    // Con la fuente real: la de pruebas (Ahem) mide cada letra como un cuadrado.
+    await t.runAsync(() async {
+      final loader = FontLoader('Montserrat')
+        ..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'));
+      await loader.load();
+    });
+    t.view.physicalSize = const Size(411, 800);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: GenSectionHeader(
+            title: 'Todos los Proyectos',
+            icon: AppIcons.projects,
+            actions: [
+              IconButton.filled(
+                onPressed: () {},
+                icon: const Icon(AppIcons.add),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    expect(
+      t.getSize(find.text('Todos los Proyectos')).height,
+      lessThan(40),
+      reason: 'una sola línea (24 × 1.3 ≈ 31)',
+    );
   });
 }

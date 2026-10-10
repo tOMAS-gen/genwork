@@ -265,6 +265,19 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+/// Desplaza la lista de proyectos hasta que [finder] sea visible (con las
+/// estadísticas arriba, controles y cards quedan bajo el pliegue).
+Future<void> _scrollWorks(WidgetTester tester, Finder finder) async {
+  final list = find
+      .descendant(
+        of: find.byKey(const ValueKey('works_list')),
+        matching: find.byType(Scrollable),
+      )
+      .first;
+  await tester.scrollUntilVisible(finder.hitTestable(), 200, scrollable: list);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('es');
@@ -411,6 +424,10 @@ void main() {
   }
   testWidgets('búsqueda y grupo combinan filtros de proyectos', (tester) async {
     await _pump(tester, const WorksListScreen());
+    await _scrollWorks(
+      tester,
+      find.byKey(const ValueKey('works_group_filter')),
+    );
     await tester.tap(find.byKey(const ValueKey('works_group_filter')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Diseño').last);
@@ -570,6 +587,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester, const WorksListScreen(), shell: true);
+    await _scrollWorks(tester, find.byKey(const ValueKey('work_w1')));
     await tester.tap(find.byKey(const ValueKey('work_w1')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('work_detail_list')), findsOneWidget);
