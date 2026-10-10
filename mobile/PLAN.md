@@ -316,6 +316,20 @@ se detalla en su entrega más abajo.
 
 ---
 
+## Fase 6 — Paridad visual con genstock (DS-00 … DS-30, sin asignar)
+
+Unificar la UI con los componentes Flutter de genstock y los valores de la web genwork
+(azul, neutros acromáticos, claro/oscuro/sistema). Plan paso a paso, pensado para ejecutarse
+una tarea por sesión: [`docs/ui-genstock-parity-plan.md`](docs/ui-genstock-parity-plan.md).
+
+| Fase | Tareas | Entrega |
+|---|---|---|
+| A | DS-00 … DS-04 | Línea de base, `GenColors`, geometría/tipografía/íconos, `ThemeData` nuevo, `ThemeToggle` |
+| B | DS-05 … DS-10 | Componentes portados: chips, estados, diálogos, paneles/encabezados, búsqueda/filtros/tabs, contadores/progreso |
+| C | DS-11 … DS-13 | `TaskTile`/composer, drawer estilo sidebar, detalle de tarea a pantalla completa |
+| D | DS-14 … DS-27 | Migración pantalla por pantalla |
+| E | DS-28 … DS-30 | Guardia de tokens (test), nativo, QA visual y documentación |
+
 ## Riesgos y pendientes conocidos
 
 - El APK debug compila con `flutter_web_auth_2` 5.1.0 y AGP 9. Flutter

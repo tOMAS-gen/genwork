@@ -7,6 +7,9 @@ Para el producto y la marca: [`../PRODUCT.md`](../PRODUCT.md) y
 [`../DESIGN.md`](../DESIGN.md). El contrato de la API está en
 [`docs/api-contract.md`](docs/api-contract.md).
 
+Cualquier cambio visual sigue [`docs/ui-genstock-parity-plan.md`](docs/ui-genstock-parity-plan.md)
+(tokens, componentes portados de genstock y tareas DS-xx). Si contradice las reglas de abajo, gana ese documento.
+
 ## Arquitectura (no la cambies sin acordarlo)
 
 ```
