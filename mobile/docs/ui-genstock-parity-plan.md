@@ -400,7 +400,7 @@ Patrón común para cada pantalla:
 | DS-09 | B | M | DS-04 | ✅ 2026-10-10 — 267 tests verdes (+11 en `test/shared/search_filters_tabs_test.dart`); con `UI_PREVIEWS=true` 271 |
 | DS-10 | B | B | DS-04 | ✅ 2026-10-10 — 273 tests verdes (+5 en `test/shared/count_progress_test.dart`); con `UI_PREVIEWS=true` 277 |
 | DS-11 | C | M | B | ✅ 2026-10-10 — 280 tests verdes (+7 en `test/shared/task_widgets_test.dart`, +1 en `gen_colors_test.dart`); con `UI_PREVIEWS=true` 284 |
-| DS-12 | C | M | DS-11 | ⬜ |
+| DS-12 | C | M | DS-11 | ✅ 2026-10-10 — 282 tests verdes (+2 en `navigation_parity_test.dart`); con `UI_PREVIEWS=true` 286; capturas en `../.context/ds-12/` |
 | DS-13 | C | M | DS-11 | ⬜ |
 | DS-14…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
@@ -471,3 +471,8 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   `readableOn(bg)` (en `color_contrast.dart`) elige entre `#111111` y `#FFFFFF` por mayor contraste: `textOn` deja blanco sobre `success` (`#22C55E`) con 2.3:1; el ícono del swipe de completar usa `readableOn`.
 - DS-11: el vencimiento de `TaskTile` pasó de la línea de meta a un `StatusChip(mono: true)` con `dueText/dueFill` (`StatusChip` suma `mono`); la línea de meta conserva proyecto/sector/padre/subtareas (el test busca `1/2 subtareas` exacto).
   Resaltado de `TaskTextController`: `/`→`tagWork`, `#`→`tagExec`, `@`→`tagRef`, `$`→`tagLabel`, fecha→`dueText` (como `TagHighlightInput.tsx`); no se usó `tagUser` (la web lo aplica si `@nombre` es un usuario conocido; el móvil no lo sabe al tipear).
+- DS-12: el `ThemeToggle` NO se puso en la cabecera del drawer: sus 3 objetivos de 48 (144 dp) no entran junto a la marca y el cierre en 280 dp, y los tests de navegación no proveen
+  `sharedPreferencesProvider`. El cambio de tema sigue en Configuración (DS-04). La marca del drawer es `BrandName(size: 16, scaleDownToFit: true)`.
+- DS-12: nuevo `features/shell/drawer_tile.dart` (`DrawerTile`: `ListTile` con ícono 16, `selectedTileColor` brandFill y `LeadingTickBorder` activo; `compact` = sublistas 13 px, alto 44); reemplaza los
+  `Material(color: ...)` pintados a mano de `home_shell.dart` y `drawer_resource_section.dart`. Ítems de primer nivel miden 48 (antes 56), sublista 44 (antes 48). `LogoutTile` (drawer y cuenta) alinea ícono/título con los ítems.
+- DS-12: "Pie: Vence hoy y Salir" se dejó como estaba (Mi cuenta · Configuración · Vence hoy · Cerrar sesión): reordenar cambiaría la navegación. El host del servidor sigue al final.

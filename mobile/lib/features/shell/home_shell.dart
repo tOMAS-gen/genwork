@@ -10,14 +10,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/session.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/app_drawer_scope.dart';
 import '../../shared/widgets/brand_name.dart';
 import '../../shared/widgets/count_badge.dart';
 import 'live_refresher.dart';
 import 'drawer_items.dart';
 import 'drawer_resource_section.dart';
+import 'drawer_tile.dart';
 import '../works/works_providers.dart';
 import '../works/works_filter.dart';
 import '../sectors/sectors_providers.dart';
@@ -88,7 +91,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   Widget build(BuildContext context) {
     ref.watch(liveRefresherProvider);
-    final theme = Theme.of(context);
+    final colors = context.colors;
     final session = ref.watch(sessionProvider).value;
     final user = session is SignedIn ? session.user : null;
     final uri = GoRouterState.of(context).uri;
@@ -118,36 +121,20 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       required bool selected,
       required VoidCallback onTap,
       Widget? trailing,
+      bool compact = false,
     }) => Padding(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpace.sm,
-        vertical: AppSpace.xxs,
+        horizontal: AppSpacing.xs,
+        vertical: AppSpacing.xxs / 2,
       ),
-      child: Material(
-        color: selected
-            ? theme.colorScheme.primaryContainer
-            : Colors.transparent,
-        borderRadius: AppTokens.of(context).controlRadius,
-        child: ListTile(
-          key: ValueKey(id),
-          selected: selected,
-          contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-          minVerticalPadding: AppSpace.sm,
-          minTileHeight: AppSpace.touch + AppSpace.sm,
-          selectedColor: theme.colorScheme.onPrimaryContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppTokens.of(context).controlRadius,
-          ),
-          leading: Icon(icon),
-          title: Text(
-            label,
-            style: theme.textTheme.titleSmall?.copyWith(
-              color: selected ? theme.colorScheme.onPrimaryContainer : null,
-            ),
-          ),
-          trailing: trailing,
-          onTap: onTap,
-        ),
+      child: DrawerTile(
+        id: id,
+        icon: icon,
+        label: label,
+        selected: selected,
+        trailing: trailing,
+        compact: compact,
+        onTap: onTap,
       ),
     );
 
@@ -162,252 +149,288 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         drawer: Drawer(
           key: const ValueKey('main_navigation'),
           width: math.min(
-            360,
-            MediaQuery.sizeOf(context).width - AppSpace.touch,
+            AppGeometry.drawerWidth,
+            MediaQuery.sizeOf(context).width - AppSpacing.xxxl,
           ),
-          backgroundColor: theme.colorScheme.surface,
-          shape: const RoundedRectangleBorder(),
           semanticLabel: 'Menú principal',
-          child: SafeArea(
-            child: ListView(
-              key: const ValueKey('drawer_list'),
-              padding: const EdgeInsets.only(bottom: AppSpace.lg),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.lg,
-                    AppSpace.sm,
-                    AppSpace.sm,
-                    AppSpace.sm,
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(child: BrandName(size: 20)),
-                      IconButton(
-                        key: const ValueKey('drawer_close'),
-                        tooltip: 'Cerrar menú',
-                        onPressed: _closeDrawer,
-                        icon: const Icon(AppIcons.close),
-                      ),
-                    ],
-                  ),
-                ),
-                if (user != null)
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: colors.border)),
+            ),
+            child: SafeArea(
+              child: ListView(
+                key: const ValueKey('drawer_list'),
+                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                children: [
                   Padding(
-                    padding: AppSpace.page,
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.xs,
+                      AppSpacing.xs,
+                      AppSpacing.xs,
+                    ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Decorativo: el nombre se lee al lado.
-                        ExcludeSemantics(
-                          child: CircleAvatar(
-                            foregroundImage: user.image == null
-                                ? null
-                                : NetworkImage(user.image!),
-                            onForegroundImageError: user.image == null
-                                ? null
-                                : (_, _) {},
-                            child: Text(
-                              user.name.isEmpty
-                                  ? '?'
-                                  : user.name[0].toUpperCase(),
-                            ),
-                          ),
+                        const Expanded(
+                          child: BrandName(size: 16, scaleDownToFit: true),
                         ),
-                        const SizedBox(width: AppSpace.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.name,
-                                style: theme.textTheme.titleSmall,
-                              ),
-                              Text(
-                                user.email,
-                                style: theme.textTheme.bodySmall,
-                              ),
-                            ],
-                          ),
+                        IconButton(
+                          key: const ValueKey('drawer_close'),
+                          tooltip: 'Cerrar menú',
+                          onPressed: _closeDrawer,
+                          icon: const Icon(AppIcons.close),
                         ),
                       ],
                     ),
                   ),
-                const Divider(),
-                const SizedBox(height: AppSpace.sm),
-                destination(
-                  id: 'nav_notes',
-                  icon: Icons.sticky_note_2_outlined,
-                  label: 'Mis notas',
-                  selected: currentBranch == 3,
-                  onTap: () => _branch(3),
-                ),
-                destination(
-                  id: 'nav_day',
-                  icon: Icons.wb_sunny_outlined,
-                  label: 'Mi día y referencias',
-                  selected: currentBranch == 0,
-                  onTap: () => _branch(0),
-                ),
-                DrawerResourceSection(
-                  id: 'works',
-                  title: 'Proyectos',
-                  icon: Icons.folder_outlined,
-                  selected: currentBranch == 1,
-                  expanded: _worksExpanded,
-                  onToggle: () =>
-                      setState(() => _worksExpanded = !_worksExpanded),
-                  onVisit: () => _branch(1),
-                  onViewAll: () => _route(Routes.works),
-                  value: works,
-                  onRetry: () => ref.invalidate(worksListProvider(false)),
-                  onOpenItem: (id) => _route(Routes.work(id)),
-                  selectedItemId: path.startsWith('${Routes.works}/')
-                      ? uri.pathSegments.last
-                      : null,
-                  shortcuts: [
-                    destination(
-                      id: 'nav_templates',
-                      icon: Icons.library_books_outlined,
-                      label: 'Plantillas de objetivo',
-                      selected: currentBranch == 7,
-                      onTap: () => _branch(7),
-                    ),
-                    for (final view in WorksView.values)
-                      destination(
-                        id: 'nav_works_${view.name}',
-                        icon: switch (view) {
-                          WorksView.all => Icons.grid_view,
-                          WorksView.mine => Icons.person_outline,
-                          WorksView.favorites => Icons.star_border,
-                          WorksView.archived => Icons.archive_outlined,
-                        },
-                        label: view.label,
-                        selected: path == Routes.works && worksView == view,
-                        onTap: () => _route(Routes.worksList(view)),
+                  if (user != null)
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Decorativo: el nombre se lee al lado.
+                          ExcludeSemantics(
+                            child: CircleAvatar(
+                              radius: AppSpacing.md,
+                              backgroundColor: colors.brand,
+                              foregroundColor: colors.onBrand,
+                              foregroundImage: user.image == null
+                                  ? null
+                                  : NetworkImage(user.image!),
+                              onForegroundImageError: user.image == null
+                                  ? null
+                                  : (_, _) {},
+                              child: Text(
+                                user.name.isEmpty
+                                    ? '?'
+                                    : user.name[0].toUpperCase(),
+                                style: AppTextStyles.supporting.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.onBrand,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.name,
+                                  style: AppTextStyles.itemTitle.copyWith(
+                                    color: colors.text,
+                                  ),
+                                ),
+                                Text(
+                                  user.email,
+                                  style: AppTextStyles.supporting.copyWith(
+                                    color: colors.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                  ],
-                ),
-                DrawerResourceSection(
-                  id: 'sectors',
-                  title: 'Sectores',
-                  icon: Icons.view_column_outlined,
-                  selected: currentBranch == 2,
-                  expanded: _sectorsExpanded,
-                  onToggle: () =>
-                      setState(() => _sectorsExpanded = !_sectorsExpanded),
-                  onVisit: () => _branch(2),
-                  onViewAll: () => _route(Routes.sectors),
-                  value: sectors,
-                  onRetry: () => ref.invalidate(sectorsProvider),
-                  onOpenItem: (id) => _route(Routes.sector(id)),
-                  selectedItemId: path.startsWith('${Routes.sectors}/')
-                      ? uri.pathSegments.last
-                      : null,
-                  shortcuts: [
-                    destination(
-                      id: 'nav_sectors_all',
-                      icon: Icons.grid_view,
-                      label: 'Todos los sectores',
-                      selected: path == Routes.sectors,
-                      onTap: () => _route(Routes.sectors),
                     ),
-                  ],
-                ),
-                DrawerResourceSection(
-                  id: 'groups',
-                  title: 'Grupos',
-                  icon: Icons.groups_outlined,
-                  selected: currentBranch == 5,
-                  expanded: _groupsExpanded,
-                  onToggle: () =>
-                      setState(() => _groupsExpanded = !_groupsExpanded),
-                  onVisit: () => _branch(5),
-                  onViewAll: () => _route(Routes.groups),
-                  value: groups,
-                  onRetry: () => ref.invalidate(groupsProvider),
-                  onOpenItem: (id) => _route(Routes.group(id)),
-                  selectedItemId: path.startsWith('${Routes.groups}/')
-                      ? uri.pathSegments[1]
-                      : null,
-                  shortcuts: [
-                    destination(
-                      id: 'nav_groups_all',
-                      icon: Icons.grid_view,
-                      label: 'Todos los grupos',
-                      selected: path == Routes.groups,
-                      onTap: () => _route(Routes.groups),
-                    ),
-                  ],
-                ),
-                destination(
-                  id: 'nav_board',
-                  icon: Icons.dashboard_outlined,
-                  label: 'Vista de tareas',
-                  selected: currentBranch == 6,
-                  onTap: () => _branch(6),
-                ),
-                destination(
-                  id: 'nav_reminders',
-                  icon: Icons.event_outlined,
-                  label: 'Recordatorios',
-                  selected:
-                      path == Routes.reminders ||
-                      path.startsWith('${Routes.reminders}/'),
-                  onTap: () => _route(Routes.reminders),
-                ),
-                const SizedBox(height: AppSpace.sm),
-                const Divider(),
-                const SizedBox(height: AppSpace.sm),
-                destination(
-                  id: 'nav_account',
-                  icon: Icons.person_outline,
-                  label: 'Mi cuenta',
-                  selected: path == Routes.account,
-                  onTap: () => _route(Routes.account),
-                ),
-                destination(
-                  id: 'nav_settings',
-                  icon: Icons.settings_outlined,
-                  label: 'Configuración',
-                  selected: path.startsWith(Routes.settings),
-                  onTap: () => _route(Routes.settings),
-                ),
-                destination(
-                  id: 'nav_due_today',
-                  icon: Icons.notifications_outlined,
-                  label: 'Vence hoy',
-                  selected: path == Routes.dueToday,
-                  trailing:
-                      deliveries.value != null && deliveries.value!.isNotEmpty
-                      ? CountBadge(
-                          key: const ValueKey('nav_due_today_total'),
-                          count: deliveries.value!.length,
-                          singular: 'aviso pendiente',
-                          plural: 'avisos pendientes',
-                        )
-                      : deliveries.hasError
-                      ? const Icon(
-                          Icons.error_outline,
-                          semanticLabel: 'No se pudieron actualizar los avisos',
-                        )
-                      : null,
-                  onTap: () {
-                    ref.invalidate(deliveriesProvider);
-                    _route(Routes.dueToday);
-                  },
-                ),
-                if (session is SignedIn)
-                  const LogoutTile(actionKey: 'nav_logout'),
-                if (session is SignedIn)
+                  const Divider(),
                   Padding(
-                    padding: AppSpace.page,
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      AppSpacing.xs,
+                    ),
                     child: Text(
-                      session.serverUrl.host,
-                      style: theme.textTheme.bodySmall,
+                      'ESPACIO DE TRABAJO',
+                      style: AppTextStyles.sectionLabel.copyWith(
+                        color: colors.muted,
+                      ),
                     ),
                   ),
-              ],
+                  destination(
+                    id: 'nav_notes',
+                    icon: AppIcons.notes,
+                    label: 'Mis notas',
+                    selected: currentBranch == 3,
+                    onTap: () => _branch(3),
+                  ),
+                  destination(
+                    id: 'nav_day',
+                    icon: AppIcons.myDay,
+                    label: 'Mi día y referencias',
+                    selected: currentBranch == 0,
+                    onTap: () => _branch(0),
+                  ),
+                  DrawerResourceSection(
+                    id: 'works',
+                    title: 'Proyectos',
+                    icon: AppIcons.projects,
+                    selected: currentBranch == 1,
+                    expanded: _worksExpanded,
+                    onToggle: () =>
+                        setState(() => _worksExpanded = !_worksExpanded),
+                    onVisit: () => _branch(1),
+                    onViewAll: () => _route(Routes.works),
+                    value: works,
+                    onRetry: () => ref.invalidate(worksListProvider(false)),
+                    onOpenItem: (id) => _route(Routes.work(id)),
+                    selectedItemId: path.startsWith('${Routes.works}/')
+                        ? uri.pathSegments.last
+                        : null,
+                    shortcuts: [
+                      destination(
+                        id: 'nav_templates',
+                        compact: true,
+                        icon: AppIcons.templates,
+                        label: 'Plantillas de objetivo',
+                        selected: currentBranch == 7,
+                        onTap: () => _branch(7),
+                      ),
+                      for (final view in WorksView.values)
+                        destination(
+                          id: 'nav_works_${view.name}',
+                          compact: true,
+                          icon: switch (view) {
+                            WorksView.all => AppIcons.gridView,
+                            WorksView.mine => AppIcons.person,
+                            WorksView.favorites => AppIcons.favorite,
+                            WorksView.archived => AppIcons.archived,
+                          },
+                          label: view.label,
+                          selected: path == Routes.works && worksView == view,
+                          onTap: () => _route(Routes.worksList(view)),
+                        ),
+                    ],
+                  ),
+                  DrawerResourceSection(
+                    id: 'sectors',
+                    title: 'Sectores',
+                    icon: AppIcons.taskView,
+                    selected: currentBranch == 2,
+                    expanded: _sectorsExpanded,
+                    onToggle: () =>
+                        setState(() => _sectorsExpanded = !_sectorsExpanded),
+                    onVisit: () => _branch(2),
+                    onViewAll: () => _route(Routes.sectors),
+                    value: sectors,
+                    onRetry: () => ref.invalidate(sectorsProvider),
+                    onOpenItem: (id) => _route(Routes.sector(id)),
+                    selectedItemId: path.startsWith('${Routes.sectors}/')
+                        ? uri.pathSegments.last
+                        : null,
+                    shortcuts: [
+                      destination(
+                        id: 'nav_sectors_all',
+                        compact: true,
+                        icon: AppIcons.gridView,
+                        label: 'Todos los sectores',
+                        selected: path == Routes.sectors,
+                        onTap: () => _route(Routes.sectors),
+                      ),
+                    ],
+                  ),
+                  DrawerResourceSection(
+                    id: 'groups',
+                    title: 'Grupos',
+                    icon: AppIcons.groups,
+                    selected: currentBranch == 5,
+                    expanded: _groupsExpanded,
+                    onToggle: () =>
+                        setState(() => _groupsExpanded = !_groupsExpanded),
+                    onVisit: () => _branch(5),
+                    onViewAll: () => _route(Routes.groups),
+                    value: groups,
+                    onRetry: () => ref.invalidate(groupsProvider),
+                    onOpenItem: (id) => _route(Routes.group(id)),
+                    selectedItemId: path.startsWith('${Routes.groups}/')
+                        ? uri.pathSegments[1]
+                        : null,
+                    shortcuts: [
+                      destination(
+                        id: 'nav_groups_all',
+                        compact: true,
+                        icon: AppIcons.gridView,
+                        label: 'Todos los grupos',
+                        selected: path == Routes.groups,
+                        onTap: () => _route(Routes.groups),
+                      ),
+                    ],
+                  ),
+                  destination(
+                    id: 'nav_board',
+                    icon: AppIcons.dashboard,
+                    label: 'Vista de tareas',
+                    selected: currentBranch == 6,
+                    onTap: () => _branch(6),
+                  ),
+                  destination(
+                    id: 'nav_reminders',
+                    icon: AppIcons.reminders,
+                    label: 'Recordatorios',
+                    selected:
+                        path == Routes.reminders ||
+                        path.startsWith('${Routes.reminders}/'),
+                    onTap: () => _route(Routes.reminders),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  const Divider(),
+                  const SizedBox(height: AppSpacing.xs),
+                  destination(
+                    id: 'nav_account',
+                    icon: AppIcons.person,
+                    label: 'Mi cuenta',
+                    selected: path == Routes.account,
+                    onTap: () => _route(Routes.account),
+                  ),
+                  destination(
+                    id: 'nav_settings',
+                    icon: AppIcons.settings,
+                    label: 'Configuración',
+                    selected: path.startsWith(Routes.settings),
+                    onTap: () => _route(Routes.settings),
+                  ),
+                  destination(
+                    id: 'nav_due_today',
+                    icon: AppIcons.bell,
+                    label: 'Vence hoy',
+                    selected: path == Routes.dueToday,
+                    trailing:
+                        deliveries.value != null && deliveries.value!.isNotEmpty
+                        ? CountBadge(
+                            key: const ValueKey('nav_due_today_total'),
+                            count: deliveries.value!.length,
+                            singular: 'aviso pendiente',
+                            plural: 'avisos pendientes',
+                          )
+                        : deliveries.hasError
+                        ? const Icon(
+                            AppIcons.error,
+                            semanticLabel:
+                                'No se pudieron actualizar los avisos',
+                          )
+                        : null,
+                    onTap: () {
+                      ref.invalidate(deliveriesProvider);
+                      _route(Routes.dueToday);
+                    },
+                  ),
+                  if (session is SignedIn)
+                    const LogoutTile(actionKey: 'nav_logout'),
+                  if (session is SignedIn)
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        session.serverUrl.host,
+                        style: AppTextStyles.supporting.copyWith(
+                          color: colors.muted,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

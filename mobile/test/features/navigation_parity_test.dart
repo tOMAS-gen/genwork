@@ -15,6 +15,8 @@ import 'package:genwork_mobile/core/network/api_client.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/router/app_router.dart';
 import 'package:genwork_mobile/core/router/routes.dart';
+import 'package:genwork_mobile/core/theme/app_geometry.dart';
+import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
 import 'package:genwork_mobile/data/models/json.dart';
@@ -485,9 +487,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<CountBadge>(
-              find.byKey(const ValueKey('nav_sectors_total')),
-            )
+            .widget<CountBadge>(find.byKey(const ValueKey('nav_sectors_total')))
             .count,
         4,
       );
@@ -514,9 +514,7 @@ void main() {
       await _drawerTap(tester, 'nav_groups_toggle');
       expect(
         tester
-            .widget<CountBadge>(
-              find.byKey(const ValueKey('nav_groups_total')),
-            )
+            .widget<CountBadge>(find.byKey(const ValueKey('nav_groups_total')))
             .count,
         8,
       );
@@ -525,9 +523,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<CountBadge>(
-              find.byKey(const ValueKey('nav_groups_total')),
-            )
+            .widget<CountBadge>(find.byKey(const ValueKey('nav_groups_total')))
             .count,
         3,
       );
@@ -568,6 +564,49 @@ void main() {
       expect(find.text('No hay sectores visibles'), findsOneWidget);
     },
   );
+
+  for (final dark in [false, true]) {
+    testWidgets('drawer estilo sidebar: ancho, perfil, etiqueta e ítem activo '
+        '(dark=$dark)', (tester) async {
+      await _mount(tester, _Fixture(), path: Routes.works, dark: dark);
+      await _open(tester);
+      final c = dark ? GenColors.dark : GenColors.light;
+      expect(
+        tester.getSize(find.byKey(const ValueKey('main_navigation'))).width,
+        AppGeometry.drawerWidth,
+      );
+      // Perfil: avatar de 32 sobre `brand` con inicial `onBrand`.
+      final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
+      expect(avatar.radius, 16);
+      expect(avatar.backgroundColor, c.brand);
+      expect(avatar.foregroundColor, c.onBrand);
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('ESPACIO DE TRABAJO'), findsOneWidget);
+      // Activo: brandFill, ícono/texto brand y lengüeta de 3 px.
+      final active = tester.widget<ListTile>(
+        find.byKey(const ValueKey('nav_works')),
+      );
+      expect(active.selected, isTrue);
+      expect(active.selectedTileColor, c.brandFill);
+      expect(active.selectedColor, c.brand);
+      final shape = active.shape! as LeadingTickBorder;
+      expect(shape.tickWidth, kActiveTickWidth);
+      expect(shape.tickColor, c.brand);
+      expect((active.leading! as Icon).size, 16);
+      expect((active.leading! as Icon).color, c.brand);
+      // Inactivo: ícono 16 `muted` y forma redondeada de control.
+      final idle = tester.widget<ListTile>(
+        find.byKey(const ValueKey('nav_notes')),
+      );
+      expect(idle.selected, isFalse);
+      expect(idle.shape, isA<RoundedRectangleBorder>());
+      expect((idle.leading! as Icon).color, c.muted);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('nav_notes'))).height,
+        greaterThanOrEqualTo(44),
+      );
+    });
+  }
 
   testWidgets('drawer: cabecera con la marca ›genwork y sin ícono', (
     tester,

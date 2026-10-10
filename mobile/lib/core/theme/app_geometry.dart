@@ -51,6 +51,9 @@ abstract final class AppGeometry {
   /// Ancho de diálogo ancho (listas y contenido con scroll).
   static const dialogWide = 560.0;
 
+  /// Ancho máximo del drawer de navegación.
+  static const drawerWidth = 280.0;
+
   /// Solo para lo circular por naturaleza: avatar, contador, progreso.
   static const pill = BorderRadius.all(Radius.circular(999));
 

@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../shared/widgets/count_badge.dart';
 import 'drawer_items.dart';
+import 'drawer_tile.dart';
 
 class DrawerResourceSection extends StatelessWidget {
   const DrawerResourceSection({
@@ -35,155 +39,142 @@ class DrawerResourceSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.colors;
     final ordered = orderDrawerItems(value.value ?? []);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpace.sm,
-            vertical: AppSpace.xxs,
+            horizontal: AppSpacing.xs,
+            vertical: AppSpacing.xxs / 2,
           ),
-          child: Material(
-            color: selected
-                ? theme.colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: AppTokens.of(context).controlRadius,
-            child: ListTile(
-              key: ValueKey('nav_$id'),
-              selected: selected,
-              selectedColor: theme.colorScheme.onPrimaryContainer,
-              contentPadding: const EdgeInsets.only(
-                left: AppSpace.md,
-                right: AppSpace.xxs,
-              ),
-              minTileHeight: AppSpace.touch + AppSpace.sm,
-              leading: Icon(icon),
-              title: Text(title, style: theme.textTheme.titleSmall),
-              // Abrir la sección conserva su ruta y filtros; el control aparte
-              // despliega los accesos sin abandonar la pantalla actual.
-              onTap: onVisit,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (value.hasValue)
-                    CountBadge(
-                      key: ValueKey('nav_${id}_total'),
-                      count: ordered.total,
-                    ),
-                  Semantics(
-                    expanded: expanded,
-                    child: IconButton(
-                      key: ValueKey('nav_${id}_toggle'),
-                      tooltip:
-                          '${expanded ? 'Contraer' : 'Desplegar'} ${title.toLowerCase()}',
-                      onPressed: onToggle,
-                      icon: Icon(
-                        expanded ? Icons.expand_less : Icons.expand_more,
-                      ),
+          child: DrawerTile(
+            id: 'nav_$id',
+            icon: icon,
+            label: title,
+            selected: selected,
+            // Abrir la sección conserva su ruta y filtros; el control aparte
+            // despliega los accesos sin abandonar la pantalla actual.
+            onTap: onVisit,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (value.hasValue)
+                  CountBadge(
+                    key: ValueKey('nav_${id}_total'),
+                    count: ordered.total,
+                  ),
+                Semantics(
+                  expanded: expanded,
+                  child: IconButton(
+                    key: ValueKey('nav_${id}_toggle'),
+                    tooltip:
+                        '${expanded ? 'Contraer' : 'Desplegar'} ${title.toLowerCase()}',
+                    onPressed: onToggle,
+                    icon: Icon(
+                      expanded ? AppIcons.expandLess : AppIcons.expandMore,
+                      size: AppIconSizes.action,
+                      color: c.muted,
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
         if (expanded)
+          // Línea guía de 1 px a la izquierda de la sublista.
           Padding(
             padding: const EdgeInsets.only(
-              left: AppSpace.lg,
-              right: AppSpace.sm,
+              left: AppSpacing.lg,
+              right: AppSpacing.xs,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ...shortcuts,
-                if (value.isLoading)
-                  Padding(
-                    key: ValueKey('nav_${id}_loading'),
-                    padding: const EdgeInsets.all(AppSpace.md),
-                    child: const LinearProgressIndicator(
-                      semanticsLabel: 'Actualizando accesos',
-                    ),
-                  ),
-                if (value.hasError)
-                  ListTile(
-                    title: const Text('No se pudieron actualizar los accesos.'),
-                    subtitle: TextButton.icon(
-                      key: ValueKey('nav_${id}_retry'),
-                      onPressed: onRetry,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Reintentar'),
-                    ),
-                  ),
-                if (value.hasValue &&
-                    ordered.items.isEmpty &&
-                    !value.isLoading &&
-                    !value.hasError)
-                  Padding(
-                    padding: const EdgeInsets.all(AppSpace.md),
-                    child: Text(
-                      'No hay ${title.toLowerCase()} visibles',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                for (final item in ordered.items.take(drawerItemLimit))
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpace.xxs),
-                    child: Material(
-                      color: selectedItemId == item.id
-                          ? theme.colorScheme.primaryContainer
-                          : Colors.transparent,
-                      borderRadius: AppTokens.of(context).controlRadius,
-                      child: Tooltip(
-                        message: [
-                          item.name,
-                          if (item.subtitle != null) item.subtitle!,
-                        ].join(' · '),
-                        child: ListTile(
-                          key: ValueKey('nav_${id}_item_${item.id}'),
-                          selected: selectedItemId == item.id,
-                          selectedColor: theme.colorScheme.onPrimaryContainer,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppSpace.sm,
-                          ),
-                          minTileHeight: AppSpace.touch,
-                          minLeadingWidth: AppSpace.icon,
-                          horizontalTitleGap: AppSpace.sm,
-                          leading: Icon(
-                            icon,
-                            color: item.color == null
-                                ? null
-                                : colorFromHex(item.color),
-                          ),
-                          title: Text(
-                            item.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          subtitle: item.subtitle == null
-                              ? null
-                              : Text(
-                                  item.subtitle!,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                          trailing: CountBadge(count: item.pending),
-                          onTap: () => onOpenItem(item.id),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(left: BorderSide(color: c.border)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.only(left: AppSpacing.xxs),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ...shortcuts,
+                    if (value.isLoading)
+                      Padding(
+                        key: ValueKey('nav_${id}_loading'),
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        child: const LinearProgressIndicator(
+                          semanticsLabel: 'Actualizando accesos',
                         ),
                       ),
-                    ),
-                  ),
-                if (ordered.items.length > drawerItemLimit)
-                  TextButton(
-                    key: ValueKey('nav_${id}_more'),
-                    onPressed: onViewAll,
-                    child: Text(
-                      '+${ordered.items.length - drawerItemLimit} más…',
-                    ),
-                  ),
-              ],
+                    if (value.hasError)
+                      ListTile(
+                        title: const Text(
+                          'No se pudieron actualizar los accesos.',
+                        ),
+                        subtitle: TextButton.icon(
+                          key: ValueKey('nav_${id}_retry'),
+                          onPressed: onRetry,
+                          icon: const Icon(AppIcons.retry),
+                          label: const Text('Reintentar'),
+                        ),
+                      ),
+                    if (value.hasValue &&
+                        ordered.items.isEmpty &&
+                        !value.isLoading &&
+                        !value.hasError)
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpacing.sm),
+                        child: Text(
+                          'No hay ${title.toLowerCase()} visibles',
+                          style: AppTextStyles.supporting.copyWith(
+                            color: c.muted,
+                          ),
+                        ),
+                      ),
+                    for (final item in ordered.items.take(drawerItemLimit))
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xxs / 2,
+                        ),
+                        child: Tooltip(
+                          message: [
+                            item.name,
+                            if (item.subtitle != null) item.subtitle!,
+                          ].join(' · '),
+                          child: DrawerTile(
+                            id: 'nav_${id}_item_${item.id}',
+                            compact: true,
+                            maxLines: 2,
+                            selected: selectedItemId == item.id,
+                            leading: Icon(
+                              icon,
+                              size: AppIconSizes.drawer,
+                              color: item.color == null
+                                  ? (selectedItemId == item.id
+                                        ? c.brand
+                                        : c.muted)
+                                  : colorFromHex(item.color),
+                            ),
+                            label: item.name,
+                            subtitle: item.subtitle,
+                            trailing: CountBadge(count: item.pending),
+                            onTap: () => onOpenItem(item.id),
+                          ),
+                        ),
+                      ),
+                    if (ordered.items.length > drawerItemLimit)
+                      TextButton(
+                        key: ValueKey('nav_${id}_more'),
+                        onPressed: onViewAll,
+                        child: Text(
+                          '+${ordered.items.length - drawerItemLimit} más…',
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
       ],
