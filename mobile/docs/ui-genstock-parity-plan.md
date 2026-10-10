@@ -410,7 +410,8 @@ Patrón común para cada pantalla:
 | DS-15 | D | B | C | ✅ 2026-10-10 — 297 tests verdes (+2 en `daily_parity_test.dart`); con `UI_PREVIEWS=true` 301; comparada con la web (3 iteraciones) |
 | DS-16 | D | M | C | ✅ 2026-10-10 — 305 tests verdes (+8 en `works_dashboard_test.dart`, +2 en otros); con `UI_PREVIEWS=true` 309; comparada con la web (3 iteraciones) |
 | DS-17 | D | M | C | ✅ 2026-10-10 — 308 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 312; comparada con la web (2 iteraciones) |
-| DS-18…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-18 | D | B | C | ✅ 2026-10-10 — 311 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 315; comparada con la web (lista y detalle) |
+| DS-19…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -517,3 +518,10 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-17: `create_work_dialog`, `edit_work_dialog` y `work_metadata_dialog` pasaron de `AlertDialog` a `AppWorkDialog` (`showAppFormDialog`), keys y textos intactos; la acción «Eliminar» del menú del proyecto va en `danger` tras un `PopupMenuDivider`.
   Tests ajustados por estructura: `resource_operations_test.dart` (`menu()` toca `find.text(action).last`, porque «Etiquetas» ahora también es un rótulo del resumen) y `objectives_parity_test.dart` (`scrollTo('objective_create')` antes de tocarlo a 1.5×). `TaskViewToggle` suma `padding` (cero dentro del panel).
   Capturas: `../.context/ds-17/` (`web-detalle-top-390.jpg` / `web-detalle-bottom-390.jpg` vs `app-v2.png`).
+- DS-18 (comparada con la web `/sectors` y `/sectors/<id>` a 390 px): lista = encabezado «Sectores» + «Tareas y proyectos organizados por área de trabajo.» + «+» (key `create_sector`, ya no FAB), panel de herramientas (búsqueda, ámbito, orden, «N sector(es)», «Contraer todo»),
+  encabezado de ámbito (`Material` con `LeadingTickBorder` brand, chevron, ícono, «PERSONAL (n)» en `sectionLabel`, key `sectors_section_<key>`) y card de sector (`NamePill` con el color del sector, «N pendientes · M tareas» y `CardProgress`).
+  Detalle = migas «Sectores / nombre» (`Breadcrumb`, ahora compartido con el detalle de proyecto), `SectorSummaryPanel` (símbolo del color del sector, nombre 20/700, «Espacio personal»/ámbito, kebab, «Avance del sector» con «Sin tareas» o «N %» + «d de t completadas», y sobre `field`
+  «N proyectos vinculados» + «Color del sector»), y una card «Tareas» con «N pendientes», toggle Lista/Tablero a la derecha, filtro Pendientes/Hechas/Todas (key `sector_filter`), rótulos SUELTAS / nombre de proyecto / MENCIONES y filas planas con líneas; vacío con el texto de la web.
+  El formulario de sector y el diálogo de impacto de eliminación pasaron a `AppWorkDialog`; «Eliminar sector» va en `danger` tras un `PopupMenuDivider`. Nuevos compartidos: `NamePill` (extraído de `WorkCard`), `CardProgress` (barra 8 px + % + «d/t tareas») y `Breadcrumb`.
+  Omitido del app (la web lo tiene): «Filtros», el switch grilla/lista y el orden en una sola fila; el app apila ámbito y orden como `DropdownButtonFormField` (keys `sectors_scope_*` / `sectors_sort`). Test ajustado por estructura: `resource_operations_test` busca el nombre dentro de `SectorSummaryPanel` (ahora sale también en las migas).
+  Capturas: `../.context/ds-18/` (`web-lista-390.jpg` / `web-detalle-390.jpg` vs `app-lista.png` / `app-detalle.png`).

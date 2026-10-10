@@ -13,6 +13,7 @@ import '../../data/models/task.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/brand_name.dart';
+import '../../shared/widgets/breadcrumb.dart';
 import '../../shared/widgets/gen_tab_bar.dart';
 import '../../shared/widgets/reorder_dialog.dart';
 import '../../shared/widgets/state_views.dart';
@@ -136,7 +137,16 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: AppSpace.page,
                     children: [
-                      _Breadcrumb(work: work),
+                      Breadcrumb(
+                        rootKey: const ValueKey('work_breadcrumb_root'),
+                        rootLabel: work.isTemplate
+                            ? 'Plantillas de objetivo'
+                            : 'Todos los proyectos',
+                        onRoot: () => context.go(
+                          work.isTemplate ? Routes.templates : Routes.works,
+                        ),
+                        current: work.name,
+                      ),
                       const SizedBox(height: AppSpace.md),
                       WorkSummaryPanel(work: work, menu: menu),
                       const SizedBox(height: AppSpace.md),
@@ -318,46 +328,6 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
           );
         },
       ),
-    );
-  }
-}
-
-/// «Todos los proyectos / Nombre», como las migas de la web.
-class _Breadcrumb extends StatelessWidget {
-  const _Breadcrumb({required this.work});
-
-  final WorkDetail work;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final style = AppTextStyles.itemTitle.copyWith(
-      fontWeight: FontWeight.w400,
-      color: c.muted,
-    );
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        InkWell(
-          key: const ValueKey('work_breadcrumb_root'),
-          onTap: () =>
-              context.go(work.isTemplate ? Routes.templates : Routes.works),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-            child: Text(
-              work.isTemplate
-                  ? 'Plantillas de objetivo'
-                  : 'Todos los proyectos',
-              style: style,
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          child: Text('/', style: style.copyWith(color: c.outline)),
-        ),
-        Text(work.name, style: style),
-      ],
     );
   }
 }

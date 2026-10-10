@@ -10,6 +10,7 @@ import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
 import 'package:genwork_mobile/data/models/group.dart';
 import 'package:genwork_mobile/data/models/sector.dart';
+import 'package:genwork_mobile/features/sectors/sector_summary.dart';
 import 'package:genwork_mobile/features/sectors/sector_detail_screen.dart';
 import 'package:genwork_mobile/features/sectors/sector_form_dialog.dart';
 import 'package:genwork_mobile/features/sectors/sector_sections.dart';
@@ -598,7 +599,14 @@ void main() {
     );
     await tap(t, 'color_#8b5cf6');
     await tap(t, 'sector_form_save');
-    expect(find.text('Diseño nuevo'), findsOneWidget);
+    // El nombre sale en las migas y en el resumen (como en la web).
+    expect(
+      find.descendant(
+        of: find.byType(SectorSummaryPanel),
+        matching: find.text('Diseño nuevo'),
+      ),
+      findsOneWidget,
+    );
     expect(f.sectors.first['color'], '#8b5cf6');
   });
   testWidgets(

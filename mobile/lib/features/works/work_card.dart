@@ -6,7 +6,9 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
+import '../../shared/widgets/card_progress.dart';
 import '../../shared/widgets/color_dot.dart';
+import '../../shared/widgets/name_pill.dart';
 import 'works_dashboard.dart';
 
 /// Card de proyecto, como `ProjectCard.tsx` de la web: píldora con el nombre
@@ -34,7 +36,6 @@ class WorkCard extends StatelessWidget {
     final muted = AppTextStyles.body.copyWith(color: c.muted);
     final color = work.color == null ? null : colorFromHex(work.color);
     final done = work.progress.done, total = work.progress.total;
-    final pct = total == 0 ? 0 : (done / total * 100).round();
     final due = work.dueDate == null
         ? null
         : dueUrgency(work.dueDate!, now ?? DateTime.now());
@@ -61,7 +62,7 @@ class WorkCard extends StatelessWidget {
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: _NamePill(name: work.name, color: color),
+                      child: NamePill(name: work.name, color: color),
                     ),
                   ),
                   IconButton(
@@ -132,67 +133,9 @@ class WorkCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.sm),
-              if (total > 0) ...[
-                Semantics(
-                  label: '$done de $total tareas completadas',
-                  excludeSemantics: true,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: LinearProgressIndicator(
-                          value: done / total,
-                          minHeight: 8,
-                          color: c.ok,
-                          backgroundColor: c.border,
-                          borderRadius: AppGeometry.pill,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        '$pct%',
-                        style: muted.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-              ],
-              Text(
-                total > 0 ? '$done/$total tareas' : 'Sin tareas todavía',
-                style: AppTextStyles.supporting.copyWith(color: c.muted),
-              ),
+              CardProgress(done: done, total: total),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NamePill extends StatelessWidget {
-  const _NamePill({required this.name, required this.color});
-
-  final String name;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: color == null ? c.hover : c.chipFill(color!),
-        borderRadius: AppGeometry.chip,
-      ),
-      child: Text(
-        name.toUpperCase(),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.itemTitle.copyWith(
-          color: color == null ? c.text : c.chipText(color!),
         ),
       ),
     );

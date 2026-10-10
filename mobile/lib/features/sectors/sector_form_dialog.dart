@@ -3,12 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../data/models/app_user.dart';
 import '../../data/models/group.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/color_palette.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
 import '../../shared/widgets/error_text.dart';
-import '../../core/theme/app_geometry.dart';
 
 List<GroupSummary> sectorCreationGroups(
   AppUser? user,
@@ -26,8 +27,8 @@ Future<String?> showSectorForm(
   String? id,
   String? name,
   String? color,
-}) => showDialog<String>(
-  context: context,
+}) => showAppFormDialog<String>(
+  context,
   barrierDismissible: false,
   builder: (_) => _SectorForm(id: id, name: name, color: color),
 );
@@ -112,84 +113,9 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
         : null;
     return PopScope(
       canPop: !_busy,
-      child: AlertDialog(
-        scrollable: true,
-        title: Text(_creating ? 'Nuevo sector' : 'Editar sector'),
-        content: SizedBox(
-          width: AppGeometry.dialogNarrow,
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormField(
-                  key: const ValueKey('sector_form_name'),
-                  controller: _name,
-                  enabled: !_busy,
-                  maxLength: 80,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Ingresá un nombre'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                ColorPalette(
-                  value: _color,
-                  creating: _creating,
-                  onChanged: _busy ? null : (v) => setState(() => _color = v),
-                ),
-                if (_creating) ...[
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    key: ValueKey('sector_form_scope_$selectedScope'),
-                    isExpanded: true,
-                    initialValue: selectedScope,
-                    decoration: const InputDecoration(labelText: 'Ámbito'),
-                    items: [
-                      const DropdownMenuItem(
-                        value: 'personal',
-                        child: Text('Personal'),
-                      ),
-                      for (final group in allowedGroups)
-                        DropdownMenuItem(
-                          value: group.id,
-                          child: Text(
-                            group.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      if (user?.isSuperAdmin == true)
-                        const DropdownMenuItem(
-                          value: 'global',
-                          child: Text('Global'),
-                        ),
-                    ],
-                    onChanged: _busy
-                        ? null
-                        : (value) => setState(() => _scope = value!),
-                    validator: (_) => selectedScope == null
-                        ? 'Volvé a elegir un ámbito disponible'
-                        : null,
-                  ),
-                  if (groups.isLoading)
-                    const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Text('Cargando grupos…'),
-                    ),
-                  if (groups.hasError) ...[
-                    ErrorText(errorMessage(groups.error!)),
-                    TextButton(
-                      onPressed: () => ref.invalidate(groupsProvider),
-                      child: const Text('Reintentar grupos'),
-                    ),
-                  ],
-                ],
-                if (_error != null) ErrorText(_error!),
-              ],
-            ),
-          ),
-        ),
+      child: AppWorkDialog(
+        title: _creating ? 'Nuevo sector' : 'Editar sector',
+        closeEnabled: !_busy,
         actions: [
           TextButton(
             onPressed: _busy ? null : () => Navigator.pop(context),
@@ -207,6 +133,77 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
             ),
           ),
         ],
+        child: Form(
+          key: _form,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                key: const ValueKey('sector_form_name'),
+                controller: _name,
+                enabled: !_busy,
+                maxLength: 80,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+              ),
+              const SizedBox(height: 16),
+              ColorPalette(
+                value: _color,
+                creating: _creating,
+                onChanged: _busy ? null : (v) => setState(() => _color = v),
+              ),
+              if (_creating) ...[
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  key: ValueKey('sector_form_scope_$selectedScope'),
+                  isExpanded: true,
+                  initialValue: selectedScope,
+                  decoration: const InputDecoration(labelText: 'Ámbito'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: 'personal',
+                      child: Text('Personal'),
+                    ),
+                    for (final group in allowedGroups)
+                      DropdownMenuItem(
+                        value: group.id,
+                        child: Text(
+                          group.name,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    if (user?.isSuperAdmin == true)
+                      const DropdownMenuItem(
+                        value: 'global',
+                        child: Text('Global'),
+                      ),
+                  ],
+                  onChanged: _busy
+                      ? null
+                      : (value) => setState(() => _scope = value!),
+                  validator: (_) => selectedScope == null
+                      ? 'Volvé a elegir un ámbito disponible'
+                      : null,
+                ),
+                if (groups.isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Text('Cargando grupos…'),
+                  ),
+                if (groups.hasError) ...[
+                  ErrorText(errorMessage(groups.error!)),
+                  TextButton(
+                    onPressed: () => ref.invalidate(groupsProvider),
+                    child: const Text('Reintentar grupos'),
+                  ),
+                ],
+              ],
+              if (_error != null) ErrorText(_error!),
+            ],
+          ),
+        ),
       ),
     );
   }

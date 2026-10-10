@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../data/repositories/sectors_repository.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/action_confirmation_dialog.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/async_value_view.dart';
 import 'sector_form_dialog.dart';
 
@@ -30,9 +34,17 @@ class SectorActionsMenu extends ConsumerWidget {
     return PopupMenuButton<String>(
       key: const ValueKey('sector_actions'),
       tooltip: 'Acciones del sector',
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: 'edit', child: Text('Editar sector')),
-        PopupMenuItem(value: 'delete', child: Text('Eliminar sector')),
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'edit', child: Text('Editar sector')),
+        // La acción peligrosa va en `danger`, separada de las demás.
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text(
+            'Eliminar sector',
+            style: AppTextStyles.body.copyWith(color: context.colors.danger),
+          ),
+        ),
       ],
       onSelected: (value) async {
         final repository = ref.read(sectorsRepositoryProvider);
@@ -41,13 +53,18 @@ class SectorActionsMenu extends ConsumerWidget {
           return;
         }
         ref.invalidate(sectorDeletionImpactProvider(id));
-        final impact = await showDialog<SectorDeleteImpact>(
-          context: context,
+        final impact = await showAppFormDialog<SectorDeleteImpact>(
+          context,
           builder: (_) => Consumer(
-            builder: (context, ref, _) => AlertDialog(
-              title: const Text('Impacto de eliminar el sector'),
-              scrollable: true,
-              content: AsyncValueView(
+            builder: (context, ref, _) => AppWorkDialog(
+              title: 'Impacto de eliminar el sector',
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+              child: AsyncValueView(
                 value: ref.watch(sectorDeletionImpactProvider(id)),
                 onRetry: () => ref.invalidate(sectorDeletionImpactProvider(id)),
                 data: (impact) => Column(
@@ -65,12 +82,6 @@ class SectorActionsMenu extends ConsumerWidget {
                   ],
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
-                ),
-              ],
             ),
           ),
         );

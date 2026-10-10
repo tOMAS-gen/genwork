@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/task.dart';
@@ -35,6 +36,8 @@ import 'package:genwork_mobile/features/my_day/my_day_screen.dart';
 import 'package:genwork_mobile/features/my_day/my_day_providers.dart';
 import 'package:genwork_mobile/features/works/work_summary.dart';
 import 'package:genwork_mobile/shared/widgets/gen_tab_bar.dart';
+import 'package:genwork_mobile/features/sectors/sector_summary.dart';
+import 'package:genwork_mobile/shared/widgets/breadcrumb.dart';
 import 'package:genwork_mobile/features/works/works_list_screen.dart';
 import 'package:genwork_mobile/features/works/work_detail_screen.dart';
 import 'package:genwork_mobile/features/works/works_providers.dart';
@@ -703,6 +706,64 @@ void main() {
     await tester.pump();
     expect(copied, 'GW-024');
     expect(find.text('Código copiado'), findsOneWidget);
+  });
+  for (final dark in [false, true]) {
+    testWidgets('DS-18 sectores como la web: encabezado, panel, ámbito y card '
+        '(${dark ? "oscuro" : "claro"})', (tester) async {
+      await _pump(tester, const SectorsListScreen(), dark: dark);
+      expect(tester.takeException(), isNull);
+      final c = dark ? GenColors.dark : GenColors.light;
+      expect(find.text('Sectores'), findsOneWidget);
+      expect(
+        find.text('Tareas y proyectos organizados por área de trabajo.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('sectors_search')), findsOneWidget);
+      expect(find.text('1 sector'), findsOneWidget);
+      // Encabezado de ámbito en `sectionLabel` mayúsculas con su conteo.
+      expect(find.text('PERSONAL'), findsOneWidget);
+      expect(find.text('(1)'), findsOneWidget);
+      final head = tester.widget<Material>(
+        find
+            .ancestor(
+              of: find.byKey(const ValueKey('sectors_section_scope:personal')),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(head.color, c.surface);
+      expect(head.shape, isA<LeadingTickBorder>());
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('sector_s1')).hitTestable(),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('sectors_list')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(find.text('IMPRESIÓN Y TERMINACIONES'), findsOneWidget);
+      expect(find.text('8 pendientes · 12 tareas'), findsOneWidget);
+      expect(find.text('33%'), findsOneWidget);
+    });
+  }
+  testWidgets('DS-18 detalle de sector como la web: migas, resumen y tareas', (
+    tester,
+  ) async {
+    await _pump(tester, const SectorDetailScreen(sectorId: 's1'), scale: 1);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('sector_board_list')), findsOneWidget);
+    expect(find.byType(Breadcrumb), findsOneWidget);
+    expect(find.text('Sectores'), findsOneWidget);
+    expect(find.byType(SectorSummaryPanel), findsOneWidget);
+    expect(find.text('Avance del sector'), findsOneWidget);
+    expect(find.text('Color del sector'), findsOneWidget);
+    expect(find.text('0 proyectos vinculados'), findsOneWidget);
+    expect(find.text('Espacio personal'), findsOneWidget); // ámbito personal
+    expect(find.byKey(const ValueKey('sector_filter')), findsOneWidget);
+    expect(find.byKey(const ValueKey('task_view_toggle')), findsOneWidget);
+    expect(find.textContaining('Sin tareas todavía'), findsOneWidget);
   });
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,
