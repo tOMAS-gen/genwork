@@ -8,6 +8,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'groups_providers.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../core/theme/app_geometry.dart';
 
 Future<void> showMemberDialog(
   BuildContext context,
@@ -78,7 +79,7 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
         title: Text(widget.member == null ? 'Agregar miembro' : 'Cambiar rol'),
         scrollable: true,
         content: SizedBox(
-          width: 420,
+          width: AppGeometry.dialogNarrow,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

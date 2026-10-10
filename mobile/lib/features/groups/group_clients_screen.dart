@@ -11,6 +11,7 @@ import '../shell/resource_refresh.dart';
 import 'group_admin_scaffold.dart';
 import 'groups_providers.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../core/theme/app_geometry.dart';
 
 class GroupClientsScreen extends ConsumerWidget {
   const GroupClientsScreen({super.key, required this.groupId});
@@ -216,7 +217,7 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
       title: Text(widget.client == null ? 'Agregar cliente' : 'Editar acceso'),
       scrollable: true,
       content: SizedBox(
-        width: 420,
+        width: AppGeometry.dialogNarrow,
         child: Form(
           key: _form,
           child: Column(

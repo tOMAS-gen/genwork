@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/json.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../core/theme/app_geometry.dart';
 
 class SettingsField {
   const SettingsField(
@@ -120,7 +121,7 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
     child: AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
-        width: 440,
+        width: AppGeometry.dialogNarrow,
         child: SingleChildScrollView(
           child: Form(
             key: _form,

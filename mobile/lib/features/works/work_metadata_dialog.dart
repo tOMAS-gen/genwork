@@ -9,6 +9,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'works_providers.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../core/theme/app_geometry.dart';
 
 Future<void> showWorkMetadata(
   BuildContext context,
@@ -71,7 +72,7 @@ class _MetadataDialogState extends ConsumerState<_MetadataDialog> {
         ),
         scrollable: true,
         content: SizedBox(
-          width: 440,
+          width: AppGeometry.dialogNarrow,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

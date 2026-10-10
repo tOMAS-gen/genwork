@@ -395,7 +395,8 @@ Patrón común para cada pantalla:
 | DS-04 | A | M | DS-03 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; cambio de tema verificado en emulador |
 | DS-05 | B | B | DS-04 | ✅ 2026-10-10 — 224 tests verdes (+7 en `test/shared/chips_notices_test.dart`); con `UI_PREVIEWS=true` 228 |
 | DS-06 | B | B | DS-04 | ✅ 2026-10-10 — 233 tests verdes (+9 en `test/shared/state_views_test.dart`); con `UI_PREVIEWS=true` 237 |
-| DS-07…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
+| DS-07 | B | M | DS-04 | ✅ 2026-10-10 — 244 tests verdes (+11 en `test/shared/dialogs_test.dart`); con `UI_PREVIEWS=true` 248 |
+| DS-08…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
@@ -444,3 +445,9 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-06: genstock no tiene skeleton; `GenSkeleton` es nuevo (`gen_skeleton.dart`, un controller por bloque; sin ticker si `disableAnimations`).
   Un `pumpAndSettle` con un `LoadingView` visible se cuelga (shimmer infinito): ningún test actual lo hace, pero tests nuevos deben usar `pump(duration)` o `disableAnimations`.
 - DS-06: `AppBlockHeights` (state 240 / errorState 280) vive en `app_geometry.dart`; `ErrorView` ahora usa `FilledButton.icon` (antes `OutlinedButton`), misma key `error_retry`.
+- DS-07: `confirmAction`, `showNameColorDialog` y `showReorderDialog` usan `AppWorkDialog` con `showAppFormDialog` (un `showDialog`), no anidado en `showAdaptiveModal`:
+  `AppWorkDialog` ya trae su propio `Dialog` + header, y anidarlo duplicaría el header. `showAdaptiveModal` se portó para contenido grande con footer propio (sin usos todavía).
+  Se quitó la rama "hoja inferior" de `AppWorkDialog` (genwork no tiene bottom sheets); `AppGeometry.sheet` no existe.
+- DS-07: `AppGeometry.dialogNarrow = 400` reemplazó los `width: 400/420/440` de settings, sectors, groups y works (en teléfono no cambia nada: el diálogo se acota al ancho de pantalla);
+  `dialogWide = 560` lo usa `showReorderDialog` (antes 480) y `showAdaptiveModal`. Siguen siendo `AlertDialog` propios, para sus tareas: `settings_screen`, `settings_form_dialog` (paleta de 8 colores duplicada),
+  `storage_settings`, `sector_form_dialog`, `sector_actions_menu`, `task_detail_sheet:124`, `task_move_dialog`, `objective_dialog`, `objective_actions_menu`, `group_clients_screen`, `member_dialog`, `work_metadata_dialog`, `edit_work_dialog`.

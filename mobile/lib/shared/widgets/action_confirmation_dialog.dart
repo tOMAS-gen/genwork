@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import 'state_views.dart';
+
+import '../../core/theme/app_geometry.dart';
+import 'app_button_styles.dart';
+import 'app_form_dialog.dart';
+import 'app_work_dialog.dart';
 import 'error_text.dart';
+import 'state_views.dart';
 
 /// Mantiene la confirmación y el error visibles hasta que la operación termina.
 Future<bool> confirmAction(
@@ -12,8 +17,8 @@ Future<bool> confirmAction(
   String? exactName,
   bool danger = false,
 }) async =>
-    await showDialog<bool>(
-      context: context,
+    await showAppFormDialog<bool>(
+      context,
       barrierDismissible: false,
       builder: (_) => _Confirmation(
         title: title,
@@ -75,16 +80,37 @@ class _ConfirmationState extends State<_Confirmation> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(widget.title),
-      scrollable: true,
-      content: Column(
+    child: AppWorkDialog(
+      title: widget.title,
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context, false),
+      actions: [
+        TextButton(
+          key: const ValueKey('action_cancel'),
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('action_confirm'),
+          style: widget.danger
+              ? AppButtonStyles.destructiveFilled(context)
+              : null,
+          onPressed:
+              _busy ||
+                  (widget.exactName != null &&
+                      _name.text.trim() != widget.exactName)
+              ? null
+              : _confirm,
+          child: Text(_busy ? 'Guardando…' : widget.confirmLabel),
+        ),
+      ],
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(widget.message),
           if (widget.exactName != null) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             Text('Escribí «${widget.exactName}» para confirmar:'),
             TextField(
               key: const ValueKey('confirm_name'),
@@ -96,34 +122,11 @@ class _ConfirmationState extends State<_Confirmation> {
           ],
           if (_error != null)
             Padding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.only(top: AppSpacing.md),
               child: ErrorText(_error!),
             ),
         ],
       ),
-      actions: [
-        TextButton(
-          key: const ValueKey('action_cancel'),
-          onPressed: _busy ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const ValueKey('action_confirm'),
-          style: widget.danger
-              ? FilledButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
-                  foregroundColor: Theme.of(context).colorScheme.onError,
-                )
-              : null,
-          onPressed:
-              _busy ||
-                  (widget.exactName != null &&
-                      _name.text.trim() != widget.exactName)
-              ? null
-              : _confirm,
-          child: Text(_busy ? 'Guardando…' : widget.confirmLabel),
-        ),
-      ],
     ),
   );
 }

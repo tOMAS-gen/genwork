@@ -15,6 +15,7 @@ import '../works/works_providers.dart';
 import 'settings_providers.dart';
 import 'settings_form_dialog.dart';
 import 'storage_settings.dart';
+import '../../core/theme/app_geometry.dart';
 
 class SettingsHomeScreen extends ConsumerWidget {
   const SettingsHomeScreen({super.key});
@@ -718,7 +719,7 @@ class _ReaderGrantsDialogState extends ConsumerState<ReaderGrantsDialog> {
       child: AlertDialog(
         title: const Text('Grupos habilitados'),
         content: SizedBox(
-          width: 440,
+          width: AppGeometry.dialogNarrow,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -801,7 +802,7 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
       child: AlertDialog(
         title: const Text('Agregar cliente'),
         content: SizedBox(
-          width: 440,
+          width: AppGeometry.dialogNarrow,
           child: SingleChildScrollView(
             child: Form(
               key: form,

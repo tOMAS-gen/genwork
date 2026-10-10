@@ -8,6 +8,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../core/theme/app_geometry.dart';
 
 List<GroupSummary> sectorCreationGroups(
   AppUser? user,
@@ -115,7 +116,7 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
         scrollable: true,
         title: Text(_creating ? 'Nuevo sector' : 'Editar sector'),
         content: SizedBox(
-          width: 400,
+          width: AppGeometry.dialogNarrow,
           child: Form(
             key: _form,
             child: Column(

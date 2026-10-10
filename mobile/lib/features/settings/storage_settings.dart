@@ -10,6 +10,7 @@ import '../../data/models/json.dart';
 import '../../shared/widgets/state_views.dart';
 import 'settings_form_dialog.dart';
 import 'settings_providers.dart';
+import '../../core/theme/app_geometry.dart';
 
 /// Se puede sustituir en tests sin abrir un navegador ni compartir credenciales.
 final integrationBrowserProvider = Provider<Future<String> Function(String)>(
@@ -496,7 +497,7 @@ class _DriveFolderDialogState extends ConsumerState<DriveFolderDialog> {
     return AlertDialog(
       title: const Text('Carpeta raíz de genwork'),
       content: SizedBox(
-        width: 440,
+        width: AppGeometry.dialogNarrow,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,

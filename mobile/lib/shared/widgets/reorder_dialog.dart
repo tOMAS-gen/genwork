@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
-import 'state_views.dart';
+
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import 'app_form_dialog.dart';
+import 'app_work_dialog.dart';
 import 'error_text.dart';
+import 'state_views.dart';
 
 typedef OrderItem = ({String id, String label});
 Future<bool> showReorderDialog(
@@ -10,8 +14,8 @@ Future<bool> showReorderDialog(
   required Future<List<OrderItem>> Function() load,
   required Future<void> Function(List<String>) save,
 }) async =>
-    await showDialog<bool>(
-      context: context,
+    await showAppFormDialog<bool>(
+      context,
       barrierDismissible: false,
       builder: (_) => _ReorderDialog(title: title, load: load, save: save),
     ) ??
@@ -78,49 +82,11 @@ class _ReorderDialogState extends State<_ReorderDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(widget.title),
-      scrollable: true,
-      content: SizedBox(
-        width: AppSpace.contentMax,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_busy) const LinearProgressIndicator(),
-            if (_error != null) ...[
-              ErrorText(errorMessage(_error!)),
-              TextButton(
-                key: const ValueKey('order_reload'),
-                onPressed: _busy ? null : _load,
-                child: const Text('Actualizar lista'),
-              ),
-            ],
-            if (_items?.isEmpty == true)
-              const Text('No hay tareas para ordenar.'),
-            for (var i = 0; i < (_items?.length ?? 0); i++)
-              Row(
-                key: ValueKey('order_item_${_items![i].id}'),
-                children: [
-                  Expanded(child: Text(_items![i].label)),
-                  IconButton(
-                    key: ValueKey('order_up_${_items![i].id}'),
-                    tooltip: 'Subir',
-                    onPressed: _busy || i == 0 ? null : () => _move(i, i - 1),
-                    icon: const Icon(Icons.arrow_upward),
-                  ),
-                  IconButton(
-                    key: ValueKey('order_down_${_items![i].id}'),
-                    tooltip: 'Bajar',
-                    onPressed: _busy || i == _items!.length - 1
-                        ? null
-                        : () => _move(i, i + 1),
-                    icon: const Icon(Icons.arrow_downward),
-                  ),
-                ],
-              ),
-          ],
-        ),
-      ),
+    child: AppWorkDialog(
+      title: widget.title,
+      maxWidth: AppGeometry.dialogWide,
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context, false),
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.pop(context, false),
@@ -132,6 +98,43 @@ class _ReorderDialogState extends State<_ReorderDialog> {
           child: const Text('Guardar orden'),
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_busy) const LinearProgressIndicator(),
+          if (_error != null) ...[
+            ErrorText(errorMessage(_error!)),
+            TextButton(
+              key: const ValueKey('order_reload'),
+              onPressed: _busy ? null : _load,
+              child: const Text('Actualizar lista'),
+            ),
+          ],
+          if (_items?.isEmpty == true)
+            const Text('No hay tareas para ordenar.'),
+          for (var i = 0; i < (_items?.length ?? 0); i++)
+            Row(
+              key: ValueKey('order_item_${_items![i].id}'),
+              children: [
+                Expanded(child: Text(_items![i].label)),
+                IconButton(
+                  key: ValueKey('order_up_${_items![i].id}'),
+                  tooltip: 'Subir',
+                  onPressed: _busy || i == 0 ? null : () => _move(i, i - 1),
+                  icon: const Icon(AppIcons.sortAsc),
+                ),
+                IconButton(
+                  key: ValueKey('order_down_${_items![i].id}'),
+                  tooltip: 'Bajar',
+                  onPressed: _busy || i == _items!.length - 1
+                      ? null
+                      : () => _move(i, i + 1),
+                  icon: const Icon(AppIcons.sortDesc),
+                ),
+              ],
+            ),
+        ],
+      ),
     ),
   );
 }

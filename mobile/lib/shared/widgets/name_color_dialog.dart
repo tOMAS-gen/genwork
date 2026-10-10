@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
+import 'app_form_dialog.dart';
+import 'app_work_dialog.dart';
 import 'color_palette.dart';
-import 'state_views.dart';
 import 'error_text.dart';
+import 'state_views.dart';
 
 Future<bool> showNameColorDialog(
   BuildContext context, {
@@ -13,8 +16,8 @@ Future<bool> showNameColorDialog(
   int maxLength = 80,
   required Future<void> Function(String name, String? color) onSave,
 }) async =>
-    await showDialog<bool>(
-      context: context,
+    await showAppFormDialog<bool>(
+      context,
       barrierDismissible: false,
       builder: (_) => _NameColorDialog(
         title: title,
@@ -85,35 +88,10 @@ class _NameColorDialogState extends State<_NameColorDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(widget.title),
-      scrollable: true,
-      content: SizedBox(
-        width: 400,
-        child: Form(
-          key: _form,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                key: const ValueKey('name_color_name'),
-                controller: _name,
-                enabled: !_busy,
-                maxLength: widget.maxLength,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
-              ),
-              if (widget.withColor)
-                ColorPalette(
-                  value: _color,
-                  onChanged: _busy ? null : (v) => setState(() => _color = v),
-                ),
-              if (_error != null) ErrorText(_error!),
-            ],
-          ),
-        ),
-      ),
+    child: AppWorkDialog(
+      title: widget.title,
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context, false),
       actions: [
         TextButton(
           onPressed: _busy ? null : () => Navigator.pop(context, false),
@@ -125,6 +103,29 @@ class _NameColorDialogState extends State<_NameColorDialog> {
           child: Text(_busy ? 'Guardando…' : 'Guardar'),
         ),
       ],
+      child: Form(
+        key: _form,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              key: const ValueKey('name_color_name'),
+              controller: _name,
+              enabled: !_busy,
+              maxLength: widget.maxLength,
+              decoration: const InputDecoration(labelText: 'Nombre'),
+              validator: (v) =>
+                  v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+            ),
+            if (widget.withColor)
+              ColorPalette(
+                value: _color,
+                onChanged: _busy ? null : (v) => setState(() => _color = v),
+              ),
+            if (_error != null) ErrorText(_error!),
+          ],
+        ),
+      ),
     ),
   );
 }

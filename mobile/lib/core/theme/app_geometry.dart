@@ -45,6 +45,12 @@ abstract final class AppGeometry {
   /// Lo que flota por encima de la página: diálogo y overlay.
   static const overlay = BorderRadius.all(Radius.circular(12));
 
+  /// Ancho de diálogo angosto (confirmaciones y formularios de una columna).
+  static const dialogNarrow = 400.0;
+
+  /// Ancho de diálogo ancho (listas y contenido con scroll).
+  static const dialogWide = 560.0;
+
   /// Solo para lo circular por naturaleza: avatar, contador, progreso.
   static const pill = BorderRadius.all(Radius.circular(999));
 
