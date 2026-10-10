@@ -23,6 +23,9 @@ abstract final class AppIconSizes {
 abstract final class AppIcons {
   /// Reintentar / recargar
   static const retry = Icons.refresh_outlined;
+  static const themeSystem = Icons.computer_outlined;
+  static const themeLight = Icons.wb_sunny_outlined;
+  static const themeDark = Icons.dark_mode_outlined;
   static const add = Icons.add_outlined;
   static const check = Icons.check_outlined;
   static const close = Icons.close_outlined;

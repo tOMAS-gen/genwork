@@ -392,7 +392,7 @@ Patrón común para cada pantalla:
 | DS-01 | A | M | DS-00 | ✅ 2026-10-09 — 211 tests verdes (+6 en `gen_colors_test.dart`) |
 | DS-02 | A | M | DS-01 | ✅ 2026-10-09 — 217 tests verdes (+6 en `theme_tokens_test.dart`) |
 | DS-03 | A | M | DS-02 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; capturas en `../.context/ds-03/` |
-| DS-04 | A | M | DS-03 | ⬜ |
+| DS-04 | A | M | DS-03 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; cambio de tema verificado en emulador |
 | DS-05…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
@@ -429,3 +429,6 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   Se corrige en DS-05/DS-14 cuando pase a `StatusChip`.
 - DS-03: el `Drawer` oscuro se ve `#1C1C1C` (`surface`) y no `field` (`#151515`): el widget de `home_shell.dart` fija su propio fondo. Revisar en la tarea del drawer.
 - DS-03: el `AppBar` bajó de 72 a 48 dp de alto, y `ListTile`/`ExpansionTile` conservan su padding de 16 (`AppSpace.page`); afinar en las tareas de pantallas.
+- DS-04: `ThemeToggleTile` es un `ListTile` (título "Apariencia", subtítulo "Tema: X", `ThemeToggle` como trailing), no el tile-que-cicla de genstock;
+  no se portaron `ThemePopupButton` ni `ThemeAppearanceButton` (dependen de `picker_dialog` y no se usan en genwork). Íconos nuevos en `AppIcons`: `themeSystem/Light/Dark`.
+  El finder de `settings_parity_test.dart` (CFG-02) pasó de elegir en el dropdown a tocar `theme_dark`; mismo comportamiento verificado.

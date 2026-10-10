@@ -6,11 +6,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/network/api_exception.dart';
-import '../../core/theme/theme_preference.dart';
 import '../../data/models/json.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../shared/widgets/app_drawer_scope.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/theme_toggle.dart';
 import '../works/works_providers.dart';
 import 'settings_providers.dart';
 import 'settings_form_dialog.dart';
@@ -34,28 +34,7 @@ class SettingsHomeScreen extends ConsumerWidget {
             header: true,
             child: const Text('Tu cuenta y preferencias'),
           ),
-          DropdownButtonFormField<ThemeMode>(
-            key: const ValueKey('settings_theme'),
-            initialValue: ref.watch(themePreferenceProvider),
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Apariencia'),
-            items: const [
-              DropdownMenuItem(
-                value: ThemeMode.system,
-                child: Text('Usar tema del sistema'),
-              ),
-              DropdownMenuItem(value: ThemeMode.light, child: Text('Claro')),
-              DropdownMenuItem(value: ThemeMode.dark, child: Text('Oscuro')),
-            ],
-            onChanged: (v) async {
-              if (v == null) return;
-              try {
-                await ref.read(themePreferenceProvider.notifier).setMode(v);
-              } catch (e) {
-                if (context.mounted) showErrorSnack(context, e);
-              }
-            },
-          ),
+          const ThemeToggleTile(key: ValueKey('settings_theme')),
           for (final section in [
             SettingsSection.system,
             SettingsSection.storageLink,

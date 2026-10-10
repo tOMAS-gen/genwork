@@ -386,7 +386,8 @@ void main() {
       final f = Fixture(admin: false);
       await mount(t, f, const SettingsHomeScreen());
       expect(find.byKey(const ValueKey('settings_access')), findsNothing);
-      await select(t, 'settings_theme', 'Oscuro');
+      expect(find.byKey(const ValueKey('settings_theme')), findsOneWidget);
+      await tap(t, 'theme_dark');
       expect(f.container.read(themePreferenceProvider), ThemeMode.dark);
       final prefs = f.container.read(sharedPreferencesProvider);
       expect(prefs.getString('themeMode'), 'dark');
