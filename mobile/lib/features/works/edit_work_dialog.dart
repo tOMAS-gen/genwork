@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../../shared/widgets/error_text.dart';
@@ -72,16 +74,25 @@ class _EditWorkDialogState extends ConsumerState<_EditWorkDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
-    child: AlertDialog(
-      title: Text(
-        widget.work.isArchived
-            ? 'Renombrar proyecto'
-            : widget.work.isTemplate
-            ? 'Editar plantilla'
-            : 'Editar proyecto',
-      ),
-      scrollable: true,
-      content: Form(
+    child: AppWorkDialog(
+      title: widget.work.isArchived
+          ? 'Renombrar proyecto'
+          : widget.work.isTemplate
+          ? 'Editar plantilla'
+          : 'Editar proyecto',
+      closeEnabled: !_saving,
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('edit_work_save'),
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'Guardando…' : 'Guardar'),
+        ),
+      ],
+      child: Form(
         key: _form,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -110,7 +121,7 @@ class _EditWorkDialogState extends ConsumerState<_EditWorkDialog> {
               ListTile(
                 key: const ValueKey('edit_work_due_date'),
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.calendar_today_outlined),
+                leading: const Icon(AppIcons.calendarToday),
                 title: Text(
                   _date == null
                       ? 'Sin vencimiento'
@@ -150,7 +161,7 @@ class _EditWorkDialogState extends ConsumerState<_EditWorkDialog> {
                                 _date = null;
                                 _dateChanged = true;
                               }),
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(AppIcons.close),
                       ),
               ),
             ],
@@ -158,17 +169,6 @@ class _EditWorkDialogState extends ConsumerState<_EditWorkDialog> {
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const ValueKey('edit_work_save'),
-          onPressed: _saving ? null : _save,
-          child: Text(_saving ? 'Guardando…' : 'Guardar'),
-        ),
-      ],
     ),
   );
 }

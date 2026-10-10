@@ -33,6 +33,8 @@ import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/network/api_client.dart';
 import 'package:genwork_mobile/features/my_day/my_day_screen.dart';
 import 'package:genwork_mobile/features/my_day/my_day_providers.dart';
+import 'package:genwork_mobile/features/works/work_summary.dart';
+import 'package:genwork_mobile/shared/widgets/gen_tab_bar.dart';
 import 'package:genwork_mobile/features/works/works_list_screen.dart';
 import 'package:genwork_mobile/features/works/work_detail_screen.dart';
 import 'package:genwork_mobile/features/works/works_providers.dart';
@@ -583,6 +585,125 @@ void main() {
       expect(find.byKey(const ValueKey('works_search')), findsOneWidget);
     });
   }
+  for (final dark in [false, true]) {
+    testWidgets(
+      'DS-17 detalle de proyecto como la web: migas, resumen y pestañas '
+      '(${dark ? "oscuro" : "claro"})',
+      (tester) async {
+        await _pump(tester, const WorkDetailScreen(workId: 'w1'), dark: dark);
+        expect(tester.takeException(), isNull);
+        final c = dark ? GenColors.dark : GenColors.light;
+        // Migas «Todos los proyectos / Nombre».
+        expect(
+          find.byKey(const ValueKey('work_breadcrumb_root')),
+          findsOneWidget,
+        );
+        expect(find.text('Todos los proyectos'), findsOneWidget);
+        // Card de resumen con sus rótulos.
+        expect(find.byType(WorkSummaryPanel), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(WorkSummaryPanel),
+            matching: find.text('Señalética · Local Mendoza'),
+          ),
+          findsOneWidget,
+        );
+        for (final label in [
+          'Avance',
+          'Fecha límite',
+          'Etiquetas',
+          'Código / carpeta',
+        ]) {
+          expect(find.text(label), findsOneWidget, reason: label);
+        }
+        expect(find.text('Espacio personal'), findsOneWidget);
+        expect(find.text('Activo'), findsOneWidget);
+        expect(find.text('Sin fecha'), findsOneWidget);
+        expect(find.text('GW-024'), findsOneWidget);
+        // Nombre 20/700 y avance en brand.
+        final name = tester.widget<Text>(
+          find.descendant(
+            of: find.byType(WorkSummaryPanel),
+            matching: find.text('Señalética · Local Mendoza'),
+          ),
+        );
+        expect(
+          (name.style!.fontSize, name.style!.fontWeight),
+          (20, FontWeight.w700),
+        );
+        expect(
+          tester
+              .widget<LinearProgressIndicator>(
+                find.descendant(
+                  of: find.byType(WorkSummaryPanel),
+                  matching: find.byType(LinearProgressIndicator),
+                ),
+              )
+              .color,
+          c.brand,
+        );
+        // Pestañas (la lista es perezosa a 1.5×: se baja hasta ellas).
+        await tester.scrollUntilVisible(
+          find.byType(GenTabBar).hitTestable(),
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const ValueKey('work_detail_list')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        expect(find.byType(GenTabBar), findsOneWidget);
+        for (final tab in ['Tareas', 'Documentos', 'Archivos']) {
+          expect(
+            find.descendant(
+              of: find.byType(GenTabBar),
+              matching: find.text(tab),
+            ),
+            findsOneWidget,
+            reason: tab,
+          );
+        }
+        // Sección general con su rótulo.
+        await tester.scrollUntilVisible(
+          find.text('TAREAS GENERALES').hitTestable(),
+          200,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const ValueKey('work_detail_list')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        expect(find.text('TAREAS GENERALES'), findsOneWidget);
+      },
+    );
+  }
+  testWidgets('DS-17 copiar código de carpeta usa el portapapeles', (
+    tester,
+  ) async {
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await _pump(tester, const WorkDetailScreen(workId: 'w1'), scale: 1);
+    await tester.tap(find.byKey(const ValueKey('work_copy_code')));
+    await tester.pump();
+    expect(copied, 'GW-024');
+    expect(find.text('Código copiado'), findsOneWidget);
+  });
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,
   ) async {

@@ -576,6 +576,8 @@ void main() {
         dark: dark,
         scale: 1.5,
       );
+      // Con el resumen del proyecto arriba, el botón queda bajo el pliegue.
+      await scrollTo(t, 'objective_create');
       await tap(t, 'objective_create');
       expect(t.takeException(), isNull);
       await tap(t, 'objective_cancel');

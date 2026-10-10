@@ -1,3 +1,5 @@
+import '../../core/util/name_order.dart';
+import '../../data/models/common.dart';
 import '../../data/models/work.dart';
 
 /// Estado de un proyecto según sus tareas, igual que `getProjectStatus` de la
@@ -66,4 +68,15 @@ enum DueTone { green, orange, red }
       ? DueTone.orange
       : DueTone.red;
   return (label: label, tone: tone);
+}
+
+/// Color del proyecto a partir de sus etiquetas (igual que `WorkSummary.color`):
+/// la etiqueta principal o, si no hay, la primera por nombre de clave.
+String? projectColor(List<LabelChip> labels) {
+  if (labels.isEmpty) return null;
+  final primary = labels.where((label) => label.isPrimary).firstOrNull;
+  if (primary != null) return primary.color;
+  final sorted = [...labels]
+    ..sort((a, b) => compareNamesEs(a.keyName, b.keyName));
+  return sorted.first.color;
 }

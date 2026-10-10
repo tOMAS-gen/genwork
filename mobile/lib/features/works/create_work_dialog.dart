@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../data/models/group.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/state_views.dart';
 import 'works_providers.dart';
 
@@ -13,8 +15,8 @@ Future<String?> showCreateWorkDialog(
   BuildContext context, {
   bool isTemplate = false,
   String? templateId,
-}) => showDialog<String>(
-  context: context,
+}) => showAppFormDialog<String>(
+  context,
   barrierDismissible: false,
   builder: (_) =>
       _CreateWorkDialog(isTemplate: isTemplate, templateId: templateId),
@@ -72,16 +74,32 @@ class _CreateWorkDialogState extends ConsumerState<_CreateWorkDialog> {
     final user = ref.watch(currentUserProvider);
     return PopScope(
       canPop: !_saving,
-      child: AlertDialog(
-        title: Text(
-          widget.isTemplate
-              ? 'Nueva plantilla'
-              : widget.templateId != null
-              ? 'Proyecto desde plantilla'
-              : 'Nuevo proyecto',
-        ),
-        scrollable: true,
-        content: Column(
+      child: AppWorkDialog(
+        title: widget.isTemplate
+            ? 'Nueva plantilla'
+            : widget.templateId != null
+            ? 'Proyecto desde plantilla'
+            : 'Nuevo proyecto',
+        closeEnabled: !_saving,
+        actions: [
+          TextButton(
+            key: const ValueKey('create_work_cancel'),
+            onPressed: _saving ? null : () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            key: const ValueKey('create_work_save'),
+            onPressed: _saving ? null : _save,
+            child: Text(
+              _saving
+                  ? 'Creando…'
+                  : widget.isTemplate
+                  ? 'Crear plantilla'
+                  : 'Crear proyecto',
+            ),
+          ),
+        ],
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
@@ -120,24 +138,6 @@ class _CreateWorkDialogState extends ConsumerState<_CreateWorkDialog> {
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            key: const ValueKey('create_work_cancel'),
-            onPressed: _saving ? null : () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            key: const ValueKey('create_work_save'),
-            onPressed: _saving ? null : _save,
-            child: Text(
-              _saving
-                  ? 'Creando…'
-                  : widget.isTemplate
-                  ? 'Crear plantilla'
-                  : 'Crear proyecto',
-            ),
-          ),
-        ],
       ),
     );
   }

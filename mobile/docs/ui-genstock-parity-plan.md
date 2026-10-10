@@ -409,7 +409,8 @@ Patrón común para cada pantalla:
 | DS-14 | D | B | C | ✅ 2026-10-10 — 295 tests verdes (+11 en `test/features/auth_screens_test.dart`); con `UI_PREVIEWS=true` 299; comparada con la web a 390 px |
 | DS-15 | D | B | C | ✅ 2026-10-10 — 297 tests verdes (+2 en `daily_parity_test.dart`); con `UI_PREVIEWS=true` 301; comparada con la web (3 iteraciones) |
 | DS-16 | D | M | C | ✅ 2026-10-10 — 305 tests verdes (+8 en `works_dashboard_test.dart`, +2 en otros); con `UI_PREVIEWS=true` 309; comparada con la web (3 iteraciones) |
-| DS-17…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-17 | D | M | C | ✅ 2026-10-10 — 308 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 312; comparada con la web (2 iteraciones) |
+| DS-18…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -507,3 +508,12 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-16: **hallazgo global**: el texto del app heredaba `letterSpacing: 0.25` del tema de Material (la web usa 0) y salía más ancho (el título «Todos los Proyectos» se partía en 2 líneas). `AppTextStyles` y los roles del `textTheme` ahora fijan `letterSpacing: 0` (salvo `sectionLabel`, 1.2),
   y `BrandName` también. `GenSectionHeader` mide el título con 4 px de margen. Con las estadísticas arriba, controles y cards quedan bajo el pliegue: `ui_phase3_test.dart` desplaza con `scrollUntilVisible(finder.hitTestable())` antes de tocar el filtro de grupo y la card (cambio de estructura, mismo comportamiento).
   Los tests `LoadingView`... ver DS-15. Capturas: `../.context/ds-16/` (`web-proyectos-390.jpg` vs `app-v3.png`).
+- DS-17 (comparada con la web `/works/<id>` a 390 px): migas «Todos los proyectos / Nombre»; card de resumen (`.work-overview`): símbolo 36×36 con el color del proyecto al 12 %, nombre 20/700, «Espacio personal / Grupo X» + estado en un contorno (Activo / Archivado / Plantilla de objetivo),
+  kebab de acciones, «Descripción» (solo si hay), Avance (20/600 + «d de t completadas» + barra de 5 px `brand` sobre `outline`) junto a «Fecha límite» (botón con ícono), y sobre `field`: «Etiquetas» (etapa + etiquetas), «Código / carpeta» en Mono + botón «Copiar»;
+  luego una card con pestañas Tareas · Documentos · Archivos (ícono + rótulo, lengüeta de 3 px `brand` en la activa), título «Tareas» + «N pendientes», «Nuevo objetivo», toggle Lista/Tablero y secciones: rótulo «TAREAS GENERALES» (`sectionLabel`) y, por objetivo, bloque con acento de 3 px a la izquierda
+  (`brand`, `ok` si está completo), título, pill «Completo», kebab y barra con «d/t · %». Se replicó con `WorkSummaryPanel` (`work_summary.dart`), `GenTabBar(showIcons: true)`, `WorkspacePanel`, `TaskTile(flat)` con líneas entre filas y `AppBar` con `BrandName` (el kebab pasó del AppBar a la card, como en la web).
+  Documentos y Archivos siguen siendo pantallas propias: tocar su pestaña hace `push` (en la web cambian el contenido en el lugar). Se omitieron del app (datos que la web edita en línea): editar descripción/fecha en el lugar (se hace desde «Editar proyecto») y la fecha con borde punteado (Flutter no lo trae: va sólido).
+  El compositor de tareas sigue acoplado abajo (patrón móvil) y no en línea como en la web. `projectColor()` (en `works_dashboard.dart`) replica `WorkSummary.color` para `WorkDetail` (no se toca `lib/data/`).
+- DS-17: `create_work_dialog`, `edit_work_dialog` y `work_metadata_dialog` pasaron de `AlertDialog` a `AppWorkDialog` (`showAppFormDialog`), keys y textos intactos; la acción «Eliminar» del menú del proyecto va en `danger` tras un `PopupMenuDivider`.
+  Tests ajustados por estructura: `resource_operations_test.dart` (`menu()` toca `find.text(action).last`, porque «Etiquetas» ahora también es un rótulo del resumen) y `objectives_parity_test.dart` (`scrollTo('objective_create')` antes de tocarlo a 1.5×). `TaskViewToggle` suma `padding` (cero dentro del panel).
+  Capturas: `../.context/ds-17/` (`web-detalle-top-390.jpg` / `web-detalle-bottom-390.jpg` vs `app-v2.png`).

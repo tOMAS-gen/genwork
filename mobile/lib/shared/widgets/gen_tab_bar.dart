@@ -53,6 +53,7 @@ class GenTabBar extends StatefulWidget {
     this.style = GenTabBarStyle.quiet,
     this.height = kMinInteractiveDimension,
     this.showBottomBorder = true,
+    this.showIcons = false,
   });
 
   final List<GenTabItem> tabs;
@@ -68,6 +69,9 @@ class GenTabBar extends StatefulWidget {
 
   /// Desactivar si la cabecera que contiene las pestañas ya dibuja su borde.
   final bool showBottomBorder;
+
+  /// Muestra el ícono de cada pestaña también en el estilo `quiet`.
+  final bool showIcons;
 
   @override
   State<GenTabBar> createState() => _GenTabBarState();
@@ -181,6 +185,7 @@ class _GenTabBarState extends State<GenTabBar> {
               item: widget.tabs[i],
               style: widget.style,
               height: widget.height,
+              showIcon: widget.showIcons || workspace,
               isSelected: i == widget.activeIndex,
               onTap: () => widget.onSelect(i),
             ),
@@ -240,9 +245,11 @@ class _TabButton extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     required this.style,
+    required this.showIcon,
   });
 
   final GenTabItem item;
+  final bool showIcon;
   final double height;
   final bool isSelected;
   final VoidCallback onTap;
@@ -285,7 +292,7 @@ class _TabButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (workspace && item.icon != null) ...[
+            if (showIcon && item.icon != null) ...[
               Icon(item.icon, size: AppIconSizes.notice, color: textColor),
               const SizedBox(width: AppSpacing.xxs),
             ],

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/action_confirmation_dialog.dart';
 import '../shell/resource_refresh.dart';
@@ -44,10 +46,13 @@ class WorkActionsMenu extends ConsumerWidget {
           value: 'archive',
           child: Text(work.isArchived ? 'Restaurar' : 'Archivar'),
         ),
+        // La acción peligrosa va en `danger`, separada de las demás.
+        const PopupMenuDivider(),
         PopupMenuItem(
           value: 'delete',
           child: Text(
             work.isTemplate ? 'Eliminar plantilla' : 'Eliminar proyecto',
+            style: AppTextStyles.body.copyWith(color: context.colors.danger),
           ),
         ),
       ],

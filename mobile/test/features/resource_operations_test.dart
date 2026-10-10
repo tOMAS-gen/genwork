@@ -332,7 +332,9 @@ Future<void> menu(
   bool sector = false,
 }) async {
   await tap(tester, sector ? 'sector_actions' : 'work_actions');
-  await tester.tap(find.text(action));
+  // `.last`: el ítem del menú (overlay), no un rótulo de la pantalla con el mismo
+  // texto (p. ej. «Etiquetas» en el resumen del proyecto).
+  await tester.tap(find.text(action).last);
   await tester.pumpAndSettle();
 }
 
