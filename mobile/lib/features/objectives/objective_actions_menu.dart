@@ -4,7 +4,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../data/models/work.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/action_confirmation_dialog.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'objective_dialog.dart';
@@ -33,21 +38,19 @@ class _ObjectiveActionsMenuState extends ConsumerState<ObjectiveActionsMenu> {
       if (action == 'edit') {
         await showObjectiveDialog(context, widget.work.id, objective: o);
       } else if (action == 'delete') {
-        final keep = await showDialog<bool>(
-          context: context,
-          builder: (c) => AlertDialog(
-            title: const Text('Eliminar objetivo'),
-            scrollable: true,
-            content: Text(
-              '¿Qué hacemos con las tareas de «${o.title}» y sus subtareas?',
-            ),
+        final keep = await showAppFormDialog<bool>(
+          context,
+          builder: (c) => AppWorkDialog(
+            title: 'Eliminar objetivo',
+            onClose: () => Navigator.pop(c),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(c),
                 child: const Text('Cancelar'),
               ),
-              TextButton(
+              OutlinedButton(
                 key: const ValueKey('objective_delete_tasks'),
+                style: AppButtonStyles.destructiveOutlined(c),
                 onPressed: () => Navigator.pop(c, false),
                 child: const Text('Eliminar también las tareas'),
               ),
@@ -57,6 +60,9 @@ class _ObjectiveActionsMenuState extends ConsumerState<ObjectiveActionsMenu> {
                 child: const Text('Conservar en Generales'),
               ),
             ],
+            child: Text(
+              '¿Qué hacemos con las tareas de «${o.title}» y sus subtareas?',
+            ),
           ),
         );
         if (keep == null || !mounted) return;
@@ -133,7 +139,14 @@ class _ObjectiveActionsMenuState extends ConsumerState<ObjectiveActionsMenu> {
           value: 'template',
           child: Text('Guardar como plantilla'),
         ),
-        const PopupMenuItem(value: 'delete', child: Text('Eliminar objetivo')),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'delete',
+          child: Text(
+            'Eliminar objetivo',
+            style: AppTextStyles.body.copyWith(color: context.colors.danger),
+          ),
+        ),
       ],
     );
   }

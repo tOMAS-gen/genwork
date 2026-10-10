@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
-import '../../shared/widgets/app_drawer_scope.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/async_value_view.dart';
+import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import '../works/create_work_dialog.dart';
 import 'objectives_providers.dart';
 
@@ -29,91 +33,96 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
   @override
   Widget build(BuildContext context) {
     final value = ref.watch(templatesProvider);
-    return Scaffold(
-      appBar: AppBar(
-        leading: const AppDrawerButton(),
-        title: const Text('Plantillas de objetivo'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        key: const ValueKey('template_create'),
-        tooltip: 'Nueva plantilla',
-        onPressed: () => _create(template: true),
-        child: const Icon(Icons.add),
-      ),
-      body: Column(
-        children: [
-          Padding(
+    final c = context.colors;
+    return GenPageScaffold(
+      title: 'Plantillas de objetivo',
+      subtitle:
+          'Cada plantilla representa un objetivo. Al usarla se copian sus tareas pendientes.',
+      icon: AppIcons.templates,
+      actions: [
+        IconButton.filled(
+          key: const ValueKey('template_create'),
+          tooltip: 'Nueva plantilla',
+          icon: const Icon(AppIcons.add),
+          onPressed: () => _create(template: true),
+        ),
+      ],
+      onRefresh: () => ref.refresh(templatesProvider.future),
+      bodyPadding: EdgeInsets.zero,
+      body: AsyncValueView(
+        value: value,
+        onRetry: () => ref.invalidate(templatesProvider),
+        data: (items) {
+          final visible = items
+              .where(
+                (t) => '${t.name} ${t.description ?? ''} ${t.groupName ?? ''}'
+                    .toLowerCase()
+                    .contains(_query),
+              )
+              .toList();
+          return ListView(
+            key: const ValueKey('templates_list'),
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: AppSpace.page,
-            child: TextField(
-              key: const ValueKey('templates_search'),
-              decoration: const InputDecoration(
-                labelText: 'Buscar plantillas',
-                prefixIcon: Icon(Icons.search),
+            children: [
+              TextField(
+                key: const ValueKey('templates_search'),
+                decoration: const InputDecoration(
+                  hintText: 'Buscar plantillas…',
+                  prefixIcon: Icon(AppIcons.search),
+                ),
+                onChanged: (s) =>
+                    setState(() => _query = s.trim().toLowerCase()),
               ),
-              onChanged: (s) => setState(() => _query = s.trim().toLowerCase()),
-            ),
-          ),
-          Expanded(
-            child: AsyncValueView(
-              value: value,
-              onRetry: () => ref.invalidate(templatesProvider),
-              data: (items) {
-                final visible = items
-                    .where(
-                      (t) =>
-                          '${t.name} ${t.description ?? ''} ${t.groupName ?? ''}'
-                              .toLowerCase()
-                              .contains(_query),
-                    )
-                    .toList();
-                return RefreshIndicator(
-                  onRefresh: () => ref.refresh(templatesProvider.future),
-                  child: ListView(
-                    key: const ValueKey('templates_list'),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppSpace.list,
-                    children: [
-                      const Text(
-                        'Cada plantilla representa un objetivo. Al usarla se copian sus tareas pendientes.',
-                      ),
-                      if (visible.isEmpty)
-                        const EmptyView(
-                          message: 'No hay plantillas para mostrar.',
-                        ),
-                      for (final item in visible)
-                        Card(
-                          semanticContainer: false,
-                          child: Column(
-                            children: [
-                              ListTile(
-                                key: ValueKey('template_${item.id}'),
-                                title: Text(item.name),
-                                subtitle: Text(
-                                  '${item.groupName ?? 'Personal'} · ${item.copyableTaskCount} ${item.copyableTaskCount == 1 ? 'tarea para copiar' : 'tareas para copiar'}${item.description == null ? '' : '\n${item.description}'}',
-                                ),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () => context.push(Routes.work(item.id)),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  key: ValueKey('template_use_${item.id}'),
-                                  onPressed: () => _create(templateId: item.id),
-                                  icon: const Icon(Icons.add),
-                                  label: const Text('Crear proyecto'),
-                                ),
-                              ),
-                            ],
+              const SizedBox(height: AppSpace.md),
+              if (visible.isEmpty)
+                const EmptyView(message: 'No hay plantillas para mostrar.'),
+              if (visible.isNotEmpty)
+                WorkspaceListPanel(
+                  children: [
+                    for (final item in visible)
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ListTile(
+                            key: ValueKey('template_${item.id}'),
+                            title: Text(item.name),
+                            subtitle: Text(
+                              '${item.groupName ?? 'Personal'} · ${item.copyableTaskCount} ${item.copyableTaskCount == 1 ? 'tarea para copiar' : 'tareas para copiar'}${item.description == null ? '' : '\n${item.description}'}',
+                            ),
+                            trailing: Icon(
+                              AppIcons.chevronRight,
+                              size: AppIconSizes.action,
+                              color: c.muted,
+                            ),
+                            onTap: () => context.push(Routes.work(item.id)),
                           ),
-                        ),
-                      const SizedBox(height: AppSpace.bottomClearance),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: AppSpacing.md,
+                              bottom: AppSpacing.xs,
+                            ),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: OutlinedButton.icon(
+                                key: ValueKey('template_use_${item.id}'),
+                                onPressed: () => _create(templateId: item.id),
+                                icon: const Icon(
+                                  AppIcons.add,
+                                  size: AppIconSizes.field,
+                                ),
+                                label: const Text('Crear proyecto'),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              const SizedBox(height: AppSpace.bottomClearance),
+            ],
+          );
+        },
       ),
     );
   }

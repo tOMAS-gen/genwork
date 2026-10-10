@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
@@ -13,8 +16,8 @@ Future<void> showObjectiveDialog(
   String workId, {
   Objective? objective,
   bool fromTemplate = false,
-}) => showDialog<void>(
-  context: context,
+}) => showAppFormDialog<void>(
+  context,
   barrierDismissible: false,
   builder: (_) => _ObjectiveDialog(
     workId: workId,
@@ -97,16 +100,39 @@ class _ObjectiveDialogState extends ConsumerState<_ObjectiveDialog> {
     final templates = widget.fromTemplate ? ref.watch(templatesProvider) : null;
     return PopScope(
       canPop: !_saving,
-      child: AlertDialog(
-        title: Text(
-          widget.fromTemplate
-              ? 'Insertar plantilla'
-              : widget.objective == null
-              ? 'Nuevo objetivo'
-              : 'Editar objetivo',
-        ),
-        scrollable: true,
-        content: Column(
+      child: AppWorkDialog(
+        title: widget.fromTemplate
+            ? 'Insertar plantilla'
+            : widget.objective == null
+            ? 'Nuevo objetivo'
+            : 'Editar objetivo',
+        closeEnabled: !_saving,
+        onClose: () => Navigator.pop(context),
+        actions: [
+          TextButton(
+            key: const ValueKey('objective_cancel'),
+            onPressed: _saving ? null : () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            key: const ValueKey('objective_save'),
+            onPressed:
+                _saving ||
+                    (widget.fromTemplate
+                        ? _templateId == null
+                        : _title.text.trim().isEmpty)
+                ? null
+                : _save,
+            child: Text(
+              _saving
+                  ? 'Guardando…'
+                  : widget.fromTemplate
+                  ? 'Insertar'
+                  : 'Guardar',
+            ),
+          ),
+        ],
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (widget.fromTemplate) ...[
@@ -130,7 +156,7 @@ class _ObjectiveDialogState extends ConsumerState<_ObjectiveDialog> {
                   ),
                   selected: _templateId == item.id,
                   trailing: _templateId == item.id
-                      ? const Icon(Icons.check)
+                      ? const Icon(AppIcons.check)
                       : null,
                   onTap: _saving
                       ? null
@@ -164,30 +190,6 @@ class _ObjectiveDialogState extends ConsumerState<_ObjectiveDialog> {
             if (_error != null) ErrorText(errorMessage(_error!)),
           ],
         ),
-        actions: [
-          TextButton(
-            key: const ValueKey('objective_cancel'),
-            onPressed: _saving ? null : () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            key: const ValueKey('objective_save'),
-            onPressed:
-                _saving ||
-                    (widget.fromTemplate
-                        ? _templateId == null
-                        : _title.text.trim().isEmpty)
-                ? null
-                : _save,
-            child: Text(
-              _saving
-                  ? 'Guardando…'
-                  : widget.fromTemplate
-                  ? 'Insertar'
-                  : 'Guardar',
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -416,7 +416,8 @@ Patrón común para cada pantalla:
 | DS-21 | D | M | C | ✅ 2026-10-10 — 316 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 320; comparada con la web (`/notes`, documentos de proyecto) y verificada en el emulador |
 | DS-22 | D | B | C | ✅ 2026-10-10 — 318 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 322. comparada con la web una vez resuelto el servidor dev (ver Hallazgos) |
 | DS-23 | D | B | C | ✅ 2026-10-10 — 318 tests verdes. comparada con la web (lista y detalle de grupo a 390 px) |
-| DS-24…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-24 | D | B | C | ✅ 2026-10-10 — 318 tests verdes; verificada en el emulador (Plantillas) |
+| DS-25…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -550,3 +551,4 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   Se reinició (con el visto bueno del usuario) con **webpack**, que sí funciona: `DATABASE_URL=<.env.local con la base genwork_mobile_dev> AUTH_URL=http://localhost:3011 DEV_AUTH=true npx next dev --webpack -p 3011` (log en `/tmp/genwork-next.log`). Es un arreglo local: no se tocó el código web.
   Con el servidor sano la comparación de DS-22 mostró un único cambio más: el estado «archivos no habilitados» ahora dice «Carpeta no habilitada» + descripción + «Habilitar carpeta» (antes un texto suelto y «Habilitar archivos»). Capturas: `../.context/ds-22/` (`web-archivos-390.jpg` vs `app-archivos.png`).
 - DS-23 (comparada con la web, lista y detalle de grupo): lista con `GenPageScaffold` + cards con `NamePill`; detalle en paneles (`WorkspacePanel`/`WorkspaceListPanel`: lectura, miembros, clientes/etiquetas, proyectos, sectores), migas `Breadcrumb`, kebab con «Eliminar» en `danger` tras un divisor. Diálogos de miembro, cliente, aviso de accesos y borrado de etiqueta pasaron de `AlertDialog` a `AppWorkDialog` (`showAppFormDialog`); acciones destructivas con `AppButtonStyles`. Keys y textos de `groups_parity_test` intactos.
+- DS-24: Plantillas con `GenPageScaffold` (+ botón «Nueva plantilla» en el encabezado, buscador en la lista) y filas en `WorkspaceListPanel` con «Crear proyecto» de contorno. Diálogos de objetivo (nuevo/editar/insertar plantilla) y «Eliminar objetivo» pasaron a `AppWorkDialog`; «Eliminar también las tareas» con `destructiveOutlined` y la entrada del menú en `danger`. Keys intactas.
