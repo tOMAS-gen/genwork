@@ -11,6 +11,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'group_admin_scaffold.dart';
 import 'groups_providers.dart';
+import '../../shared/widgets/error_text.dart';
 
 class GroupLabelsScreen extends ConsumerWidget {
   const GroupLabelsScreen({super.key, required this.groupId});
@@ -236,11 +237,7 @@ class _DeleteLabelDialogState extends State<_DeleteLabelDialog> {
               'El servidor indica $_affected asignaciones en proyectos. Confirmá si querés eliminarlas igualmente.',
               key: const ValueKey('label_delete_impact'),
             ),
-          if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
+          if (_error != null) ErrorText(_error!),
         ],
       ),
       actions: [

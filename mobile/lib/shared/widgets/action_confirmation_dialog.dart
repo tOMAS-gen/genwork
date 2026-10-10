@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'state_views.dart';
+import 'error_text.dart';
 
 /// Mantiene la confirmación y el error visibles hasta que la operación termina.
 Future<bool> confirmAction(
@@ -96,10 +97,7 @@ class _ConfirmationState extends State<_Confirmation> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              child: ErrorText(_error!),
             ),
         ],
       ),

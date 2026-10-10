@@ -13,6 +13,7 @@ import '../../shared/widgets/async_value_view.dart';
 import '../works/works_providers.dart';
 import 'files_providers.dart';
 import 'file_shares_screen.dart';
+import '../../shared/widgets/error_text.dart';
 
 class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key, required this.workId});
@@ -440,10 +441,7 @@ class StorageError extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Text(
-            message,
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
-          ),
+          ErrorText(message),
           if (identity)
             TextButton(
               onPressed: () async {

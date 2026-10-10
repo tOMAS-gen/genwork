@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 
 /// Selección visual, con opción de asignación automática al crear un sector.
@@ -12,47 +16,47 @@ class ColorPalette extends StatelessWidget {
   final String? value;
   final ValueChanged<String?>? onChanged;
   final bool creating;
+
+  /// Color por defecto (marca). Se ofrece primero, además de la paleta.
+  static const defaultColor = '#3b5bfa';
+
+  /// Paleta única del sistema (`src/lib/domain/colors/palette.ts`).
   static const colors = [
-    '#3b5bfa',
-    '#0ea5e9',
-    '#14b8a6',
-    '#22c55e',
-    '#eab308',
-    '#f97316',
     '#ef4444',
-    '#ec4899',
+    '#f97316',
+    '#f59e0b',
+    '#84cc16',
+    '#22c55e',
+    '#10b981',
+    '#14b8a6',
+    '#0ea5e9',
+    '#3b82f6',
+    '#6366f1',
     '#8b5cf6',
-    '#64748b',
+    '#d946ef',
+    '#ec4899',
+    '#6b7280',
+    '#475569',
+    '#92400e',
   ];
+
+  /// Lado visual de cada swatch.
+  static const double swatchSize = 32;
+
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       const Text('Color'),
       Wrap(
-        spacing: 4,
-        runSpacing: 4,
+        spacing: AppSpacing.xxs,
+        runSpacing: AppSpacing.xxs,
         children: [
-          for (final hex in {...colors, ?value})
-            Semantics(
-              label: 'Color $hex',
+          for (final hex in {defaultColor, ...colors, ?value})
+            _Swatch(
+              hex: hex,
               selected: hex.toLowerCase() == value?.toLowerCase(),
-              child: IconButton(
-                key: ValueKey('color_$hex'),
-                tooltip: 'Color $hex',
-                style: IconButton.styleFrom(backgroundColor: colorFromHex(hex)),
-                onPressed: onChanged == null ? null : () => onChanged!(hex),
-                icon: Icon(
-                  hex.toLowerCase() == value?.toLowerCase()
-                      ? Icons.check
-                      : Icons.circle_outlined,
-                  color:
-                      ThemeData.estimateBrightnessForColor(colorFromHex(hex)) ==
-                          Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-              ),
+              onTap: onChanged == null ? null : () => onChanged!(hex),
             ),
         ],
       ),
@@ -63,4 +67,42 @@ class ColorPalette extends StatelessWidget {
       ),
     ],
   );
+}
+
+class _Swatch extends StatelessWidget {
+  const _Swatch({
+    required this.hex,
+    required this.selected,
+    required this.onTap,
+  });
+  final String hex;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = colorFromHex(hex);
+    return Semantics(
+      label: 'Color $hex',
+      selected: selected,
+      child: IconButton(
+        key: ValueKey('color_$hex'),
+        tooltip: 'Color $hex',
+        style: IconButton.styleFrom(
+          backgroundColor: color,
+          fixedSize: const Size.square(ColorPalette.swatchSize),
+          minimumSize: const Size.square(ColorPalette.swatchSize),
+          padding: EdgeInsets.zero,
+          shape: const RoundedRectangleBorder(
+            borderRadius: AppGeometry.control,
+          ),
+        ),
+        onPressed: onTap,
+        icon: Icon(
+          selected ? AppIcons.check : AppIcons.radioOff,
+          color: textOn(color),
+        ),
+      ),
+    );
+  }
 }

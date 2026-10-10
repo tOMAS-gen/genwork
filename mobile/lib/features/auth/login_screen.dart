@@ -7,6 +7,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/page_intro.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/error_text.dart';
 
 /// Login: abre el login web del servidor en el navegador del sistema (Google +
 /// lista de acceso) y vuelve a la app por deep link.
@@ -71,13 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: AppSpace.md),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
+                    ErrorText(_error!, textAlign: TextAlign.center),
                   ],
                   const SizedBox(height: AppSpace.xl),
                   TextButton(

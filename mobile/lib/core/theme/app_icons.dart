@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 
 /// Tamaños canónicos de iconografía funcional.
 abstract final class AppIconSizes {
+  /// Ícono de aviso inline y de chip.
+  static const notice = 16.0;
+
   /// Ítems del drawer.
   static const drawer = 16.0;
 
@@ -58,6 +61,8 @@ abstract final class AppIcons {
   static const lock = Icons.lock_outline;
   static const mention = Icons.alternate_email_outlined;
   static const error = Icons.error_outline;
+  static const success = Icons.check_circle_outline;
+  static const warning = Icons.warning_amber_outlined;
   static const info = Icons.info_outline;
   static const offline = Icons.wifi_off_outlined;
   static const server = Icons.dns_outlined;

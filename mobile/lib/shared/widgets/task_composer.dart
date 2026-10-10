@@ -10,6 +10,7 @@ import '../../features/tasks/task_actions.dart';
 import '../../features/shell/resource_refresh.dart';
 import 'state_views.dart';
 import 'task_text_field.dart';
+import 'error_text.dart';
 
 class TaskComposer extends ConsumerStatefulWidget {
   const TaskComposer({
@@ -251,11 +252,7 @@ class _TaskComposerState extends ConsumerState<TaskComposer> {
                 const Text(
                   'La tarea ya se creó. Falta guardar la descripción; reintentá para completarla.',
                 ),
-              if (_error != null)
-                Text(
-                  errorMessage(_error!),
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+              if (_error != null) ErrorText(errorMessage(_error!)),
               for (final tag in _unresolved)
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpace.sm),

@@ -13,6 +13,7 @@ import '../files/files_providers.dart';
 import '../notes/notes_providers.dart';
 import 'document_draft.dart';
 import 'rich_document_editor.dart';
+import '../../shared/widgets/error_text.dart';
 
 final richEditorBuilderProvider = Provider<Widget Function(RichDocumentEditor)>(
   (ref) =>
@@ -335,11 +336,10 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
           if (_draft.error != null)
             Padding(
               padding: const EdgeInsets.all(8),
-              child: Text(
+              child: ErrorText(
                 _draft.error is ApiException
                     ? '${(_draft.error as ApiException).message} Tus cambios siguen acá.'
                     : 'Tus cambios siguen acá. Revisá la conexión y reintentá.',
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ),
           if (_fileBusy)

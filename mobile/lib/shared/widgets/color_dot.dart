@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/util/format.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
+import 'status_chip.dart';
 
 class ColorDot extends StatelessWidget {
   const ColorDot({super.key, required this.hex, this.size = AppSpace.dot});
@@ -17,7 +19,8 @@ class ColorDot extends StatelessWidget {
   );
 }
 
-/// Pill rectangular (radio bajo) con color de etiqueta/estado.
+/// Pill rectangular (radio 4) con color de etiqueta/estado: fondo 14 % del
+/// color sobre `surface`, texto 80 % del color con `text`.
 class ColorPill extends StatelessWidget {
   const ColorPill({super.key, required this.label, this.hex});
 
@@ -26,22 +29,12 @@ class ColorPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colors;
     final color = colorFromHex(hex);
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpace.sm,
-        vertical: AppSpace.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: AppTokens.of(context).controlRadius,
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: Theme.of(context).colorScheme.onSurface,
-        ),
-      ),
+    return StatusChip(
+      label: label,
+      color: c.chipText(color),
+      fill: c.chipFill(color),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import 'state_views.dart';
+import 'error_text.dart';
 
 typedef OrderItem = ({String id, String label});
 Future<bool> showReorderDialog(
@@ -87,10 +88,7 @@ class _ReorderDialogState extends State<_ReorderDialog> {
           children: [
             if (_busy) const LinearProgressIndicator(),
             if (_error != null) ...[
-              Text(
-                errorMessage(_error!),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+              ErrorText(errorMessage(_error!)),
               TextButton(
                 key: const ValueKey('order_reload'),
                 onPressed: _busy ? null : _load,

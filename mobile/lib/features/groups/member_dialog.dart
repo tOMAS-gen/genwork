@@ -7,6 +7,7 @@ import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'groups_providers.dart';
+import '../../shared/widgets/error_text.dart';
 
 Future<void> showMemberDialog(
   BuildContext context,
@@ -155,11 +156,7 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
               ),
               if (!allowed)
                 const Text('Ya no tenés permiso para administrar este grupo.'),
-              if (_error != null)
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+              if (_error != null) ErrorText(_error!),
             ],
           ),
         ),

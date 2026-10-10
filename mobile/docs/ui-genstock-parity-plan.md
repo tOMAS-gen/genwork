@@ -393,7 +393,8 @@ Patrón común para cada pantalla:
 | DS-02 | A | M | DS-01 | ✅ 2026-10-09 — 217 tests verdes (+6 en `theme_tokens_test.dart`) |
 | DS-03 | A | M | DS-02 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; capturas en `../.context/ds-03/` |
 | DS-04 | A | M | DS-03 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; cambio de tema verificado en emulador |
-| DS-05…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
+| DS-05 | B | B | DS-04 | ✅ 2026-10-10 — 224 tests verdes (+7 en `test/shared/chips_notices_test.dart`); con `UI_PREVIEWS=true` 228 |
+| DS-06…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
@@ -432,3 +433,10 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-04: `ThemeToggleTile` es un `ListTile` (título "Apariencia", subtítulo "Tema: X", `ThemeToggle` como trailing), no el tile-que-cicla de genstock;
   no se portaron `ThemePopupButton` ni `ThemeAppearanceButton` (dependen de `picker_dialog` y no se usan en genwork). Íconos nuevos en `AppIcons`: `themeSystem/Light/Dark`.
   El finder de `settings_parity_test.dart` (CFG-02) pasó de elegir en el dropdown a tocar `theme_dark`; mismo comportamiento verificado.
+- DS-05: `ColorPalette` ofrece `#3b5bfa` (color por defecto, `ColorPalette.defaultColor`) además de los 16 de `palette.ts`: la paleta vieja lo tenía
+  como primer swatch y `groups_parity_test.dart` lo toca (`color_#3b5bfa`). Son 17 swatches visibles.
+- DS-05: no se portaron `DeviceStatusChip`, `UserStatusChip`, `StockStatusChip` ni `SupplierOrderStatusChip` (dominio genstock); sí `InfoChip`.
+  `ErrorText` reemplazó 14 `Text` con `colorScheme.error` (los usos como color de ícono/botón — `logout_tile`, `task_detail_sheet`, `group_labels_screen:254`,
+  `action_confirmation_dialog:116`, `state_views:76` — quedan para sus tareas).
+- DS-05: en el emulador, el chip de estado seleccionado del detalle de tarea ("Pendiente", `ChoiceChip`) se ve apagado en oscuro (texto `brand` sobre `brandFill`);
+  revisar en DS-13 si es el estilo deshabilitado o un contraste bajo.

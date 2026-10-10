@@ -6,6 +6,7 @@ import '../../data/models/work.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'objectives_providers.dart';
+import '../../shared/widgets/error_text.dart';
 
 Future<void> showObjectiveDialog(
   BuildContext context,
@@ -160,11 +161,7 @@ class _ObjectiveDialogState extends ConsumerState<_ObjectiveDialog> {
                 ),
               ),
             ],
-            if (_error != null)
-              Text(
-                errorMessage(_error!),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+            if (_error != null) ErrorText(errorMessage(_error!)),
           ],
         ),
         actions: [

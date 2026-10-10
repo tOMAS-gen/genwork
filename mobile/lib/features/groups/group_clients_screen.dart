@@ -10,6 +10,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'group_admin_scaffold.dart';
 import 'groups_providers.dart';
+import '../../shared/widgets/error_text.dart';
 
 class GroupClientsScreen extends ConsumerWidget {
   const GroupClientsScreen({super.key, required this.groupId});
@@ -266,11 +267,7 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
                           }
                         }),
                 ),
-              if (_error != null)
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+              if (_error != null) ErrorText(_error!),
             ],
           ),
         ),

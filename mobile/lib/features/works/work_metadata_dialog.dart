@@ -8,6 +8,7 @@ import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'works_providers.dart';
+import '../../shared/widgets/error_text.dart';
 
 Future<void> showWorkMetadata(
   BuildContext context,
@@ -80,11 +81,7 @@ class _MetadataDialogState extends ConsumerState<_MetadataDialog> {
                   error: current.error!,
                   onRetry: () => ref.invalidate(workDetailProvider(work.id)),
                 ),
-              if (_error != null)
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+              if (_error != null) ErrorText(_error!),
               if (_busy) const LinearProgressIndicator(),
               if (!widget.labels)
                 AsyncValueView(

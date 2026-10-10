@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'color_palette.dart';
 import 'state_views.dart';
+import 'error_text.dart';
 
 Future<bool> showNameColorDialog(
   BuildContext context, {
@@ -108,11 +109,7 @@ class _NameColorDialogState extends State<_NameColorDialog> {
                   value: _color,
                   onChanged: _busy ? null : (v) => setState(() => _color = v),
                 ),
-              if (_error != null)
-                Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+              if (_error != null) ErrorText(_error!),
             ],
           ),
         ),

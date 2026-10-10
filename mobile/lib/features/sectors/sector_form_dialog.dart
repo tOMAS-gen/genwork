@@ -7,6 +7,7 @@ import '../../shared/widgets/color_palette.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
+import '../../shared/widgets/error_text.dart';
 
 List<GroupSummary> sectorCreationGroups(
   AppUser? user,
@@ -176,25 +177,14 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
                       child: Text('Cargando grupos…'),
                     ),
                   if (groups.hasError) ...[
-                    Text(
-                      errorMessage(groups.error!),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
+                    ErrorText(errorMessage(groups.error!)),
                     TextButton(
                       onPressed: () => ref.invalidate(groupsProvider),
                       child: const Text('Reintentar grupos'),
                     ),
                   ],
                 ],
-                if (_error != null)
-                  Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
+                if (_error != null) ErrorText(_error!),
               ],
             ),
           ),

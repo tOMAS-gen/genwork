@@ -6,6 +6,7 @@ import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
+import '../../shared/widgets/error_text.dart';
 
 Future<void> showEditWorkDialog(BuildContext context, WorkDetail work) =>
     showDialog<void>(
@@ -153,11 +154,7 @@ class _EditWorkDialogState extends ConsumerState<_EditWorkDialog> {
                       ),
               ),
             ],
-            if (_error != null)
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
+            if (_error != null) ErrorText(_error!),
           ],
         ),
       ),
