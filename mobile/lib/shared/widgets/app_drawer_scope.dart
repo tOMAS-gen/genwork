@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_icons.dart';
+
 /// Permite abrir el menú del shell desde los Scaffold de cada sección.
 class AppDrawerScope extends InheritedWidget {
   const AppDrawerScope({
@@ -26,6 +28,6 @@ class AppDrawerButton extends StatelessWidget {
     key: const ValueKey('drawer_open'),
     tooltip: 'Abrir menú',
     onPressed: AppDrawerScope.maybeOf(context)?.openDrawer,
-    icon: const Icon(Icons.menu),
+    icon: const Icon(AppIcons.menu),
   );
 }

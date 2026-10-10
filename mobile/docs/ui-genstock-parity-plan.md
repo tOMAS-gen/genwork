@@ -396,7 +396,8 @@ Patrón común para cada pantalla:
 | DS-05 | B | B | DS-04 | ✅ 2026-10-10 — 224 tests verdes (+7 en `test/shared/chips_notices_test.dart`); con `UI_PREVIEWS=true` 228 |
 | DS-06 | B | B | DS-04 | ✅ 2026-10-10 — 233 tests verdes (+9 en `test/shared/state_views_test.dart`); con `UI_PREVIEWS=true` 237 |
 | DS-07 | B | M | DS-04 | ✅ 2026-10-10 — 244 tests verdes (+11 en `test/shared/dialogs_test.dart`); con `UI_PREVIEWS=true` 248 |
-| DS-08…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
+| DS-08 | B | M | DS-04 | ✅ 2026-10-10 — 256 tests verdes (+12 en `test/shared/surfaces_test.dart`); con `UI_PREVIEWS=true` 260 |
+| DS-09…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
@@ -451,3 +452,9 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-07: `AppGeometry.dialogNarrow = 400` reemplazó los `width: 400/420/440` de settings, sectors, groups y works (en teléfono no cambia nada: el diálogo se acota al ancho de pantalla);
   `dialogWide = 560` lo usa `showReorderDialog` (antes 480) y `showAdaptiveModal`. Siguen siendo `AlertDialog` propios, para sus tareas: `settings_screen`, `settings_form_dialog` (paleta de 8 colores duplicada),
   `storage_settings`, `sector_form_dialog`, `sector_actions_menu`, `task_detail_sheet:124`, `task_move_dialog`, `objective_dialog`, `objective_actions_menu`, `group_clients_screen`, `member_dialog`, `work_metadata_dialog`, `edit_work_dialog`.
+- DS-08: `SectorCard` de genstock se portó como `SectionCard` (`section_card.dart`): en genwork "sector" es un concepto de dominio. `GenSectionHeader` va aplanado (no es una card
+  como en genstock): título + borde inferior `border`, con `subtitle` y `bottom` opcionales; vive en `gen_section_header.dart`. `WorkspacePanel` perdió `minWidth` (solo teléfono).
+  `kWorkGap` (10) se reemplazó por `AppSpacing.sm` (12). `AppDrawerButton` pasó a `AppIcons.menu`.
+- DS-08: `GenPageScaffold` deja el header fijo y el `body` expandido; con `onRefresh` el `body` debe ser un scrollable. Aún no se migró ninguna pantalla (Fase D):
+  hoy "Mi día" muestra el título dos veces (AppBar "Mi día" + `PageIntro` con la fecha) porque `PageIntro` ahora es un `GenSectionHeader` de 24/700.
+- DS-08: `BrandHeader` (login/setup) muestra el logo `genwork.png` junto a `BrandName(22)`; DS-14 lo reemplaza por `BrandName 28` centrado.
