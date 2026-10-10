@@ -344,7 +344,11 @@ Patrón común para cada pantalla:
    `AppSpace`/`AppSpacing`, `BorderRadius.circular(n)` por `AppGeometry`.
 3. Listas agrupadas → `WorkspaceListPanel`; bloques → `WorkspacePanel`/`AppWorkSection`.
 4. Búsqueda/filtros → `WorkspaceSearchBar` (+ `ChoiceChip` estilados donde haya tests).
-5. Verificación propia: abrir la pantalla en emulador (skill `/flutter-ui`, Marionette) claro y oscuro,
+5. **Comparar con la web** (decisión del usuario, 2026-10-10): abrir la misma pantalla de la web a 390 px y comparar aspecto por aspecto (estructura, tamaños, colores, textos);
+   **la web manda**. Cómo: en una pestaña del servidor dev (`localhost:3011`), `document.body.innerHTML = '<iframe src="/RUTA" style="width:390px;height:780px">'`
+   (el ancho de la ventana no se puede achicar; el iframe sí activa los estilos mobile). Para `/login` con sesión iniciada: `fetch('/login',{credentials:'omit'})` y `iframe.srcdoc = html` con `<base href="http://localhost:3011/">`.
+   Guardar la captura web junto a la del app en `../.context/ds-XX/` y medir valores con `getComputedStyle` cuando haya dudas.
+6. Verificación propia: abrir la pantalla en emulador (skill `/flutter-ui`, Marionette) claro y oscuro,
    captura a `../.context/ds-XX/`, y el grep de la sección 6 sobre los archivos tocados = 0 resultados.
 
 | Tarea | Archivos (`lib/features/…`) | Notas específicas |
@@ -402,7 +406,8 @@ Patrón común para cada pantalla:
 | DS-11 | C | M | B | ✅ 2026-10-10 — 280 tests verdes (+7 en `test/shared/task_widgets_test.dart`, +1 en `gen_colors_test.dart`); con `UI_PREVIEWS=true` 284 |
 | DS-12 | C | M | DS-11 | ✅ 2026-10-10 — 282 tests verdes (+2 en `navigation_parity_test.dart`); con `UI_PREVIEWS=true` 286; capturas en `../.context/ds-12/` |
 | DS-13 | C | M | DS-11 | ✅ 2026-10-10 — 284 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 288; captura en `../.context/ds-13/` |
-| DS-14…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-14 | D | B | C | ✅ 2026-10-10 — 295 tests verdes (+11 en `test/features/auth_screens_test.dart`); con `UI_PREVIEWS=true` 299; comparada con la web a 390 px |
+| DS-15…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -482,3 +487,7 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   Se quitó el `bottomSheetTheme` provisorio de `app_theme.dart`. `AppButtonStyles.destructiveOutlined` reemplaza el `OutlinedButton.styleFrom(foregroundColor: error)` del botón borrar (key `task_delete`).
 - DS-13: el chip del estado vigente (`task_status_<id>`) ahora tiene `onSelected: (_) {}` (antes `null`): con `null` el `ChoiceChip` seleccionado se pintaba atenuado como deshabilitado. Sin permiso o con tarea contenedor sigue `null`
   para todas las opciones. Tareas con confirmación de borrado (`AlertDialog`, key `task_delete_confirm`) y los `ActionChip` de origen/links siguen como estaban (Fase D / diálogos).
+- DS-14 (comparada con la web a 390 px): la web usa una card `surface` (borde `border`, radio 8, padding 16) centrada en una página con padding 24, marca «›genwork» de 24 px, bajada 13 `muted`
+  («Gestión de proyectos por cliente y sector») y botón primario de 47 px, radio 6, texto `onBrand` 13/600. Se replicó con `AuthCard` (`shared/widgets/auth_card.dart`, ancho máx. 480) en login y setup;
+  se quitaron el titular «Tu equipo, a mano.», el ícono del botón y `BrandHeader` (sin usos). El plan decía `BrandName` 28: la web usa 24 y gana la web. Capturas: `../.context/ds-14/` (`web-login-390.jpg` vs `login-{light,dark}.png`).
+  Los errores van en `AppInlineNotice.error` (en setup ya no usan `errorText` del campo). El host del servidor y «Cambiar servidor» son del app (no existen en la web).

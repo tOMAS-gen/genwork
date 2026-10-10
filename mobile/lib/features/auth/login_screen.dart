@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/session.dart';
 import '../../core/providers.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_inline_notice.dart';
+import '../../shared/widgets/auth_card.dart';
 import '../../shared/widgets/state_views.dart';
-import '../../shared/widgets/page_intro.dart';
-import '../../core/theme/app_theme.dart';
-import '../../shared/widgets/error_text.dart';
 
 /// Login: abre el login web del servidor en el navegador del sistema (Google +
 /// lista de acceso) y vuelve a la app por deep link.
@@ -43,52 +45,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final session = ref.watch(sessionProvider).value;
     final server = session is SignedOut ? session.serverUrl.host : '';
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppSpace.contentMax),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpace.xl),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const BrandHeader(
-                    title: 'Tu equipo,\na mano.',
-                    subtitle:
-                        'Proyectos, tareas y recordatorios. Todo listo para seguir tu día.',
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  Text(server, textAlign: TextAlign.center),
-                  const SizedBox(height: AppSpace.xl),
-                  FilledButton.icon(
-                    key: const ValueKey('login_google'),
-                    onPressed: _busy ? null : _login,
-                    icon: const Icon(Icons.login),
-                    label: Text(
-                      _busy ? 'Abriendo sesión…' : 'Ingresar con Google',
-                    ),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: AppSpace.md),
-                    ErrorText(_error!, textAlign: TextAlign.center),
-                  ],
-                  const SizedBox(height: AppSpace.xl),
-                  TextButton(
-                    key: const ValueKey('login_change_server'),
-                    onPressed: _busy
-                        ? null
-                        : () =>
-                              ref.read(sessionProvider.notifier).changeServer(),
-                    child: const Text('Cambiar servidor'),
-                  ),
-                ],
-              ),
-            ),
+    return AuthCard(
+      children: [
+        FilledButton(
+          key: const ValueKey('login_google'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(AppSpacing.xxxl),
           ),
+          onPressed: _busy ? null : _login,
+          child: Text(_busy ? 'Abriendo sesión…' : 'Ingresar con Google'),
         ),
-      ),
+        if (_error != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          AppInlineNotice.error(message: _error!),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        const Divider(),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          server,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.supporting.copyWith(color: context.colors.muted),
+        ),
+        TextButton(
+          key: const ValueKey('login_change_server'),
+          onPressed: _busy
+              ? null
+              : () => ref.read(sessionProvider.notifier).changeServer(),
+          child: const Text('Cambiar servidor'),
+        ),
+      ],
     );
   }
 }
