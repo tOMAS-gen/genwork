@@ -394,7 +394,8 @@ Patrón común para cada pantalla:
 | DS-03 | A | M | DS-02 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; capturas en `../.context/ds-03/` |
 | DS-04 | A | M | DS-03 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; cambio de tema verificado en emulador |
 | DS-05 | B | B | DS-04 | ✅ 2026-10-10 — 224 tests verdes (+7 en `test/shared/chips_notices_test.dart`); con `UI_PREVIEWS=true` 228 |
-| DS-06…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
+| DS-06 | B | B | DS-04 | ✅ 2026-10-10 — 233 tests verdes (+9 en `test/shared/state_views_test.dart`); con `UI_PREVIEWS=true` 237 |
+| DS-07…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
@@ -440,3 +441,6 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   `action_confirmation_dialog:116`, `state_views:76` — quedan para sus tareas).
 - DS-05: en el emulador, el chip de estado seleccionado del detalle de tarea ("Pendiente", `ChoiceChip`) se ve apagado en oscuro (texto `brand` sobre `brandFill`);
   revisar en DS-13 si es el estilo deshabilitado o un contraste bajo.
+- DS-06: genstock no tiene skeleton; `GenSkeleton` es nuevo (`gen_skeleton.dart`, un controller por bloque; sin ticker si `disableAnimations`).
+  Un `pumpAndSettle` con un `LoadingView` visible se cuelga (shimmer infinito): ningún test actual lo hace, pero tests nuevos deben usar `pump(duration)` o `disableAnimations`.
+- DS-06: `AppBlockHeights` (state 240 / errorState 280) vive en `app_geometry.dart`; `ErrorView` ahora usa `FilledButton.icon` (antes `OutlinedButton`), misma key `error_retry`.

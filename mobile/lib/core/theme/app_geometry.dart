@@ -201,6 +201,14 @@ class LeadingTickBorder extends OutlinedBorder {
       Object.hash(side, tickColor, borderRadius, tickWidth, tickHeightFactor);
 }
 
+/// Alturas mínimas de bloques de estado (cargando/error/vacío) dentro de un
+/// scroll sin altura acotada. Se usan como `minHeight`, nunca como `height`
+/// fijo: a texto grande un alto fijo recortaría el mensaje.
+abstract final class AppBlockHeights {
+  static const state = 240.0;
+  static const errorState = 280.0;
+}
+
 /// Medidas del espacio de trabajo, con controles que crecen con la fuente.
 abstract final class WorkspaceMetrics {
   /// Caja de ícono del encabezado de página (sobre `brandFill`).

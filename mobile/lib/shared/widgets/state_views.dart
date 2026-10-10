@@ -1,59 +1,69 @@
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_exception.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import 'app_error_widget.dart';
+import 'app_state_block.dart';
+import 'gen_skeleton.dart';
 
 /// Mensaje legible de cualquier error (los de la API ya vienen en castellano).
 String errorMessage(Object error) => error is ApiException
     ? error.message
     : 'Ocurrió un error inesperado. Probá de nuevo.';
 
+/// Ancho máximo del mensaje de un estado vacío.
+const double _kEmptyMaxWidth = 360;
+
 class LoadingView extends StatelessWidget {
   const LoadingView({super.key});
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Cargando contenido',
-    liveRegion: true,
-    child: ExcludeSemantics(
-      child: Padding(
-        padding: AppSpace.page,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < 3; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpace.md),
-                child: Container(
-                  padding: AppSpace.page,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: AppTokens.of(context).cardRadius,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FractionallySizedBox(
-                        widthFactor: .7,
-                        child: Container(
-                          height: AppSpace.lg,
-                          color: AppTokens.of(context).field,
-                        ),
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      label: 'Cargando contenido',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: AppStateBlock(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < 3; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        border: Border.all(color: c.border),
+                        borderRadius: AppGeometry.card,
                       ),
-                      const SizedBox(height: AppSpace.md),
-                      Container(
-                        height: AppSpace.md,
-                        color: AppTokens.of(context).field,
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FractionallySizedBox(
+                            widthFactor: .7,
+                            child: GenSkeleton.text(height: AppSpacing.lg),
+                          ),
+                          SizedBox(height: AppSpacing.md),
+                          GenSkeleton.text(),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class ErrorView extends StatelessWidget {
@@ -63,43 +73,21 @@ class ErrorView extends StatelessWidget {
   final VoidCallback? onRetry;
 
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.wifi_off_outlined,
-              size: AppSpace.touch,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: AppSpace.md),
-            Semantics(
-              liveRegion: true,
-              child: Text(errorMessage(error), textAlign: TextAlign.center),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: AppSpace.md),
-              OutlinedButton(
-                key: const ValueKey('error_retry'),
-                onPressed: onRetry,
-                child: const Text('Reintentar'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppStateBlock(
+    minHeight: AppBlockHeights.errorState,
+    child: AppErrorWidget(
+      error: error,
+      onRetry: onRetry,
+      retryKey: const ValueKey('error_retry'),
+    ),
+  );
 }
 
 class EmptyView extends StatelessWidget {
   const EmptyView({
     super.key,
     required this.message,
-    this.icon = Icons.inbox_outlined,
+    this.icon = AppIcons.inbox,
   });
 
   final String message;
@@ -107,36 +95,42 @@ class EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    final c = context.colors;
+    return AppStateBlock(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpace.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: AppSpace.page,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: AppTokens.of(context).overlayRadius,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _kEmptyMaxWidth),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: AppIconSizes.state, color: c.muted),
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(color: c.muted),
               ),
-              child: Icon(
-                icon,
-                size: AppSpace.xxl,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
-              ),
-            ),
-            const SizedBox(height: AppSpace.md),
-            Text(message, textAlign: TextAlign.center),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Muestra un SnackBar con el error de una acción.
+/// Muestra un SnackBar (con el estilo del tema) con el error de una acción.
 void showErrorSnack(BuildContext context, Object error) {
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(errorMessage(error))));
+  final c = context.colors;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          Icon(AppIcons.error, size: AppIconSizes.action, color: c.danger),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(child: Text(errorMessage(error))),
+        ],
+      ),
+    ),
+  );
 }
