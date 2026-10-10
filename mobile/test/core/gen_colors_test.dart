@@ -68,6 +68,12 @@ void main() {
     expect(textOn(const Color(0xFF3B5BFA)), const Color(0xFFFFFFFF));
   });
 
+  test('readableOn elige el de mayor contraste', () {
+    expect(readableOn(GenColors.light.success), const Color(0xFF111111));
+    expect(readableOn(GenColors.light.brand), const Color(0xFFFFFFFF));
+    expect(readableOn(const Color(0xFF000000)), const Color(0xFFFFFFFF));
+  });
+
   testWidgets('context.colors lee la extensión del tema', (tester) async {
     late GenColors got;
     await tester.pumpWidget(

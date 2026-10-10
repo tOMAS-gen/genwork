@@ -15,12 +15,16 @@ class StatusChip extends StatelessWidget {
     required this.color,
     required this.fill,
     this.uppercase = false,
+    this.mono = false,
   });
 
   final String label;
   final Color color;
   final Color fill;
   final bool uppercase;
+
+  /// Texto en Roboto Mono (fechas, códigos y números).
+  final bool mono;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +57,9 @@ class StatusChip extends StatelessWidget {
         maxLines: 1,
         softWrap: false,
         overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.chip.copyWith(color: textColor),
+        style: (mono ? AppTextStyles.technical : AppTextStyles.chip).copyWith(
+          color: textColor,
+        ),
       ),
     );
   }

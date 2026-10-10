@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../data/models/task.dart';
 import '../../features/tasks/task_actions.dart';
 import '../../features/shell/resource_refresh.dart';
@@ -197,25 +200,29 @@ class _TaskComposerState extends ConsumerState<TaskComposer> {
                       enabled: !_sending && _needsDescription == null,
                       workId: widget.workId,
                       sectorId: widget.sectorId,
-                      decoration: InputDecoration(
-                        hintText: widget.hint,
-                        isDense: true,
-                      ),
+                      decoration: InputDecoration(hintText: widget.hint),
                       onSubmitted: (_) => _submit(),
                     ),
                   ),
-                  IconButton(
+                  const SizedBox(width: AppSpace.xs),
+                  IconButton.filled(
                     key: const ValueKey('task_composer_send'),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size.square(AppSpacing.xxl),
+                    ),
                     tooltip: _needsDescription == null
                         ? 'Crear tarea'
                         : 'Guardar descripción pendiente',
                     onPressed: _sending ? null : _submit,
                     icon: _sending
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                        ? SizedBox.square(
+                            dimension: AppIconSizes.field,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.colors.brand,
+                            ),
                           )
-                        : const Icon(Icons.send),
+                        : const Icon(AppIcons.send),
                   ),
                 ],
               ),

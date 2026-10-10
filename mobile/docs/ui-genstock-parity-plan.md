@@ -399,7 +399,7 @@ Patrón común para cada pantalla:
 | DS-08 | B | M | DS-04 | ✅ 2026-10-10 — 256 tests verdes (+12 en `test/shared/surfaces_test.dart`); con `UI_PREVIEWS=true` 260 |
 | DS-09 | B | M | DS-04 | ✅ 2026-10-10 — 267 tests verdes (+11 en `test/shared/search_filters_tabs_test.dart`); con `UI_PREVIEWS=true` 271 |
 | DS-10 | B | B | DS-04 | ✅ 2026-10-10 — 273 tests verdes (+5 en `test/shared/count_progress_test.dart`); con `UI_PREVIEWS=true` 277 |
-| DS-11 | C | M | B | ⬜ |
+| DS-11 | C | M | B | ✅ 2026-10-10 — 280 tests verdes (+7 en `test/shared/task_widgets_test.dart`, +1 en `gen_colors_test.dart`); con `UI_PREVIEWS=true` 284 |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
 | DS-14…DS-27 | D | B/M | C | ⬜ (paralelo) |
@@ -467,3 +467,7 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   de `ui_phase3_test.dart` y `navigation_parity_test.dart` dejaron de precargar/buscar la imagen. DS-11 (drawer) puede ajustar el tamaño (el plan decía 16).
 - DS-10: `PendingBadge` pasó a `CountBadge` (`shared/widgets/count_badge.dart`) sin typedef: se actualizaron los usos en `home_shell.dart`/`drawer_resource_section.dart` y los
   imports/tipos de `navigation_parity_test.dart` y `day_overview_test.dart` (renombre, mismo comportamiento). `ProgressLine` suma `emphasis` (relleno `brand`); ningún uso lo activa todavía.
+- DS-11: `context.colors` ahora cae a `GenColors.light/dark` según el brillo si el tema no trae la extensión (un `MaterialApp` pelado en `objectives_parity_test.dart` rompía `TaskTextController`).
+  `readableOn(bg)` (en `color_contrast.dart`) elige entre `#111111` y `#FFFFFF` por mayor contraste: `textOn` deja blanco sobre `success` (`#22C55E`) con 2.3:1; el ícono del swipe de completar usa `readableOn`.
+- DS-11: el vencimiento de `TaskTile` pasó de la línea de meta a un `StatusChip(mono: true)` con `dueText/dueFill` (`StatusChip` suma `mono`); la línea de meta conserva proyecto/sector/padre/subtareas (el test busca `1/2 subtareas` exacto).
+  Resaltado de `TaskTextController`: `/`→`tagWork`, `#`→`tagExec`, `@`→`tagRef`, `$`→`tagLabel`, fecha→`dueText` (como `TagHighlightInput.tsx`); no se usó `tagUser` (la web lo aplica si `@nombre` es un usuario conocido; el móvil no lo sabe al tipear).

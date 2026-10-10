@@ -1,7 +1,7 @@
 // Portado de genstock: frontend/lib/core/theme/gen_stock_colors.dart
 import 'package:flutter/material.dart';
 
-export 'color_contrast.dart' show textOn;
+export 'color_contrast.dart' show readableOn, textOn;
 
 /// Tokens de color semánticos de genwork móvil (valores de la web, `globals.css`).
 /// Acceso rápido: `context.colors.<token>`.
@@ -385,7 +385,14 @@ class GenColors extends ThemeExtension<GenColors> {
   }
 }
 
-/// Acceso rápido: `context.colors.brand`
+/// Acceso rápido: `context.colors.brand`. Sin la extensión en el tema (un
+/// `MaterialApp` pelado) cae a la instancia que corresponde al brillo.
 extension GenColorsX on BuildContext {
-  GenColors get colors => Theme.of(this).extension<GenColors>()!;
+  GenColors get colors {
+    final theme = Theme.of(this);
+    return theme.extension<GenColors>() ??
+        (theme.brightness == Brightness.dark
+            ? GenColors.dark
+            : GenColors.light);
+  }
 }

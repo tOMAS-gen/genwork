@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../data/models/tag_suggestion.dart';
 
 /// Solo resalta sintaxis; el servidor sigue siendo la fuente del parseo y fecha.
@@ -27,11 +28,20 @@ class TaskTextController extends TextEditingController {
         withComposing: withComposing,
       );
     }
-    final ranges = <TextRange>[];
+    final c = context.colors;
+    final ranges = <(TextRange, Color)>[];
     for (final m in tags.allMatches(text)) {
       final end = m.end - (RegExp(r'\.+$').stringMatch(m[3]!)?.length ?? 0);
       if (end > m.start + m[1]!.length + 1) {
-        ranges.add(TextRange(start: m.start + m[1]!.length, end: end));
+        ranges.add((
+          TextRange(start: m.start + m[1]!.length, end: end),
+          switch (m[2]) {
+            '/' => c.tagWorkText,
+            '#' => c.tagExecText,
+            '@' => c.tagRefText,
+            _ => c.tagLabelText,
+          },
+        ));
       }
     }
     for (final m in dates.allMatches(text)) {
@@ -42,22 +52,19 @@ class TaskTextController extends TextEditingController {
           date.day == d &&
           date.month == mo &&
           date.year == y) {
-        ranges.add(TextRange(start: m.start, end: m.end));
+        ranges.add((TextRange(start: m.start, end: m.end), c.dueText));
       }
     }
-    ranges.sort((a, b) => a.start.compareTo(b.start));
+    ranges.sort((a, b) => a.$1.start.compareTo(b.$1.start));
     final spans = <TextSpan>[];
     var at = 0;
-    for (final r in ranges) {
+    for (final (r, color) in ranges) {
       if (r.start < at) continue;
       spans.add(TextSpan(text: text.substring(at, r.start)));
       spans.add(
         TextSpan(
           text: text.substring(r.start, r.end),
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.primary,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: color, fontWeight: FontWeight.w600),
         ),
       );
       at = r.end;

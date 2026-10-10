@@ -34,3 +34,12 @@ Color appForegroundWithContrast({
 Color textOn(Color background) => background.computeLuminance() > 0.5
     ? const Color(0xFF111111)
     : const Color(0xFFFFFFFF);
+
+/// Entre `#111111` y `#FFFFFF`, el que más contrasta con [background]. Para
+/// íconos y rótulos sobre rellenos de estado, donde `textOn` (luminancia > 0.5)
+/// deja el blanco por debajo de 3:1 en verdes medios.
+Color readableOn(Color background) =>
+    appContrastRatio(const Color(0xFF111111), background) >=
+        appContrastRatio(const Color(0xFFFFFFFF), background)
+    ? const Color(0xFF111111)
+    : const Color(0xFFFFFFFF);

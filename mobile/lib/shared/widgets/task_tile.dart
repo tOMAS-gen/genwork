@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/task.dart';
 import 'color_dot.dart';
+import 'status_chip.dart';
 
 class TaskTile extends StatelessWidget {
   const TaskTile({
@@ -31,6 +35,7 @@ class TaskTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final c = context.colors;
     final canToggle =
         onToggleDone != null && !task.isContainer && task.canToggle != false;
     final canDay = onToggleMyDay != null && task.canManageMyDay != false;
@@ -38,22 +43,21 @@ class TaskTile extends StatelessWidget {
       if (showWork && task.work != null) task.work!.name,
       if (showSector && task.homeSector != null) '#${task.homeSector!.name}',
       if (task.parentText != null && depth == 0) '↳ ${task.parentText}',
-      if (task.effectiveDueDate != null)
-        'Vence ${formatDay(task.effectiveDueDate!)}${task.dueDate == null ? ' · subtareas' : ''}',
       if (task.subtaskCount > 0)
         '${task.subtaskDone}/${task.subtaskCount} subtareas',
     ];
     Widget row = Card(
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: ValueKey('task_${task.id}'),
-        borderRadius: AppTokens.of(context).cardRadius,
+        borderRadius: AppGeometry.card,
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
             AppSpace.xs,
-            AppSpace.sm,
-            AppSpace.sm,
-            AppSpace.sm,
+            AppSpace.xs,
+            AppSpace.md,
+            AppSpace.xs,
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,14 +83,11 @@ class TaskTile extends StatelessWidget {
                     children: [
                       Text(
                         task.displayText,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w500,
+                        style: theme.textTheme.titleMedium?.copyWith(
                           decoration: task.isDone
                               ? TextDecoration.lineThrough
                               : null,
-                          color: task.isDone
-                              ? theme.colorScheme.onSurfaceVariant
-                              : null,
+                          color: task.isDone ? c.muted : c.text,
                         ),
                       ),
                       if (meta.isNotEmpty) ...[
@@ -106,9 +107,18 @@ class TaskTile extends StatelessWidget {
                             hex: task.status.color,
                           ),
                           if (referenceIds.contains(task.id))
-                            const Chip(
-                              avatar: Icon(Icons.alternate_email, size: 16),
-                              label: Text('Te mencionan'),
+                            StatusChip(
+                              label: 'Te mencionan',
+                              color: c.info,
+                              fill: c.infoFill,
+                            ),
+                          if (task.effectiveDueDate != null)
+                            StatusChip(
+                              label:
+                                  'Vence ${formatDay(task.effectiveDueDate!)}${task.dueDate == null ? ' · subtareas' : ''}',
+                              color: c.dueText,
+                              fill: c.dueFill,
+                              mono: true,
                             ),
                           for (final label in task.labels)
                             ColorPill(label: label.valueName, hex: label.color),
@@ -126,17 +136,18 @@ class TaskTile extends StatelessWidget {
                       : 'Agregar a Mi día',
                   onPressed: onToggleMyDay,
                   icon: Icon(
-                    task.isInMyDay ? Icons.wb_sunny : Icons.wb_sunny_outlined,
-                    size: AppSpace.icon,
-                    color: task.isInMyDay ? theme.colorScheme.primary : null,
+                    task.isInMyDay ? AppIcons.myDayFilled : AppIcons.myDay,
+                    size: AppIconSizes.action,
+                    color: task.isInMyDay ? c.brand : c.muted,
                   ),
                 )
               else if (task.isInMyDay)
-                const Padding(
-                  padding: EdgeInsets.all(AppSpace.sm),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpace.sm),
                   child: Icon(
-                    Icons.wb_sunny_outlined,
-                    size: AppSpace.icon,
+                    AppIcons.myDay,
+                    size: AppIconSizes.action,
+                    color: c.muted,
                     semanticLabel: 'En Mi día',
                   ),
                 ),
@@ -150,16 +161,16 @@ class TaskTile extends StatelessWidget {
         alignment: day ? Alignment.centerRight : Alignment.centerLeft,
         padding: AppSpace.page,
         decoration: BoxDecoration(
-          color: theme.colorScheme.primaryContainer,
-          borderRadius: AppTokens.of(context).cardRadius,
+          color: day ? c.brandFill : c.success,
+          borderRadius: AppGeometry.card,
         ),
         child: Icon(
           day
-              ? Icons.wb_sunny_outlined
+              ? AppIcons.myDay
               : task.isDone
-              ? Icons.undo
-              : Icons.check,
-          color: theme.colorScheme.onPrimaryContainer,
+              ? AppIcons.undo
+              : AppIcons.check,
+          color: day ? c.brand : readableOn(c.success),
         ),
       );
       row = Dismissible(
