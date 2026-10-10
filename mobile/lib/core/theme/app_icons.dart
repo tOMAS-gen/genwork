@@ -10,6 +10,9 @@ abstract final class AppIconSizes {
   /// Ítems del drawer.
   static const drawer = 16.0;
 
+  /// Cierre dentro de una pestaña.
+  static const compact = 14.0;
+
   /// Campos y rail.
   static const field = 18.0;
 
@@ -51,6 +54,7 @@ abstract final class AppIcons {
   static const reorder = Icons.swap_vert_outlined;
   static const sortAsc = Icons.arrow_upward_outlined;
   static const sortDesc = Icons.arrow_downward_outlined;
+  static const tune = Icons.tune;
   static const filter = Icons.filter_list_outlined;
   static const filterActive = Icons.filter_alt_outlined;
   static const list = Icons.list_outlined;

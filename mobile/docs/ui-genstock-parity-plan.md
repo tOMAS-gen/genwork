@@ -397,7 +397,8 @@ Patrón común para cada pantalla:
 | DS-06 | B | B | DS-04 | ✅ 2026-10-10 — 233 tests verdes (+9 en `test/shared/state_views_test.dart`); con `UI_PREVIEWS=true` 237 |
 | DS-07 | B | M | DS-04 | ✅ 2026-10-10 — 244 tests verdes (+11 en `test/shared/dialogs_test.dart`); con `UI_PREVIEWS=true` 248 |
 | DS-08 | B | M | DS-04 | ✅ 2026-10-10 — 256 tests verdes (+12 en `test/shared/surfaces_test.dart`); con `UI_PREVIEWS=true` 260 |
-| DS-09…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
+| DS-09 | B | M | DS-04 | ✅ 2026-10-10 — 267 tests verdes (+11 en `test/shared/search_filters_tabs_test.dart`); con `UI_PREVIEWS=true` 271 |
+| DS-10 | B | B | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
@@ -458,3 +459,7 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-08: `GenPageScaffold` deja el header fijo y el `body` expandido; con `onRefresh` el `body` debe ser un scrollable. Aún no se migró ninguna pantalla (Fase D):
   hoy "Mi día" muestra el título dos veces (AppBar "Mi día" + `PageIntro` con la fecha) porque `PageIntro` ahora es un `GenSectionHeader` de 24/700.
 - DS-08: `BrandHeader` (login/setup) muestra el logo `genwork.png` junto a `BrandName(22)`; DS-14 lo reemplaza por `BrandName 28` centrado.
+- DS-09: `GenFilterChipBar` usa `TextButton` (no `ChoiceChip`), así que los `ChoiceChip` que los tests buscan (`task_status_*`, filtro de proyectos) quedan intactos y se estilan por `chipTheme`;
+  `TaskViewToggle` no se tocó (`SegmentedButton` + key `task_view_toggle`, estilo por tema desde DS-03; aún usa `Icons.list`/`Icons.view_column_outlined` sueltos para su tarea).
+- DS-09: `GenTabBar` se portó solo con sus modelos (`GenTabItem` = `GenTabSectionItem` sin contenido, `GenTabAction`); en estilo `quiet` la pestaña activa lleva 3 px `brand` (`kActiveTickWidth`),
+  sin íconos (teléfono). Ninguna pantalla usa aún estos widgets: se estrenan en Fase D (`WorkspaceSearchBar`, `GenFilterChipBar`/`WorkspaceSelectorBar`, `GenTabBar`, `showWorkspaceFiltersDrawer`).
