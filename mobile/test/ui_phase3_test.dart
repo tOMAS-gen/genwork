@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/task.dart';
 import 'package:genwork_mobile/data/models/work.dart';
@@ -45,6 +46,7 @@ import 'package:genwork_mobile/features/reminders/reminders_screen.dart';
 import 'package:genwork_mobile/features/reminders/reminder_form_screen.dart';
 import 'package:genwork_mobile/features/reminders/reminders_providers.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
+import 'package:genwork_mobile/shared/widgets/app_work_section.dart';
 import 'package:genwork_mobile/shared/widgets/task_tile.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
@@ -308,6 +310,104 @@ void main() {
         }
       },
     );
+  }
+  for (final dark in [false, true]) {
+    testWidgets('detalle de tarea en pantalla completa, sin bottom sheet '
+        '(${dark ? "oscuro" : "claro"})', (tester) async {
+      await _pump(
+        tester,
+        Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showTaskDetail(
+                context,
+                _task,
+                canEdit: true,
+                canManageMyDay: true,
+              ),
+              child: const Text('abrir detalle'),
+            ),
+          ),
+        ),
+        dark: dark,
+      );
+      await tester.tap(find.text('abrir detalle'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      // Ruta a pantalla completa: ni hoja inferior ni arrastre.
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(find.byType(DraggableScrollableSheet), findsNothing);
+      final route = ModalRoute.of(
+        tester.element(find.byKey(const ValueKey('task_detail_list'))),
+      )!;
+      expect(route, isA<MaterialPageRoute<void>>());
+      expect((route as MaterialPageRoute<void>).fullscreenDialog, isTrue);
+      // AppBar de 48 con el cierre y la tarea como título.
+      expect(
+        tester
+            .getSize(
+              find.descendant(
+                of: find.byType(TaskDetailSheet),
+                matching: find.byType(AppBar),
+              ),
+            )
+            .height,
+        48,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text('Preparar originales para impresión'),
+        ),
+        findsOneWidget,
+      );
+      // Secciones con AppWorkSection y borrar con estilo destructivo.
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('task_delete')),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('task_detail_list')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      // Secciones: la lista es perezosa, el historial aparece al llegar al final.
+      expect(
+        tester
+            .widgetList<AppWorkSection>(find.byType(AppWorkSection))
+            .map((w) => w.title)
+            .toSet(),
+        containsAll(['Subtareas', 'Historial']),
+      );
+      final delete = tester.widget<OutlinedButton>(
+        find.byKey(const ValueKey('task_delete')),
+      );
+      final danger = (dark ? GenColors.dark : GenColors.light).danger;
+      expect(delete.style!.foregroundColor!.resolve({}), danger);
+      // El estado vigente se ve habilitado (no atenuado).
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('task_status_open')),
+        -200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('task_detail_list')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(
+        tester
+            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_open')))
+            .onSelected,
+        isNotNull,
+      );
+      // Cerrar vuelve a la pantalla de origen.
+      await tester.tap(find.byKey(const ValueKey('task_close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('task_detail_list')), findsNothing);
+      expect(find.text('abrir detalle'), findsOneWidget);
+    });
   }
   testWidgets('búsqueda y grupo combinan filtros de proyectos', (tester) async {
     await _pump(tester, const WorksListScreen());

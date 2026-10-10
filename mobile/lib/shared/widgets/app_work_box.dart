@@ -40,7 +40,9 @@ class AppWorkBox extends StatelessWidget {
       ),
       // Recorta a la curva del bloque.
       clipBehavior: Clip.antiAlias,
-      child: child,
+      // Material transparente: los `ListTile` de adentro pintan su tinta sobre
+      // el Material más cercano, y el fondo de este bloque la taparía.
+      child: Material(type: MaterialType.transparency, child: child),
     );
   }
 }

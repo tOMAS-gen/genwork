@@ -5,19 +5,24 @@ import '../../shared/widgets/reorder_dialog.dart';
 import '../works/works_providers.dart';
 import 'task_move_dialog.dart';
 import 'package:flutter/material.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
 import '../../core/util/format.dart';
 import '../../data/models/task.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_work_section.dart';
 import '../../shared/widgets/color_dot.dart';
+import '../../shared/widgets/status_chip.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/task_composer.dart';
 import 'task_actions.dart';
 import 'task_detail_provider.dart';
 
-/// Abre el detalle de una tarea como bottom sheet.
+/// Abre el detalle de una tarea en pantalla completa.
 ///
 /// [canEdit]: permiso de modificar (si el endpoint no trae `canToggle`, lo decide
 /// el contenedor: acceso `operate` al proyecto/sector). [fromSector]: la edición de
@@ -32,19 +37,17 @@ Future<void> showTaskDetail(
   String? workId,
   String? sectorId,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    // Por encima del navegador de la sección.
-    useRootNavigator: true,
-    builder: (_) => TaskDetailSheet(
-      task: task,
-      canEdit: !readOnly && canEdit && task.canToggle != false,
-      canManageMyDay: !readOnly && (task.canManageMyDay ?? canManageMyDay),
-      fromSector: fromSector,
-      workId: workId,
-      sectorId: sectorId,
+  return Navigator.of(context, rootNavigator: true).push<void>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => TaskDetailSheet(
+        task: task,
+        canEdit: !readOnly && canEdit && task.canToggle != false,
+        canManageMyDay: !readOnly && (task.canManageMyDay ?? canManageMyDay),
+        fromSector: fromSector,
+        workId: workId,
+        sectorId: sectorId,
+      ),
     ),
   );
 }
@@ -146,7 +149,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final c = context.colors;
     final detail = ref.watch(taskDetailProvider(_query));
     final latest = detail.value;
     if (latest?.task case final Task task) _acceptTask(task);
@@ -168,34 +171,25 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
         !unavailable &&
         (latest?.canManageMyDay ?? true);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.7,
-        maxChildSize: 0.95,
-        builder: (context, scroll) => ListView(
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          key: const ValueKey('task_close'),
+          tooltip: 'Cerrar detalle',
+          onPressed: () => Navigator.pop(context),
+          icon: const Icon(AppIcons.close),
+        ),
+        title: Text(
+          _task.displayText,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: SafeArea(
+        child: ListView(
           key: const ValueKey('task_detail_list'),
-          controller: scroll,
-          padding: const EdgeInsets.all(AppSpace.lg),
+          padding: AppSpace.page,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Detalle de tarea',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                ),
-                IconButton(
-                  key: const ValueKey('task_close'),
-                  tooltip: 'Cerrar detalle',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpace.lg),
             if (_busy || detail.isLoading) const LinearProgressIndicator(),
             if (detail.hasError)
               ErrorView(
@@ -211,7 +205,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               controller: _textController,
               enabled: canEditText,
               maxLines: null,
-              style: theme.textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium,
               decoration: const InputDecoration(labelText: 'Tarea'),
               onSubmitted: (value) => _run(
                 (a) => a.updateText(
@@ -235,7 +229,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                           ),
                         )
                       : null,
-                  icon: const Icon(Icons.check),
+                  icon: const Icon(AppIcons.check),
                   label: const Text('Guardar tarea'),
                 ),
               ),
@@ -265,12 +259,18 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     },
                   ),
                 if (_task.objectiveTitle != null)
-                  Chip(label: Text(_task.objectiveTitle!)),
+                  StatusChip(
+                    label: _task.objectiveTitle!,
+                    color: c.tagWorkText,
+                    fill: c.tagWorkFill,
+                  ),
                 if (_task.effectiveDueDate != null)
-                  Chip(
-                    label: Text(
-                      'Vence ${formatDay(_task.effectiveDueDate!)}${_task.dueDate == null ? ' · subtareas' : ''}',
-                    ),
+                  StatusChip(
+                    label:
+                        'Vence ${formatDay(_task.effectiveDueDate!)}${_task.dueDate == null ? ' · subtareas' : ''}',
+                    color: c.dueText,
+                    fill: c.dueFill,
+                    mono: true,
                   ),
                 for (final link in _task.links)
                   ActionChip(
@@ -294,78 +294,95 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               ],
             ),
             const SizedBox(height: AppSpace.lg),
-            Text('Estado', style: theme.textTheme.labelLarge),
-            const SizedBox(height: AppSpace.sm),
-            Wrap(
-              spacing: AppSpace.sm,
-              children: [
-                for (final option
-                    in _task.statusOptions.isEmpty
-                        ? [_task.status]
-                        : _task.statusOptions)
-                  ChoiceChip(
-                    key: ValueKey('task_status_${option.id}'),
-                    avatar: ColorDot(hex: option.color),
-                    label: Text(option.name),
-                    selected: option.id == _task.status.id,
-                    onSelected:
-                        !canEdit ||
-                            _task.isContainer ||
-                            option.id == _task.status.id
-                        ? null
-                        : (_) => _run(
-                            (a) => a.setStatus(_task, option.id),
-                            close: true,
-                          ),
+            AppWorkSection(
+              title: 'Estado',
+              icon: AppIcons.check,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: AppSpace.sm,
+                    children: [
+                      for (final option
+                          in _task.statusOptions.isEmpty
+                              ? [_task.status]
+                              : _task.statusOptions)
+                        ChoiceChip(
+                          key: ValueKey('task_status_${option.id}'),
+                          avatar: ColorDot(hex: option.color),
+                          label: Text(option.name),
+                          selected: option.id == _task.status.id,
+                          onSelected: !canEdit || _task.isContainer
+                              ? null
+                              : option.id == _task.status.id
+                              // El estado vigente no se vuelve a elegir, pero tampoco
+                              // se pinta como deshabilitado.
+                              ? (_) {}
+                              : (_) => _run(
+                                  (a) => a.setStatus(_task, option.id),
+                                  close: true,
+                                ),
+                        ),
+                    ],
                   ),
-              ],
-            ),
-            if (canManageMyDay) ...[
-              const SizedBox(height: AppSpace.sm),
-              SwitchListTile(
-                key: const ValueKey('task_my_day_switch'),
-                contentPadding: EdgeInsets.zero,
-                title: const Text('En Mi día'),
-                subtitle: const Text('Tenela a mano para hoy'),
-                secondary: const Icon(Icons.wb_sunny_outlined),
-                value: _task.isInMyDay,
-                onChanged: _busy
-                    ? null
-                    : (value) => _run((a) async {
-                        await a.setMyDay(_task, value);
-                        _task = _task.withMyDay(value);
-                      }),
-              ),
-            ],
-            const SizedBox(height: AppSpace.sm),
-            TextField(
-              key: const ValueKey('task_description_field'),
-              controller: _descriptionController,
-              enabled: canEdit,
-              minLines: 2,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'Descripción',
-                alignLabelWithHint: true,
+                  if (canManageMyDay) ...[
+                    const SizedBox(height: AppSpace.sm),
+                    SwitchListTile(
+                      key: const ValueKey('task_my_day_switch'),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('En Mi día'),
+                      subtitle: const Text('Tenela a mano para hoy'),
+                      secondary: const Icon(AppIcons.myDay),
+                      value: _task.isInMyDay,
+                      onChanged: _busy
+                          ? null
+                          : (value) => _run((a) async {
+                              await a.setMyDay(_task, value);
+                              _task = _task.withMyDay(value);
+                            }),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (canEdit)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  key: const ValueKey('task_description_save'),
-                  onPressed: () {
-                    final text = _descriptionController.text.trim();
-                    _run(
-                      (a) => a.updateDescription(
-                        _task,
-                        text.isEmpty ? null : text,
+            const SizedBox(height: AppSpace.md),
+            AppWorkSection(
+              title: 'Descripción',
+              icon: AppIcons.document,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    key: const ValueKey('task_description_field'),
+                    controller: _descriptionController,
+                    enabled: canEdit,
+                    minLines: 2,
+                    maxLines: 6,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  if (canEdit)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        key: const ValueKey('task_description_save'),
+                        onPressed: () {
+                          final text = _descriptionController.text.trim();
+                          _run(
+                            (a) => a.updateDescription(
+                              _task,
+                              text.isEmpty ? null : text,
+                            ),
+                          );
+                        },
+                        child: const Text('Guardar descripción'),
                       ),
-                    );
-                  },
-                  child: const Text('Guardar descripción'),
-                ),
+                    ),
+                ],
               ),
+            ),
             if (canEdit)
               Wrap(
                 spacing: AppSpace.sm,
@@ -407,77 +424,91 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 ],
               ),
             if (_task.parentId == null) ...[
-              const Divider(height: AppSpace.xxl),
-              Text('Subtareas', style: theme.textTheme.labelLarge),
-              if (canEdit && _task.subtasks.length > 1)
-                TextButton.icon(
-                  key: const ValueKey('subtasks_reorder'),
-                  icon: const Icon(Icons.swap_vert),
-                  label: const Text('Ordenar subtareas'),
-                  onPressed: () => showReorderDialog(
-                    context,
-                    title: 'Ordenar subtareas',
-                    load: () async {
-                      final current = await ref.refresh(
-                        taskDetailProvider(_query).future,
-                      );
-                      if (current.task == null || !current.canOperate) {
-                        throw StateError(
-                          'La tarea no está disponible para editar.',
-                        );
-                      }
-                      return current.task!.subtasks
-                          .map((t) => (id: t.id, label: t.displayText))
-                          .toList();
-                    },
-                    save: (ids) => ref
-                        .read(taskActionsProvider)
-                        .reorderSubtasks(_task, ids),
-                  ),
+              const SizedBox(height: AppSpace.md),
+              AppWorkSection(
+                title: 'Subtareas',
+                icon: AppIcons.list,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (canEdit && _task.subtasks.length > 1)
+                      TextButton.icon(
+                        key: const ValueKey('subtasks_reorder'),
+                        icon: const Icon(AppIcons.reorder),
+                        label: const Text('Ordenar subtareas'),
+                        onPressed: () => showReorderDialog(
+                          context,
+                          title: 'Ordenar subtareas',
+                          load: () async {
+                            final current = await ref.refresh(
+                              taskDetailProvider(_query).future,
+                            );
+                            if (current.task == null || !current.canOperate) {
+                              throw StateError(
+                                'La tarea no está disponible para editar.',
+                              );
+                            }
+                            return current.task!.subtasks
+                                .map((t) => (id: t.id, label: t.displayText))
+                                .toList();
+                          },
+                          save: (ids) => ref
+                              .read(taskActionsProvider)
+                              .reorderSubtasks(_task, ids),
+                        ),
+                      ),
+                    for (final sub in _task.subtasks)
+                      CheckboxListTile(
+                        key: ValueKey('task_subtask_${sub.id}'),
+                        contentPadding: EdgeInsets.zero,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: sub.isDone,
+                        title: Text(sub.displayText),
+                        onChanged:
+                            canEdit &&
+                                sub.canToggle != false &&
+                                !sub.isContainer
+                            ? (_) => _run((a) => a.toggleDone(sub))
+                            : null,
+                      ),
+                    if (canEdit)
+                      TaskComposer(
+                        key: const ValueKey('subtask_composer'),
+                        parentId: _task.id,
+                        workId: _task.workId,
+                        sectorId: _task.workId == null
+                            ? _task.homeSector?.id
+                            : null,
+                        hint: 'Nueva subtarea…',
+                        onSubmit: (text) async {
+                          try {
+                            await ref
+                                .read(taskActionsProvider)
+                                .create(text, parentId: _task.id);
+                            return true;
+                          } catch (e) {
+                            if (context.mounted) showErrorSnack(context, e);
+                            return false;
+                          }
+                        },
+                      ),
+                  ],
                 ),
-              for (final sub in _task.subtasks)
-                CheckboxListTile(
-                  key: ValueKey('task_subtask_${sub.id}'),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                  value: sub.isDone,
-                  title: Text(sub.displayText),
-                  onChanged:
-                      canEdit && sub.canToggle != false && !sub.isContainer
-                      ? (_) => _run((a) => a.toggleDone(sub))
-                      : null,
-                ),
-              if (canEdit)
-                TaskComposer(
-                  key: const ValueKey('subtask_composer'),
-                  parentId: _task.id,
-                  workId: _task.workId,
-                  sectorId: _task.workId == null ? _task.homeSector?.id : null,
-                  hint: 'Nueva subtarea…',
-                  onSubmit: (text) async {
-                    try {
-                      await ref
-                          .read(taskActionsProvider)
-                          .create(text, parentId: _task.id);
-                      return true;
-                    } catch (e) {
-                      if (context.mounted) showErrorSnack(context, e);
-                      return false;
-                    }
-                  },
-                ),
+              ),
             ],
-            const Divider(height: AppSpace.xxl),
-            _StatusHistory(taskId: _task.id),
+            const SizedBox(height: AppSpace.md),
+            AppWorkSection(
+              title: 'Historial',
+              icon: AppIcons.schedule,
+              child: _StatusHistory(taskId: _task.id),
+            ),
             if (widget.canEdit) ...[
               const SizedBox(height: AppSpace.lg),
               OutlinedButton.icon(
                 key: const ValueKey('task_delete'),
                 onPressed: canEdit ? _confirmDelete : null,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: theme.colorScheme.error,
-                ),
-                icon: const Icon(Icons.delete_outline),
+                style: AppButtonStyles.destructiveOutlined(context),
+                icon: const Icon(AppIcons.delete),
                 label: const Text('Borrar tarea'),
               ),
             ],

@@ -315,14 +315,6 @@ abstract final class AppTheme {
         shape: const RoundedRectangleBorder(),
       ),
       dividerTheme: DividerThemeData(color: c.border, space: 1),
-      // TODO(DS-13): quitar cuando el detalle de tarea pase a pantalla completa.
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: c.surface,
-        showDragHandle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-        ),
-      ),
       dialogTheme: DialogThemeData(
         backgroundColor: c.floating,
         surfaceTintColor: Colors.transparent,

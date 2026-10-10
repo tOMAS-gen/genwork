@@ -11,4 +11,12 @@ abstract final class AppButtonStyles {
         backgroundColor: context.colors.danger,
         foregroundColor: Theme.of(context).colorScheme.onError,
       );
+
+  /// Botón de contorno para una acción destructiva (borrar): texto y borde
+  /// `danger`.
+  static ButtonStyle destructiveOutlined(BuildContext context) =>
+      OutlinedButton.styleFrom(
+        foregroundColor: context.colors.danger,
+        side: BorderSide(color: context.colors.danger),
+      );
 }

@@ -401,7 +401,7 @@ Patrón común para cada pantalla:
 | DS-10 | B | B | DS-04 | ✅ 2026-10-10 — 273 tests verdes (+5 en `test/shared/count_progress_test.dart`); con `UI_PREVIEWS=true` 277 |
 | DS-11 | C | M | B | ✅ 2026-10-10 — 280 tests verdes (+7 en `test/shared/task_widgets_test.dart`, +1 en `gen_colors_test.dart`); con `UI_PREVIEWS=true` 284 |
 | DS-12 | C | M | DS-11 | ✅ 2026-10-10 — 282 tests verdes (+2 en `navigation_parity_test.dart`); con `UI_PREVIEWS=true` 286; capturas en `../.context/ds-12/` |
-| DS-13 | C | M | DS-11 | ⬜ |
+| DS-13 | C | M | DS-11 | ✅ 2026-10-10 — 284 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 288; captura en `../.context/ds-13/` |
 | DS-14…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
@@ -476,3 +476,9 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - DS-12: nuevo `features/shell/drawer_tile.dart` (`DrawerTile`: `ListTile` con ícono 16, `selectedTileColor` brandFill y `LeadingTickBorder` activo; `compact` = sublistas 13 px, alto 44); reemplaza los
   `Material(color: ...)` pintados a mano de `home_shell.dart` y `drawer_resource_section.dart`. Ítems de primer nivel miden 48 (antes 56), sublista 44 (antes 48). `LogoutTile` (drawer y cuenta) alinea ícono/título con los ítems.
 - DS-12: "Pie: Vence hoy y Salir" se dejó como estaba (Mi cuenta · Configuración · Vence hoy · Cerrar sesión): reordenar cambiaría la navegación. El host del servidor sigue al final.
+- DS-13: la key de cierre se mantiene `task_close` (el plan decía `task_detail_close`): la regla 4 manda conservar las keys y `objectives_parity_test.dart:395` la busca. `showTaskDetail` conserva nombre y parámetros
+  y devuelve `Future<void>`; ahora hace `Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(fullscreenDialog: true))`. `TaskDetailSheet` conserva su nombre (tests) y devuelve un `Scaffold`.
+- DS-13: `AppWorkBox` envuelve su hijo en un `Material` transparente (los `ListTile`/`SwitchListTile`/`CheckboxListTile` dentro de una sección lanzaban "background color or ink splashes may be invisible").
+  Se quitó el `bottomSheetTheme` provisorio de `app_theme.dart`. `AppButtonStyles.destructiveOutlined` reemplaza el `OutlinedButton.styleFrom(foregroundColor: error)` del botón borrar (key `task_delete`).
+- DS-13: el chip del estado vigente (`task_status_<id>`) ahora tiene `onSelected: (_) {}` (antes `null`): con `null` el `ChoiceChip` seleccionado se pintaba atenuado como deshabilitado. Sin permiso o con tarea contenedor sigue `null`
+  para todas las opciones. Tareas con confirmación de borrado (`AlertDialog`, key `task_delete_confirm`) y los `ActionChip` de origen/links siguen como estaban (Fase D / diálogos).
