@@ -28,6 +28,14 @@ export async function proxy(req: NextRequest) {
   const hasSession =
     req.cookies.has("authjs.session-token") || req.cookies.has("__Secure-authjs.session-token");
 
+  // Feature 064: la app móvil no tiene cookie, manda `Bearer genwork_mob_…`. Solo
+  // se deja pasar a la API; el handler valida el token (`requireSession`) y nunca
+  // se emite ni acepta para roles CLIENT/Lector, así que el gate de cliente de
+  // abajo no pierde nada.
+  if (!hasSession && pathname.startsWith("/api/") && hasMobileBearer(req)) {
+    return NextResponse.next();
+  }
+
   if (!isPublic && !hasSession) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
@@ -62,6 +70,10 @@ export async function proxy(req: NextRequest) {
   }
 
   return NextResponse.next();
+}
+
+function hasMobileBearer(req: NextRequest): boolean {
+  return /^Bearer\s+genwork_mob_\S+$/i.test((req.headers.get("authorization") ?? "").trim());
 }
 
 export const config = {

@@ -1,0 +1,82 @@
+import '../data/repositories/objectives_repository.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../data/repositories/me_repository.dart';
+import '../data/repositories/board_repository.dart';
+import '../data/repositories/groups_repository.dart';
+import '../data/repositories/notes_repository.dart';
+import '../data/repositories/reminders_repository.dart';
+import '../data/repositories/sectors_repository.dart';
+import '../data/repositories/tasks_repository.dart';
+import '../data/repositories/works_repository.dart';
+import 'auth/session.dart';
+import 'auth/session_controller.dart';
+import 'auth/token_store.dart';
+import 'config/server_config_store.dart';
+import 'network/api_client.dart';
+
+/// Se sobreescribe en `main()` con la instancia ya cargada.
+final sharedPreferencesProvider = Provider<SharedPreferences>(
+  (ref) => throw UnimplementedError('sharedPreferencesProvider sin override'),
+);
+
+final serverConfigStoreProvider = Provider<ServerConfigStore>(
+  (ref) => ServerConfigStore(ref.watch(sharedPreferencesProvider)),
+);
+
+final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());
+
+final sessionProvider = AsyncNotifierProvider<SessionController, SessionState>(
+  SessionController.new,
+);
+
+/// Usuario logueado. Solo usar debajo del shell (sesión iniciada).
+final currentUserProvider = Provider((ref) {
+  final session = ref.watch(sessionProvider).value;
+  return session is SignedIn ? session.user : null;
+});
+
+/// Cliente de la API autenticado. Lanza si no hay sesión: las pantallas que lo
+/// usan solo existen dentro del shell.
+final apiClientProvider = Provider<ApiClient>((ref) {
+  final session = ref.watch(sessionProvider).value;
+  if (session is! SignedIn) throw StateError('apiClientProvider sin sesión');
+  return ApiClient(
+    baseUrl: session.serverUrl,
+    token: session.token,
+    onUnauthorized: () =>
+        ref.read(sessionProvider.notifier).handleUnauthorized(),
+  );
+});
+
+final meRepositoryProvider = Provider(
+  (ref) => MeRepository(ref.watch(apiClientProvider)),
+);
+final worksRepositoryProvider = Provider(
+  (ref) => WorksRepository(ref.watch(apiClientProvider)),
+);
+final tasksRepositoryProvider = Provider(
+  (ref) => TasksRepository(ref.watch(apiClientProvider)),
+);
+final sectorsRepositoryProvider = Provider(
+  (ref) => SectorsRepository(ref.watch(apiClientProvider)),
+);
+final notesRepositoryProvider = Provider(
+  (ref) => NotesRepository(ref.watch(apiClientProvider)),
+);
+final remindersRepositoryProvider = Provider(
+  (ref) => RemindersRepository(ref.watch(apiClientProvider)),
+);
+
+final groupsRepositoryProvider = Provider(
+  (ref) => GroupsRepository(ref.watch(apiClientProvider)),
+);
+
+final boardRepositoryProvider = Provider(
+  (ref) => BoardRepository(ref.watch(apiClientProvider)),
+);
+
+final objectivesRepositoryProvider = Provider(
+  (ref) => ObjectivesRepository(ref.watch(apiClientProvider)),
+);

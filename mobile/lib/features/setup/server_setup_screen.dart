@@ -1,0 +1,99 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/providers.dart';
+import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/page_intro.dart';
+import '../../core/theme/app_theme.dart';
+
+/// Primer inicio: el usuario indica la URL de su genwork. Se valida contra
+/// `/api/auth/mobile/info` y se guarda; después sigue el login con Google.
+class ServerSetupScreen extends ConsumerStatefulWidget {
+  const ServerSetupScreen({super.key});
+
+  @override
+  ConsumerState<ServerSetupScreen> createState() => _ServerSetupScreenState();
+}
+
+class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
+  final _controller = TextEditingController();
+  bool _checking = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_checking) return;
+    setState(() {
+      _checking = true;
+      _error = null;
+    });
+    try {
+      await ref.read(sessionProvider.notifier).setServer(_controller.text);
+    } catch (e) {
+      if (mounted) setState(() => _error = errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _checking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: AppSpace.contentMax),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpace.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const BrandHeader(
+                    title: 'Tu equipo,\na mano.',
+                    subtitle:
+                        'Proyectos, tareas y recordatorios. Todo listo para seguir tu día.',
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  const Text(
+                    'Ingresá la dirección de tu sistema',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpace.xl),
+                  TextField(
+                    key: const ValueKey('setup_url_field'),
+                    controller: _controller,
+                    enabled: !_checking,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.url,
+                    autocorrect: false,
+                    textInputAction: TextInputAction.go,
+                    onSubmitted: (_) => _submit(),
+                    decoration: InputDecoration(
+                      labelText: 'URL del sistema',
+                      hintText: 'work.empresa.com',
+                      errorText: _error,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.lg),
+                  FilledButton(
+                    key: const ValueKey('setup_continue'),
+                    onPressed: _checking ? null : _submit,
+                    child: _checking
+                        ? const Text('Verificando conexión…')
+                        : const Text('Continuar'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -42,6 +42,9 @@ interface Work {
 export default function GroupDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [group, setGroup] = useState<Group | null>(null);
+  // /api/groups no trae el grupo si no existe o no se puede ver: sin esto la
+  // página quedaba en el esqueleto de carga para siempre.
+  const [missing, setMissing] = useState(false);
   const [works, setWorks] = useState<Work[]>([]);
   const [selectedMember, setSelectedMember] = useState<MemberCandidate | null>(null);
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
@@ -56,7 +59,11 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
 
   const load = useCallback(() => {
     void api<Group[]>("/api/groups")
-      .then((gs) => setGroup(gs.find((g) => g.id === id) ?? null))
+      .then((gs) => {
+        const found = gs.find((g) => g.id === id) ?? null;
+        setGroup(found);
+        setMissing(found === null);
+      })
       .catch(() => {});
     void api<Work[]>(`/api/works?groupId=${id}`)
       .then(setWorks)
@@ -73,6 +80,19 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       })
       .catch(() => {});
   }, []);
+
+  if (missing) {
+    return (
+      <div className="sheet">
+        <EmptyState
+          icon={Users}
+          title="Grupo no disponible"
+          description="No existe o no tenés acceso a este grupo."
+          action={{ label: "Ver grupos", href: "/groups" }}
+        />
+      </div>
+    );
+  }
 
   if (!group) {
     return (
@@ -93,7 +113,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     const color = hex === "" ? null : hex;
     try {
       await api(`/api/groups/${id}`, { method: "PATCH", body: JSON.stringify({ color }) });
-      setGroup((prev) => prev ? { ...prev, color } : prev);
+      setGroup((prev) => (prev ? { ...prev, color } : prev));
     } catch {}
   };
 
@@ -139,6 +159,9 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
   // FR-002 (specs/049-renombrar-entidades): renombrar grupo también habilitado para SUPERADMIN global,
   // aunque no tenga membership ADMIN en este grupo puntual.
   const isSuperAdmin = globalRole === "SUPERADMIN";
+  // Mismo criterio que canManageGroup en el servidor: color, visibilidad, borrar y
+  // miembros. Antes se mostraban a cualquiera y el servidor respondía 403.
+  const canManage = isGroupAdmin || isSuperAdmin;
 
   const togglePublicRead = async () => {
     try {
@@ -161,13 +184,15 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       <div className="sheet-header">
         <div>
           <div className="sheet-title-row">
-            <ColorField
-              nullable
-              value={group.color}
-              onChange={(hex) => void changeColor(hex)}
-              ariaLabel="Color del grupo"
-              align="start"
-            />
+            {canManage && (
+              <ColorField
+                nullable
+                value={group.color}
+                onChange={(hex) => void changeColor(hex)}
+                ariaLabel="Color del grupo"
+                align="start"
+              />
+            )}
             <h1 className="sheet-title">{group.name}</h1>
           </div>
           <p className="sheet-desc">
@@ -175,26 +200,24 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
             {group.publicRead && " · Lectura pública"}
           </p>
         </div>
-        <Menu
-          items={[
-            ...(isGroupAdmin || isSuperAdmin
-              ? [
-                  {
-                    label: "Renombrar…",
-                    icon: <Pencil size={16} />,
-                    onSelect: () => setRenaming(true),
-                  },
-                ]
-              : []),
-            {
-              label: "Eliminar grupo",
-              icon: <Trash2 size={16} />,
-              danger: true,
-              onSelect: () => setConfirmDelete(true),
-            },
-          ]}
-          label="Acciones del grupo"
-        />
+        {canManage && (
+          <Menu
+            items={[
+              {
+                label: "Renombrar…",
+                icon: <Pencil size={16} />,
+                onSelect: () => setRenaming(true),
+              },
+              {
+                label: "Eliminar grupo",
+                icon: <Trash2 size={16} />,
+                danger: true,
+                onSelect: () => setConfirmDelete(true),
+              },
+            ]}
+            label="Acciones del grupo"
+          />
+        )}
       </div>
 
       {/* Visibilidad */}
@@ -203,6 +226,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           <input
             type="checkbox"
             checked={group.publicRead}
+            disabled={!canManage}
             onChange={() => void togglePublicRead()}
             style={{ width: "auto" }}
           />
@@ -213,46 +237,57 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       {/* Miembros */}
       <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
         <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>Miembros</h2>
-        <div style={{ display: "flex", gap: 8, marginBottom: "var(--space-2)", flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <MemberSearchField
-              groupId={id}
-              selected={selectedMember}
-              onSelect={setSelectedMember}
-              onClear={() => setSelectedMember(null)}
-            />
-          </div>
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN")}
-            style={{ width: 140 }}
+        {canManage && (
+          <div
+            style={{ display: "flex", gap: 8, marginBottom: "var(--space-2)", flexWrap: "wrap" }}
           >
-            <option value="MEMBER">Miembro</option>
-            <option value="ADMIN">Administrador</option>
-          </select>
-          <button className="btn btn-primary" disabled={!selectedMember} onClick={() => void addMember()}>
-            Agregar
-          </button>
-        </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <MemberSearchField
+                groupId={id}
+                selected={selectedMember}
+                onSelect={setSelectedMember}
+                onClear={() => setSelectedMember(null)}
+              />
+            </div>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN")}
+              style={{ width: 140 }}
+            >
+              <option value="MEMBER">Miembro</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+            <button
+              className="btn btn-primary"
+              disabled={!selectedMember}
+              onClick={() => void addMember()}
+            >
+              Agregar
+            </button>
+          </div>
+        )}
         {status && <p style={{ color: "var(--danger)", margin: "0 0 var(--space-2)" }}>{status}</p>}
         <div>
           {group.memberships.map((m) => (
-            <div
-              key={m.user.id}
-              className="task record-row"
-            >
+            <div key={m.user.id} className="task record-row">
               <span className="record-meta">
                 <Users size={14} className="muted" />
                 <span>{m.user.name}</span>
-                <span className="muted" style={{ fontSize: "var(--text-sm)" }}>({m.user.email})</span>
+                <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
+                  ({m.user.email})
+                </span>
                 {m.user.id === group.ownerId ? (
                   <span className="tag tag-work">admin principal</span>
                 ) : (
                   m.role === "ADMIN" && <span className="tag tag-exec">admin</span>
                 )}
               </span>
-              {m.user.id !== group.ownerId && (
-                <button className="btn" style={{ fontSize: "var(--text-sm)" }} onClick={() => void removeMember(m.user.id)}>
+              {canManage && m.user.id !== group.ownerId && (
+                <button
+                  className="btn"
+                  style={{ fontSize: "var(--text-sm)" }}
+                  onClick={() => void removeMember(m.user.id)}
+                >
                   Quitar
                 </button>
               )}
@@ -263,7 +298,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Clientes externos del grupo (feature 059): agregar por correo y marcar qué
           proyectos ve. Solo administradores; el servidor igualmente aplica el 403. */}
-      {isGroupAdmin && (
+      {canManage && (
         <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
           <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
             Clientes del grupo
@@ -273,7 +308,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Etiquetas del grupo (solo administradores; el servidor igualmente aplica el 403) */}
-      {isGroupAdmin && (
+      {canManage && (
         <div className="section-panel" style={{ marginTop: "var(--space-4)" }}>
           <h2 style={{ fontSize: "var(--text-lg)", marginBottom: "var(--space-2)" }}>
             Etiquetas del grupo
@@ -303,13 +338,27 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   key={work.id}
                   href={`/works/${work.id}`}
                   className="task"
-                  style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center", textDecoration: "none", color: "inherit" }}
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    textDecoration: "none",
+                    color: "inherit",
+                  }}
                 >
                   <span className="record-meta">
                     <strong>{work.name}</strong>
                     {work.stage && (
-                      <span className="stage-badge" style={{ color: work.stage.color || "var(--muted)" }}>
-                        <span className="stage-dot" style={{ background: work.stage.color || "var(--muted)" }} />
+                      <span
+                        className="stage-badge"
+                        style={{ color: work.stage.color || "var(--muted)" }}
+                      >
+                        <span
+                          className="stage-dot"
+                          style={{ background: work.stage.color || "var(--muted)" }}
+                        />
                         {work.stage.name}
                       </span>
                     )}
@@ -338,14 +387,10 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         }}
       />
 
-      <Dialog
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        title="Eliminar grupo"
-      >
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Eliminar grupo">
         <p className="muted" style={{ margin: 0 }}>
-          Se eliminará el grupo <strong>{group.name}</strong>. Los proyectos del grupo quedarán
-          sin grupo asignado.
+          Se eliminará el grupo <strong>{group.name}</strong> junto con sus proyectos, sectores y
+          tareas. No se puede deshacer.
         </p>
         <div className="dialog-actions">
           <button className="btn" onClick={() => setConfirmDelete(false)}>

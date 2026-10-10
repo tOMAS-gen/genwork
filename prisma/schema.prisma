@@ -130,6 +130,8 @@ model User {
   issuedClientGrants ClientWorkGrant[]  @relation("ClientGrantsIssued")
   createdObjectives  Objective[]        @relation("ObjectiveCreator")
   myDayTasks         Task[]             @relation("TaskMyDayBy")
+  mobileSessions     MobileSession[]
+  mobileAuthCodes    MobileAuthCode[]
 }
 
 model AccessConfig {
@@ -752,6 +754,42 @@ model ReminderDelivery {
   @@index([emailStatus])
 }
 
+// ─── App móvil (feature 064) ─────────────────────────────────────────────────
+
+/// Sesión de la app móvil: token Bearer de larga vida emitido al canjear un
+/// código de login. Igual que McpConnection, solo se persiste el hash.
+model MobileSession {
+  id         String    @id @default(uuid())
+  userId     String
+  deviceName String
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  integrationFlows MobileIntegrationFlow[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Código de un solo uso que el navegador del sistema le devuelve a la app vía
+/// deep link tras el login web. Se canjea por un token con PKCE (S256).
+model MobileAuthCode {
+  id            String    @id @default(uuid())
+  userId        String
+  codeHash      String    @unique
+  codeChallenge String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 // ─── Servidor MCP (feature 039) ──────────────────────────────────────────────
 
 /// Vinculación explícita entre un usuario y un asistente de IA que actúa en su
@@ -837,4 +875,24 @@ model ErrorLog {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status, lastSeenAt])
+}
+
+/// OAuth iniciado por la app: el callback solo guarda el código cifrado.
+/// Aplicar la conexión exige Bearer del mismo dispositivo y el verifier PKCE.
+model MobileIntegrationFlow {
+  id            String    @id @default(uuid())
+  sessionId     String
+  purpose       String
+  stateHash     String    @unique
+  codeChallenge String
+  redirectUri   String
+  codeEnc       String?
+  error         String?
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  session MobileSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  @@index([sessionId])
+  @@index([expiresAt])
 }

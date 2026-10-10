@@ -10,6 +10,7 @@ import { OBJECTIVE_DESCRIPTION_MAX, OBJECTIVE_TITLE_MAX } from "@/lib/domain/obj
 interface Group {
   id: string;
   name: string;
+  memberships: { userId: string }[];
 }
 
 /**
@@ -45,7 +46,18 @@ export function CreateProjectDialog({
   const router = useRouter();
 
   useEffect(() => {
-    if (open) void api<Group[]>("/api/groups").then(setGroups).catch(() => {});
+    if (!open) return;
+    // Solo grupos donde se puede crear (SA o miembro): /api/groups también trae
+    // los de lectura pública, donde el servidor rechaza crear con 403.
+    void Promise.all([api<Group[]>("/api/groups"), api<{ id: string; globalRole: string }>("/api/me")])
+      .then(([all, me]) =>
+        setGroups(
+          me.globalRole === "SUPERADMIN"
+            ? all
+            : all.filter((g) => g.memberships.some((m) => m.userId === me.id)),
+        ),
+      )
+      .catch(() => {});
   }, [open]);
 
   // Título del objetivo precargado con el nombre de la plantilla elegida.

@@ -30,6 +30,11 @@ export const POST = withApi<{ params: Promise<{ id: string }> }>(async (req, { p
     throw conflict("Ese correo todavía no ingresó al sistema; debe iniciar sesión primero");
   }
 
+  // Mismo criterio que canRemoveMember: el admin principal no se degrada.
+  if (target.id === group.ownerId && role !== "ADMIN") {
+    throw forbidden("El administrador principal del grupo conserva su rol");
+  }
+
   const membership = await prisma.groupMembership.upsert({
     where: { userId_groupId: { userId: target.id, groupId: id } },
     create: { userId: target.id, groupId: id, role },

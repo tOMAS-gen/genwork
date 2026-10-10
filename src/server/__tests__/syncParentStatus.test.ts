@@ -138,7 +138,7 @@ vi.mock("@/lib/db/client", () => ({
       // frente al `null` anterior: en ambos casos cae al fallback global (SET no tiene
       // groupId/ownerId propios), así que los 7 tests preexistentes siguen viendo lo mismo.
       findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
-        id === "work-1" ? { id: "work-1", groupId: null, ownerId: null } : null,
+        id === "work-1" ? { id: "work-1", groupId: null, ownerId: null, status: "ACTIVE" } : null,
       ),
     },
     sector: {

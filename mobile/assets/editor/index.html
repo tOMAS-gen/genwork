@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none';"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      body {
+        margin: 0;
+        background: Canvas;
+        color: CanvasText;
+        font-family: system-ui, sans-serif;
+        line-height: 1.6;
+      }
+      #toolbar {
+        display: flex;
+        overflow-x: auto;
+        position: sticky;
+        top: 0;
+        background: Canvas;
+        border-bottom: 1px solid GrayText;
+        z-index: 2;
+      }
+      button {
+        flex-shrink: 0;
+        min-width: 48px;
+        min-height: 48px;
+        font-size: 1rem;
+        background: transparent;
+        color: CanvasText;
+        border: 0;
+        padding: 8px;
+      }
+      .tiptap {
+        padding: 16px;
+        outline: none;
+        min-height: 65vh;
+        overflow-wrap: anywhere;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.3;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        table-layout: fixed;
+      }
+      td,
+      th {
+        border: 1px solid GrayText;
+        padding: 8px;
+        vertical-align: top;
+      }
+      blockquote {
+        border-left: 3px solid #5b7fff;
+        margin-left: 0;
+        padding-left: 16px;
+      }
+      pre {
+        overflow: auto;
+        padding: 12px;
+        background: light-dark(#eef0f4, #262626);
+      }
+      a {
+        color: light-dark(#2445d0, #9eafff);
+      }
+      ul[data-type="taskList"] {
+        list-style: none;
+        padding-left: 0;
+      }
+      li[data-checked] {
+        display: flex;
+        gap: 8px;
+      }
+      li[data-checked] > div {
+        flex: 1;
+      }
+      li[data-checked] > label {
+        min-width: 48px;
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      li[data-checked] input {
+        min-width: 24px;
+        min-height: 24px;
+        margin: 12px;
+      }
+      #warning:not(:empty) {
+        padding: 16px;
+        background: light-dark(#fff0cc, #42330b);
+      }
+      .selectedCell {
+        background: #5b7fff33;
+      }
+      p {
+        margin: 0.65em 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar" role="toolbar" aria-label="Formato"></div>
+    <div id="warning" role="status"></div>
+    <div id="editor"></div>
+    <script src="editor.js"></script>
+  </body>
+</html>
