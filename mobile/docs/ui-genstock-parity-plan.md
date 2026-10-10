@@ -391,7 +391,7 @@ Patrón común para cada pantalla:
 | DS-00 | A | M | — | ✅ 2026-10-09 — `dart analyze` 0 issues; `flutter test` 205 verdes; con `UI_PREVIEWS=true` 209 verdes (+4 capturas) |
 | DS-01 | A | M | DS-00 | ✅ 2026-10-09 — 211 tests verdes (+6 en `gen_colors_test.dart`) |
 | DS-02 | A | M | DS-01 | ✅ 2026-10-09 — 217 tests verdes (+6 en `theme_tokens_test.dart`) |
-| DS-03 | A | M | DS-02 | ⬜ |
+| DS-03 | A | M | DS-02 | ✅ 2026-10-09 — 217 tests verdes; con `UI_PREVIEWS=true` 221; capturas en `../.context/ds-03/` |
 | DS-04 | A | M | DS-03 | ⬜ |
 | DS-05…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
 | DS-11 | C | M | B | ⬜ |
@@ -423,3 +423,9 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   Línea de base copiada a `../.context/ds-baseline/` (mismos nombres). `phase3-*.png` son capturas de emulador viejas, no las genera el test.
 - DS-01: `dart format lib test` reformatea archivos ajenos a la tarea (`lib/core/auth/`, `lib/data/`, `lib/main.dart`, varios tests),
   que están fuera de alcance. Formateá solo lo que tocaste (`dart format <archivos>`) y no commitees el resto.
+- DS-03: se dejó un `bottomSheetTheme` mínimo en `app_theme.dart` (marcado `TODO(DS-13)`) porque `task_detail_sheet.dart:35`
+  todavía usa `showModalBottomSheet`; quitarlo en DS-13 cuando el detalle pase a pantalla completa.
+- DS-03: el chip "Pendiente" de `TaskTile` se ve con tracking ancho porque usa `textTheme.labelSmall` (ahora `sectionLabel`, 11/700/1.2 tracking).
+  Se corrige en DS-05/DS-14 cuando pase a `StatusChip`.
+- DS-03: el `Drawer` oscuro se ve `#1C1C1C` (`surface`) y no `field` (`#151515`): el widget de `home_shell.dart` fija su propio fondo. Revisar en la tarea del drawer.
+- DS-03: el `AppBar` bajó de 72 a 48 dp de alto, y `ListTile`/`ExpansionTile` conservan su padding de 16 (`AppSpace.page`); afinar en las tareas de pantallas.
