@@ -9,7 +9,7 @@ import type { PortalWorkSummary } from "./types";
 /**
  * Tarjeta de proyecto del portal (feature 059, FR-015/FR-019).
  *
- * Reusa las clases de .project-card del sistema de diseño. No es ProjectCard
+ * Reusa las clases de .card-interactive del sistema de diseño. No es ProjectCard
  * porque aquella trae botón de favorito, menú de acciones y enlace a la vista
  * interna: acá nada de eso existe.
  */
@@ -27,7 +27,7 @@ export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
   const urgency = due ? getDueDateUrgency(due) : null;
 
   return (
-    <Link href={`/portal/works/${work.id}`} className="project-card">
+    <Link href={`/portal/works/${work.id}`} className="card-interactive">
       <div className="card-header">
         <span
           className={`pc-name-pill ${primary ? "color-chip" : "pc-name-pill-default"}`}

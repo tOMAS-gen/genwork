@@ -1,6 +1,6 @@
 # Design System Master — GenWork
 
-La implementación visual sigue [GENSTOCK_PARITY.md](./GENSTOCK_PARITY.md) y [DESIGN.md](../../DESIGN.md). Los tokens de `src/app/globals.css` son la fuente ejecutable y se comparten con Tailwind. Si existe una especificación de página en `design-system/pages/`, consultarla antes de editar esa pantalla.
+La implementación visual sigue [GENSTOCK_PARITY.md](./GENSTOCK_PARITY.md) y [DESIGN.md](../../DESIGN.md). Los tokens de `@gen/ui` (`styles.css` + `themes/genwork.css`) son la fuente ejecutable y se comparten con Tailwind mediante `@gen/ui/tailwind-preset`. Un componente genérico nuevo se agrega primero a gen-ui. Si existe una especificación de página en `design-system/pages/`, consultarla antes de editar esa pantalla.
 
 ## Componentes
 

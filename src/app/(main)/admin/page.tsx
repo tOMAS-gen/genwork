@@ -14,8 +14,8 @@ export default async function AdminHome() {
   return (
     <div className="admin-page">
       <PageHeader title="Configuración" icon="settings" />
-      <div className="project-grid">
-        <Link className="project-card" href="/settings">
+      <div className="card-grid">
+        <Link className="card-interactive" href="/settings">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <User size={20} />
             <div>
@@ -24,7 +24,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/access">
+        <Link className="card-interactive" href="/admin/access">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Shield size={20} />
             <div>
@@ -33,7 +33,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/storage">
+        <Link className="card-interactive" href="/admin/storage">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <HardDrive size={20} />
             <div>
@@ -42,7 +42,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/users">
+        <Link className="card-interactive" href="/admin/users">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Users size={20} />
             <div>
@@ -51,7 +51,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/clients">
+        <Link className="card-interactive" href="/admin/clients">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Eye size={20} />
             <div>
@@ -60,7 +60,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/labels">
+        <Link className="card-interactive" href="/admin/labels">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Tag size={20} />
             <div>
@@ -69,7 +69,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/stages">
+        <Link className="card-interactive" href="/admin/stages">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Layers size={20} />
             <div>
@@ -78,7 +78,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/task-statuses">
+        <Link className="card-interactive" href="/admin/task-statuses">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <CheckSquare size={20} />
             <div>
@@ -87,7 +87,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/errors">
+        <Link className="card-interactive" href="/admin/errors">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <AlertCircle size={20} />
             <div>
@@ -96,7 +96,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/reminders">
+        <Link className="card-interactive" href="/admin/reminders">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Bell size={20} />
             <div>
@@ -105,7 +105,7 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="project-card" href="/admin/mcp">
+        <Link className="card-interactive" href="/admin/mcp">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Bot size={20} />
             <div>

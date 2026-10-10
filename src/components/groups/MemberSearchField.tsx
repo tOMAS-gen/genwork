@@ -112,8 +112,8 @@ export function MemberSearchField({
 
   if (selected) {
     return (
-      <div className="member-search-selected">
-        <div className="member-search-selected-info">
+      <div className="combobox-selected">
+        <div className="combobox-selected-info">
           <strong>{selected.name}</strong>
           <span className="muted">{selected.email}</span>
         </div>
@@ -130,11 +130,11 @@ export function MemberSearchField({
   }
 
   const showDropdown = query.trim().length >= 2;
-  const activeId = results[selectedIndex] ? `member-search-option-${results[selectedIndex].id}` : undefined;
+  const activeId = results[selectedIndex] ? `combobox-option-${results[selectedIndex].id}` : undefined;
 
   return (
-    <div className="member-search" ref={containerRef}>
-      <div className="member-search-input label-picker-search">
+    <div className="combobox" ref={containerRef}>
+      <div className="combobox-input label-picker-search">
         <Search size={15} className="label-picker-search-icon" />
         <input
           type="text"
@@ -145,34 +145,34 @@ export function MemberSearchField({
           aria-label="Buscar usuario"
           role="combobox"
           aria-expanded={showDropdown}
-          aria-controls="member-search-listbox"
+          aria-controls="combobox-listbox"
           aria-activedescendant={activeId}
         />
       </div>
 
       {showDropdown && (
-        <div className="member-search-dropdown" role="listbox" id="member-search-listbox">
+        <div className="combobox-dropdown" role="listbox" id="combobox-listbox">
           {loading && (
-            <div className="member-search-loading">Buscando…</div>
+            <div className="combobox-loading">Buscando…</div>
           )}
           {results.length === 0 && searched && !loading && (
-            <div className="member-search-empty">No se encontraron usuarios.</div>
+            <div className="combobox-empty">No se encontraron usuarios.</div>
           )}
           {results.map((user, index) => (
             <div
               key={user.id}
-              id={`member-search-option-${user.id}`}
+              id={`combobox-option-${user.id}`}
               role="option"
               aria-selected={index === selectedIndex}
-              className={`member-search-item${index === selectedIndex ? " active" : ""}`}
+              className={`combobox-item${index === selectedIndex ? " active" : ""}`}
               onMouseDown={(event) => {
                 event.preventDefault();
                 pick(user);
               }}
               onMouseMove={() => setSelectedIndex(index)}
             >
-              <span className="member-search-item-name">{user.name}</span>
-              <span className="member-search-item-email muted">{user.email}</span>
+              <span className="combobox-item-name">{user.name}</span>
+              <span className="combobox-item-email muted">{user.email}</span>
             </div>
           ))}
         </div>

@@ -136,9 +136,9 @@ export function FilterBar({
   const hasFilters = !!filters.text || activeFilters.length > 0;
 
   return (
-    <section className="project-toolbar" aria-label="Buscar, filtrar y ordenar proyectos">
-      <div className="project-toolbar-main">
-        <div className="project-search">
+    <section className="toolbar" aria-label="Buscar, filtrar y ordenar proyectos">
+      <div className="toolbar-main">
+        <div className="search-input">
           <Search size={20} aria-hidden="true" />
           <input
             ref={searchRef}
@@ -151,7 +151,7 @@ export function FilterBar({
           {filters.text && (
             <button
               type="button"
-              className="project-search-clear"
+              className="search-input-clear"
               aria-label="Borrar búsqueda"
               onClick={() => {
                 update({ text: "" });
@@ -166,7 +166,7 @@ export function FilterBar({
         <button
           ref={filterTrigger}
           type="button"
-          className="project-filter-trigger"
+          className="toolbar-filter-trigger"
           aria-expanded={expanded}
           aria-controls={panelId}
           onClick={() => setExpanded(!expanded)}
@@ -174,13 +174,13 @@ export function FilterBar({
           <SlidersHorizontal size={18} aria-hidden="true" />
           Filtros
           {activeFilters.length > 0 && (
-            <span className="project-filter-count">{activeFilters.length}</span>
+            <span className="toolbar-filter-count">{activeFilters.length}</span>
           )}
         </button>
 
-        <label className="project-sort">
+        <label className="toolbar-sort">
           <ArrowUpDown size={18} aria-hidden="true" />
-          <span className="project-sort-label">Ordenar</span>
+          <span className="toolbar-sort-label">Ordenar</span>
           <select
             aria-label="Ordenar proyectos"
             value={sortBy}
@@ -193,7 +193,7 @@ export function FilterBar({
           <ChevronDown size={16} aria-hidden="true" />
         </label>
 
-        <div className="project-view-switch" role="group" aria-label="Vista de proyectos">
+        <div className="view-switch" role="group" aria-label="Vista de proyectos">
           <button
             type="button"
             aria-label="Ver como grilla"
@@ -218,7 +218,7 @@ export function FilterBar({
       <div
         id={panelId}
         hidden={!expanded}
-        className="project-filter-panel"
+        className="toolbar-filter-panel"
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.stopPropagation();
@@ -227,8 +227,8 @@ export function FilterBar({
           }
         }}
       >
-        <div className="project-filter-fields">
-          <label className="project-filter-field">
+        <div className="toolbar-filter-fields">
+          <label className="toolbar-filter-field">
             <span>Sector</span>
             <select
               aria-label="Filtrar por sector"
@@ -243,7 +243,7 @@ export function FilterBar({
               ))}
             </select>
           </label>
-          <label className="project-filter-field">
+          <label className="toolbar-filter-field">
             <span>Etiqueta</span>
             <select
               aria-label="Filtrar por etiqueta"
@@ -258,7 +258,7 @@ export function FilterBar({
               ))}
             </select>
           </label>
-          <label className="project-filter-field">
+          <label className="toolbar-filter-field">
             <span>Estado</span>
             <select
               aria-label="Filtrar por estado"
@@ -273,7 +273,7 @@ export function FilterBar({
           </label>
         </div>
         {groups.length > 0 && (
-          <fieldset className="project-filter-groups">
+          <fieldset className="toolbar-filter-groups">
             <legend>
               Grupos <span>Podés elegir más de uno</span>
             </legend>
@@ -293,14 +293,14 @@ export function FilterBar({
         )}
       </div>
 
-      <div className="project-toolbar-summary">
-        <span className="project-result-count" role="status" aria-live="polite" aria-atomic="true">
+      <div className="toolbar-summary">
+        <span className="toolbar-count" role="status" aria-live="polite" aria-atomic="true">
           {loading
             ? "Cargando proyectos…"
             : `${resultCount} ${resultCount === 1 ? "proyecto" : "proyectos"}`}
         </span>
         {activeFilters.length > 0 && (
-          <div className="project-active-filters" aria-label="Filtros activos">
+          <div className="toolbar-chips" aria-label="Filtros activos">
             {activeFilters.map((filter) => (
               <button
                 key={filter.key}
@@ -316,7 +316,7 @@ export function FilterBar({
           </div>
         )}
         {hasFilters && (
-          <button type="button" className="project-filters-reset" onClick={clearFilters}>
+          <button type="button" className="toolbar-reset" onClick={clearFilters}>
             Limpiar filtros
           </button>
         )}

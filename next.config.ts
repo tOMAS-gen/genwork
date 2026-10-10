@@ -15,6 +15,8 @@ function gitShortSha(): string {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // @gen/ui se publica como fuente TS/TSX (sin build): Next la transpila.
+  transpilePackages: ["@gen/ui"],
   env: {
     GIT_SHA: gitShortSha(),
   },

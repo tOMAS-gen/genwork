@@ -21,7 +21,7 @@ import type { SectorSection } from "@/components/sectors/groupSectorsByScope";
  * navegador: hay que neutralizarlos a mano. El outline de foco lo pone la regla
  * global `:focus-visible` de globals.css.
  */
-export const SECTION_HEADER_BUTTON_CLASS = "sector-section-toggle";
+export const SECTION_HEADER_BUTTON_CLASS = "section-toggle";
 
 export function SectorSectionHeader({
   section,

@@ -66,12 +66,12 @@ export function ProjectCard({
   const urgency = parsedDue ? getDueDateUrgency(parsedDue) : null;
 
   return (
-    <div className="project-card">
+    <div className="card-interactive">
       {/* Link "estirado" a toda la card (patrón stretched-link): así el resto
           del contenido puede seguir teniendo botones propios (favorito, menú)
           sin anidar controles interactivos dentro de un <a>, que es HTML
           inválido y rompe el foco/tab. */}
-      <Link href={`/works/${project.id}`} className="project-card-link" aria-label={project.name} />
+      <Link href={`/works/${project.id}`} className="card-link" aria-label={project.name} />
 
       {/* Row 1: pill nombre + star + menu */}
       <div className="card-header">
@@ -84,7 +84,7 @@ export function ProjectCard({
         >
           {project.name.toUpperCase()}
         </span>
-        <div className="project-card-actions">
+        <div className="card-actions">
           {project.isTemplate && (
             <span className="pc-template-badge" title="Plantilla" aria-label="Plantilla">
               <BookTemplate size={14} />

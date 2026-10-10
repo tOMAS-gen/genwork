@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentType } from "react";
+import { Tabs } from "@gen/ui";
 
 interface TabItem {
   key: string;
@@ -8,6 +9,7 @@ interface TabItem {
   icon: ComponentType<{ size?: number }>;
 }
 
+/** Pestañas del detalle de proyecto: `Tabs` de @gen/ui (flechas, Home, End). */
 export function ProjectTabs({
   items,
   activeKey,
@@ -21,40 +23,5 @@ export function ProjectTabs({
   panelId?: string;
   ariaLabel?: string;
 }) {
-  return (
-    <div className="project-tabs" role="tablist" aria-label={ariaLabel}>
-      {items.map((item, index) => {
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            role="tab"
-            id={panelId ? `${panelId}-tab-${item.key}` : undefined}
-            aria-controls={panelId}
-            aria-selected={item.key === activeKey}
-            tabIndex={item.key === activeKey ? 0 : -1}
-            onKeyDown={(event) => {
-              let next = index;
-              if (event.key === "ArrowRight") next = (index + 1) % items.length;
-              else if (event.key === "ArrowLeft") next = (index - 1 + items.length) % items.length;
-              else if (event.key === "Home") next = 0;
-              else if (event.key === "End") next = items.length - 1;
-              else return;
-              event.preventDefault();
-              onChange(items[next].key);
-              event.currentTarget.parentElement
-                ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-                [next]?.focus();
-            }}
-            className={item.key === activeKey ? "active" : ""}
-            onClick={() => onChange(item.key)}
-          >
-            <Icon size={16} aria-hidden="true" />
-            {item.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+  return <Tabs items={items} activeKey={activeKey} onChange={onChange} panelId={panelId} ariaLabel={ariaLabel} />;
 }

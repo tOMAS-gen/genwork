@@ -53,7 +53,7 @@ export function ProjectListRow({
       style={{ cursor: "pointer" }}
     >
       <td>
-        <div className="col-project">
+        <div className="col-primary">
           {color && <span className="project-dot color-dot" style={{ "--c": color } as React.CSSProperties} />}
           <div>
             <strong>{project.name}</strong>
@@ -68,7 +68,7 @@ export function ProjectListRow({
       <td>{project.group ? project.group.name : "Personal"}</td>
       <td>
         {(project.labels.length > 0 || project.stage) && (
-          <div className="col-labels">
+          <div className="col-chips">
             {project.labels.map((l) => (
               <span key={l.valueId} className="label-chip color-chip" style={{ "--c": l.color } as React.CSSProperties}>
                 {l.valueName}
