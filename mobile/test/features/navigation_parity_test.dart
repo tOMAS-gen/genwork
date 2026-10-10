@@ -25,6 +25,7 @@ import 'package:genwork_mobile/features/shell/drawer_items.dart';
 import 'package:genwork_mobile/features/shell/drawer_resource_section.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/works/works_filter.dart';
+import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -568,6 +569,30 @@ void main() {
     },
   );
 
+  testWidgets('drawer: cabecera con la marca ›genwork y sin ícono', (
+    tester,
+  ) async {
+    await _mount(tester, _Fixture(), path: Routes.notes);
+    await _open(tester);
+    final brand = find.descendant(
+      of: find.byType(Drawer),
+      matching: find.byType(BrandName),
+    );
+    expect(brand, findsOneWidget);
+    final span =
+        tester
+                .widget<RichText>(
+                  find.descendant(of: brand, matching: find.byType(RichText)),
+                )
+                .text
+            as TextSpan;
+    expect(span.children!.map((c) => (c as TextSpan).text).join(), '›genwork');
+    expect(
+      find.descendant(of: find.byType(Drawer), matching: find.byType(Image)),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('drawer_close')), findsOneWidget);
+  });
   testWidgets('drawer muestra carga hasta recibir los contadores', (
     tester,
   ) async {
@@ -615,12 +640,6 @@ void main() {
       ) async {
         await _mount(tester, _Fixture(), dark: dark);
         await _open(tester);
-        await tester.runAsync(
-          () => precacheImage(
-            const AssetImage('assets/brand/genwork.png'),
-            tester.element(find.byType(Drawer)),
-          ),
-        );
         await tester.pumpAndSettle();
         // Los dos grupos expandidos, con el contenido real de la API simulada.
         await _drawerTap(tester, 'nav_sectors_toggle');
@@ -632,17 +651,6 @@ void main() {
             .first;
         tester.state<ScrollableState>(scroll).position.jumpTo(0);
         await tester.pumpAndSettle();
-        final logo = tester.renderObject<RenderImage>(
-          find
-              .descendant(
-                of: find.byType(Drawer),
-                matching: find.byType(RawImage),
-              )
-              .first,
-        );
-        expect(logo.image, isNotNull);
-        logo.markNeedsPaint();
-        await tester.pump();
         await tester.runAsync(() async {
           final boundary = tester.renderObject<RenderRepaintBoundary>(
             find.byKey(const ValueKey('nav_preview')),

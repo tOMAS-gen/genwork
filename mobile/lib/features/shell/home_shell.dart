@@ -10,8 +10,10 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/session.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_drawer_scope.dart';
+import '../../shared/widgets/brand_name.dart';
 import 'live_refresher.dart';
 import 'drawer_items.dart';
 import 'drawer_resource_section.dart';
@@ -179,24 +181,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   ),
                   child: Row(
                     children: [
-                      Image.asset(
-                        'assets/brand/genwork.png',
-                        width: AppSpace.xxl,
-                        height: AppSpace.xxl,
-                        excludeFromSemantics: true,
-                      ),
-                      const SizedBox(width: AppSpace.md),
-                      Expanded(
-                        child: Text(
-                          'genwork',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ),
+                      const Expanded(child: BrandName(size: 20)),
                       IconButton(
                         key: const ValueKey('drawer_close'),
                         tooltip: 'Cerrar menú',
                         onPressed: _closeDrawer,
-                        icon: const Icon(Icons.close),
+                        icon: const Icon(AppIcons.close),
                       ),
                     ],
                   ),

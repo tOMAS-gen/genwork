@@ -463,3 +463,5 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   `TaskViewToggle` no se tocó (`SegmentedButton` + key `task_view_toggle`, estilo por tema desde DS-03; aún usa `Icons.list`/`Icons.view_column_outlined` sueltos para su tarea).
 - DS-09: `GenTabBar` se portó solo con sus modelos (`GenTabItem` = `GenTabSectionItem` sin contenido, `GenTabAction`); en estilo `quiet` la pestaña activa lleva 3 px `brand` (`kActiveTickWidth`),
   sin íconos (teléfono). Ninguna pantalla usa aún estos widgets: se estrenan en Fase D (`WorkspaceSearchBar`, `GenFilterChipBar`/`WorkspaceSelectorBar`, `GenTabBar`, `showWorkspaceFiltersDrawer`).
+- Pedido del usuario (entre DS-09 y DS-10): el drawer ya no lleva el ícono `genwork.png`; la cabecera muestra `BrandName(size: 20)` («›gen» `brand` + «work» `text`). Los capturadores `UI_PREVIEWS`
+  de `ui_phase3_test.dart` y `navigation_parity_test.dart` dejaron de precargar/buscar la imagen. DS-11 (drawer) puede ajustar el tamaño (el plan decía 16).

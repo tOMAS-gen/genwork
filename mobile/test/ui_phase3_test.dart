@@ -47,6 +47,7 @@ import 'package:genwork_mobile/features/reminders/reminders_providers.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
 import 'package:genwork_mobile/shared/widgets/task_tile.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
+import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 final _task = Task.fromJson({
@@ -594,24 +595,14 @@ void main() {
         );
         await tester.tap(find.byKey(const ValueKey('drawer_open')));
         await tester.pumpAndSettle();
-        await tester.runAsync(
-          () => precacheImage(
-            const AssetImage('assets/brand/genwork.png'),
-            tester.element(find.byType(HomeShell)),
-          ),
-        );
         await tester.pumpAndSettle();
-        final image = tester.renderObject<RenderImage>(
-          find
-              .descendant(
-                of: find.byType(Drawer),
-                matching: find.byType(RawImage),
-              )
-              .first,
+        expect(
+          find.descendant(
+            of: find.byType(Drawer),
+            matching: find.byType(BrandName),
+          ),
+          findsOneWidget,
         );
-        expect(image.image, isNotNull);
-        image.markNeedsPaint();
-        await tester.pump();
         await tester.runAsync(() async {
           final boundary = tester.renderObject<RenderRepaintBoundary>(
             find.byKey(const ValueKey('preview')),
