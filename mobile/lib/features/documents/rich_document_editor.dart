@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/error_text.dart';
+import '../../shared/widgets/gen_skeleton.dart';
 import '../files/files_providers.dart';
 
 /// Injectable editor boundary for widget tests; the bundled TipTap is tested in
@@ -94,7 +100,8 @@ class _RichDocumentEditorState extends ConsumerState<RichDocumentEditor> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _web.setBackgroundColor(Theme.of(context).colorScheme.surface);
+    // El mismo `page` del tema: el CSS del editor usa sus tokens.
+    _web.setBackgroundColor(context.colors.page);
     if (_ready) {
       final dark = Theme.of(context).brightness == Brightness.dark;
       final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
@@ -157,16 +164,10 @@ class _RichDocumentEditorState extends ConsumerState<RichDocumentEditor> {
         }
       case 'linkRequest':
         var text = '';
-        final value = await showDialog<String>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Insertar enlace'),
-            content: TextField(
-              key: const ValueKey('document_link_url'),
-              onChanged: (value) => text = value,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: 'URL https://'),
-            ),
+        final value = await showAppFormDialog<String>(
+          context,
+          builder: (context) => AppWorkDialog(
+            title: 'Insertar enlace',
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
@@ -183,6 +184,12 @@ class _RichDocumentEditorState extends ConsumerState<RichDocumentEditor> {
                 child: const Text('Insertar'),
               ),
             ],
+            child: TextField(
+              key: const ValueKey('document_link_url'),
+              onChanged: (value) => text = value,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(labelText: 'URL https://'),
+            ),
           ),
         );
         if (value != null && mounted) {
@@ -203,8 +210,27 @@ class _RichDocumentEditorState extends ConsumerState<RichDocumentEditor> {
   Widget build(BuildContext context) => Stack(
     children: [
       WebViewWidget(key: ValueKey(widget.bodyKey), controller: _web),
-      if (!_ready) const Center(child: CircularProgressIndicator()),
-      if (_error != null) Center(child: Text(_error!)),
+      // Mientras carga el editor: skeleton en lugar de un spinner.
+      if (!_ready && _error == null)
+        const Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FractionallySizedBox(
+                widthFactor: .6,
+                child: GenSkeleton.text(height: AppSpacing.lg),
+              ),
+              SizedBox(height: AppSpacing.md),
+              GenSkeleton.text(),
+              SizedBox(height: AppSpacing.xs),
+              GenSkeleton.text(),
+              SizedBox(height: AppSpacing.xs),
+              FractionallySizedBox(widthFactor: .8, child: GenSkeleton.text()),
+            ],
+          ),
+        ),
+      if (_error != null) Center(child: ErrorText(_error!)),
     ],
   );
 }

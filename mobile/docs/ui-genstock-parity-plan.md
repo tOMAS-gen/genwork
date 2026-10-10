@@ -413,7 +413,8 @@ Patrón común para cada pantalla:
 | DS-18 | D | B | C | ✅ 2026-10-10 — 311 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 315; comparada con la web (lista y detalle) |
 | DS-19 | D | B | C | ✅ 2026-10-10 — 312 tests verdes (+1 en `day_overview_test.dart`); con `UI_PREVIEWS=true` 316; comparada con la web (`/board`) |
 | DS-20 | D | B | C | ✅ 2026-10-10 — 313 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 317; comparada con la web (`/notes`) |
-| DS-21…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-21 | D | M | C | ✅ 2026-10-10 — 316 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 320; comparada con la web (`/notes`, documentos de proyecto) y verificada en el emulador |
+| DS-22…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -535,3 +536,8 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   El app mantiene su lista de notas (es un diseño móvil: varias notas) pero con ese encabezado (`GenPageScaffold`, «+» = key `notes_create`, ya no FAB) y una card por nota: ícono de documento, título 14/600, fecha en Mono 12 `muted` y extracto de 2 líneas `muted` (antes 3, y fecha+extracto en un solo texto).
   `AppIcons.notes` pasó a `description_outlined` (la web usa FileText, también en el drawer). El detalle de nota es `DocumentScreen` (compartido con documentos de proyecto): su AppBar/título/estado de guardado y el editor se rehacen en DS-21; el aviso de «nota con formato» que pedía el plan no existe hoy en el editor
   (`_unsupported` solo deshabilita Exportar) y queda para DS-21. Capturas: `../.context/ds-20/`.
+- DS-21 (comparada con la web `/notes` y la pestaña Documentos de un proyecto, 390 px): el CSS del editor TipTap (`assets/editor/index.html`) ahora usa los tokens de la sección 2.1 vía `light-dark()` (`--page`, `--surface`, `--field`, `--text`, `--muted`, `--border`, `--brand`, `--brand-fill`, `--warning-*`, radio 6) con los valores de la web:
+  cuerpo 16/1.7 (NO 13: el plan decía 13, la web usa 16 en el contenido), h2 1.4em/600 (22.4 px), h1 1.6em/700, párrafos con 8 px de margen inferior, cita con borde de 3 px `brand` + texto `muted`, tabla con celdas 10×12, `th` en `field`/600, enlaces `brand` subrayados, checklist con casilla `brand` y tarea hecha tachada `muted`,
+  código en RobotoMono sobre `field`. Fuentes Montserrat/RobotoMono cargadas desde `../fonts/*.ttf` (CSP con `font-src 'self'`; verificado en el emulador). El aviso «Este documento contiene un formato no compatible…» (el «nota con formato» del plan) ya vivía en el HTML (`#warning`): ahora lleva `warning-fill`/`warning-text`.
+  `RichDocumentEditor`: fondo del WebView = `page`, skeleton (`GenSkeleton`) en lugar del spinner, error con `ErrorText`, «Insertar enlace» con `AppWorkDialog`. `DocumentScreen` (notas y documentación de proyecto): AppBar con la marca y un `GenSectionHeader` («Nota»/«Documentación») con ✓ guardar y «⋮» opciones a la derecha, como el encabezado de la web
+  (keys `note_save`/`document_save`/`document_options` intactas). La barra de herramientas del editor queda en `surface` con texto `muted` (la web usa su propia barra flotante). Capturas: `../.context/ds-21/`.

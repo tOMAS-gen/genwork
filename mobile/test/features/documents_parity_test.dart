@@ -17,6 +17,8 @@ import 'package:genwork_mobile/features/documents/document_draft.dart';
 import 'package:genwork_mobile/features/documents/document_screen.dart';
 import 'package:genwork_mobile/features/documents/rich_document_editor.dart';
 import 'package:genwork_mobile/features/files/files_screen.dart';
+import 'package:genwork_mobile/shared/widgets/brand_name.dart';
+import 'package:genwork_mobile/shared/widgets/gen_section_header.dart';
 import 'package:genwork_mobile/features/files/file_shares_screen.dart';
 import '../rich_editor_fake.dart';
 import 'resource_operations_test.dart' show tap;
@@ -314,6 +316,53 @@ void main() {
       await expectLater(repo.image(src), throwsFormatException);
     }
   });
+  testWidgets('DS-21 nota: encabezado de la web con ✓ y opciones', (t) async {
+    final f = Fixture();
+    await mount(
+      t,
+      f,
+      const DocumentScreen(noteId: 'n', title: 'Nota', content: rich),
+    );
+    final header = find.byType(GenSectionHeader);
+    expect(header, findsOneWidget);
+    expect(find.byType(BrandName), findsOneWidget); // AppBar con la marca
+    for (final key in ['note_save', 'document_options']) {
+      expect(
+        find.descendant(of: header, matching: find.byKey(ValueKey(key))),
+        findsOneWidget,
+        reason: key,
+      );
+    }
+    expect(
+      t.widget<IconButton>(find.byKey(const ValueKey('note_save'))).onPressed,
+      isNull, // nada para guardar todavía
+    );
+  });
+  test(
+    'DS-21 el CSS del editor usa los tokens de genwork, sin colores del sistema',
+    () {
+      final html = File('assets/editor/index.html').readAsStringSync();
+      for (final token in [
+        '--brand: light-dark(#3b5bfa, #5b7fff)',
+        '--page: light-dark(#f4f5f8, #0c0c0c)',
+        '--field: light-dark(#f1f3f6, #151515)',
+        '--text: light-dark(#111118, #f0f0f0)',
+        '--muted: light-dark(#5c5c70, #959595)',
+        '--radius: 6px',
+        'font-family: "Montserrat"',
+        "font-src 'self'",
+      ]) {
+        expect(html, contains(token), reason: token);
+      }
+      // Nada de colores de sistema (Canvas/GrayText) ni azules sueltos.
+      for (final legacy in ['Canvas', 'GrayText', '#5b7fff33', '#9eafff']) {
+        expect(html.contains(legacy), isFalse, reason: legacy);
+      }
+      // Las fuentes que referencia el CSS existen en los assets.
+      expect(File('assets/fonts/Montserrat.ttf').existsSync(), isTrue);
+      expect(File('assets/fonts/RobotoMono.ttf').existsSync(), isTrue);
+    },
+  );
   testWidgets('nota con formato guarda título sin aplanar contenido', (
     t,
   ) async {

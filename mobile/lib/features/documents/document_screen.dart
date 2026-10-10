@@ -7,6 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../core/network/api_exception.dart';
 import '../../shared/widgets/async_value_view.dart';
+import '../../core/theme/app_icons.dart';
+import '../../shared/widgets/brand_name.dart';
+import '../../shared/widgets/gen_section_header.dart';
 import '../../shared/widgets/state_views.dart';
 import '../works/works_providers.dart';
 import '../files/files_providers.dart';
@@ -245,59 +248,63 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
       if (context.mounted && !_draft.dirty) Navigator.pop(context);
     },
     child: Scaffold(
-      appBar: AppBar(
-        title: Text(widget.noteId != null ? 'Nota' : 'Documentación'),
-        actions: [
-          if (widget.editable)
-            IconButton(
-              key: ValueKey(
-                widget.noteId != null ? 'note_save' : 'document_save',
-              ),
-              tooltip:
-                  'Guardar ${widget.noteId != null ? 'nota' : 'documento'}',
-              onPressed: _draft.dirty && !_draft.saving ? _draft.save : null,
-              icon: const Icon(Icons.check),
-            ),
-          PopupMenuButton<String>(
-            key: const ValueKey('document_options'),
-            tooltip: 'Opciones del documento',
-            onSelected: (v) {
-              if (v == 'import') _import();
-              if (v == 'export') _editor.command('export');
-              if (v == 'image') _image();
-              if (v == 'delete') _delete();
-            },
-            itemBuilder: (_) => [
-              if (_editable)
-                PopupMenuItem(
-                  value: 'import',
-                  enabled: !_fileBusy,
-                  child: const Text('Importar .md'),
-                ),
-              PopupMenuItem(
-                value: 'export',
-                enabled: !_unsupported,
-                child: const Text('Exportar .md'),
-              ),
-              if (_editable && widget.workId != null)
-                PopupMenuItem(
-                  value: 'image',
-                  enabled: !_fileBusy,
-                  child: const Text('Adjuntar imagen'),
-                ),
-              if (widget.noteId != null)
-                PopupMenuItem(
-                  key: const ValueKey('note_delete'),
-                  value: 'delete',
-                  enabled: !_draft.saving && !_fileBusy,
-                  child: const Text('Borrar nota'),
-                ),
-            ],
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const BrandName(size: 16)),
       body: Column(
         children: [
+          GenSectionHeader(
+            title: widget.noteId != null ? 'Nota' : 'Documentación',
+            icon: widget.noteId != null ? AppIcons.notes : AppIcons.document,
+            actions: [
+              if (widget.editable)
+                IconButton(
+                  key: ValueKey(
+                    widget.noteId != null ? 'note_save' : 'document_save',
+                  ),
+                  tooltip:
+                      'Guardar ${widget.noteId != null ? 'nota' : 'documento'}',
+                  onPressed: _draft.dirty && !_draft.saving
+                      ? _draft.save
+                      : null,
+                  icon: const Icon(AppIcons.check),
+                ),
+              PopupMenuButton<String>(
+                key: const ValueKey('document_options'),
+                tooltip: 'Opciones del documento',
+                onSelected: (v) {
+                  if (v == 'import') _import();
+                  if (v == 'export') _editor.command('export');
+                  if (v == 'image') _image();
+                  if (v == 'delete') _delete();
+                },
+                itemBuilder: (_) => [
+                  if (_editable)
+                    PopupMenuItem(
+                      value: 'import',
+                      enabled: !_fileBusy,
+                      child: const Text('Importar .md'),
+                    ),
+                  PopupMenuItem(
+                    value: 'export',
+                    enabled: !_unsupported,
+                    child: const Text('Exportar .md'),
+                  ),
+                  if (_editable && widget.workId != null)
+                    PopupMenuItem(
+                      value: 'image',
+                      enabled: !_fileBusy,
+                      child: const Text('Adjuntar imagen'),
+                    ),
+                  if (widget.noteId != null)
+                    PopupMenuItem(
+                      key: const ValueKey('note_delete'),
+                      value: 'delete',
+                      enabled: !_draft.saving && !_fileBusy,
+                      child: const Text('Borrar nota'),
+                    ),
+                ],
+              ),
+            ],
+          ),
           if (widget.noteId != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -350,7 +357,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
                   IconButton(
                     tooltip: 'Cancelar subida',
                     onPressed: () => _cancel?.cancel(),
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(AppIcons.close),
                   ),
               ],
             ),

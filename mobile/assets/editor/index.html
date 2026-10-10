@@ -5,9 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data:; connect-src 'none';"
+      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; font-src 'self'; img-src data:; connect-src 'none';"
     />
     <style>
+      /* Tokens de genwork (sección 2.1 del plan de paridad): claro / oscuro vía
+         `color-scheme`, que fija `nativeEditor.init/style` desde Flutter. */
+      @font-face {
+        font-family: "Montserrat";
+        src: url("../fonts/Montserrat.ttf");
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: "RobotoMono";
+        src: url("../fonts/RobotoMono.ttf");
+        font-weight: 100 700;
+      }
+      :root {
+        --page: light-dark(#f4f5f8, #0c0c0c);
+        --surface: light-dark(#ffffff, #1c1c1c);
+        --field: light-dark(#f1f3f6, #151515);
+        --text: light-dark(#111118, #f0f0f0);
+        --muted: light-dark(#5c5c70, #959595);
+        --border: light-dark(#d2d6dd, #272727);
+        --outline: light-dark(#e3e6eb, #333333);
+        --brand: light-dark(#3b5bfa, #5b7fff);
+        --brand-fill: light-dark(#eef1ff, #171c2e);
+        --warning-fill: light-dark(#fffbeb, #2a2310);
+        --warning-text: light-dark(#92400e, #fcd34d);
+        --radius: 6px;
+      }
       * {
         box-sizing: border-box;
       }
@@ -16,29 +42,35 @@
       }
       body {
         margin: 0;
-        background: Canvas;
-        color: CanvasText;
-        font-family: system-ui, sans-serif;
-        line-height: 1.6;
+        background: var(--page);
+        color: var(--text);
+        font-family: "Montserrat", system-ui, sans-serif;
+        line-height: 1.7;
       }
       #toolbar {
         display: flex;
         overflow-x: auto;
         position: sticky;
         top: 0;
-        background: Canvas;
-        border-bottom: 1px solid GrayText;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
         z-index: 2;
       }
       button {
         flex-shrink: 0;
         min-width: 48px;
         min-height: 48px;
-        font-size: 1rem;
+        font-family: inherit;
+        font-size: 0.8125rem;
+        font-weight: 600;
         background: transparent;
-        color: CanvasText;
+        color: var(--muted);
         border: 0;
         padding: 8px;
+      }
+      button:active {
+        color: var(--brand);
+        background: var(--brand-fill);
       }
       .tiptap {
         padding: 16px;
@@ -49,11 +81,32 @@
       h1,
       h2,
       h3 {
-        line-height: 1.3;
+        line-height: 1.35;
+        font-weight: 600;
+        margin: 1.25em 0 0.5em;
+      }
+      h1 {
+        font-size: 1.6em;
+        font-weight: 700;
+      }
+      h2 {
+        font-size: 1.4em;
+      }
+      h3 {
+        font-size: 1.15em;
+      }
+      p {
+        margin: 0 0 0.5em;
       }
       img {
         max-width: 100%;
         height: auto;
+        border-radius: var(--radius);
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 1.25em 0;
       }
       table {
         border-collapse: collapse;
@@ -62,22 +115,37 @@
       }
       td,
       th {
-        border: 1px solid GrayText;
-        padding: 8px;
+        border: 1px solid var(--border);
+        padding: 10px 12px;
         vertical-align: top;
       }
+      th {
+        background: var(--field);
+        font-weight: 600;
+        text-align: left;
+      }
       blockquote {
-        border-left: 3px solid #5b7fff;
-        margin-left: 0;
-        padding-left: 16px;
+        border-left: 3px solid var(--brand);
+        margin: 1em 0;
+        padding: 4px 16px;
+        color: var(--muted);
       }
       pre {
         overflow: auto;
         padding: 12px;
-        background: light-dark(#eef0f4, #262626);
+        background: var(--field);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        font-family: "RobotoMono", ui-monospace, monospace;
+        font-size: 0.875em;
+      }
+      code {
+        font-family: "RobotoMono", ui-monospace, monospace;
+        font-size: 0.875em;
       }
       a {
-        color: light-dark(#2445d0, #9eafff);
+        color: var(--brand);
+        text-decoration: underline;
       }
       ul[data-type="taskList"] {
         list-style: none;
@@ -90,6 +158,10 @@
       li[data-checked] > div {
         flex: 1;
       }
+      li[data-checked="true"] > div {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
       li[data-checked] > label {
         min-width: 48px;
         min-height: 48px;
@@ -101,16 +173,20 @@
         min-width: 24px;
         min-height: 24px;
         margin: 12px;
+        accent-color: var(--brand);
       }
       #warning:not(:empty) {
-        padding: 16px;
-        background: light-dark(#fff0cc, #42330b);
+        margin: 16px;
+        padding: 12px 16px;
+        background: var(--warning-fill);
+        color: var(--warning-text);
+        border: 1px solid var(--warning-text);
+        border-radius: var(--radius);
+        font-size: 0.8125rem;
+        line-height: 1.5;
       }
       .selectedCell {
-        background: #5b7fff33;
-      }
-      p {
-        margin: 0.65em 0;
+        background: var(--brand-fill);
       }
     </style>
   </head>
