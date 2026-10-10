@@ -415,7 +415,8 @@ Patrón común para cada pantalla:
 | DS-20 | D | B | C | ✅ 2026-10-10 — 313 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 317; comparada con la web (`/notes`) |
 | DS-21 | D | M | C | ✅ 2026-10-10 — 316 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 320; comparada con la web (`/notes`, documentos de proyecto) y verificada en el emulador |
 | DS-22 | D | B | C | ✅ 2026-10-10 — 318 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 322. comparada con la web una vez resuelto el servidor dev (ver Hallazgos) |
-| DS-23…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-23 | D | B | C | ✅ 2026-10-10 — 318 tests verdes. comparada con la web (lista y detalle de grupo a 390 px) |
+| DS-24…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -548,3 +549,4 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 - **Servidor dev (2026-10-10, ~09:30)**: `next dev -p 3011` (Turbopack) empezó a devolver 500 con «Module not found: Can't resolve '@vercel/turbopack-next/internal/font/google/font'» (`roboto_mono`, de `src/app/layout.tsx`; la red y la base `:5433` estaban bien; reiniciar con Turbopack no lo arregló).
   Se reinició (con el visto bueno del usuario) con **webpack**, que sí funciona: `DATABASE_URL=<.env.local con la base genwork_mobile_dev> AUTH_URL=http://localhost:3011 DEV_AUTH=true npx next dev --webpack -p 3011` (log en `/tmp/genwork-next.log`). Es un arreglo local: no se tocó el código web.
   Con el servidor sano la comparación de DS-22 mostró un único cambio más: el estado «archivos no habilitados» ahora dice «Carpeta no habilitada» + descripción + «Habilitar carpeta» (antes un texto suelto y «Habilitar archivos»). Capturas: `../.context/ds-22/` (`web-archivos-390.jpg` vs `app-archivos.png`).
+- DS-23 (comparada con la web, lista y detalle de grupo): lista con `GenPageScaffold` + cards con `NamePill`; detalle en paneles (`WorkspacePanel`/`WorkspaceListPanel`: lectura, miembros, clientes/etiquetas, proyectos, sectores), migas `Breadcrumb`, kebab con «Eliminar» en `danger` tras un divisor. Diálogos de miembro, cliente, aviso de accesos y borrado de etiqueta pasaron de `AlertDialog` a `AppWorkDialog` (`showAppFormDialog`); acciones destructivas con `AppButtonStyles`. Keys y textos de `groups_parity_test` intactos.

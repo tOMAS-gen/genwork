@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import '../../core/providers.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
@@ -39,8 +47,8 @@ class GroupLabelsScreen extends ConsumerWidget {
 
     final repository = ref.read(groupsRepositoryProvider);
     Future<void> remove(String id, String name, {bool value = false}) async {
-      final deleted = await showDialog<bool>(
-        context: context,
+      final deleted = await showAppFormDialog<bool>(
+        context,
         barrierDismissible: false,
         builder: (_) => _DeleteLabelDialog(
           repository: repository,
@@ -64,15 +72,23 @@ class GroupLabelsScreen extends ConsumerWidget {
             padding: AppSpace.list,
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              Text(group.name, style: Theme.of(context).textTheme.titleMedium),
-              const Text(
-                'Administrá las etiquetas propias de este grupo. Las globales se gestionan desde Configuración.',
+              Text(
+                group.name,
+                style: AppTextStyles.screenTitle.copyWith(
+                  color: context.colors.text,
+                ),
               ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Administrá las etiquetas propias de este grupo. Las globales se gestionan desde Configuración.',
+                style: AppTextStyles.body.copyWith(color: context.colors.muted),
+              ),
+              const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerLeft,
                 child: FilledButton.icon(
                   key: const ValueKey('group_create_label'),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(AppIcons.add, size: AppIconSizes.field),
                   label: const Text('Nueva etiqueta'),
                   onPressed: () => edit(
                     title: 'Nueva etiqueta',
@@ -82,84 +98,119 @@ class GroupLabelsScreen extends ConsumerWidget {
               ),
               if (labels.isEmpty)
                 const EmptyView(message: 'No hay etiquetas del grupo'),
-              for (final label in labels)
-                Card(
-                  child: ExpansionTile(
-                    key: ValueKey('group_label_${label.id}'),
-                    initiallyExpanded: true,
-                    title: Text(label.name),
-                    children: [
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          TextButton(
-                            key: ValueKey('label_rename_${label.id}'),
-                            onPressed: () => edit(
-                              title: 'Renombrar etiqueta',
-                              name: label.name,
-                              save: (name, _) =>
-                                  repository.renameLabel(label.id, name),
-                            ),
-                            child: const Text('Renombrar'),
-                          ),
-                          TextButton(
-                            key: ValueKey('label_delete_${label.id}'),
-                            onPressed: () => remove(label.id, label.name),
-                            child: const Text('Eliminar etiqueta'),
-                          ),
-                        ],
+              for (final label in labels) ...[
+                const SizedBox(height: AppSpacing.sm),
+                WorkspacePanel(
+                  child: Theme(
+                    data: Theme.of(
+                      context,
+                    ).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      key: ValueKey('group_label_${label.id}'),
+                      initiallyExpanded: true,
+                      title: Text(
+                        label.name,
+                        style: AppTextStyles.dialogTitle.copyWith(
+                          color: context.colors.text,
+                        ),
                       ),
-                      for (final value in label.values)
-                        ListTile(
-                          leading: ColorDot(hex: value.color),
-                          title: Text(value.name),
-                          trailing: PopupMenuButton<String>(
-                            key: ValueKey('label_value_actions_${value.id}'),
-                            tooltip: 'Acciones de ${value.name}',
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar valor'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Eliminar valor'),
-                              ),
-                            ],
-                            onSelected: (action) {
-                              if (action == 'delete') {
-                                remove(value.id, value.name, value: true);
-                              } else {
-                                edit(
-                                  title: 'Editar valor',
-                                  name: value.name,
-                                  color: value.color,
-                                  withColor: true,
-                                  save: (name, color) => repository.updateValue(
-                                    value.id,
-                                    name,
-                                    color!,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: AppSpacing.xs,
+                              children: [
+                                OutlinedButton(
+                                  key: ValueKey('label_rename_${label.id}'),
+                                  onPressed: () => edit(
+                                    title: 'Renombrar etiqueta',
+                                    name: label.name,
+                                    save: (name, _) =>
+                                        repository.renameLabel(label.id, name),
                                   ),
-                                );
-                              }
-                            },
+                                  child: const Text('Renombrar'),
+                                ),
+                                OutlinedButton(
+                                  key: ValueKey('label_delete_${label.id}'),
+                                  style: AppButtonStyles.destructiveOutlined(
+                                    context,
+                                  ),
+                                  onPressed: () => remove(label.id, label.name),
+                                  child: const Text('Eliminar etiqueta'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      TextButton.icon(
-                        key: ValueKey('label_add_value_${label.id}'),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Agregar valor'),
-                        onPressed: () => edit(
-                          title: 'Nuevo valor',
-                          color: '#3b5bfa',
-                          withColor: true,
-                          save: (name, color) =>
-                              repository.createValue(label.id, name, color!),
+                        for (final value in label.values)
+                          ListTile(
+                            leading: ColorDot(hex: value.color),
+                            title: Text(value.name),
+                            trailing: PopupMenuButton<String>(
+                              key: ValueKey('label_value_actions_${value.id}'),
+                              tooltip: 'Acciones de ${value.name}',
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Editar valor'),
+                                ),
+                                const PopupMenuDivider(),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text(
+                                    'Eliminar valor',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: context.colors.danger,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onSelected: (action) {
+                                if (action == 'delete') {
+                                  remove(value.id, value.name, value: true);
+                                } else {
+                                  edit(
+                                    title: 'Editar valor',
+                                    name: value.name,
+                                    color: value.color,
+                                    withColor: true,
+                                    save: (name, color) => repository
+                                        .updateValue(value.id, name, color!),
+                                  );
+                                }
+                              },
+                            ),
+                          ),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            key: ValueKey('label_add_value_${label.id}'),
+                            icon: const Icon(
+                              AppIcons.add,
+                              size: AppIconSizes.field,
+                            ),
+                            label: const Text('Agregar valor'),
+                            onPressed: () => edit(
+                              title: 'Nuevo valor',
+                              color: '#3b5bfa',
+                              withColor: true,
+                              save: (name, color) => repository.createValue(
+                                label.id,
+                                name,
+                                color!,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+              ],
             ],
           ),
         ),
@@ -222,10 +273,29 @@ class _DeleteLabelDialogState extends State<_DeleteLabelDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(widget.value ? 'Eliminar valor' : 'Eliminar etiqueta'),
-      scrollable: true,
-      content: Column(
+    child: AppWorkDialog(
+      title: widget.value ? 'Eliminar valor' : 'Eliminar etiqueta',
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context, false),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('label_delete_confirm'),
+          style: AppButtonStyles.destructiveFilled(context),
+          onPressed: _busy ? null : _delete,
+          child: Text(
+            _busy
+                ? 'Eliminando…'
+                : _affected == null
+                ? 'Eliminar'
+                : 'Eliminar igualmente',
+          ),
+        ),
+      ],
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -240,27 +310,6 @@ class _DeleteLabelDialogState extends State<_DeleteLabelDialog> {
           if (_error != null) ErrorText(_error!),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const ValueKey('label_delete_confirm'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          onPressed: _busy ? null : _delete,
-          child: Text(
-            _busy
-                ? 'Eliminando…'
-                : _affected == null
-                ? 'Eliminar'
-                : 'Eliminar igualmente',
-          ),
-        ),
-      ],
     ),
   );
 }

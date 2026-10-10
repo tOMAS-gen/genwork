@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/util/format.dart';
 import '../../core/providers.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import '../../data/models/group.dart';
 import '../../shared/widgets/action_confirmation_dialog.dart';
 import '../../shared/widgets/async_value_view.dart';
@@ -29,15 +36,23 @@ class GroupClientsScreen extends ConsumerWidget {
           padding: AppSpace.list,
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Text(group.name, style: Theme.of(context).textTheme.titleMedium),
-            const Text(
-              'Cada cliente puede consultar únicamente los proyectos que le asignes.',
+            Text(
+              group.name,
+              style: AppTextStyles.screenTitle.copyWith(
+                color: context.colors.text,
+              ),
             ),
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'Cada cliente puede consultar únicamente los proyectos que le asignes.',
+              style: AppTextStyles.body.copyWith(color: context.colors.muted),
+            ),
+            const SizedBox(height: AppSpacing.sm),
             Align(
               alignment: Alignment.centerLeft,
               child: FilledButton.icon(
                 key: const ValueKey('group_add_client'),
-                icon: const Icon(Icons.person_add_outlined),
+                icon: const Icon(AppIcons.personAdd, size: AppIconSizes.field),
                 label: const Text('Agregar cliente'),
                 onPressed: data.works.isEmpty
                     ? null
@@ -45,36 +60,60 @@ class GroupClientsScreen extends ConsumerWidget {
               ),
             ),
             if (data.works.isEmpty)
-              const Text('Este grupo no tiene proyectos activos disponibles.'),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  'Este grupo no tiene proyectos activos disponibles.',
+                  style: AppTextStyles.body.copyWith(
+                    color: context.colors.muted,
+                  ),
+                ),
+              ),
             if (data.clients.isEmpty)
               const EmptyView(message: 'No hay clientes con acceso al grupo'),
-            for (final client in data.clients)
-              Card(
+            for (final client in data.clients) ...[
+              const SizedBox(height: AppSpacing.sm),
+              WorkspacePanel(
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ListTile(
-                      title: Text(client.name),
-                      subtitle: Text(
-                        '${client.email}\n${client.hasLoggedIn ? 'Ya ingresó' : 'Todavía no ingresó'}',
+                    Text(
+                      client.name,
+                      style: AppTextStyles.dialogTitle.copyWith(
+                        color: context.colors.text,
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        countLabel(client.workIds.length, 'proyecto asignado', 'proyectos asignados'),
+                    Text(
+                      '${client.email}\n${client.hasLoggedIn ? 'Ya ingresó' : 'Todavía no ingresó'}',
+                      style: AppTextStyles.body.copyWith(
+                        color: context.colors.muted,
                       ),
                     ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      countLabel(
+                        client.workIds.length,
+                        'proyecto asignado',
+                        'proyectos asignados',
+                      ),
+                      style: AppTextStyles.body.copyWith(
+                        color: context.colors.text,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
                     Wrap(
-                      spacing: 8,
+                      spacing: AppSpacing.xs,
                       children: [
-                        TextButton(
+                        OutlinedButton(
                           key: ValueKey('client_edit_${client.id}'),
                           onPressed: () =>
                               _edit(context, groupId, data, client: client),
                           child: const Text('Editar acceso'),
                         ),
-                        TextButton(
+                        OutlinedButton(
                           key: ValueKey('client_remove_${client.id}'),
+                          style: AppButtonStyles.destructiveOutlined(context),
                           onPressed: () async {
                             final repository = ref.read(
                               groupsRepositoryProvider,
@@ -98,6 +137,7 @@ class GroupClientsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -108,8 +148,8 @@ class GroupClientsScreen extends ConsumerWidget {
     String groupId,
     GroupClients data, {
     GroupClient? client,
-  }) => showDialog<void>(
-    context: context,
+  }) => showAppFormDialog<void>(
+    context,
     barrierDismissible: false,
     builder: (_) => _ClientDialog(groupId: groupId, data: data, client: client),
   );
@@ -154,13 +194,12 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
             widget.client!.workIds.any(
               (id) => !widget.data.works.any((w) => w.id == id),
             ))) {
-      final accepted = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Actualizar accesos'),
-          content: const Text(
-            'Se conservarán solo los proyectos seleccionados. Los accesos a proyectos archivados o no disponibles de este grupo también se quitarán.',
-          ),
+      final accepted = await showAppFormDialog<bool>(
+        context,
+        builder: (ctx) => AppWorkDialog(
+          title: 'Actualizar accesos',
+          closeEnabled: true,
+          onClose: () => Navigator.pop(ctx, false),
           actions: [
             TextButton(
               key: const ValueKey('client_access_cancel'),
@@ -173,6 +212,9 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
               child: const Text('Continuar'),
             ),
           ],
+          child: const Text(
+            'Se conservarán solo los proyectos seleccionados. Los accesos a proyectos archivados o no disponibles de este grupo también se quitarán.',
+          ),
         ),
       );
       if (accepted != true || !mounted) return;
@@ -213,10 +255,22 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(widget.client == null ? 'Agregar cliente' : 'Editar acceso'),
-      scrollable: true,
-      content: SizedBox(
+    child: AppWorkDialog(
+      title: widget.client == null ? 'Agregar cliente' : 'Editar acceso',
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('client_save'),
+          onPressed: _busy ? null : _save,
+          child: Text(_busy ? 'Guardando…' : 'Guardar'),
+        ),
+      ],
+      child: SizedBox(
         width: AppGeometry.dialogNarrow,
         child: Form(
           key: _form,
@@ -251,7 +305,7 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
                 ),
               ] else
                 Text('${widget.client!.name}\n${widget.client!.email}'),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               const Text('Proyectos que podrá consultar'),
               for (final work in widget.data.works)
                 CheckboxListTile(
@@ -273,17 +327,6 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const ValueKey('client_save'),
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? 'Guardando…' : 'Guardar'),
-        ),
-      ],
     ),
   );
 }
