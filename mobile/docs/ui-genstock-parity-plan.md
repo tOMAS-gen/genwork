@@ -388,7 +388,7 @@ Patrón común para cada pantalla:
 
 | Tarea | Fase | Modelo | Depende de | Estado |
 |---|---|---|---|---|
-| DS-00 | A | M | — | ⬜ |
+| DS-00 | A | M | — | ✅ 2026-10-09 — `dart analyze` 0 issues; `flutter test` 205 verdes; con `UI_PREVIEWS=true` 209 verdes (+4 capturas) |
 | DS-01 | A | M | DS-00 | ⬜ |
 | DS-02 | A | M | DS-01 | ⬜ |
 | DS-03 | A | M | DS-02 | ⬜ |
@@ -417,3 +417,7 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
 ## 7. Hallazgos
 
 (El agente anota acá lo que vio fuera de su tarea: tarea, archivo:línea, problema.)
+
+- DS-00: las capturas `UI_PREVIEWS` salen a `../.context/` (no a una carpeta propia): `drawer-{light,dark}.png`
+  (`ui_phase3_test.dart`) y `nav02/{drawer,sectors}-{light,dark}.png` (`navigation_parity_test.dart`).
+  Línea de base copiada a `../.context/ds-baseline/` (mismos nombres). `phase3-*.png` son capturas de emulador viejas, no las genera el test.
