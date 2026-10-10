@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// Escala compartida: los valores de layout tienen un único origen.
+/// Misma escala que `AppSpacing` (app_geometry.dart, usada por los widgets
+/// portados de genstock): distinto nombre, mismos valores.
 abstract final class AppSpace {
   static const double xxs = 2,
       emptyLead = 120,

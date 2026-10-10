@@ -390,7 +390,7 @@ Patrón común para cada pantalla:
 |---|---|---|---|---|
 | DS-00 | A | M | — | ✅ 2026-10-09 — `dart analyze` 0 issues; `flutter test` 205 verdes; con `UI_PREVIEWS=true` 209 verdes (+4 capturas) |
 | DS-01 | A | M | DS-00 | ✅ 2026-10-09 — 211 tests verdes (+6 en `gen_colors_test.dart`) |
-| DS-02 | A | M | DS-01 | ⬜ |
+| DS-02 | A | M | DS-01 | ✅ 2026-10-09 — 217 tests verdes (+6 en `theme_tokens_test.dart`) |
 | DS-03 | A | M | DS-02 | ⬜ |
 | DS-04 | A | M | DS-03 | ⬜ |
 | DS-05…DS-10 | B | B/M | DS-04 | ⬜ (paralelo) |
