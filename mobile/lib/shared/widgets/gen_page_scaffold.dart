@@ -24,6 +24,7 @@ class GenPageScaffold extends StatelessWidget {
     this.actions = const [],
     this.showBack = false,
     this.showThemeToggle = false,
+    this.appBarActions = const [],
     this.onRefresh,
     this.fab,
     this.headerBottom,
@@ -38,6 +39,9 @@ class GenPageScaffold extends StatelessWidget {
 
   /// Muestra el [ThemeToggle] en el AppBar.
   final bool showThemeToggle;
+
+  /// Acciones del AppBar (a la derecha de la marca), p. ej. la campana.
+  final List<Widget> appBarActions;
   final Future<void> Function()? onRefresh;
   final Widget body;
   final Widget? fab;
@@ -53,7 +57,7 @@ class GenPageScaffold extends StatelessWidget {
       appBar: AppBar(
         leading: showBack ? const BackButton() : const AppDrawerButton(),
         title: const BrandName(size: 16),
-        actions: [if (showThemeToggle) const ThemeToggle()],
+        actions: [...appBarActions, if (showThemeToggle) const ThemeToggle()],
       ),
       floatingActionButton: fab,
       body: Column(

@@ -60,7 +60,7 @@ Future<void> _mount(
 void main() {
   setUpAll(() => initializeDateFormatting('es'));
   for (final dark in [false, true]) {
-    testWidgets('TaskTile: card plana, título 14/600 y chips (dark=$dark)', (
+    testWidgets('TaskTile: card plana, título 13/400 y chips (dark=$dark)', (
       t,
     ) async {
       await _mount(
@@ -78,8 +78,8 @@ void main() {
       expect(t.takeException(), isNull);
       final c = dark ? GenColors.dark : GenColors.light;
       final title = t.widget<Text>(find.text('Preparar originales')).style!;
-      expect(title.fontSize, 14);
-      expect(title.fontWeight, FontWeight.w600);
+      expect(title.fontSize, 13);
+      expect(title.fontWeight, FontWeight.w400);
       expect(title.color, c.text);
       expect(title.decoration, isNot(TextDecoration.lineThrough));
       expect(find.text('Te mencionan'), findsOneWidget);
@@ -87,18 +87,16 @@ void main() {
       final due = find.textContaining('Vence');
       expect(due, findsOneWidget);
       expect(t.widget<Text>(due).style!.fontFamily, 'RobotoMono');
-      expect(
-        find.byType(StatusChip),
-        findsNWidgets(3),
-      ); // estado + mención + fecha
-      // El ícono de Mi día va en `brand` cuando está marcado.
+      // Mención + fecha: sin pill de estado con solo dos estados (como la web).
+      expect(find.byType(StatusChip), findsNWidgets(2));
+      // El ícono de Mi día va en ámbar (`warning`) cuando está marcado, como la web.
       final day = t.widget<Icon>(
         find.descendant(
           of: find.byKey(const ValueKey('task_day_t1')),
           matching: find.byType(Icon),
         ),
       );
-      expect(day.color, c.brand);
+      expect(day.color, c.warning);
       // Card plana: borde `border`, sin sombra.
       final card = t.widget<Card>(find.byType(Card));
       expect(card.clipBehavior, Clip.antiAlias);

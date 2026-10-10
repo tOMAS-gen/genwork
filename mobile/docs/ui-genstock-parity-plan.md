@@ -407,7 +407,8 @@ Patrón común para cada pantalla:
 | DS-12 | C | M | DS-11 | ✅ 2026-10-10 — 282 tests verdes (+2 en `navigation_parity_test.dart`); con `UI_PREVIEWS=true` 286; capturas en `../.context/ds-12/` |
 | DS-13 | C | M | DS-11 | ✅ 2026-10-10 — 284 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 288; captura en `../.context/ds-13/` |
 | DS-14 | D | B | C | ✅ 2026-10-10 — 295 tests verdes (+11 en `test/features/auth_screens_test.dart`); con `UI_PREVIEWS=true` 299; comparada con la web a 390 px |
-| DS-15…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-15 | D | B | C | ✅ 2026-10-10 — 297 tests verdes (+2 en `daily_parity_test.dart`); con `UI_PREVIEWS=true` 301; comparada con la web (3 iteraciones) |
+| DS-16…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -491,3 +492,10 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   («Gestión de proyectos por cliente y sector») y botón primario de 47 px, radio 6, texto `onBrand` 13/600. Se replicó con `AuthCard` (`shared/widgets/auth_card.dart`, ancho máx. 480) en login y setup;
   se quitaron el titular «Tu equipo, a mano.», el ícono del botón y `BrandHeader` (sin usos). El plan decía `BrandName` 28: la web usa 24 y gana la web. Capturas: `../.context/ds-14/` (`web-login-390.jpg` vs `login-{light,dark}.png`).
   Los errores van en `AppInlineNotice.error` (en setup ya no usan `errorText` del campo). El host del servidor y «Cambiar servidor» son del app (no existen en la web).
+- DS-15 (comparada con la web, ruta `/references`, 4 iteraciones): la web no tiene secciones «Pendientes / Te mencionan» ni fecha: es UNA card (`.reference-panel`) con filas separadas por líneas; cada fila lleva
+  arriba «☼ Mi día» o «@ Referencia» (+ «· Referencia» si es ambas) y el origen como enlace `muted`; la línea de progreso es «☼ Mi día: **0 de 1** completadas hoy» sin barra; el título es «Mi día y referencias» con la bajada
+  «Primero lo que hay que hacer hoy, después las tareas que necesitan tu aporte.»; el vacío dice «No tenés tareas para hoy ni referencias pendientes». Se replicó con `GenPageScaffold` + `WorkspaceListPanel` + `TaskTile(flat: true)`.
+  El plan decía «header con fecha»: la fecha NO está en la web, pero se mantiene en Mono 12 `muted` sobre la línea de progreso porque `daily_parity_test` (QA10, zona horaria) la exige.
+- DS-15: `TaskTile` ajustado a la web: título 13/400 (no 14/600), pill de estado solo si hay más de 2 estados (`statusOptions.length > 2`, como `TaskItem.tsx`), ícono de «Mi día» activo en ámbar (`warning`, como `--color-warning`); `flat` quita
+  el marco de card para filas dentro de un panel. `GenPageScaffold` suma `appBarActions` (la campana va en el AppBar: en el header partía el título en 2 líneas). `LoadingView` va pegado arriba (2 cards con texto grande).
+  Diferencias que quedan vs. la web: la web muestra «+» (subtarea) y «✕» (borrar) en cada fila y el ícono de tema arriba a la derecha; el app usa swipe, el detalle y la campana. Capturas: `../.context/ds-15/`.

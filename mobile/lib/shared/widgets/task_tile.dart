@@ -19,6 +19,7 @@ class TaskTile extends StatelessWidget {
     this.showSector = false,
     this.depth = 0,
     this.showSubtasks = true,
+    this.flat = false,
     this.referenceIds = const {},
     this.onSubtaskTap,
     this.onSubtaskToggle,
@@ -29,6 +30,10 @@ class TaskTile extends StatelessWidget {
   final bool showWork, showSector;
   final int depth;
   final bool showSubtasks;
+
+  /// Sin marco de card (ni margen lateral): para filas dentro de un panel que
+  /// ya dibuja su propio borde y separadores.
+  final bool flat;
   final Set<String> referenceIds;
   final void Function(Task subtask)? onSubtaskTap, onSubtaskToggle;
 
@@ -47,6 +52,8 @@ class TaskTile extends StatelessWidget {
         '${task.subtaskDone}/${task.subtaskCount} subtareas',
     ];
     Widget row = Card(
+      color: flat ? Colors.transparent : null,
+      shape: flat ? const RoundedRectangleBorder() : null,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         key: ValueKey('task_${task.id}'),
@@ -83,7 +90,7 @@ class TaskTile extends StatelessWidget {
                     children: [
                       Text(
                         task.displayText,
-                        style: theme.textTheme.titleMedium?.copyWith(
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           decoration: task.isDone
                               ? TextDecoration.lineThrough
                               : null,
@@ -102,10 +109,13 @@ class TaskTile extends StatelessWidget {
                         spacing: AppSpace.sm,
                         runSpacing: AppSpace.xs,
                         children: [
-                          ColorPill(
-                            label: task.status.name,
-                            hex: task.status.color,
-                          ),
+                          // Como la web: con solo «pendiente/hecha» el estado lo
+                          // dice la casilla; el pill aparece con más estados.
+                          if (task.statusOptions.length > 2)
+                            ColorPill(
+                              label: task.status.name,
+                              hex: task.status.color,
+                            ),
                           if (referenceIds.contains(task.id))
                             StatusChip(
                               label: 'Te mencionan',
@@ -138,7 +148,7 @@ class TaskTile extends StatelessWidget {
                   icon: Icon(
                     task.isInMyDay ? AppIcons.myDayFilled : AppIcons.myDay,
                     size: AppIconSizes.action,
-                    color: task.isInMyDay ? c.brand : c.muted,
+                    color: task.isInMyDay ? c.warning : c.muted,
                   ),
                 )
               else if (task.isInMyDay)
@@ -147,7 +157,7 @@ class TaskTile extends StatelessWidget {
                   child: Icon(
                     AppIcons.myDay,
                     size: AppIconSizes.action,
-                    color: c.muted,
+                    color: c.warning,
                     semanticLabel: 'En Mi día',
                   ),
                 ),
@@ -198,9 +208,9 @@ class TaskTile extends StatelessWidget {
     }
     return Padding(
       padding: EdgeInsets.only(
-        left: depth == 0 ? AppSpace.lg : AppSpace.xl,
-        right: depth == 0 ? AppSpace.lg : 0,
-        bottom: AppSpace.sm,
+        left: depth == 0 ? (flat ? 0 : AppSpace.lg) : AppSpace.xl,
+        right: depth == 0 ? (flat ? 0 : AppSpace.lg) : 0,
+        bottom: flat ? 0 : AppSpace.sm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -210,6 +220,7 @@ class TaskTile extends StatelessWidget {
             for (final sub in task.subtasks)
               TaskTile(
                 task: sub,
+                flat: flat,
                 referenceIds: referenceIds,
                 onSubtaskTap: onSubtaskTap,
                 onSubtaskToggle: onSubtaskToggle,

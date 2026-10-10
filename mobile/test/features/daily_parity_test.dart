@@ -18,6 +18,7 @@ import 'package:genwork_mobile/data/models/reminder.dart';
 import 'package:genwork_mobile/data/repositories/reminders_repository.dart';
 import 'package:genwork_mobile/features/my_day/merge_my_day_and_references.dart';
 import 'package:genwork_mobile/features/my_day/my_day_providers.dart';
+import 'package:genwork_mobile/shared/widgets/workspace_panel.dart';
 import 'package:genwork_mobile/features/my_day/my_day_screen.dart';
 import 'package:genwork_mobile/features/notes/note_detail_screen.dart';
 import 'package:genwork_mobile/features/notes/notes_providers.dart';
@@ -176,6 +177,75 @@ void main() {
     addTearDown(container.dispose);
     await mount(tester, container, const MyDayScreen());
     expect(find.text('viernes 5 de marzo'), findsOneWidget);
+  });
+
+  testWidgets('DS-15 Mi día como la web: header, progreso y una sola card', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      retry: (_, _) => null,
+      overrides: [
+        richEditorBuilderProvider.overrideWithValue(fakeRichEditor),
+        myDayProvider.overrideWith(
+          (ref) async => [
+            Task.fromJson({
+              ...taskJson('hoy'),
+              'myDayAt': '2026-10-10T00:00:00Z',
+              'work': {'id': 'w1', 'name': 'Señalética'},
+            }),
+          ],
+        ),
+        openReferencesProvider.overrideWith(
+          (ref) async => [Task.fromJson(taskJson('ref'))],
+        ),
+        deliveriesProvider.overrideWith((ref) async => []),
+      ],
+    );
+    addTearDown(container.dispose);
+    await mount(tester, container, const MyDayScreen());
+    expect(find.text('Mi día y referencias'), findsOneWidget);
+    expect(
+      find.text(
+        'Primero lo que hay que hacer hoy, después las tareas que necesitan tu aporte.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Mi día: 0 de 1 completadas hoy'), findsOneWidget);
+    // Una sola card (WorkspaceListPanel) para Mi día + referencias, sin
+    // encabezados de sección.
+    expect(find.byType(WorkspaceListPanel), findsOneWidget);
+    expect(find.text('Pendientes'), findsNothing);
+    expect(find.text('Mi día'), findsOneWidget);
+    expect(find.text('Referencia'), findsOneWidget);
+    expect(find.byKey(const ValueKey('my_day_source_hoy')), findsOneWidget);
+    expect(find.byKey(const ValueKey('task_toggle_hoy')), findsOneWidget);
+    // La campana va en el AppBar, no en el encabezado.
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byKey(const ValueKey('deliveries_button')),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('DS-15 Mi día vacío usa el texto de la web', (tester) async {
+    final container = ProviderContainer(
+      retry: (_, _) => null,
+      overrides: [
+        richEditorBuilderProvider.overrideWithValue(fakeRichEditor),
+        myDayProvider.overrideWith((ref) async => <Task>[]),
+        openReferencesProvider.overrideWith((ref) async => <Task>[]),
+        deliveriesProvider.overrideWith((ref) async => []),
+      ],
+    );
+    addTearDown(container.dispose);
+    await mount(tester, container, const MyDayScreen());
+    expect(
+      find.textContaining('No tenés tareas para hoy ni referencias pendientes'),
+      findsOneWidget,
+    );
+    expect(find.byType(WorkspaceListPanel), findsNothing);
   });
 
   for (final level in ['operate', 'read']) {

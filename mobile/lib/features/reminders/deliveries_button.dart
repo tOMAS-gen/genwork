@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/routes.dart';
+import '../../core/theme/app_icons.dart';
 import 'reminders_providers.dart';
 
 /// Campanita con la cantidad de notificaciones pendientes; lleva a Recordatorios.
@@ -22,7 +23,7 @@ class DeliveriesButton extends ConsumerWidget {
       icon: Badge(
         isLabelVisible: count > 0,
         label: Text('$count'),
-        child: const Icon(Icons.notifications_outlined),
+        child: const Icon(AppIcons.bell),
       ),
     );
   }

@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../../core/router/routes.dart';
-import '../../shared/widgets/progress_line.dart';
-import 'my_day_progress.dart';
-import '../../shared/widgets/app_drawer_scope.dart';
-import '../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../data/models/task.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import '../../shared/widgets/page_intro.dart';
+
+import '../../core/router/routes.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../data/models/common.dart';
+import '../../data/models/task.dart';
 import '../../shared/widgets/async_value_view.dart';
+import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/task_tile.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import '../reminders/deliveries_button.dart';
 import '../tasks/task_actions.dart';
 import '../tasks/task_detail_sheet.dart';
-import 'my_day_providers.dart';
 import 'merge_my_day_and_references.dart';
+import 'my_day_progress.dart';
+import 'my_day_providers.dart';
 
 /// Mi día: tareas marcadas para hoy (pendientes y completadas hoy) y las
 /// menciones abiertas.
@@ -55,12 +59,14 @@ class MyDayScreen extends ConsumerWidget {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: const AppDrawerButton(),
-        title: const Text('Mi día'),
-        actions: const [DeliveriesButton()],
-      ),
+    return GenPageScaffold(
+      title: 'Mi día y referencias',
+      subtitle:
+          'Primero lo que hay que hacer hoy, después las tareas que necesitan tu aporte.',
+      icon: AppIcons.myDay,
+      appBarActions: const [DeliveriesButton()],
+      onRefresh: refresh,
+      bodyPadding: EdgeInsets.zero,
       body: AsyncValueView(
         value: myDay,
         onRetry: refresh,
@@ -78,32 +84,21 @@ class MyDayScreen extends ConsumerWidget {
               refs.isEmpty &&
               !references.hasError &&
               !references.isLoading) {
-            return RefreshIndicator(
-              onRefresh: refresh,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  PageIntro(
-                    title: DateFormat(
-                      'EEEE d \'de\' MMMM',
-                      'es',
-                    ).format(today),
-                    subtitle: 'Tu día, despejado.',
-                    icon: Icons.wb_sunny_outlined,
-                  ),
-                  const SizedBox(height: AppSpace.xl),
-                  const EmptyView(
-                    icon: Icons.wb_sunny_outlined,
-                    message:
-                        'Nada para hoy.\nMarcá tareas con "Mi día" desde un proyecto o sector.',
-                  ),
-                ],
-              ),
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                EmptyView(
+                  icon: AppIcons.myDay,
+                  message:
+                      'No tenés tareas para hoy ni referencias pendientes.\nLas tareas que agreguen a Mi día y las que te mencionen con @ aparecerán juntas acá.',
+                ),
+              ],
             );
           }
 
           Widget tile(Task t) {
             final source = myDaySourceLabel(t);
+            final isRef = merged.referenceIds.contains(t.id);
             final route = t.work != null
                 ? Routes.work(t.work!.id)
                 : t.homeSector != null
@@ -112,29 +107,16 @@ class MyDayScreen extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (source != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.lg,
-                    ),
-                    child: route == null
-                        ? Text(source)
-                        : TextButton.icon(
-                            key: ValueKey('my_day_source_${t.id}'),
-                            style: TextButton.styleFrom(
-                              alignment: Alignment.centerLeft,
-                            ),
-                            onPressed: () => context.push(route),
-                            icon: Icon(
-                              t.work != null
-                                  ? Icons.folder_outlined
-                                  : Icons.view_column_outlined,
-                            ),
-                            label: Text(source),
-                          ),
-                  ),
+                _RowMeta(
+                  taskId: t.id,
+                  isMyDay: t.isInMyDay,
+                  isReference: isRef,
+                  source: source,
+                  onSource: route == null ? null : () => context.push(route),
+                ),
                 TaskTile(
                   task: t,
+                  flat: true,
                   referenceIds: merged.referenceIds,
                   showWork: false,
                   onTap: () =>
@@ -153,59 +135,61 @@ class MyDayScreen extends ConsumerWidget {
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: refresh,
-            child: ListView(
-              key: const ValueKey('my_day_list'),
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: [
-                PageIntro(
-                  title: DateFormat(
-                    'EEEE d \'de\' MMMM',
-                    'es',
-                  ).format(today),
-                  subtitle:
-                      '${progress.pending} ${progress.pending == 1 ? 'tarea pendiente' : 'tareas pendientes'} para enfocar tu día.',
-                  icon: Icons.wb_sunny_outlined,
+          return ListView(
+            key: const ValueKey('my_day_list'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.lg,
+                  AppSpace.lg,
+                  AppSpace.lg,
+                  0,
                 ),
-                if (tasks.isNotEmpty)
-                  Padding(
-                    key: const ValueKey('my_day_progress'),
-                    padding: AppSpace.page,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Mi día: ${progress.done} de ${progress.total} completadas hoy',
-                        ),
-                        const SizedBox(height: AppSpace.sm),
-                        ProgressLine(progress: progress),
-                      ],
+                child: Text(
+                  DateFormat("EEEE d 'de' MMMM", 'es').format(today),
+                  style: AppTextStyles.technical.copyWith(
+                    color: context.colors.muted,
+                  ),
+                ),
+              ),
+              if (tasks.isNotEmpty)
+                Padding(
+                  key: const ValueKey('my_day_progress'),
+                  padding: AppSpace.page,
+                  child: _ProgressText(progress: progress),
+                ),
+              if (pending.isNotEmpty || refs.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                  child: WorkspaceListPanel(
+                    children: [...pending.map(tile), ...refs.map(tile)],
+                  ),
+                ),
+              if (references.isLoading && !references.hasValue)
+                const LoadingView(),
+              if (references.hasError)
+                ErrorView(
+                  error: references.error!,
+                  onRetry: () => ref.invalidate(openReferencesProvider),
+                ),
+              if (done.isNotEmpty)
+                ExpansionTile(
+                  key: const ValueKey('my_day_completed'),
+                  title: Text('Completadas hoy (${done.length})'),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpace.lg,
+                      ),
+                      child: WorkspaceListPanel(
+                        children: done.map(tile).toList(),
+                      ),
                     ),
-                  ),
-                const _SectionHeader('Pendientes'),
-                ...pending.map(tile),
-                if (references.isLoading && !references.hasValue)
-                  const LoadingView(),
-                if (references.hasError)
-                  ErrorView(
-                    error: references.error!,
-                    onRetry: () => ref.invalidate(openReferencesProvider),
-                  ),
-                if (refs.isNotEmpty) ...[
-                  const _SectionHeader('Te mencionan'),
-                  ...refs.map(tile),
-                ],
-                if (done.isNotEmpty) ...[
-                  ExpansionTile(
-                    key: const ValueKey('my_day_completed'),
-                    title: Text('Completadas hoy (${done.length})'),
-                    children: done.map(tile).toList(),
-                  ),
-                ],
-                const SizedBox(height: AppSpace.xxl),
-              ],
-            ),
+                  ],
+                ),
+              const SizedBox(height: AppSpace.xxl),
+            ],
           );
         },
       ),
@@ -213,22 +197,107 @@ class MyDayScreen extends ConsumerWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+/// «☼ Mi día: **0 de 1** completadas hoy», como la línea de progreso de la web
+/// (sin barra).
+class _ProgressText extends StatelessWidget {
+  const _ProgressText({required this.progress});
 
-  final String title;
+  final Progress progress;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(
-      AppSpace.lg,
-      AppSpace.icon,
-      AppSpace.lg,
-      AppSpace.xs,
-    ),
-    child: Semantics(
-      header: true,
-      child: Text(title, style: Theme.of(context).textTheme.titleSmall),
-    ),
-  );
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final base = AppTextStyles.body.copyWith(color: c.muted);
+    return Row(
+      children: [
+        Icon(AppIcons.myDay, size: AppIconSizes.compact, color: c.muted),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              style: base,
+              children: [
+                const TextSpan(text: 'Mi día: '),
+                TextSpan(
+                  text: '${progress.done} de ${progress.total}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const TextSpan(text: ' completadas hoy'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Línea sobre cada tarea: «☼ Mi día» o «@ Referencia» (+ «· Referencia» si es
+/// ambas) y el origen como enlace `muted`.
+class _RowMeta extends StatelessWidget {
+  const _RowMeta({
+    required this.taskId,
+    required this.isMyDay,
+    required this.isReference,
+    required this.source,
+    required this.onSource,
+  });
+
+  final String taskId;
+  final bool isMyDay, isReference;
+  final String? source;
+  final VoidCallback? onSource;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final label = AppTextStyles.supporting.copyWith(
+      fontWeight: FontWeight.w600,
+      color: c.text,
+    );
+    final muted = AppTextStyles.supporting.copyWith(color: c.muted);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.md,
+        AppSpace.sm,
+        AppSpace.md,
+        0,
+      ),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isMyDay ? AppIcons.myDay : AppIcons.mention,
+                size: AppIconSizes.compact,
+                color: c.text,
+              ),
+              const SizedBox(width: AppSpacing.xxs),
+              Text(isMyDay ? 'Mi día' : 'Referencia', style: label),
+              if (isMyDay && isReference) ...[
+                const SizedBox(width: AppSpacing.xxs),
+                Text('· Referencia', style: muted),
+              ],
+            ],
+          ),
+          if (source != null)
+            onSource == null
+                ? Text(source!, style: muted)
+                : InkWell(
+                    key: ValueKey('my_day_source_$taskId'),
+                    onTap: onSource,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Text(source!, style: muted),
+                    ),
+                  ),
+        ],
+      ),
+    );
+  }
 }

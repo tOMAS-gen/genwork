@@ -69,7 +69,8 @@ void main() {
       await _mount(t, const LoadingView(), dark: dark, scale: 1.5);
       await t.pump(const Duration(milliseconds: 700));
       expect(t.takeException(), isNull);
-      expect(find.byType(GenSkeleton), findsNWidgets(6));
+      // Con texto a 1.5× alcanzan dos cards (de a dos líneas cada una).
+      expect(find.byType(GenSkeleton), findsNWidgets(4));
       expect(
         t.getSemantics(find.byType(LoadingView)),
         matchesSemantics(label: 'Cargando contenido', isLiveRegion: true),
