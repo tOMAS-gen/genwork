@@ -412,7 +412,8 @@ Patrón común para cada pantalla:
 | DS-17 | D | M | C | ✅ 2026-10-10 — 308 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 312; comparada con la web (2 iteraciones) |
 | DS-18 | D | B | C | ✅ 2026-10-10 — 311 tests verdes (+3 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 315; comparada con la web (lista y detalle) |
 | DS-19 | D | B | C | ✅ 2026-10-10 — 312 tests verdes (+1 en `day_overview_test.dart`); con `UI_PREVIEWS=true` 316; comparada con la web (`/board`) |
-| DS-20…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-20 | D | B | C | ✅ 2026-10-10 — 313 tests verdes (+2 en `ui_phase3_test.dart`); con `UI_PREVIEWS=true` 317; comparada con la web (`/notes`) |
+| DS-21…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -530,3 +531,7 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   y por sector una card con acento de 3 px del color del sector, nombre 14/700, conteo de pendientes en un cuadro de contorno, «D de T finalizadas» / «Sin tareas asignadas» / «Avance en las subtareas» + barra de 4 px, y un pie sobre `field` con las pendientes (líneas entre filas) o «Sin tareas pendientes.».
   Keys intactas (`board_summary`, `board_sector_<id>`, `board_open_sector_<id>`, `board_task_<sector>_<tarea>`). El resumen usa `Wrap` (a 360 dp / 1.5× el `Row` desbordaba 4 px).
 - DS-19: íconos igualados a la web: Vista de tareas = `dashboard`, Sectores = `layers` (`AppIcons.sectors`, también en el drawer; antes `view_column`) y el toggle Lista/Tablero usa `AppIcons.list` / `AppIcons.gridView`. Capturas: `../.context/ds-19/`.
+- DS-20 (comparada con la web `/notes` a 390 px): la web NO tiene lista: `/notes` abre directamente la primera nota (o crea una) con el encabezado «Mis notas» + «Tu espacio para escribir, organizar ideas y documentar.» (ícono de documento) y, a la derecha, ✓ guardar y «···».
+  El app mantiene su lista de notas (es un diseño móvil: varias notas) pero con ese encabezado (`GenPageScaffold`, «+» = key `notes_create`, ya no FAB) y una card por nota: ícono de documento, título 14/600, fecha en Mono 12 `muted` y extracto de 2 líneas `muted` (antes 3, y fecha+extracto en un solo texto).
+  `AppIcons.notes` pasó a `description_outlined` (la web usa FileText, también en el drawer). El detalle de nota es `DocumentScreen` (compartido con documentos de proyecto): su AppBar/título/estado de guardado y el editor se rehacen en DS-21; el aviso de «nota con formato» que pedía el plan no existe hoy en el editor
+  (`_unsupported` solo deshabilita Exportar) y queda para DS-21. Capturas: `../.context/ds-20/`.

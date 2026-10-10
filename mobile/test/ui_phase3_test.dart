@@ -765,6 +765,50 @@ void main() {
     expect(find.byKey(const ValueKey('task_view_toggle')), findsOneWidget);
     expect(find.textContaining('Sin tareas todavía'), findsOneWidget);
   });
+  for (final dark in [false, true]) {
+    testWidgets(
+      'DS-20 Mis notas: encabezado de la web y cards con extracto de 2 líneas '
+      '(${dark ? "oscuro" : "claro"})',
+      (tester) async {
+        await _pump(tester, const NotesListScreen(), dark: dark);
+        expect(tester.takeException(), isNull);
+        final c = dark ? GenColors.dark : GenColors.light;
+        expect(find.text('Mis notas'), findsOneWidget);
+        expect(
+          find.text('Tu espacio para escribir, organizar ideas y documentar.'),
+          findsOneWidget,
+        );
+        expect(find.byKey(const ValueKey('notes_create')), findsOneWidget);
+        expect(find.byType(FloatingActionButton), findsNothing);
+        final card = find.byKey(const ValueKey('note_n1'));
+        expect(card, findsOneWidget);
+        expect(
+          find.descendant(
+            of: card,
+            matching: find.text('Reunión de producción'),
+          ),
+          findsOneWidget,
+        );
+        final preview = tester.widget<Text>(
+          find.descendant(
+            of: card,
+            matching: find.text(
+              'Confirmar medidas antes de enviar a impresión.',
+            ),
+          ),
+        );
+        expect(preview.maxLines, 2);
+        expect(preview.style!.color, c.muted);
+        // La fecha va en Mono.
+        final mono = tester
+            .widgetList<Text>(
+              find.descendant(of: card, matching: find.byType(Text)),
+            )
+            .where((t) => t.style?.fontFamily == 'RobotoMono');
+        expect(mono, hasLength(1));
+      },
+    );
+  }
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,
   ) async {

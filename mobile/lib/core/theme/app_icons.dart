@@ -97,7 +97,7 @@ abstract final class AppIcons {
   static const taskView = Icons.view_column_outlined;
 
   /// Notas
-  static const notes = Icons.sticky_note_2_outlined;
+  static const notes = Icons.description_outlined;
 
   /// Plantillas
   static const templates = Icons.library_books_outlined;
