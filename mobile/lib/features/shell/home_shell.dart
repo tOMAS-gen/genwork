@@ -14,6 +14,7 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_drawer_scope.dart';
 import '../../shared/widgets/brand_name.dart';
+import '../../shared/widgets/count_badge.dart';
 import 'live_refresher.dart';
 import 'drawer_items.dart';
 import 'drawer_resource_section.dart';
@@ -379,7 +380,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   selected: path == Routes.dueToday,
                   trailing:
                       deliveries.value != null && deliveries.value!.isNotEmpty
-                      ? PendingBadge(
+                      ? CountBadge(
                           key: const ValueKey('nav_due_today_total'),
                           count: deliveries.value!.length,
                           singular: 'aviso pendiente',

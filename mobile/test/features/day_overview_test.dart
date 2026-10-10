@@ -20,7 +20,7 @@ import 'package:genwork_mobile/features/board/board_providers.dart';
 import 'package:genwork_mobile/features/my_day/my_day_progress.dart';
 import 'package:genwork_mobile/features/reminders/reminders_providers.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
-import 'package:genwork_mobile/features/shell/drawer_resource_section.dart';
+import 'package:genwork_mobile/shared/widgets/count_badge.dart';
 import 'package:genwork_mobile/features/tasks/task_actions.dart';
 import 'package:genwork_mobile/features/sectors/sector_actions_menu.dart';
 import 'package:genwork_mobile/features/works/work_actions_menu.dart';
@@ -562,7 +562,7 @@ void main() {
         );
         expect(
           t
-              .widget<PendingBadge>(
+              .widget<CountBadge>(
                 find.byKey(const ValueKey('nav_due_today_total')),
               )
               .count,

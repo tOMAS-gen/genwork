@@ -22,7 +22,7 @@ import 'package:genwork_mobile/data/models/live_event.dart';
 import 'package:genwork_mobile/data/models/sector.dart';
 import 'package:genwork_mobile/data/models/work.dart';
 import 'package:genwork_mobile/features/shell/drawer_items.dart';
-import 'package:genwork_mobile/features/shell/drawer_resource_section.dart';
+import 'package:genwork_mobile/shared/widgets/count_badge.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/works/works_filter.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
@@ -459,7 +459,7 @@ void main() {
       final app = await _mount(tester, fixture);
       await _open(tester);
       final section = find.byKey(const ValueKey('nav_works_total'));
-      expect(tester.widget<PendingBadge>(section).count, 78);
+      expect(tester.widget<CountBadge>(section).count, 78);
       expect(find.byKey(const ValueKey('nav_works_item_p11')), findsOneWidget);
       expect(find.byKey(const ValueKey('nav_works_item_p0')), findsNothing);
       await _drawerTap(tester, 'nav_works_item_p11');
@@ -473,7 +473,7 @@ void main() {
         const TaskChanged(taskId: 't', workId: 'p11', sectorIds: []),
       );
       await tester.pumpAndSettle();
-      expect(tester.widget<PendingBadge>(section).count, 66);
+      expect(tester.widget<CountBadge>(section).count, 66);
       await _drawerTap(tester, 'nav_works_toggle');
       expect(find.byKey(const ValueKey('nav_works_item_p11')), findsNothing);
       await _drawerTap(tester, 'nav_sectors_toggle');
@@ -485,7 +485,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<PendingBadge>(
+            .widget<CountBadge>(
               find.byKey(const ValueKey('nav_sectors_total')),
             )
             .count,
@@ -514,7 +514,7 @@ void main() {
       await _drawerTap(tester, 'nav_groups_toggle');
       expect(
         tester
-            .widget<PendingBadge>(
+            .widget<CountBadge>(
               find.byKey(const ValueKey('nav_groups_total')),
             )
             .count,
@@ -525,7 +525,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         tester
-            .widget<PendingBadge>(
+            .widget<CountBadge>(
               find.byKey(const ValueKey('nav_groups_total')),
             )
             .count,
@@ -607,7 +607,7 @@ void main() {
     expect(find.byKey(const ValueKey('nav_works_loading')), findsNothing);
     expect(
       tester
-          .widget<PendingBadge>(find.byKey(const ValueKey('nav_works_total')))
+          .widget<CountBadge>(find.byKey(const ValueKey('nav_works_total')))
           .count,
       14,
     );

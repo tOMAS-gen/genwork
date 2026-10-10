@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/util/format.dart';
+import '../../shared/widgets/count_badge.dart';
 import 'drawer_items.dart';
 
 class DrawerResourceSection extends StatelessWidget {
@@ -67,7 +68,7 @@ class DrawerResourceSection extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (value.hasValue)
-                    PendingBadge(
+                    CountBadge(
                       key: ValueKey('nav_${id}_total'),
                       count: ordered.total,
                     ),
@@ -168,7 +169,7 @@ class DrawerResourceSection extends StatelessWidget {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                          trailing: PendingBadge(count: item.pending),
+                          trailing: CountBadge(count: item.pending),
                           onTap: () => onOpenItem(item.id),
                         ),
                       ),
@@ -186,45 +187,6 @@ class DrawerResourceSection extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class PendingBadge extends StatelessWidget {
-  const PendingBadge({
-    super.key,
-    required this.count,
-    this.singular = 'tarea pendiente',
-    this.plural = 'tareas pendientes',
-  });
-  final int count;
-
-  /// Solo la cantidad: el nombre del destino ya se lee en la misma fila.
-  final String singular, plural;
-
-  @override
-  Widget build(BuildContext context) {
-    if (count <= 0) return const SizedBox.shrink();
-    final theme = Theme.of(context);
-    return Semantics(
-      label: countLabel(count, singular, plural),
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpace.sm,
-          vertical: AppSpace.xxs,
-        ),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: AppTokens.of(context).controlRadius,
-        ),
-        child: Text(
-          '$count',
-          style: theme.textTheme.labelMedium?.copyWith(
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-      ),
     );
   }
 }

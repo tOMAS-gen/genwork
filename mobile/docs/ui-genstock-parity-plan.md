@@ -398,7 +398,7 @@ Patrón común para cada pantalla:
 | DS-07 | B | M | DS-04 | ✅ 2026-10-10 — 244 tests verdes (+11 en `test/shared/dialogs_test.dart`); con `UI_PREVIEWS=true` 248 |
 | DS-08 | B | M | DS-04 | ✅ 2026-10-10 — 256 tests verdes (+12 en `test/shared/surfaces_test.dart`); con `UI_PREVIEWS=true` 260 |
 | DS-09 | B | M | DS-04 | ✅ 2026-10-10 — 267 tests verdes (+11 en `test/shared/search_filters_tabs_test.dart`); con `UI_PREVIEWS=true` 271 |
-| DS-10 | B | B | DS-04 | ⬜ (paralelo) |
+| DS-10 | B | B | DS-04 | ✅ 2026-10-10 — 273 tests verdes (+5 en `test/shared/count_progress_test.dart`); con `UI_PREVIEWS=true` 277 |
 | DS-11 | C | M | B | ⬜ |
 | DS-12 | C | M | DS-11 | ⬜ |
 | DS-13 | C | M | DS-11 | ⬜ |
@@ -465,3 +465,5 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   sin íconos (teléfono). Ninguna pantalla usa aún estos widgets: se estrenan en Fase D (`WorkspaceSearchBar`, `GenFilterChipBar`/`WorkspaceSelectorBar`, `GenTabBar`, `showWorkspaceFiltersDrawer`).
 - Pedido del usuario (entre DS-09 y DS-10): el drawer ya no lleva el ícono `genwork.png`; la cabecera muestra `BrandName(size: 20)` («›gen» `brand` + «work» `text`). Los capturadores `UI_PREVIEWS`
   de `ui_phase3_test.dart` y `navigation_parity_test.dart` dejaron de precargar/buscar la imagen. DS-11 (drawer) puede ajustar el tamaño (el plan decía 16).
+- DS-10: `PendingBadge` pasó a `CountBadge` (`shared/widgets/count_badge.dart`) sin typedef: se actualizaron los usos en `home_shell.dart`/`drawer_resource_section.dart` y los
+  imports/tipos de `navigation_parity_test.dart` y `day_overview_test.dart` (renombre, mismo comportamiento). `ProgressLine` suma `emphasis` (relleno `brand`); ningún uso lo activa todavía.
