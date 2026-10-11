@@ -8,9 +8,12 @@ import '../../core/auth/pkce.dart';
 import '../../core/network/api_exception.dart';
 import '../../data/models/json.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import 'settings_form_dialog.dart';
 import 'settings_providers.dart';
 import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 
 /// Se puede sustituir en tests sin abrir un navegador ni compartir credenciales.
 final integrationBrowserProvider = Provider<Future<String> Function(String)>(
@@ -105,7 +108,7 @@ class _GoogleIntegrationButtonState
   Widget build(BuildContext context) => OutlinedButton.icon(
     key: ValueKey('settings_google_${widget.purpose}'),
     onPressed: busy ? null : connect,
-    icon: const Icon(Icons.link),
+    icon: const Icon(AppIcons.link),
     label: Text(busy ? 'Esperando autorización…' : widget.label),
   );
 }
@@ -240,7 +243,7 @@ class _StorageAccountPanelState extends ConsumerState<StorageAccountPanel> {
                         if (mounted) setState(() => busy = false);
                       }
                     },
-              icon: const Icon(Icons.link_off),
+              icon: const Icon(AppIcons.unlink),
               label: const Text('Desvincular'),
             )
           else
@@ -389,8 +392,8 @@ class _SystemStoragePanelState extends ConsumerState<SystemStoragePanel> {
             onPressed: savingFolder || config['connected'] != true
                 ? null
                 : () async {
-                    final picked = await showDialog<String>(
-                      context: context,
+                    final picked = await showAppFormDialog<String>(
+                      context,
                       builder: (_) => DriveFolderDialog(
                         initial: config['rootFolderId'],
                         sharedDriveId: config['sharedDriveId'],
@@ -419,7 +422,7 @@ class _SystemStoragePanelState extends ConsumerState<SystemStoragePanel> {
                       if (mounted) setState(() => savingFolder = false);
                     }
                   },
-            icon: const Icon(Icons.folder_open),
+            icon: const Icon(AppIcons.projectOpen),
             label: const Text('Elegir carpeta raíz'),
           ),
         ] else ...[
@@ -494,9 +497,26 @@ class _DriveFolderDialogState extends ConsumerState<DriveFolderDialog> {
   @override
   Widget build(BuildContext context) {
     final path = (data?['path'] as List?) ?? [];
-    return AlertDialog(
-      title: const Text('Carpeta raíz de genwork'),
-      content: SizedBox(
+    return AppWorkDialog(
+      title: 'Carpeta raíz de genwork',
+      onClose: () => Navigator.pop(context),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('settings_drive_pick'),
+          onPressed: loading || error != null || data == null
+              ? null
+              : () => Navigator.pop(
+                  context,
+                  path.length <= 1 ? '' : path.last['id'],
+                ),
+          child: const Text('Elegir esta carpeta'),
+        ),
+      ],
+      child: SizedBox(
         width: AppGeometry.dialogNarrow,
         child: SingleChildScrollView(
           child: Column(
@@ -520,7 +540,7 @@ class _DriveFolderDialogState extends ConsumerState<DriveFolderDialog> {
                 for (final folder in (data?['folders'] as List?) ?? [])
                   ListTile(
                     key: ValueKey('settings_drive_child_${folder['id']}'),
-                    leading: const Icon(Icons.folder_outlined),
+                    leading: const Icon(AppIcons.projects),
                     title: Text(folder['name']),
                     onTap: () => load(folder['id']),
                   ),
@@ -528,22 +548,6 @@ class _DriveFolderDialogState extends ConsumerState<DriveFolderDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const ValueKey('settings_drive_pick'),
-          onPressed: loading || error != null || data == null
-              ? null
-              : () => Navigator.pop(
-                  context,
-                  path.length <= 1 ? '' : path.last['id'],
-                ),
-          child: const Text('Elegir esta carpeta'),
-        ),
-      ],
     );
   }
 }

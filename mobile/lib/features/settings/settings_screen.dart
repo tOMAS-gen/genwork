@@ -8,7 +8,14 @@ import '../../core/router/routes.dart';
 import '../../core/network/api_exception.dart';
 import '../../data/models/json.dart';
 import '../../data/repositories/settings_repository.dart';
-import '../../shared/widgets/app_drawer_scope.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/gen_page_scaffold.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/theme_toggle.dart';
 import '../works/works_providers.dart';
@@ -22,64 +29,41 @@ class SettingsHomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final admin = ref.watch(currentUserProvider)?.isSuperAdmin == true;
-    return Scaffold(
-      appBar: AppBar(
-        leading: const AppDrawerButton(),
-        title: const Text('Configuración'),
+    final c = context.colors;
+    Widget label(String text) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
+      child: Semantics(
+        header: true,
+        child: Text(
+          text.toUpperCase(),
+          style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+        ),
       ),
+    );
+    Widget links(List<Widget> children) =>
+        WorkspaceListPanel(children: children);
+
+    return GenPageScaffold(
+      title: 'Configuración',
+      subtitle: 'Tu cuenta, preferencias y catálogos.',
+      icon: AppIcons.settings,
+      bodyPadding: EdgeInsets.zero,
       body: ListView(
         key: const ValueKey('settings_home'),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          0,
+          AppSpacing.md,
+          AppSpacing.md,
+        ),
         children: [
-          Semantics(
-            header: true,
-            child: const Text('Tu cuenta y preferencias'),
-          ),
-          const ThemeToggleTile(key: ValueKey('settings_theme')),
-          for (final section in [
-            SettingsSection.system,
-            SettingsSection.storageLink,
-            SettingsSection.mcp,
-          ])
-            _link(
-              context,
-              section.title,
-              Routes.setting(section.name),
-              section.name,
-            ),
-          const Divider(),
-          Semantics(header: true, child: const Text('Catálogos por ámbito')),
-          _link(
-            context,
-            'Etiquetas y colores',
-            Routes.catalog('labels'),
-            'labels',
-          ),
-          _link(
-            context,
-            'Etapas de producción',
-            Routes.catalog('stages'),
-            'stages',
-          ),
-          _link(
-            context,
-            'Estados de tarea',
-            Routes.catalog('statuses'),
-            'statuses',
-          ),
-          if (admin) ...[
-            const Divider(),
-            Semantics(
-              header: true,
-              child: const Text('Administración del sistema'),
-            ),
+          label('Tu cuenta y preferencias'),
+          links([
+            const ThemeToggleTile(key: ValueKey('settings_theme')),
             for (final section in [
-              SettingsSection.access,
-              SettingsSection.users,
-              SettingsSection.clients,
-              SettingsSection.storage,
-              SettingsSection.reminders,
-              SettingsSection.errors,
+              SettingsSection.system,
+              SettingsSection.storageLink,
+              SettingsSection.mcp,
             ])
               _link(
                 context,
@@ -87,8 +71,48 @@ class SettingsHomeScreen extends ConsumerWidget {
                 Routes.setting(section.name),
                 section.name,
               ),
+          ]),
+          label('Catálogos por ámbito'),
+          links([
+            _link(
+              context,
+              'Etiquetas y colores',
+              Routes.catalog('labels'),
+              'labels',
+            ),
+            _link(
+              context,
+              'Etapas de producción',
+              Routes.catalog('stages'),
+              'stages',
+            ),
+            _link(
+              context,
+              'Estados de tarea',
+              Routes.catalog('statuses'),
+              'statuses',
+            ),
+          ]),
+          if (admin) ...[
+            label('Administración del sistema'),
+            links([
+              for (final section in [
+                SettingsSection.access,
+                SettingsSection.users,
+                SettingsSection.clients,
+                SettingsSection.storage,
+                SettingsSection.reminders,
+                SettingsSection.errors,
+              ])
+                _link(
+                  context,
+                  section.title,
+                  Routes.setting(section.name),
+                  section.name,
+                ),
+            ]),
           ],
-          const SizedBox(height: 48),
+          const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
     );
@@ -98,7 +122,11 @@ class SettingsHomeScreen extends ConsumerWidget {
       ListTile(
         key: ValueKey('settings_$key'),
         title: Text(title),
-        trailing: const Icon(Icons.chevron_right),
+        trailing: Icon(
+          AppIcons.chevronRight,
+          size: AppIconSizes.action,
+          color: context.colors.muted,
+        ),
         onTap: () => context.push(route),
       );
 }
@@ -152,13 +180,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     String key,
     String text,
     VoidCallback action, {
-    IconData icon = Icons.edit_outlined,
+    IconData icon = AppIcons.edit,
+    bool destructive = false,
   }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
     child: OutlinedButton.icon(
       key: ValueKey('settings_$key'),
+      style: destructive ? AppButtonStyles.destructiveOutlined(context) : null,
       onPressed: _busy ? null : action,
-      icon: Icon(icon),
+      icon: Icon(icon, size: AppIconSizes.field),
       label: Text(text),
     ),
   );
@@ -185,8 +215,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) {
     if (widget.section.adminOnly &&
         ref.watch(currentUserProvider)?.isSuperAdmin != true) {
-      return Scaffold(
-        appBar: AppBar(title: Text(widget.section.title)),
+      return GenPageScaffold(
+        title: widget.section.title,
+        showBack: true,
+        bodyPadding: EdgeInsets.zero,
         body: const EmptyView(
           message:
               'Esta sección requiere permiso de administrador del sistema.',
@@ -194,42 +226,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
     }
     final data = ref.watch(settingsDataProvider(query));
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.section.title)),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(settingsDataProvider(query));
-          await ref.read(settingsDataProvider(query).future);
-        },
-        child: ListView(
-          key: ValueKey('settings_list_${widget.section.name}'),
-          padding: const EdgeInsets.all(16),
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            if (_busy) const LinearProgressIndicator(),
-            if (widget.section == SettingsSection.errors)
-              DropdownButtonFormField<String>(
-                key: const ValueKey('settings_error_filter'),
-                initialValue: _filter ?? 'ALL',
-                decoration: const InputDecoration(labelText: 'Estado'),
-                items: const [
-                  DropdownMenuItem(value: 'ALL', child: Text('Todos')),
-                  DropdownMenuItem(value: 'PENDING', child: Text('Abiertos')),
-                  DropdownMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
-                ],
-                onChanged: (v) =>
-                    setState(() => _filter = v == 'ALL' ? null : v),
-              ),
-            if (data.hasError)
-              ErrorView(
-                error: data.error!,
-                onRetry: () => ref.invalidate(settingsDataProvider(query)),
-              ),
-            if (data.isLoading && !data.hasValue) const LoadingView(),
-            if (data.hasValue) ...content(data.value),
-            const SizedBox(height: 48),
+    // Usuarios y clientes ya traen una tarjeta por persona; el resto se agrupa
+    // en un único panel.
+    final cards =
+        widget.section == SettingsSection.users ||
+        widget.section == SettingsSection.clients;
+    final body = data.hasValue ? content(data.value) : const <Widget>[];
+    return GenPageScaffold(
+      title: widget.section.title,
+      icon: AppIcons.settings,
+      showBack: true,
+      bodyPadding: EdgeInsets.zero,
+      onRefresh: () async {
+        ref.invalidate(settingsDataProvider(query));
+        await ref.read(settingsDataProvider(query).future);
+      },
+      body: ListView(
+        key: ValueKey('settings_list_${widget.section.name}'),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          if (_busy) const LinearProgressIndicator(),
+          if (widget.section == SettingsSection.errors) ...[
+            DropdownButtonFormField<String>(
+              key: const ValueKey('settings_error_filter'),
+              initialValue: _filter ?? 'ALL',
+              decoration: const InputDecoration(labelText: 'Estado'),
+              items: const [
+                DropdownMenuItem(value: 'ALL', child: Text('Todos')),
+                DropdownMenuItem(value: 'PENDING', child: Text('Abiertos')),
+                DropdownMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
+              ],
+              onChanged: (v) => setState(() => _filter = v == 'ALL' ? null : v),
+            ),
+            const SizedBox(height: AppSpacing.md),
           ],
-        ),
+          if (data.hasError)
+            ErrorView(
+              error: data.error!,
+              onRetry: () => ref.invalidate(settingsDataProvider(query)),
+            ),
+          if (data.isLoading && !data.hasValue) const LoadingView(),
+          if (data.hasValue && cards) ...body,
+          if (data.hasValue && !cards)
+            WorkspacePanel(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: body,
+              ),
+            ),
+          const SizedBox(height: AppSpacing.xxxl),
+        ],
       ),
     );
   }
@@ -254,6 +302,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'test_connection',
               'Probar conexión',
               () => run(testConnection),
+              icon: AppIcons.retry,
             ),
         ];
       case SettingsSection.storageLink:
@@ -314,7 +363,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           tile(
             'Correos permitidos',
             'Agregar o quitar acceso por correo',
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(AppIcons.chevronRight),
             onTap: () => context.push(Routes.setting('emails')),
             key: 'settings_open_emails',
           ),
@@ -332,7 +381,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 validate: emailError,
               ),
             ], (v) => repo.allowEmail(v['email'])),
-            icon: Icons.add,
+            icon: AppIcons.add,
           ),
           if (list.isEmpty) const Text('No hay correos en la lista.'),
           for (final email in list)
@@ -354,7 +403,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           await run(() => repo.removeEmail('$email'));
                         }
                       },
-                icon: const Icon(Icons.person_remove_outlined),
+                icon: const Icon(AppIcons.personRemove),
               ),
             ),
         ];
@@ -369,7 +418,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'add_client',
             'Agregar cliente',
             addClient,
-            icon: Icons.person_add_outlined,
+            icon: AppIcons.personAdd,
           ),
           if (list.isEmpty) const Text('No hay clientes externos.'),
           for (final raw in list) clientCard(Json.from(raw as Map)),
@@ -378,7 +427,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return [
           if (list.isEmpty)
             const Padding(
-              padding: EdgeInsets.all(24),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Text('No hay errores en este estado.'),
             ),
           for (final raw in list)
@@ -387,7 +436,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               '${raw['route'] ?? 'Sin ruta'} · ${raw['occurrences']} veces\n${raw['lastSeenAt']}',
               key: 'settings_error_${raw['id']}',
               titleLines: 3,
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(AppIcons.chevronRight),
               onTap: () => context.push(Routes.settingsError(raw['id'])),
             ),
         ];
@@ -397,12 +446,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const Text(
             'Cada conexión permite que un asistente opere con los permisos de tu cuenta.',
           ),
-          button('add_mcp', 'Crear conexión', createMcp, icon: Icons.add),
+          button('add_mcp', 'Crear conexión', createMcp, icon: AppIcons.add),
           tile(
             'Actividad reciente',
             'Operaciones de tus asistentes',
             key: 'settings_mcp_activity',
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(AppIcons.chevronRight),
             onTap: () => context.push(Routes.setting('activity')),
           ),
           if (connections.isEmpty) const Text('No tenés conexiones.'),
@@ -427,7 +476,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 await run(() => repo.revokeMcp(c['id']));
                               }
                             },
-                      icon: const Icon(Icons.link_off),
+                      icon: const Icon(AppIcons.unlink),
                     ),
             ),
         ];
@@ -448,12 +497,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             'test_connection',
             'Probar conexión guardada',
             () => run(testConnection),
+            icon: AppIcons.retry,
           ),
           tile(
             'Trabajos de almacenamiento',
             'Pendientes, fallidos y reintentos',
             key: 'settings_open_jobs',
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const Icon(AppIcons.chevronRight),
             onTap: () => context.push(Routes.setting('jobs')),
           ),
         ];
@@ -472,7 +522,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onPressed: _busy
                           ? null
                           : () => run(() => repo.retryJob(j['id'])),
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(AppIcons.retry),
                     )
                   : null,
             ),
@@ -512,16 +562,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 : 'Sin conectar',
           ),
           if (json['emailConnected'] == true)
-            button('disconnect_gmail', 'Desconectar Gmail', () async {
-              if (await settingsConfirm(
-                context,
-                '¿Desconectar Gmail?',
-                'Se dejarán de enviar los avisos por correo.',
-                action: 'Desconectar',
-              )) {
-                await run(() => repo.saveReminders({'disconnectEmail': true}));
-              }
-            }, icon: Icons.link_off),
+            button(
+              'disconnect_gmail',
+              'Desconectar Gmail',
+              () async {
+                if (await settingsConfirm(
+                  context,
+                  '¿Desconectar Gmail?',
+                  'Se dejarán de enviar los avisos por correo.',
+                  action: 'Desconectar',
+                )) {
+                  await run(
+                    () => repo.saveReminders({'disconnectEmail': true}),
+                  );
+                }
+              },
+              icon: AppIcons.unlink,
+              destructive: true,
+            ),
         ];
     }
   }
@@ -529,24 +587,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> testConnection() async {
     final result = await repo.testStorage();
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          result['ok'] == true ? 'Conexión correcta' : 'No se pudo conectar',
-        ),
-        content: Text(
-          result['detail'] ??
-              (result['ok'] == true
-                  ? 'La nube respondió correctamente.'
-                  : 'Revisá la configuración del proveedor.'),
-        ),
+    await showAppFormDialog<void>(
+      context,
+      builder: (context) => AppWorkDialog(
+        title: result['ok'] == true
+            ? 'Conexión correcta'
+            : 'No se pudo conectar',
+        onClose: () => Navigator.pop(context),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
           ),
         ],
+        child: Text(
+          result['detail'] ??
+              (result['ok'] == true
+                  ? 'La nube respondió correctamente.'
+                  : 'Revisá la configuración del proveedor.'),
+        ),
       ),
     );
   }
@@ -555,9 +614,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final editable =
         u['globalRole'] != 'SUPERADMIN' &&
         u['id'] != ref.watch(currentUserProvider)?.id;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: WorkspacePanel(
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -583,8 +643,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'grants_${u['id']}',
                 'Grupos con permiso de lectura',
                 () async {
-                  await showDialog<void>(
-                    context: context,
+                  await showAppFormDialog<void>(
+                    context,
                     builder: (_) => ReaderGrantsDialog(user: u),
                   );
                   if (mounted) refresh();
@@ -596,9 +656,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget clientCard(Json c) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
+  Widget clientCard(Json c) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+    child: WorkspacePanel(
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -621,15 +682,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 await run(() => repo.deleteClient(c['id']));
               }
             },
-            icon: Icons.person_remove_outlined,
+            icon: AppIcons.personRemove,
+            destructive: true,
           ),
         ],
       ),
     ),
   );
   Future<void> addClient() async {
-    final done = await showDialog<bool>(
-      context: context,
+    final done = await showAppFormDialog<bool>(
+      context,
       barrierDismissible: false,
       builder: (_) => const AddClientDialog(),
     );
@@ -647,35 +709,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (!mounted || created == null) return;
     final token = created!['token'] as String;
-    await showDialog<void>(
-      context: context,
+    await showAppFormDialog<void>(
+      context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Guardá esta clave'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Solo se muestra una vez. Usala como token Bearer en la conexión de tu asistente.',
-              ),
-              SelectableText(
-                Uri.parse(
-                  ref.read(apiClientProvider).dio.options.baseUrl,
-                ).resolve('/api/mcp').toString(),
-              ),
-              const SizedBox(height: 12),
-              SelectableText(token),
-              TextButton.icon(
-                key: const ValueKey('settings_copy_mcp'),
-                onPressed: () => Clipboard.setData(ClipboardData(text: token)),
-                icon: const Icon(Icons.copy),
-                label: const Text('Copiar clave'),
-              ),
-            ],
-          ),
-        ),
+      builder: (context) => AppWorkDialog(
+        title: 'Guardá esta clave',
         actions: [
           FilledButton(
             key: const ValueKey('settings_mcp_done'),
@@ -683,6 +721,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Listo'),
           ),
         ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Solo se muestra una vez. Usala como token Bearer en la conexión de tu asistente.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SelectableText(
+              Uri.parse(
+                ref.read(apiClientProvider).dio.options.baseUrl,
+              ).resolve('/api/mcp').toString(),
+              style: AppTextStyles.technical,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            SelectableText(token, style: AppTextStyles.technical),
+            TextButton.icon(
+              key: const ValueKey('settings_copy_mcp'),
+              onPressed: () => Clipboard.setData(ClipboardData(text: token)),
+              icon: const Icon(AppIcons.copy, size: AppIconSizes.field),
+              label: const Text('Copiar clave'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -716,9 +778,17 @@ class _ReaderGrantsDialogState extends ConsumerState<ReaderGrantsDialog> {
     final groups = ref.watch(groupsProvider);
     return PopScope(
       canPop: !busy,
-      child: AlertDialog(
-        title: const Text('Grupos habilitados'),
-        content: SizedBox(
+      child: AppWorkDialog(
+        title: 'Grupos habilitados',
+        closeEnabled: !busy,
+        onClose: () => Navigator.pop(context),
+        actions: [
+          TextButton(
+            onPressed: busy ? null : () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+        child: SizedBox(
           width: AppGeometry.dialogNarrow,
           child: SingleChildScrollView(
             child: Column(
@@ -765,12 +835,6 @@ class _ReaderGrantsDialogState extends ConsumerState<ReaderGrantsDialog> {
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: busy ? null : () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
     );
   }
@@ -799,58 +863,10 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
     final works = ref.watch(worksListProvider(false));
     return PopScope(
       canPop: !busy,
-      child: AlertDialog(
-        title: const Text('Agregar cliente'),
-        content: SizedBox(
-          width: AppGeometry.dialogNarrow,
-          child: SingleChildScrollView(
-            child: Form(
-              key: form,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    key: const ValueKey('settings_client_name'),
-                    controller: name,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                    maxLength: 120,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Ingresá el nombre.'
-                        : null,
-                  ),
-                  TextFormField(
-                    key: const ValueKey('settings_client_email'),
-                    controller: email,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: 'Correo'),
-                    validator: (v) => emailError(v?.trim() ?? ''),
-                  ),
-                  const Text('Proyectos autorizados (opcional)'),
-                  if (works.hasError)
-                    ErrorView(
-                      error: works.error!,
-                      onRetry: () => ref.invalidate(worksListProvider(false)),
-                    ),
-                  if (works.isLoading) const LoadingView(),
-                  for (final w in works.value ?? [])
-                    CheckboxListTile(
-                      key: ValueKey('settings_client_work_${w.id}'),
-                      title: Text(w.name),
-                      value: selected.contains(w.id),
-                      onChanged: busy
-                          ? null
-                          : (v) => setState(
-                              () => v == true
-                                  ? selected.add(w.id)
-                                  : selected.remove(w.id),
-                            ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      child: AppWorkDialog(
+        title: 'Agregar cliente',
+        closeEnabled: !busy,
+        onClose: () => Navigator.pop(context),
         actions: [
           TextButton(
             onPressed: busy ? null : () => Navigator.pop(context),
@@ -879,6 +895,57 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
             child: Text(busy ? 'Guardando…' : 'Crear cliente'),
           ),
         ],
+        child: SizedBox(
+          width: AppGeometry.dialogNarrow,
+          child: SingleChildScrollView(
+            child: Form(
+              key: form,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    key: const ValueKey('settings_client_name'),
+                    controller: name,
+                    enabled: !busy,
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                    maxLength: 120,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Ingresá el nombre.'
+                        : null,
+                  ),
+                  TextFormField(
+                    key: const ValueKey('settings_client_email'),
+                    controller: email,
+                    enabled: !busy,
+                    decoration: const InputDecoration(labelText: 'Correo'),
+                    validator: (v) => emailError(v?.trim() ?? ''),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const Text('Proyectos autorizados (opcional)'),
+                  if (works.hasError)
+                    ErrorView(
+                      error: works.error!,
+                      onRetry: () => ref.invalidate(worksListProvider(false)),
+                    ),
+                  if (works.isLoading) const LoadingView(),
+                  for (final w in works.value ?? [])
+                    CheckboxListTile(
+                      key: ValueKey('settings_client_work_${w.id}'),
+                      title: Text(w.name),
+                      value: selected.contains(w.id),
+                      onChanged: busy
+                          ? null
+                          : (v) => setState(
+                              () => v == true
+                                  ? selected.add(w.id)
+                                  : selected.remove(w.id),
+                            ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -897,10 +964,14 @@ class _SettingsErrorScreenState extends ConsumerState<SettingsErrorScreen> {
   @override
   Widget build(BuildContext context) {
     final value = ref.watch(settingsErrorProvider(widget.id));
-    return Scaffold(
-      appBar: AppBar(title: const Text('Detalle del error')),
+    final c = context.colors;
+    return GenPageScaffold(
+      title: 'Detalle del error',
+      icon: AppIcons.settings,
+      showBack: true,
+      bodyPadding: EdgeInsets.zero,
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         children: [
           if (value.hasError)
             ErrorView(
@@ -911,8 +982,9 @@ class _SettingsErrorScreenState extends ConsumerState<SettingsErrorScreen> {
           if (value.hasValue) ...[
             Text(
               '${value.requireValue['message']}',
-              style: Theme.of(context).textTheme.titleLarge,
+              style: AppTextStyles.dialogTitle.copyWith(color: c.text),
             ),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               '${value.requireValue['route'] ?? 'Sin ruta'}\n${value.requireValue['occurrences']} veces · ${value.requireValue['lastSeenAt']}',
             ),

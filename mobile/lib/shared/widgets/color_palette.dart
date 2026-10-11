@@ -12,10 +12,18 @@ class ColorPalette extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.creating = false,
+    this.allowClear = true,
+    this.label = 'Color',
   });
   final String? value;
   final ValueChanged<String?>? onChanged;
   final bool creating;
+
+  /// Ofrece «Sin color»/«Color automático»; desactivar si el color es obligatorio.
+  final bool allowClear;
+
+  /// Título sobre los swatches.
+  final String label;
 
   /// Color por defecto (marca). Se ofrece primero, además de la paleta.
   static const defaultColor = '#3b5bfa';
@@ -47,7 +55,7 @@ class ColorPalette extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text('Color'),
+      Text(label),
       Wrap(
         spacing: AppSpacing.xxs,
         runSpacing: AppSpacing.xxs,
@@ -60,11 +68,12 @@ class ColorPalette extends StatelessWidget {
             ),
         ],
       ),
-      TextButton(
-        key: const ValueKey('color_clear'),
-        onPressed: onChanged == null ? null : () => onChanged!(null),
-        child: Text(creating ? 'Color automático' : 'Sin color'),
-      ),
+      if (allowClear)
+        TextButton(
+          key: const ValueKey('color_clear'),
+          onPressed: onChanged == null ? null : () => onChanged!(null),
+          child: Text(creating ? 'Color automático' : 'Sin color'),
+        ),
     ],
   );
 }

@@ -5,7 +5,12 @@ import '../../core/providers.dart';
 import '../../core/network/api_exception.dart';
 import '../../data/models/json.dart';
 import '../../data/repositories/catalogs_repository.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../shared/widgets/color_dot.dart';
+import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../shared/widgets/workspace_panel.dart';
 import '../works/works_providers.dart';
 import '../sectors/sectors_providers.dart';
 import 'settings_form_dialog.dart';
@@ -210,105 +215,107 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
         ? (json?['canWrite'] == true)
         : canManage;
     final inherited = json?['inherited'] == true;
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.kind.title)),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(catalogDataProvider(query));
-          await ref.read(catalogDataProvider(query).future);
-        },
-        child: ListView(
-          key: const ValueKey('catalog_list'),
-          padding: const EdgeInsets.all(16),
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            DropdownButtonFormField<String>(
-              key: const ValueKey('catalog_scope'),
-              initialValue: scope,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Ámbito'),
-              items: choices.entries
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e.key,
-                      child: Text(
-                        e.value,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+    return GenPageScaffold(
+      title: widget.kind.title,
+      icon: AppIcons.settings,
+      showBack: true,
+      bodyPadding: EdgeInsets.zero,
+      onRefresh: () async {
+        ref.invalidate(catalogDataProvider(query));
+        await ref.read(catalogDataProvider(query).future);
+      },
+      body: ListView(
+        key: const ValueKey('catalog_list'),
+        padding: const EdgeInsets.all(AppSpacing.md),
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          DropdownButtonFormField<String>(
+            key: const ValueKey('catalog_scope'),
+            initialValue: scope,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Ámbito'),
+            items: choices.entries
+                .map(
+                  (e) => DropdownMenuItem(
+                    value: e.key,
+                    child: Text(
+                      e.value,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  )
-                  .toList(),
-              onChanged: busy
-                  ? null
-                  : (v) => setState(() => scope = v ?? 'personal'),
-            ),
-            if (groups.hasError)
-              ErrorView(
-                error: groups.error!,
-                onRetry: () => ref.invalidate(groupsProvider),
-              ),
-            if (sectors?.hasError == true)
-              ErrorView(
-                error: sectors!.error!,
-                onRetry: () => ref.invalidate(sectorsProvider),
-              ),
-            if (busy) const LinearProgressIndicator(),
-            if (response.hasError)
-              ErrorView(
-                error: response.error!,
-                onRetry: () => ref.invalidate(catalogDataProvider(query)),
-              ),
-            if (response.isLoading && !response.hasValue) const LoadingView(),
-            if (inherited)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'Este sector hereda sus estados. Al editar se crea un conjunto propio sin cambiar los demás.',
-                ),
-              ),
-            if (response.hasValue) ...[
-              if (!canWrite)
-                const Text(
-                  'Solo lectura: no tenés permiso para administrar este ámbito.',
-                ),
-              if (canWrite)
-                FilledButton.icon(
-                  key: const ValueKey('catalog_add'),
-                  onPressed: busy ? null : () => edit(null),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar'),
-                ),
-              if (items.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text('No hay elementos en este ámbito.'),
-                ),
-              for (var i = 0; i < items.length; i++)
-                if (scope != 'global' ||
-                    widget.kind != CatalogKind.labels ||
-                    items[i]['scope'] == 'global')
-                  card(
-                    items[i],
-                    i,
-                    items,
-                    widget.kind == CatalogKind.labels
-                        ? (items[i]['scope'] == 'global'
-                              ? user?.isSuperAdmin == true
-                              : canWrite)
-                        : canWrite,
                   ),
-            ],
-            const SizedBox(height: 40),
+                )
+                .toList(),
+            onChanged: busy
+                ? null
+                : (v) => setState(() => scope = v ?? 'personal'),
+          ),
+          if (groups.hasError)
+            ErrorView(
+              error: groups.error!,
+              onRetry: () => ref.invalidate(groupsProvider),
+            ),
+          if (sectors?.hasError == true)
+            ErrorView(
+              error: sectors!.error!,
+              onRetry: () => ref.invalidate(sectorsProvider),
+            ),
+          if (busy) const LinearProgressIndicator(),
+          if (response.hasError)
+            ErrorView(
+              error: response.error!,
+              onRetry: () => ref.invalidate(catalogDataProvider(query)),
+            ),
+          if (response.isLoading && !response.hasValue) const LoadingView(),
+          if (inherited)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Text(
+                'Este sector hereda sus estados. Al editar se crea un conjunto propio sin cambiar los demás.',
+              ),
+            ),
+          if (response.hasValue) ...[
+            if (!canWrite)
+              const Text(
+                'Solo lectura: no tenés permiso para administrar este ámbito.',
+              ),
+            if (canWrite)
+              FilledButton.icon(
+                key: const ValueKey('catalog_add'),
+                onPressed: busy ? null : () => edit(null),
+                icon: const Icon(AppIcons.add, size: AppIconSizes.field),
+                label: const Text('Agregar'),
+              ),
+            if (items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: Text('No hay elementos en este ámbito.'),
+              ),
+            for (var i = 0; i < items.length; i++)
+              if (scope != 'global' ||
+                  widget.kind != CatalogKind.labels ||
+                  items[i]['scope'] == 'global')
+                card(
+                  items[i],
+                  i,
+                  items,
+                  widget.kind == CatalogKind.labels
+                      ? (items[i]['scope'] == 'global'
+                            ? user?.isSuperAdmin == true
+                            : canWrite)
+                      : canWrite,
+                ),
           ],
-        ),
+          const SizedBox(height: AppSpacing.xxxl),
+        ],
       ),
     );
   }
 
-  Widget card(Json item, int index, List<Json> items, bool writable) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
+  Widget card(Json item, int index, List<Json> items, bool writable) => Padding(
+    padding: const EdgeInsets.only(top: AppSpacing.sm),
+    child: WorkspacePanel(
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -327,24 +334,24 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                   : 'Etapa ${index + 1}',
             ),
             leading: widget.kind == CatalogKind.labels
-                ? const Icon(Icons.label_outline)
-                : colorDot(item['color']),
+                ? const Icon(AppIcons.label)
+                : ColorDot(hex: item['color'] as String?),
           ),
           if (writable)
             Wrap(
-              spacing: 8,
+              spacing: AppSpacing.xs,
               children: [
                 IconButton(
                   key: ValueKey('catalog_edit_${item['id']}'),
                   tooltip: 'Editar ${item['name']}',
                   onPressed: busy ? null : () => edit(item),
-                  icon: const Icon(Icons.edit_outlined),
+                  icon: const Icon(AppIcons.edit),
                 ),
                 IconButton(
                   key: ValueKey('catalog_delete_${item['id']}'),
                   tooltip: 'Eliminar ${item['name']}',
                   onPressed: busy ? null : () => remove(item),
-                  icon: const Icon(Icons.delete_outline),
+                  icon: const Icon(AppIcons.delete),
                 ),
                 if (widget.kind != CatalogKind.labels) ...[
                   IconButton(
@@ -353,7 +360,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                     onPressed: busy || index == 0
                         ? null
                         : () => move(items, index, -1),
-                    icon: const Icon(Icons.arrow_upward),
+                    icon: const Icon(AppIcons.sortAsc),
                   ),
                   IconButton(
                     key: ValueKey('catalog_down_${item['id']}'),
@@ -361,7 +368,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                     onPressed: busy || index == items.length - 1
                         ? null
                         : () => move(items, index, 1),
-                    icon: const Icon(Icons.arrow_downward),
+                    icon: const Icon(AppIcons.sortDesc),
                   ),
                 ],
               ],
@@ -370,7 +377,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
             for (final value in parseList(item['values'], (v) => v))
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: colorDot(value['color']),
+                leading: ColorDot(hex: value['color'] as String?),
                 title: Text(value['name']),
                 onTap: writable && !busy
                     ? () => edit(value, value: true)
@@ -382,7 +389,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                         onPressed: busy
                             ? null
                             : () => remove(value, value: true),
-                        icon: const Icon(Icons.delete_outline),
+                        icon: const Icon(AppIcons.delete),
                       )
                     : null,
               ),
@@ -392,7 +399,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                 onPressed: busy
                     ? null
                     : () => edit(null, keyId: item['id'], value: true),
-                icon: const Icon(Icons.add),
+                icon: const Icon(AppIcons.add),
                 label: const Text('Agregar valor'),
               ),
           ],
@@ -400,12 +407,4 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
       ),
     ),
   );
-  Widget colorDot(Object? value) {
-    final text = value is String ? value : '';
-    final hex = RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(text) ? text : '#64748b';
-    return CircleAvatar(
-      radius: 12,
-      backgroundColor: Color(int.parse(hex.replaceFirst('#', 'ff'), radix: 16)),
-    );
-  }
 }

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../data/models/json.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../core/theme/app_geometry.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/color_palette.dart';
 
 class SettingsField {
   const SettingsField(
@@ -28,11 +31,11 @@ Future<bool> settingsConfirm(
   String message, {
   String action = 'Confirmar',
 }) async =>
-    await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+    await showAppFormDialog<bool>(
+      context,
+      builder: (context) => AppWorkDialog(
+        title: title,
+        onClose: () => Navigator.pop(context, false),
         actions: [
           TextButton(
             key: const ValueKey('settings_confirm_cancel'),
@@ -45,6 +48,7 @@ Future<bool> settingsConfirm(
             child: Text(action),
           ),
         ],
+        child: Text(message),
       ),
     ) ??
     false;
@@ -55,8 +59,8 @@ Future<bool?> settingsForm(
   String? description,
   required List<SettingsField> fields,
   required Future<void> Function(Json) save,
-}) => showDialog<bool>(
-  context: context,
+}) => showAppFormDialog<bool>(
+  context,
   barrierDismissible: false,
   builder: (_) => SettingsFormDialog(
     title: title,
@@ -118,9 +122,23 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(widget.title),
-      content: SizedBox(
+    child: AppWorkDialog(
+      title: widget.title,
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context, false),
+      actions: [
+        TextButton(
+          key: const ValueKey('settings_form_cancel'),
+          onPressed: _busy ? null : () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          key: const ValueKey('settings_form_save'),
+          onPressed: _busy ? null : _save,
+          child: Text(_busy ? 'Guardando…' : 'Guardar'),
+        ),
+      ],
+      child: SizedBox(
         width: AppGeometry.dialogNarrow,
         child: SingleChildScrollView(
           child: Form(
@@ -131,12 +149,14 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
               children: [
                 if (widget.description != null)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: Text(widget.description!),
                   ),
                 for (final f in widget.fields)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
                     child: f.options != null
                         ? DropdownButtonFormField<String>(
                             key: ValueKey('settings_field_${f.name}'),
@@ -163,64 +183,18 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
                                 : null,
                           )
                         : f.color
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(f.label),
-                              Wrap(
-                                spacing: 8,
-                                children: [
-                                  for (final hex in {
-                                    ...const [
-                                      '#3b5bfa',
-                                      '#ef4444',
-                                      '#f59e0b',
-                                      '#10b981',
-                                      '#8b5cf6',
-                                      '#ec4899',
-                                      '#64748b',
-                                      '#94a3b8',
-                                    ],
-                                    if (RegExp(
-                                      r'^#[0-9a-fA-F]{6}$',
-                                    ).hasMatch(_controllers[f.name]!.text))
-                                      _controllers[f.name]!.text,
-                                  })
-                                    Semantics(
-                                      label: 'Color ${hex.substring(1)}',
-                                      selected:
-                                          _controllers[f.name]!.text == hex,
-                                      child: IconButton(
-                                        key: ValueKey(
-                                          'settings_color_${f.name}_$hex',
-                                        ),
-                                        onPressed: _busy
-                                            ? null
-                                            : () => setState(
-                                                () =>
-                                                    _controllers[f.name]!.text =
-                                                        hex,
-                                              ),
-                                        icon: CircleAvatar(
-                                          backgroundColor: Color(
-                                            int.parse(
-                                              hex.replaceFirst('#', 'ff'),
-                                              radix: 16,
-                                            ),
-                                          ),
-                                          child:
-                                              _controllers[f.name]!.text == hex
-                                              ? const Icon(
-                                                  Icons.check,
-                                                  color: Colors.white,
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
+                        ? ColorPalette(
+                            label: f.label,
+                            allowClear: false,
+                            value: _controllers[f.name]!.text.isEmpty
+                                ? null
+                                : _controllers[f.name]!.text,
+                            onChanged: _busy
+                                ? null
+                                : (hex) => setState(
+                                    () =>
+                                        _controllers[f.name]!.text = hex ?? '',
+                                  ),
                           )
                         : TextFormField(
                             key: ValueKey('settings_field_${f.name}'),
@@ -250,18 +224,6 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          key: const ValueKey('settings_form_cancel'),
-          onPressed: _busy ? null : () => Navigator.pop(context, false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          key: const ValueKey('settings_form_save'),
-          onPressed: _busy ? null : _save,
-          child: Text(_busy ? 'Guardando…' : 'Guardar'),
-        ),
-      ],
     ),
   );
 }

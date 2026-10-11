@@ -486,7 +486,7 @@ void main() {
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.labels));
     await tap(t, 'catalog_add_value_local');
     await enter(t, 'settings_field_name', 'Prioritario');
-    await tap(t, 'settings_color_color_#ef4444');
+    await tap(t, 'color_#ef4444');
     f.fail = true;
     await tap(t, 'settings_form_save');
     expect(find.text('Prioritario'), findsOneWidget);
