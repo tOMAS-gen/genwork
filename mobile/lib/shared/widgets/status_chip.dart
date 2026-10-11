@@ -46,7 +46,7 @@ class StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.xs,
-        vertical: AppSpacing.xxs / 2,
+        vertical: AppSpacing.hairline,
       ),
       decoration: BoxDecoration(
         color: effectiveBackground,

@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 /// `AppSpace` (que se conserva para el código existente), con otros nombres:
 /// no los mezcles dentro de un mismo archivo.
 abstract final class AppSpacing {
+  /// Ajuste fino vertical de chips y badges.
+  static const hairline = 2.0;
   static const xxs = 4.0;
   static const xs = 8.0;
   static const sm = 12.0;

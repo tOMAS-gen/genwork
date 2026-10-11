@@ -1,3 +1,4 @@
+import '../../core/theme/app_geometry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
@@ -148,14 +149,14 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.md),
               ColorPalette(
                 value: _color,
                 creating: _creating,
                 onChanged: _busy ? null : (v) => setState(() => _color = v),
               ),
               if (_creating) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 DropdownButtonFormField<String>(
                   key: ValueKey('sector_form_scope_$selectedScope'),
                   isExpanded: true,
@@ -189,7 +190,7 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
                 ),
                 if (groups.isLoading)
                   const Padding(
-                    padding: EdgeInsets.all(8),
+                    padding: EdgeInsets.all(AppSpacing.xs),
                     child: Text('Cargando grupos…'),
                   ),
                 if (groups.hasError) ...[

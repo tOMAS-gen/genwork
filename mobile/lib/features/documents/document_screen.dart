@@ -1,3 +1,7 @@
+import '../../core/theme/app_geometry.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
@@ -203,21 +207,23 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
   }
 
   Future<void> _delete() async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Borrar nota'),
-        content: const Text('¿Borrar esta nota? No se puede deshacer.'),
+    final yes = await showAppFormDialog<bool>(
+      context,
+      builder: (context) => AppWorkDialog(
+        title: 'Borrar nota',
+        onClose: () => Navigator.pop(context),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancelar'),
           ),
           FilledButton(
+            style: AppButtonStyles.destructiveFilled(context),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Borrar'),
           ),
         ],
+        child: const Text('¿Borrar esta nota? No se puede deshacer.'),
       ),
     );
     if (yes != true || !mounted) return;
@@ -307,7 +313,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
           ),
           if (widget.noteId != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: TextField(
                 key: const ValueKey('note_title'),
                 controller: _title,
@@ -322,7 +328,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
             ),
           if (widget.editable)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Row(
                 children: [
                   Expanded(
@@ -342,7 +348,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
             ),
           if (_draft.error != null)
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(AppSpacing.xs),
               child: ErrorText(
                 _draft.error is ApiException
                     ? '${(_draft.error as ApiException).message} Tus cambios siguen acá.'

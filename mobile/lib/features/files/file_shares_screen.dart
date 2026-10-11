@@ -1,3 +1,6 @@
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -227,15 +230,12 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                                     onPressed: _busy
                                         ? null
                                         : () async {
-                                            final yes = await showDialog<bool>(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: const Text(
-                                                  'Revocar acceso',
-                                                ),
-                                                content: const Text(
-                                                  'Este acceso compartido dejará de estar disponible.',
-                                                ),
+                                            final yes = await showAppFormDialog<bool>(
+                                              context,
+                                              builder: (context) => AppWorkDialog(
+                                                title: 'Revocar acceso',
+                                                onClose: () =>
+                                                    Navigator.pop(context),
                                                 actions: [
                                                   TextButton(
                                                     onPressed: () =>
@@ -245,6 +245,10 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                                                     ),
                                                   ),
                                                   FilledButton(
+                                                    style:
+                                                        AppButtonStyles.destructiveFilled(
+                                                          context,
+                                                        ),
                                                     onPressed: () =>
                                                         Navigator.pop(
                                                           context,
@@ -255,6 +259,9 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                                                     ),
                                                   ),
                                                 ],
+                                                child: const Text(
+                                                  'Este acceso compartido dejará de estar disponible.',
+                                                ),
                                               ),
                                             );
                                             if (yes == true && mounted) {

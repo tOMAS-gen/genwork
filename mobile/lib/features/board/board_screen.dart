@@ -129,7 +129,7 @@ class _SectorCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.xs,
-                            vertical: AppSpacing.xxs / 2,
+                            vertical: AppSpacing.hairline,
                           ),
                           decoration: BoxDecoration(
                             border: Border.all(color: c.outline),

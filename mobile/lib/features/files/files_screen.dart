@@ -1,3 +1,6 @@
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
@@ -64,18 +67,12 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   Future<String?> _name(String title, [String initial = '']) async {
     var value = initial;
-    return showDialog<String>(
-      context: context,
+    return showAppFormDialog<String>(
+      context,
       builder: (context) => StatefulBuilder(
-        builder: (context, set) => AlertDialog(
-          title: Text(title),
-          content: TextFormField(
-            key: const ValueKey('file_name'),
-            initialValue: initial,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Nombre'),
-            onChanged: (v) => set(() => value = v),
-          ),
+        builder: (context, set) => AppWorkDialog(
+          title: title,
+          onClose: () => Navigator.pop(context),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -92,31 +89,40 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               child: const Text('Guardar'),
             ),
           ],
+          child: TextFormField(
+            key: const ValueKey('file_name'),
+            initialValue: initial,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Nombre'),
+            onChanged: (v) => set(() => value = v),
+          ),
         ),
       ),
     );
   }
 
   Future<bool> _confirm(StorageFile f) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Eliminar ${f.name}'),
-          content: Text(
-            f.isDirectory
-                ? 'Se eliminará esta carpeta y todo su contenido. No se puede deshacer.'
-                : 'No se puede deshacer.',
-          ),
+      await showAppFormDialog<bool>(
+        context,
+        builder: (context) => AppWorkDialog(
+          title: 'Eliminar ${f.name}',
+          onClose: () => Navigator.pop(context),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
             FilledButton(
+              style: AppButtonStyles.destructiveFilled(context),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Eliminar'),
             ),
           ],
+          child: Text(
+            f.isDirectory
+                ? 'Se eliminará esta carpeta y todo su contenido. No se puede deshacer.'
+                : 'No se puede deshacer.',
+          ),
         ),
       ) ==
       true;

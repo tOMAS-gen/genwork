@@ -33,6 +33,9 @@ abstract final class AppIcons {
   static const themeLight = Icons.wb_sunny_outlined;
   static const themeDark = Icons.dark_mode_outlined;
   static const add = Icons.add_outlined;
+
+  /// Punto indicador (p. ej. día con recordatorios).
+  static const dot = Icons.circle;
   static const check = Icons.check_outlined;
   static const close = Icons.close_outlined;
   static const search = Icons.search_outlined;

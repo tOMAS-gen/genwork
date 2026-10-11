@@ -97,7 +97,7 @@ class WorkSummaryPanel extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: AppSpacing.xs,
-                                  vertical: AppSpacing.xxs / 2,
+                                  vertical: AppSpacing.hairline,
                                 ),
                                 decoration: BoxDecoration(
                                   border: Border.all(color: c.outline),
@@ -121,7 +121,7 @@ class WorkSummaryPanel extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.xs,
-                      vertical: AppSpacing.xs - 2,
+                      vertical: AppSpacing.xs - AppSpacing.hairline,
                     ),
                     decoration: BoxDecoration(
                       color: c.field,

@@ -47,7 +47,7 @@ class DrawerResourceSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xs,
-            vertical: AppSpacing.xxs / 2,
+            vertical: AppSpacing.hairline,
           ),
           child: DrawerTile(
             id: 'nav_$id',
@@ -136,7 +136,7 @@ class DrawerResourceSection extends StatelessWidget {
                     for (final item in ordered.items.take(drawerItemLimit))
                       Padding(
                         padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.xxs / 2,
+                          vertical: AppSpacing.hairline,
                         ),
                         child: Tooltip(
                           message: [

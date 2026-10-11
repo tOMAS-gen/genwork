@@ -1,3 +1,5 @@
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
@@ -11,8 +13,8 @@ Future<bool> showTaskMove(
   Task task, {
   required bool objective,
 }) async =>
-    await showDialog<bool>(
-      context: context,
+    await showAppFormDialog<bool>(
+      context,
       barrierDismissible: false,
       builder: (_) => _TaskMoveDialog(task: task, objective: objective),
     ) ??
@@ -107,12 +109,17 @@ class _TaskMoveDialogState extends ConsumerState<_TaskMoveDialog> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_busy,
-    child: AlertDialog(
-      title: Text(
-        widget.objective ? 'Mover a objetivo' : 'Mover bajo otra tarea',
-      ),
-      scrollable: true,
-      content: Column(
+    child: AppWorkDialog(
+      title: widget.objective ? 'Mover a objetivo' : 'Mover bajo otra tarea',
+      closeEnabled: !_busy,
+      onClose: () => Navigator.pop(context),
+      actions: [
+        TextButton(
+          onPressed: _busy ? null : () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
@@ -139,12 +146,6 @@ class _TaskMoveDialogState extends ConsumerState<_TaskMoveDialog> {
             ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _busy ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-      ],
     ),
   );
 }

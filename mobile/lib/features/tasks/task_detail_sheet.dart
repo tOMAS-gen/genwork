@@ -1,3 +1,5 @@
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/task_text_field.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/routes.dart';
@@ -122,15 +124,11 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   }
 
   Future<void> _confirmDelete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Borrar tarea'),
-        content: Text(
-          _task.subtaskCount > 0
-              ? 'Se borrará la tarea y sus ${_task.subtaskCount} subtareas.'
-              : '¿Borrar esta tarea?',
-        ),
+    final ok = await showAppFormDialog<bool>(
+      context,
+      builder: (context) => AppWorkDialog(
+        title: 'Borrar tarea',
+        onClose: () => Navigator.pop(context, false),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -138,10 +136,16 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           ),
           FilledButton(
             key: const ValueKey('task_delete_confirm'),
+            style: AppButtonStyles.destructiveFilled(context),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Borrar'),
           ),
         ],
+        child: Text(
+          _task.subtaskCount > 0
+              ? 'Se borrará la tarea y sus ${_task.subtaskCount} subtareas.'
+              : '¿Borrar esta tarea?',
+        ),
       ),
     );
     if (ok == true) await _run((a) => a.delete(_task), close: true);

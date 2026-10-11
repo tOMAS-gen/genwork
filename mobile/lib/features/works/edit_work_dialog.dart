@@ -1,3 +1,4 @@
+import '../../shared/widgets/app_form_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
@@ -11,8 +12,8 @@ import '../shell/resource_refresh.dart';
 import '../../shared/widgets/error_text.dart';
 
 Future<void> showEditWorkDialog(BuildContext context, WorkDetail work) =>
-    showDialog<void>(
-      context: context,
+    showAppFormDialog<void>(
+      context,
       barrierDismissible: false,
       builder: (_) => _EditWorkDialog(work: work),
     );

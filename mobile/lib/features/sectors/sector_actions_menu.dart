@@ -1,3 +1,4 @@
+import '../../core/theme/app_geometry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
@@ -73,7 +74,7 @@ class SectorActionsMenu extends ConsumerWidget {
                     Text(
                       '«$name»\nVínculos de tareas a desvincular: ${impact.links}.\nTareas sueltas a eliminar: ${impact.looseTasks}.\nLas tareas de proyectos se conservan.',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: AppSpacing.md),
                     FilledButton(
                       key: const ValueKey('sector_delete_continue'),
                       onPressed: () => Navigator.pop(context, impact),

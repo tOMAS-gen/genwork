@@ -341,10 +341,10 @@ class _DayCell extends StatelessWidget {
                   ),
                 ),
                 SizedBox(
-                  height: 8,
+                  height: AppSpacing.xs,
                   child: count == 0
                       ? null
-                      : Icon(Icons.circle, size: 5, color: c.brand),
+                      : Icon(AppIcons.dot, size: 5, color: c.brand),
                 ),
               ],
             ),

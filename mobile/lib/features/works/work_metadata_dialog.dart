@@ -1,3 +1,4 @@
+import '../../core/theme/app_geometry.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
@@ -175,7 +176,7 @@ class _MetadataDialogState extends ConsumerState<_MetadataDialog> {
                     children: [
                       if (options.isEmpty)
                         const Padding(
-                          padding: EdgeInsets.all(16),
+                          padding: EdgeInsets.all(AppSpacing.md),
                           child: Text('No hay etiquetas disponibles.'),
                         ),
                       for (final label in options)
@@ -197,7 +198,7 @@ class _MetadataDialogState extends ConsumerState<_MetadataDialog> {
         .firstOrNull;
     final repository = ref.read(worksRepositoryProvider);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
