@@ -417,7 +417,8 @@ Patrón común para cada pantalla:
 | DS-22 | D | B | C | ✅ 2026-10-10 — 318 tests verdes (+2 en `documents_parity_test.dart`); con `UI_PREVIEWS=true` 322. comparada con la web una vez resuelto el servidor dev (ver Hallazgos) |
 | DS-23 | D | B | C | ✅ 2026-10-10 — 318 tests verdes. comparada con la web (lista y detalle de grupo a 390 px) |
 | DS-24 | D | B | C | ✅ 2026-10-10 — 318 tests verdes; verificada en el emulador (Plantillas) |
-| DS-25…DS-27 | D | B/M | C | ⬜ (paralelo) |
+| DS-25 | D | M | C | ✅ 2026-10-11 — 318 tests verdes; comparada con la web (`/reminders` a 390 px) y verificada en el emulador |
+| DS-26…DS-27 | D | B/M | C | ⬜ (paralelo) |
 | DS-28 | E | M | D | ⬜ |
 | DS-29 | E | B | D | ⬜ |
 | DS-30 | E | M | DS-28, DS-29 | ⬜ |
@@ -552,3 +553,4 @@ grep -rn "byType(" test/ | grep -oE "byType\([A-Za-z<>]+\)" | sort | uniq -c
   Con el servidor sano la comparación de DS-22 mostró un único cambio más: el estado «archivos no habilitados» ahora dice «Carpeta no habilitada» + descripción + «Habilitar carpeta» (antes un texto suelto y «Habilitar archivos»). Capturas: `../.context/ds-22/` (`web-archivos-390.jpg` vs `app-archivos.png`).
 - DS-23 (comparada con la web, lista y detalle de grupo): lista con `GenPageScaffold` + cards con `NamePill`; detalle en paneles (`WorkspacePanel`/`WorkspaceListPanel`: lectura, miembros, clientes/etiquetas, proyectos, sectores), migas `Breadcrumb`, kebab con «Eliminar» en `danger` tras un divisor. Diálogos de miembro, cliente, aviso de accesos y borrado de etiqueta pasaron de `AlertDialog` a `AppWorkDialog` (`showAppFormDialog`); acciones destructivas con `AppButtonStyles`. Keys y textos de `groups_parity_test` intactos.
 - DS-24: Plantillas con `GenPageScaffold` (+ botón «Nueva plantilla» en el encabezado, buscador en la lista) y filas en `WorkspaceListPanel` con «Crear proyecto» de contorno. Diálogos de objetivo (nuevo/editar/insertar plantilla) y «Eliminar objetivo» pasaron a `AppWorkDialog`; «Eliminar también las tareas» con `destructiveOutlined` y la entrada del menú en `danger`. Keys intactas.
+- DS-25 (comparada con la web `/reminders`): encabezado con campana + botón «+» (`GenPageScaffold`), tarjeta de mes («Octubre 2026», contador, ‹ Ir a hoy ›) en `WorkspacePanel`, grilla con celdas de borde fino, hoy como píldora `brand` y selección con `brandFill`; listas de avisos/próximos en `WorkspaceListPanel`; formulario en tres `AppWorkSection` (Datos, Cuándo, Alcance y vínculo) y confirmaciones con `AppWorkDialog` (Borrar en `destructiveFilled`). El mes ahora va capitalizado como en la web (se ajustaron 2 expectativas de `reminders_advanced_test`). Las ocurrencias del calendario no traen `scope` (`ReminderOccurrence`, zona prohibida `data/models`), así que el color por alcance del plan queda pendiente; las celdas del mes crecen con la fuente (`max(64, 44×escala)`).

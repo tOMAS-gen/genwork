@@ -444,7 +444,7 @@ void main() {
         for (var i = 0; i < 3; i++) {
           await tap(t, 'reminders_next_month');
         }
-        expect(find.text('marzo 2027'), findsOneWidget);
+        expect(find.text('Marzo 2027'), findsOneWidget);
         final q = f.api.requests.last.queryParameters;
         expect(q['from'], '2027-03-01T00:00:00.000Z');
         expect(q['to'], '2027-03-31T00:00:00.000Z');
@@ -454,7 +454,7 @@ void main() {
           '2027-02-28T00:00:00.000Z',
         );
         await tap(t, 'reminders_today');
-        expect(find.text('diciembre 2026'), findsOneWidget);
+        expect(find.text('Diciembre 2026'), findsOneWidget);
         expect(t.takeException(), isNull);
       },
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/app_icons.dart';
 import '../../data/models/reminder.dart';
 import '../../shared/widgets/state_views.dart';
 import 'reminders_providers.dart';
@@ -46,7 +47,7 @@ class _DeliveryTileState extends ConsumerState<DeliveryTile> {
     final route = d.linkAvailable ? Routes.fromWebPath(d.linkPath) : null;
     return ListTile(
       key: ValueKey('delivery_${d.id}'),
-      leading: const Icon(Icons.notifications_active_outlined),
+      leading: const Icon(AppIcons.bellActive),
       title: Text(d.title),
       subtitle: Text(
         [
@@ -63,9 +64,10 @@ class _DeliveryTileState extends ConsumerState<DeliveryTile> {
         tooltip: _busy ? 'Guardando aviso' : 'Opciones del aviso',
         onSelected: _act,
         itemBuilder: (_) => const [
-          PopupMenuItem(value: 'dismiss', child: Text('Descartar')),
           PopupMenuItem(value: '1h', child: Text('Posponer 1 hora')),
           PopupMenuItem(value: 'tomorrow', child: Text('Posponer a mañana')),
+          PopupMenuDivider(),
+          PopupMenuItem(value: 'dismiss', child: Text('Descartar')),
         ],
       ),
     );

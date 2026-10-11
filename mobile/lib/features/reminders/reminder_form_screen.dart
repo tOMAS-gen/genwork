@@ -4,7 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_form_dialog.dart';
+import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/app_work_section.dart';
 import '../../core/util/format.dart';
 import '../../data/models/reminder.dart';
 import '../../data/repositories/reminders_repository.dart';
@@ -166,11 +172,11 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
   ]);
 
   Future<bool> _confirm(String title, String message, String action) async =>
-      await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: Text(message),
+      await showAppFormDialog<bool>(
+        context,
+        builder: (context) => AppWorkDialog(
+          title: title,
+          onClose: () => Navigator.pop(context, false),
           actions: [
             TextButton(
               key: const ValueKey('reminder_confirm_cancel'),
@@ -179,10 +185,14 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
             ),
             FilledButton(
               key: const ValueKey('reminder_confirm_accept'),
+              style: action == 'Borrar'
+                  ? AppButtonStyles.destructiveFilled(context)
+                  : null,
               onPressed: () => Navigator.pop(context, true),
               child: Text(action),
             ),
           ],
+          child: Text(message),
         ),
       ) ??
       false;
@@ -323,7 +333,7 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
     bool enabled,
     void Function(String) change,
   ) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
     child: DropdownButtonFormField<String>(
       key: ValueKey(key),
       initialValue: value,
@@ -354,7 +364,7 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
     TextEditingController c,
     bool editable,
   ) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
     child: TextField(
       key: ValueKey(key),
       controller: c,
@@ -427,7 +437,7 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
                 key: const ValueKey('reminder_delete'),
                 tooltip: 'Borrar recordatorio',
                 onPressed: editable ? _delete : null,
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(AppIcons.delete),
               ),
           ],
         ),
@@ -473,292 +483,338 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
                       'Zona horaria del sistema: ${timezone.requireValue.name}',
                       key: const ValueKey('reminder_timezone'),
                     ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    key: const ValueKey('reminder_title'),
-                    controller: _title,
-                    enabled: editable,
-                    decoration: const InputDecoration(labelText: 'Título'),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    key: const ValueKey('reminder_description'),
-                    controller: _description,
-                    enabled: editable,
-                    minLines: 1,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción (opcional)',
-                    ),
-                  ),
-                  ListTile(
-                    key: const ValueKey('reminder_date'),
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event),
-                    title: Text(formatDay(_date, now: today)),
-                    subtitle: const Text('Fecha de inicio'),
-                    enabled: editable,
-                    onTap: () async {
-                      final d = await _pickDate(_date, today);
-                      if (d != null && mounted) setState(() => _date = d);
-                    },
-                  ),
-                  for (var i = 0; i < _leads.length; i++) ...[
-                    ListTile(
-                      key: ValueKey(
-                        i == 0 ? 'reminder_time' : 'reminder_time_$i',
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.schedule),
-                      title: Text(formatMinuteOfDay(_leads[i].minute)),
-                      subtitle: Text('Hora del aviso ${i + 1}'),
-                      enabled: editable,
-                      trailing: _leads.length > 1
-                          ? IconButton(
-                              key: ValueKey('reminder_remove_lead_$i'),
-                              tooltip: 'Quitar aviso ${i + 1}',
-                              onPressed: editable
-                                  ? () {
-                                      final l = _leads[i];
-                                      setState(() => _leads.removeAt(i));
-                                      l.days.dispose();
-                                    }
-                                  : null,
-                              icon: const Icon(Icons.close),
-                            )
-                          : null,
-                      onTap: () async {
-                        final l = _leads[i];
-                        final t = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                            hour: l.minute ~/ 60,
-                            minute: l.minute % 60,
-                          ),
-                        );
-                        if (t != null && mounted) {
-                          setState(() => l.minute = t.hour * 60 + t.minute);
-                        }
-                      },
-                    ),
-                    _number(
-                      'reminder_lead_days_$i',
-                      'Días antes (0 = ese día)',
-                      _leads[i].days,
-                      editable,
-                    ),
-                  ],
-                  TextButton.icon(
-                    key: const ValueKey('reminder_add_lead'),
-                    onPressed: editable && _leads.length < 20
-                        ? () => setState(() {
-                            var days = 0;
-                            while (_leads.any(
-                              (l) =>
-                                  l.value.daysBefore == days && l.minute == 540,
-                            )) {
-                              days++;
-                            }
-                            _leads.add(
-                              _LeadDraft(
-                                ReminderLead(
-                                  daysBefore: days,
-                                  minuteOfDay: 540,
-                                ),
-                              ),
-                            );
-                          })
-                        : null,
-                    icon: const Icon(Icons.add_alarm),
-                    label: Text('Agregar aviso (${_leads.length}/20)'),
-                  ),
-                  _select(
-                    'reminder_recurrence',
-                    'Repetición',
-                    _recurrence,
-                    _recurrences,
-                    editable,
-                    (v) {
-                      _recurrence = v;
-                      if (v == 'WEEKLY' && _weekdays.isEmpty) {
-                        _weekdays = {_date.weekday - 1};
-                      }
-                    },
-                  ),
-                  if (_recurrence == 'WEEKLY')
-                    Wrap(
-                      spacing: 8,
+                  const SizedBox(height: AppSpacing.md),
+                  AppWorkSection(
+                    title: 'Datos',
+                    icon: AppIcons.edit,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (var i = 0; i < 7; i++)
-                          FilterChip(
-                            key: ValueKey('reminder_weekday_$i'),
-                            label: Text(
-                              const [
-                                'Lun',
-                                'Mar',
-                                'Mié',
-                                'Jue',
-                                'Vie',
-                                'Sáb',
-                                'Dom',
-                              ][i],
+                        TextField(
+                          key: const ValueKey('reminder_title'),
+                          controller: _title,
+                          enabled: editable,
+                          decoration: const InputDecoration(
+                            labelText: 'Título',
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        TextField(
+                          key: const ValueKey('reminder_description'),
+                          controller: _description,
+                          enabled: editable,
+                          minLines: 1,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            labelText: 'Descripción (opcional)',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppWorkSection(
+                    title: 'Cuándo',
+                    icon: AppIcons.calendarToday,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        ListTile(
+                          key: const ValueKey('reminder_date'),
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(AppIcons.date),
+                          title: Text(formatDay(_date, now: today)),
+                          subtitle: const Text('Fecha de inicio'),
+                          enabled: editable,
+                          onTap: () async {
+                            final d = await _pickDate(_date, today);
+                            if (d != null && mounted) setState(() => _date = d);
+                          },
+                        ),
+                        for (var i = 0; i < _leads.length; i++) ...[
+                          ListTile(
+                            key: ValueKey(
+                              i == 0 ? 'reminder_time' : 'reminder_time_$i',
                             ),
-                            selected: _weekdays.contains(i),
-                            onSelected: editable
-                                ? (v) => setState(() {
-                                    v ? _weekdays.add(i) : _weekdays.remove(i);
-                                  })
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(AppIcons.schedule),
+                            title: Text(formatMinuteOfDay(_leads[i].minute)),
+                            subtitle: Text('Hora del aviso ${i + 1}'),
+                            enabled: editable,
+                            trailing: _leads.length > 1
+                                ? IconButton(
+                                    key: ValueKey('reminder_remove_lead_$i'),
+                                    tooltip: 'Quitar aviso ${i + 1}',
+                                    onPressed: editable
+                                        ? () {
+                                            final l = _leads[i];
+                                            setState(() => _leads.removeAt(i));
+                                            l.days.dispose();
+                                          }
+                                        : null,
+                                    icon: const Icon(AppIcons.close),
+                                  )
                                 : null,
+                            onTap: () async {
+                              final l = _leads[i];
+                              final t = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay(
+                                  hour: l.minute ~/ 60,
+                                  minute: l.minute % 60,
+                                ),
+                              );
+                              if (t != null && mounted) {
+                                setState(
+                                  () => l.minute = t.hour * 60 + t.minute,
+                                );
+                              }
+                            },
+                          ),
+                          _number(
+                            'reminder_lead_days_$i',
+                            'Días antes (0 = ese día)',
+                            _leads[i].days,
+                            editable,
+                          ),
+                        ],
+                        TextButton.icon(
+                          key: const ValueKey('reminder_add_lead'),
+                          onPressed: editable && _leads.length < 20
+                              ? () => setState(() {
+                                  var days = 0;
+                                  while (_leads.any(
+                                    (l) =>
+                                        l.value.daysBefore == days &&
+                                        l.minute == 540,
+                                  )) {
+                                    days++;
+                                  }
+                                  _leads.add(
+                                    _LeadDraft(
+                                      ReminderLead(
+                                        daysBefore: days,
+                                        minuteOfDay: 540,
+                                      ),
+                                    ),
+                                  );
+                                })
+                              : null,
+                          icon: const Icon(AppIcons.reminderAdd),
+                          label: Text('Agregar aviso (${_leads.length}/20)'),
+                        ),
+                        _select(
+                          'reminder_recurrence',
+                          'Repetición',
+                          _recurrence,
+                          _recurrences,
+                          editable,
+                          (v) {
+                            _recurrence = v;
+                            if (v == 'WEEKLY' && _weekdays.isEmpty) {
+                              _weekdays = {_date.weekday - 1};
+                            }
+                          },
+                        ),
+                        if (_recurrence == 'WEEKLY')
+                          Wrap(
+                            spacing: AppSpacing.xs,
+                            children: [
+                              for (var i = 0; i < 7; i++)
+                                FilterChip(
+                                  key: ValueKey('reminder_weekday_$i'),
+                                  label: Text(
+                                    const [
+                                      'Lun',
+                                      'Mar',
+                                      'Mié',
+                                      'Jue',
+                                      'Vie',
+                                      'Sáb',
+                                      'Dom',
+                                    ][i],
+                                  ),
+                                  selected: _weekdays.contains(i),
+                                  onSelected: editable
+                                      ? (v) => setState(() {
+                                          v
+                                              ? _weekdays.add(i)
+                                              : _weekdays.remove(i);
+                                        })
+                                      : null,
+                                ),
+                            ],
+                          ),
+                        if (_recurrence == 'EVERY_N') ...[
+                          _number(
+                            'reminder_every_n',
+                            'Repetir cada',
+                            _everyN,
+                            editable,
+                          ),
+                          _select(
+                            'reminder_every_unit',
+                            'Unidad',
+                            _unit,
+                            const {
+                              'DAY': 'Días',
+                              'WEEK': 'Semanas',
+                              'MONTH': 'Meses',
+                            },
+                            editable,
+                            (v) => _unit = v,
+                          ),
+                        ],
+                        if (_recurrence != 'ONCE') ...[
+                          _select(
+                            'reminder_end',
+                            'Finaliza',
+                            _end,
+                            {
+                              'never': 'Sin fecha de fin',
+                              'date': 'En una fecha',
+                              'count': 'Después de N repeticiones',
+                              if (_end == 'both')
+                                'both': 'Por fecha o cantidad (existente)',
+                            },
+                            editable,
+                            (v) => _end = v,
+                          ),
+                          if (_end == 'date' || _end == 'both')
+                            ListTile(
+                              key: const ValueKey('reminder_until'),
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                _until == null
+                                    ? 'Elegí la fecha de fin'
+                                    : formatDay(_until!, now: today),
+                              ),
+                              leading: const Icon(AppIcons.date),
+                              enabled: editable,
+                              onTap: () async {
+                                final d = await _pickDate(
+                                  _until ?? _date,
+                                  today,
+                                );
+                                if (d != null && mounted) {
+                                  setState(() => _until = d);
+                                }
+                              },
+                            ),
+                          if (_end == 'count' || _end == 'both')
+                            _number(
+                              'reminder_count',
+                              'Cantidad de repeticiones',
+                              _count,
+                              editable,
+                            ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppWorkSection(
+                    title: 'Alcance y vínculo',
+                    icon: AppIcons.link,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _select(
+                          'reminder_scope',
+                          'Alcance',
+                          _scope,
+                          {
+                            'INDIVIDUAL': 'Individual',
+                            'GROUP': 'Grupo',
+                            if (user?.isSuperAdmin == true ||
+                                _scope == 'GLOBAL')
+                              'GLOBAL': 'Global',
+                          },
+                          editable && widget.reminderId == null,
+                          (v) {
+                            _scope = v;
+                            _groupId = null;
+                          },
+                        ),
+                        if (widget.reminderId != null)
+                          const Text(
+                            'El alcance y el grupo se conservan al editar.',
+                          ),
+                        if (_scope == 'GROUP')
+                          _catalog(
+                            ref
+                                .watch(groupsProvider)
+                                .whenData(
+                                  (groups) => {
+                                    for (final g in groups.where(
+                                      (g) =>
+                                          widget.reminderId != null ||
+                                          g.canOperate(user),
+                                    ))
+                                      g.id: g.name,
+                                  },
+                                ),
+                            'reminder_group',
+                            'Grupos',
+                            _groupId,
+                            editable && widget.reminderId == null,
+                            (v) => _groupId = v,
+                            () => ref.invalidate(groupsProvider),
+                          ),
+                        _select(
+                          'reminder_link_type',
+                          'Vincular con',
+                          _linkType ?? 'NONE',
+                          {
+                            'NONE': 'Sin vínculo',
+                            'WORK': 'Proyecto',
+                            'SECTOR': 'Sector',
+                            if (_linkType == 'TASK')
+                              'TASK': 'Tarea (vínculo existente)',
+                          },
+                          editable,
+                          (v) {
+                            if (v == (_linkType ?? 'NONE')) return;
+                            _linkType = v == 'NONE' ? null : v;
+                            _linkId = null;
+                          },
+                        ),
+                        if (_linkType == 'WORK')
+                          _catalog(
+                            ref
+                                .watch(worksListProvider(false))
+                                .whenData(
+                                  (works) => {
+                                    for (final w in works) w.id: w.name,
+                                  },
+                                ),
+                            'reminder_link_work',
+                            'Proyectos',
+                            _linkId,
+                            editable,
+                            (v) => _linkId = v,
+                            () => ref.invalidate(worksListProvider(false)),
+                          ),
+                        if (_linkType == 'SECTOR')
+                          _catalog(
+                            ref
+                                .watch(sectorsProvider)
+                                .whenData(
+                                  (sectors) => {
+                                    for (final s in sectors) s.id: s.name,
+                                  },
+                                ),
+                            'reminder_link_sector',
+                            'Sectores',
+                            _linkId,
+                            editable,
+                            (v) => _linkId = v,
+                            () => ref.invalidate(sectorsProvider),
                           ),
                       ],
                     ),
-                  if (_recurrence == 'EVERY_N') ...[
-                    _number(
-                      'reminder_every_n',
-                      'Repetir cada',
-                      _everyN,
-                      editable,
-                    ),
-                    _select(
-                      'reminder_every_unit',
-                      'Unidad',
-                      _unit,
-                      const {
-                        'DAY': 'Días',
-                        'WEEK': 'Semanas',
-                        'MONTH': 'Meses',
-                      },
-                      editable,
-                      (v) => _unit = v,
-                    ),
-                  ],
-                  if (_recurrence != 'ONCE') ...[
-                    _select(
-                      'reminder_end',
-                      'Finaliza',
-                      _end,
-                      {
-                        'never': 'Sin fecha de fin',
-                        'date': 'En una fecha',
-                        'count': 'Después de N repeticiones',
-                        if (_end == 'both')
-                          'both': 'Por fecha o cantidad (existente)',
-                      },
-                      editable,
-                      (v) => _end = v,
-                    ),
-                    if (_end == 'date' || _end == 'both')
-                      ListTile(
-                        key: const ValueKey('reminder_until'),
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          _until == null
-                              ? 'Elegí la fecha de fin'
-                              : formatDay(_until!, now: today),
-                        ),
-                        leading: const Icon(Icons.event),
-                        enabled: editable,
-                        onTap: () async {
-                          final d = await _pickDate(_until ?? _date, today);
-                          if (d != null && mounted) setState(() => _until = d);
-                        },
-                      ),
-                    if (_end == 'count' || _end == 'both')
-                      _number(
-                        'reminder_count',
-                        'Cantidad de repeticiones',
-                        _count,
-                        editable,
-                      ),
-                  ],
-                  _select(
-                    'reminder_scope',
-                    'Alcance',
-                    _scope,
-                    {
-                      'INDIVIDUAL': 'Individual',
-                      'GROUP': 'Grupo',
-                      if (user?.isSuperAdmin == true || _scope == 'GLOBAL')
-                        'GLOBAL': 'Global',
-                    },
-                    editable && widget.reminderId == null,
-                    (v) {
-                      _scope = v;
-                      _groupId = null;
-                    },
                   ),
-                  if (widget.reminderId != null)
-                    const Text('El alcance y el grupo se conservan al editar.'),
-                  if (_scope == 'GROUP')
-                    _catalog(
-                      ref
-                          .watch(groupsProvider)
-                          .whenData(
-                            (groups) => {
-                              for (final g in groups.where(
-                                (g) =>
-                                    widget.reminderId != null ||
-                                    g.canOperate(user),
-                              ))
-                                g.id: g.name,
-                            },
-                          ),
-                      'reminder_group',
-                      'Grupos',
-                      _groupId,
-                      editable && widget.reminderId == null,
-                      (v) => _groupId = v,
-                      () => ref.invalidate(groupsProvider),
-                    ),
-                  _select(
-                    'reminder_link_type',
-                    'Vincular con',
-                    _linkType ?? 'NONE',
-                    {
-                      'NONE': 'Sin vínculo',
-                      'WORK': 'Proyecto',
-                      'SECTOR': 'Sector',
-                      if (_linkType == 'TASK')
-                        'TASK': 'Tarea (vínculo existente)',
-                    },
-                    editable,
-                    (v) {
-                      if (v == (_linkType ?? 'NONE')) return;
-                      _linkType = v == 'NONE' ? null : v;
-                      _linkId = null;
-                    },
-                  ),
-                  if (_linkType == 'WORK')
-                    _catalog(
-                      ref
-                          .watch(worksListProvider(false))
-                          .whenData(
-                            (works) => {for (final w in works) w.id: w.name},
-                          ),
-                      'reminder_link_work',
-                      'Proyectos',
-                      _linkId,
-                      editable,
-                      (v) => _linkId = v,
-                      () => ref.invalidate(worksListProvider(false)),
-                    ),
-                  if (_linkType == 'SECTOR')
-                    _catalog(
-                      ref
-                          .watch(sectorsProvider)
-                          .whenData(
-                            (sectors) => {
-                              for (final s in sectors) s.id: s.name,
-                            },
-                          ),
-                      'reminder_link_sector',
-                      'Sectores',
-                      _linkId,
-                      editable,
-                      (v) => _linkId = v,
-                      () => ref.invalidate(sectorsProvider),
-                    ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: AppSpacing.lg),
                 ],
               ),
       ),
