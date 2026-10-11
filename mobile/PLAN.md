@@ -316,7 +316,7 @@ se detalla en su entrega más abajo.
 
 ---
 
-## Fase 6 — Paridad visual con genstock (DS-00 … DS-30, sin asignar)
+## Fase 6 — Paridad visual con genstock (DS-00 … DS-30) ✅ 2026-10-11
 
 Unificar la UI con los componentes Flutter de genstock y los valores de la web genwork
 (azul, neutros acromáticos, claro/oscuro/sistema). Plan paso a paso, pensado para ejecutarse
@@ -329,6 +329,10 @@ una tarea por sesión: [`docs/ui-genstock-parity-plan.md`](docs/ui-genstock-pari
 | C | DS-11 … DS-13 | `TaskTile`/composer, drawer estilo sidebar, detalle de tarea a pantalla completa |
 | D | DS-14 … DS-27 | Migración pantalla por pantalla |
 | E | DS-28 … DS-30 | Guardia de tokens (test), nativo, QA visual y documentación |
+
+**Estado:** completa. `dart analyze` sin issues; `flutter test` 319 verdes (323 con `--dart-define=UI_PREVIEWS=true`).
+Cada pantalla se comparó con la web a 390 px. Evidencia en `.context/ds-final/`; bitácora y hallazgos por tarea en
+[`docs/ui-genstock-parity-plan.md`](docs/ui-genstock-parity-plan.md); resumen en `design-system/genwork/GENSTOCK_PARITY.md` (sección «Móvil»).
 
 ## Riesgos y pendientes conocidos
 

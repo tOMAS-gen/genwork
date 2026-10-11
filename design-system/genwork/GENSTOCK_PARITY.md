@@ -123,3 +123,30 @@ TypeScript y ESLint sin errores; 69 pruebas relacionadas pasaron. Evidencia loca
 - Resumen sin duplicar tareas compartidas entre sectores; contenedoras excluidas del progreso.
 - La actualización en vivo renueva las tareas automáticamente. Un error de actualización mantiene los últimos datos y ofrece reintentar. TV conserva su vista de lectura sin barra de controles.
 - Estilos aislados en `BoardGrid.module.css`, con los tokens comunes y adaptación a móvil. Evidencia de revisión en `.context/task-overview/`.
+
+## Móvil (Flutter) — paridad portada, 2026-10-11
+
+La app `mobile/` adopta los mismos tokens y componentes que la web y que GenStock. Plan y bitácora por tarea
+(DS-00 … DS-30): `mobile/docs/ui-genstock-parity-plan.md`.
+
+- **Tokens** (`mobile/lib/core/theme/`): `gen_colors.dart` (`GenColors`, claro/oscuro, `context.colors`),
+  `app_geometry.dart` (`AppSpacing`, radios `AppGeometry`, `kActiveTickWidth`, `LeadingTickBorder`, `WorkspaceMetrics`),
+  `app_text_styles.dart` (Montserrat, sin tracking salvo `sectionLabel`), `app_icons.dart` (`AppIcons`/`AppIconSizes`,
+  Material outlined) y `app_theme.dart` (`ThemeData` + temas de componentes). Preferencia claro/oscuro/sistema persistida.
+- **Componentes compartidos** (`mobile/lib/shared/widgets/`): chips y avisos (`StatusChip`, `AppInlineNotice`), estados
+  (`GenSkeleton`, `AppStateBlock`, `AppErrorWidget`), diálogos (`AppWorkDialog`, `showAppFormDialog`, `showAdaptiveModal`),
+  paneles (`WorkspacePanel`, `WorkspaceListPanel`, `AppWorkSection`, `KpiTile`), encabezados (`GenPageScaffold`,
+  `GenSectionHeader`, `Breadcrumb`), búsqueda/filtros/tabs (`WorkspaceSearchBar`, `GenFilterChipBar`, `GenTabBar`),
+  `ColorPalette` (paleta única), `TaskTile`/composer y drawer estilo sidebar.
+- **Pantallas migradas**: login/setup, drawer, Mi día, proyectos (lista, detalle, tarea a pantalla completa), sectores,
+  Vista de tareas, notas y documentos, archivos, grupos, objetivos/plantillas, recordatorios (calendario y formulario),
+  configuración y cuenta.
+- **La web manda**: a partir de DS-14 cada pantalla se comparó con la web a 390 px (iframe en una pestaña del servidor dev)
+  y se iteró hasta que coincidieran; donde difieren del plan o de GenStock se siguió la web.
+- **Guardia**: `mobile/test/design_tokens_guard_test.dart` falla si `lib/features/**` o `lib/shared/**` usan `Colors.*`,
+  `Color(0x…)`, `Icons.*`, `AlertDialog`, `showDialog` directo, `showModalBottomSheet` o medidas literales en
+  `SizedBox`/`EdgeInsets`.
+- **Pendientes conocidos**: color por alcance (individual/grupo/global) en el calendario de recordatorios (la ocurrencia
+  no trae `scope`); el ícono de la app sigue en `#2563eb` (favicon web).
+- **Evidencia** (no versionada): `.context/ds-final/` (capturas de `UI_PREVIEWS` y del emulador) y `.context/ds-baseline/`.
+
