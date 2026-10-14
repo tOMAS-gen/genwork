@@ -146,7 +146,8 @@ La app `mobile/` adopta los mismos tokens y componentes que la web y que GenStoc
 - **Guardia**: `mobile/test/design_tokens_guard_test.dart` falla si `lib/features/**` o `lib/shared/**` usan `Colors.*`,
   `Color(0x…)`, `Icons.*`, `AlertDialog`, `showDialog` directo, `showModalBottomSheet` o medidas literales en
   `SizedBox`/`EdgeInsets`.
-- **Pendientes conocidos**: color por alcance (individual/grupo/global) en el calendario de recordatorios (la ocurrencia
-  no trae `scope`); el ícono de la app sigue en `#2563eb` (favicon web).
+- **Recordatorios**: el calendario y las filas de próximos colorean por alcance (individual `success`, grupo `info`,
+  global `danger`), con el `scope` que ya devuelve la API.
+- **Pendiente conocido**: el ícono de la app sigue en `#2563eb` (favicon web).
 - **Evidencia** (no versionada): `.context/ds-final/` (capturas de `UI_PREVIEWS` y del emulador) y `.context/ds-baseline/`.
 

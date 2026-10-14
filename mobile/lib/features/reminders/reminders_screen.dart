@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 
 import 'delivery_tile.dart';
 import 'reminder_calendar.dart';
+import 'reminder_scope_color.dart';
 import '../../core/router/routes.dart';
 import '../../core/util/format.dart';
 import '../../shared/widgets/async_value_view.dart';
@@ -194,7 +195,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                           key: ValueKey(
                             'occurrence_${o.reminderId}_${o.date.toIso8601String()}',
                           ),
-                          leading: const Icon(AppIcons.reminders),
+                          leading: Icon(
+                            AppIcons.reminders,
+                            color: reminderScopeColor(context, o.scope),
+                          ),
                           title: Text(o.title),
                           subtitle: Text(dayLabel(o.date)),
                           onTap: () =>

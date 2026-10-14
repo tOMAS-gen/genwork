@@ -12,6 +12,8 @@ import '../../core/util/format.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/state_views.dart';
+import '../../data/models/reminder.dart';
+import 'reminder_scope_color.dart';
 import 'reminders_providers.dart';
 
 class ReminderCalendar extends ConsumerStatefulWidget {
@@ -129,8 +131,10 @@ class _ReminderCalendarState extends ConsumerState<ReminderCalendar> {
             final days = DateTime.utc(_month.year, _month.month + 1, 0).day;
             final offset = _month.weekday - 1;
             final counts = <int, int>{};
+            final scopes = <int, Set<ReminderScope>>{};
             for (final o in data.occurrences) {
               counts.update(o.date.day, (n) => n + 1, ifAbsent: () => 1);
+              (scopes[o.date.day] ??= {}).add(o.scope);
             }
             final occurrences =
                 data.occurrences
@@ -192,6 +196,8 @@ class _ReminderCalendarState extends ConsumerState<ReminderCalendar> {
                                         i - offset + 1,
                                       ),
                                       count: counts[i - offset + 1] ?? 0,
+                                      scopes:
+                                          scopes[i - offset + 1] ?? const {},
                                       selected: DateUtils.isSameDay(
                                         DateTime.utc(
                                           _month.year,
@@ -268,7 +274,10 @@ class _ReminderCalendarState extends ConsumerState<ReminderCalendar> {
                           key: ValueKey(
                             'calendar_occurrence_${o.reminderId}_${o.date.toIso8601String()}',
                           ),
-                          leading: const Icon(AppIcons.reminders),
+                          leading: Icon(
+                            AppIcons.reminders,
+                            color: reminderScopeColor(context, o.scope),
+                          ),
                           title: Text(o.title),
                           subtitle: Text(
                             DateFormat('d MMM y', 'es').format(o.date),
@@ -293,12 +302,14 @@ class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.date,
     required this.count,
+    required this.scopes,
     required this.selected,
     required this.today,
     required this.onSelect,
   });
   final DateTime date;
   final int count;
+  final Set<ReminderScope> scopes;
   final bool selected, today;
   final void Function(DateTime date, bool selected) onSelect;
 
@@ -344,7 +355,18 @@ class _DayCell extends StatelessWidget {
                   height: AppSpacing.xs,
                   child: count == 0
                       ? null
-                      : Icon(AppIcons.dot, size: 5, color: c.brand),
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final scope in ReminderScope.values)
+                              if (scopes.contains(scope))
+                                Icon(
+                                  AppIcons.dot,
+                                  size: 5,
+                                  color: reminderScopeColor(context, scope),
+                                ),
+                          ],
+                        ),
                 ),
               ],
             ),
