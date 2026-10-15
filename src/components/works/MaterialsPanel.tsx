@@ -31,6 +31,7 @@ interface GenstockSearchItem {
     product_code: string;
     human_code: string;
     unit_id: string;
+    is_supply?: boolean;
     brand?: { id: string; name: string } | null;
   };
   prices: {
@@ -46,6 +47,7 @@ interface GenstockSearchResponse {
   items: GenstockSearchItem[];
   total: number;
   has_more: boolean;
+  supplyFallback?: boolean;
 }
 
 interface GenstockContext {
@@ -85,6 +87,8 @@ export function MaterialsPanel({ workId, editable }: { workId: string; editable:
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState("");
   const [searching, setSearching] = useState(false);
+  const [supplyOnly, setSupplyOnly] = useState(true);
+  const [supplyFallback, setSupplyFallback] = useState(false);
   const [saving, setSaving] = useState(false);
   const [context, setContext] = useState<GenstockContext | null>(null);
 
@@ -119,20 +123,25 @@ export function MaterialsPanel({ workId, editable }: { workId: string; editable:
     }
 
     const timeout = window.setTimeout(() => {
-      void api<GenstockSearchResponse>(`/api/genstock/search?q=${encodeURIComponent(q)}`)
+      const supply = supplyOnly ? "1" : "0";
+      void api<GenstockSearchResponse>(
+        `/api/genstock/search?q=${encodeURIComponent(q)}&supply=${supply}`,
+      )
         .then((body) => {
           setResults(body.items);
+          setSupplyFallback(Boolean(body.supplyFallback));
           setStatus("");
         })
         .catch((err: Error) => {
           setResults([]);
+          setSupplyFallback(false);
           setStatus(err.message);
         })
         .finally(() => setSearching(false));
     }, 250);
 
     return () => window.clearTimeout(timeout);
-  }, [query]);
+  }, [query, supplyOnly]);
 
   const assignedProductIds = useMemo(
     () => new Set(materials.map((material) => material.genstockProductId)),
@@ -227,25 +236,40 @@ export function MaterialsPanel({ workId, editable }: { workId: string; editable:
     <div className="materials-panel">
       {editable && (
         <div className="materials-add">
-          <div className="materials-searchbar">
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => {
-                const next = e.target.value;
-                setQuery(next);
-                setSelected(null);
-                if (next.trim().length < 2) {
-                  setResults([]);
-                  setSearching(false);
-                } else {
-                  setSearching(true);
-                }
-              }}
-              placeholder="Buscar producto en Genstock"
-              aria-label="Buscar producto en Genstock"
-            />
+          <div className="materials-search-row">
+            <div className="materials-searchbar">
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setQuery(next);
+                  setSelected(null);
+                  if (next.trim().length < 2) {
+                    setResults([]);
+                    setSearching(false);
+                  } else {
+                    setSearching(true);
+                  }
+                }}
+                placeholder="Buscar producto en Genstock"
+                aria-label="Buscar producto en Genstock"
+              />
+            </div>
+            <label className="materials-supply-switch">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={supplyOnly}
+                onChange={(e) => {
+                  setSupplyOnly(e.target.checked);
+                  if (query.trim().length >= 2) setSearching(true);
+                }}
+              />
+              <span className="materials-supply-switch-track" aria-hidden="true" />
+              Solo insumos
+            </label>
           </div>
 
           {query.trim().length >= 2 && (
@@ -255,50 +279,60 @@ export function MaterialsPanel({ workId, editable }: { workId: string; editable:
               ) : results.length === 0 ? (
                 <p className="muted">Sin productos para esta búsqueda.</p>
               ) : (
-                results.map((item) => {
-                  const alreadyAssigned = assignedProductIds.has(item.product.id);
-                  const unit = unitById.get(item.product.unit_id);
-                  const unitLabel = formatUnit(
-                    {
-                      unitId: item.product.unit_id,
+                <>
+                  {supplyFallback && (
+                    <p className="materials-fallback-note">
+                      Ningún insumo coincide: se muestran productos de todo el catálogo.
+                    </p>
+                  )}
+                  {results.map((item) => {
+                    const alreadyAssigned = assignedProductIds.has(item.product.id);
+                    const unit = unitById.get(item.product.unit_id);
+                    const unitLabel = formatUnit(
+                      {
+                        unitId: item.product.unit_id,
+                        unitName: unit?.name ?? null,
+                        unitAbbreviation: unit?.abbreviation ?? null,
+                      },
+                      unitById,
+                    );
+                    const unitFactor = formatUnitFactor({
                       unitName: unit?.name ?? null,
                       unitAbbreviation: unit?.abbreviation ?? null,
-                    },
-                    unitById,
-                  );
-                  const unitFactor = formatUnitFactor({
-                    unitName: unit?.name ?? null,
-                    unitAbbreviation: unit?.abbreviation ?? null,
-                    unitMagnitude: unit?.magnitude ?? null,
-                    unitFactor: unit?.factor ?? null,
-                    unitIsBase: unit?.is_base ?? null,
-                  });
-                  return (
-                    <button
-                      key={item.product.id}
-                      type="button"
-                      className={`material-result${selected?.product.id === item.product.id ? " is-selected" : ""}`}
-                      onClick={() => setSelected(item)}
-                      disabled={alreadyAssigned}
-                    >
-                      <span>
-                        <strong>{item.product.name}</strong>
-                        <span className="muted">
-                          {item.product.human_code || item.product.product_code}
-                          {item.product.brand ? ` · ${item.product.brand.name}` : ""}
-                          {unitLabel ? ` · ${unitLabel}` : ""}
+                      unitMagnitude: unit?.magnitude ?? null,
+                      unitFactor: unit?.factor ?? null,
+                      unitIsBase: unit?.is_base ?? null,
+                    });
+                    return (
+                      <button
+                        key={item.product.id}
+                        type="button"
+                        className={`material-result${selected?.product.id === item.product.id ? " is-selected" : ""}`}
+                        onClick={() => setSelected(item)}
+                        disabled={alreadyAssigned}
+                      >
+                        <span>
+                          <strong>{item.product.name}</strong>
+                          <span className="muted">
+                            {item.product.human_code || item.product.product_code}
+                            {item.product.brand ? ` · ${item.product.brand.name}` : ""}
+                            {unitLabel ? ` · ${unitLabel}` : ""}
+                            {item.product.is_supply === false ? " · No es insumo" : ""}
+                          </span>
+                          {unitFactor && <span className="muted">{unitFactor}</span>}
                         </span>
-                        {unitFactor && <span className="muted">{unitFactor}</span>}
-                      </span>
-                      <span className="material-result-meta">
-                        {alreadyAssigned ? "Ya asignado" : renderStockSummary(item, warehouseById)}
-                      </span>
-                      <span className="material-result-prices">
-                        {renderPriceSummary(item, priceListById, currencyById)}
-                      </span>
-                    </button>
-                  );
-                })
+                        <span className="material-result-meta">
+                          {alreadyAssigned
+                            ? "Ya asignado"
+                            : renderStockSummary(item, warehouseById)}
+                        </span>
+                        <span className="material-result-prices">
+                          {renderPriceSummary(item, priceListById, currencyById)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </>
               )}
             </div>
           )}

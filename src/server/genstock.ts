@@ -103,13 +103,16 @@ export async function getGenstockConfig() {
 export async function searchGenstockProducts({
   query,
   limit,
+  supplyOnly,
 }: {
   query: string;
   limit?: number;
+  supplyOnly?: boolean;
 }): Promise<GenstockSearchResponse> {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
   if (limit) params.set("limit", String(limit));
+  if (supplyOnly) params.set("is_supply", "true");
   return fetchGenstock<GenstockSearchResponse>(
     genstockUrl("/search", params, await getGenstockBaseUrl()),
   );
