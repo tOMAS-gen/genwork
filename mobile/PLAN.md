@@ -31,7 +31,7 @@ Reparto del trabajo:
 |---|---|---|
 | Tipo de app | Nativa Flutter + API REST | UI nativa; administración por módulos incorporada en el punto 9 |
 | Ubicación | `mobile/` en este repo (monorepo) | Un cambio de API y su uso en la app van en el mismo PR |
-| Primer inicio | El usuario escribe la URL del sistema → se valida con `GET /api/auth/mobile/info` → se guarda → login | La app no tiene la URL fija (sirve para cualquier instalación de genwork) |
+| Primer inicio | El usuario escanea el QR de la web (**Configuración › App móvil**) o escribe la URL → se valida con `GET /api/auth/mobile/info` → se guarda como perfil de servidor → login. Varios servidores: **Mi cuenta › Servidores** (cambiar, agregar, quitar), sesión propia por servidor | La app no tiene la URL fija (sirve para cualquier instalación de genwork) |
 | Login | Navegador del sistema → login web existente (Google + lista de acceso) → deep link `genwork://auth?code=…` → canje PKCE por token | Reusa el OAuth web: no hacen falta client IDs de Google para iOS/Android, y vale igual la allowlist |
 | Token | `genwork_mob_…` de larga vida, revocable. Solo se guarda su hash (`MobileSession`) | Mismo patrón que los tokens MCP |
 | Roles | Solo SUPERADMIN y MEMBER. CLIENT (portal) y READER (TV) quedan afuera | Se chequea al emitir y en cada request |

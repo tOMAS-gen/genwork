@@ -5,14 +5,23 @@ Reglas para agentes: [`AGENTS.md`](AGENTS.md).
 
 ## Cómo funciona el ingreso
 
-1. **Primer inicio**: la app pide la URL del sistema (ej. `work.gen.net.ar`). La
-   valida contra `GET /api/auth/mobile/info` y la guarda.
+1. **Vincular el servidor**: en la web, **Configuración › App móvil** muestra un
+   QR con la dirección del sistema (sin credenciales). La app lo escanea en el
+   primer inicio (o se escribe la dirección a mano), lo valida contra
+   `GET /api/auth/mobile/info` y lo guarda. El QR también abre la app si se lee
+   con la cámara del teléfono (`genwork://connect?server=…`).
 2. **Ingresar con Google**: abre el login web del servidor en el navegador del
    sistema. Al ingresar, el servidor vuelve a la app con `genwork://auth?code=…`
    y la app canjea ese código (PKCE) por un token propio, guardado en el
    Keychain / Keystore.
-3. **Cerrar sesión** revoca el token en el servidor. "Cambiar servidor", en el
-   login, vuelve al paso 1.
+3. **Cerrar sesión** revoca el token en el servidor, solo del servidor activo.
+   **Mi cuenta › Servidores** lista los sistemas vinculados: tocar uno cambia a
+   ese sistema con su propia sesión (sin volver a ingresar); «Agregar servidor»
+   pide otro QR; quitar uno cierra su sesión y lo olvida.
+
+Variables del servidor relacionadas: `NEXTAUTH_URL` (o `AUTH_URL`) debe ser la
+dirección pública del sistema, porque es la que lleva el QR. `SYSTEM_NAME` es
+opcional: nombre que muestra la app para el servidor (por defecto, el host).
 
 La app admite administrador, miembro, cliente y lector. Cada rol conserva los
 permisos de la web: los clientes entran al portal y los lectores al tablero de
