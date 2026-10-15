@@ -353,6 +353,7 @@ export const GET = withApi<{ params: Promise<{ id: string }> }>(async (req, { pa
       id: sector.id,
       name: sector.name,
       color: sector.color,
+      description: sector.description,
       scope: sector.groupId
         ? { type: "GROUP", groupId: sector.groupId, groupName: sector.group?.name }
         : sector.ownerId

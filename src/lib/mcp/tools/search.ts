@@ -33,7 +33,14 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
             objectiveId: string | null;
             objectiveTitle: string | null;
           }[];
-          sectors: { id: string; name: string }[];
+          sectors: {
+            id: string;
+            name: string;
+            color: string | null;
+            description: string | null;
+            groupId: string | null;
+            ownerId: string | null;
+          }[];
         } = { works: [], tasks: [], sectors: [] };
 
         if (wanted.has("work")) {
@@ -72,7 +79,14 @@ export function registerSearchTools(server: McpServer, ctx: McpAuth): void {
                 }) !== "none",
             )
             .slice(0, LIMIT)
-            .map((s) => ({ id: s.id, name: s.name }));
+            .map((s) => ({
+              id: s.id,
+              name: s.name,
+              color: s.color,
+              description: s.description,
+              groupId: s.groupId,
+              ownerId: s.ownerId,
+            }));
         }
 
         if (wanted.has("task")) {

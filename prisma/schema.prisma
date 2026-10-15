@@ -187,6 +187,8 @@ model Sector {
   id      String  @id @default(uuid())
   name    String
   color   String?
+  // Para qué sirve el sector: lo leen las personas y los asistentes MCP.
+  description String?
   groupId String?
   ownerId String?
 

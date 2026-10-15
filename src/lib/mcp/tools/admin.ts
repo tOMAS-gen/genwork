@@ -245,11 +245,12 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
       inputSchema: {
         name: z.string().trim().min(1).max(80),
         color: z.string().refine(isValidHex, "Color inválido").optional(),
+        description: z.string().trim().max(500).optional(),
         groupId: z.string().uuid().optional(),
         global: z.boolean().optional(),
       },
     },
-    async ({ name, color, groupId, global }) => {
+    async ({ name, color, description, groupId, global }) => {
       try {
         const scope: Scope = groupId
           ? { groupId, ownerId: null }
@@ -268,13 +269,20 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
             id: existing.id,
             name: existing.name,
             color: existing.color,
+            description: existing.description,
           });
         }
 
         const resolvedColor = color ? normalizeHex(color) : null;
         const finalColor = resolvedColor ?? assignSectorColor(await prisma.sector.count());
         const sector = await prisma.sector.create({
-          data: { name, color: finalColor, groupId: scope.groupId, ownerId: scope.ownerId },
+          data: {
+            name,
+            color: finalColor,
+            description: description || null,
+            groupId: scope.groupId,
+            ownerId: scope.ownerId,
+          },
         });
 
         await logMcpActivity({
@@ -290,6 +298,7 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
           id: sector.id,
           name: sector.name,
           color: sector.color,
+          description: sector.description,
         });
       } catch (err) {
         return toToolErrorResult(err);
@@ -428,21 +437,22 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
   server.registerTool(
     "admin.sector.update",
     {
-      title: "Renombrar o recolorear sector",
+      title: "Editar sector",
       description:
-        "Cambia el nombre y/o el color de un sector existente. Renombrar conserva los vínculos con " +
+        "Cambia el nombre, el color y/o la descripción (para qué sirve; null la borra) de un sector existente. Renombrar conserva los vínculos con " +
         "las tareas (FR-015). Reservado al administrador del sistema, igual que en la web.",
       inputSchema: {
         sectorId: z.string().uuid(),
         name: z.string().trim().min(1).max(80).optional(),
         color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
+        description: z.string().trim().max(500).nullable().optional(),
       },
     },
-    async ({ sectorId, name, color }) => {
+    async ({ sectorId, name, color, description }) => {
       try {
         assertSuperAdmin(ctx);
-        if (name === undefined && color === undefined) {
-          throw badRequest("Indicá al menos name o color");
+        if (name === undefined && color === undefined && description === undefined) {
+          throw badRequest("Indicá al menos name, color o description");
         }
 
         const sector = await prisma.sector.findUnique({ where: { id: sectorId } });
@@ -465,6 +475,7 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
           data: {
             ...(name !== undefined ? { name } : {}),
             ...(color !== undefined ? { color: color === null ? null : normalizeHex(color) } : {}),
+            ...(description !== undefined ? { description: description || null } : {}),
           },
         });
 
@@ -484,6 +495,7 @@ export function registerAdminTools(server: McpServer, ctx: McpAuth): void {
           id: updated.id,
           name: updated.name,
           color: updated.color,
+          description: updated.description,
           scope: sectorScopeOf(updated),
         });
       } catch (err) {

@@ -45,7 +45,7 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 |---|---|---|
 | `task.list` | Lista tareas de un proyecto o de un sector, con `parentId`, `subtaskCount`, `subtaskDone`, `workName`, `objectiveId` y `objectiveTitle` de cada una. | Al menos uno de `workId`/`sectorId`/`objectiveId`. Con `parentId` trae sólo las hijas de esa tarea. Con `objectiveId` filtra por objetivo; `objectiveId: null` = generales (requiere `workId`). Por sector excluye plantillas. |
 | `task.create` | Crea una tarea desde texto con etiquetado inline (`/trabajo #sector @ref $etiqueta`). | Mismo parser que la web (Principio II). Con `parentId` nace como subtarea y hereda proyecto, sector, ejecución y objetivo del padre. Con `objectiveId` nace en ese objetivo (requiere operar el proyecto). |
-| `task.update` | Reemplaza el texto y re-resuelve las etiquetas inline. | — |
+| `task.update` | Reemplaza el texto y re-resuelve las etiquetas inline. | Cambiar el `#sector` del texto reasigna el sector de ejecución (no hay `task.setSector`). |
 | `task.setState` | Cambia el estado a cualquiera del conjunto aplicable (feature 042). | `statusId` o `statusName`. |
 | `task.delete` | Borra una tarea de forma permanente. | **[destructiva]** |
 | `task.setParent` | Cuelga una tarea como subtarea de otra, o la promueve a tarea independiente con `parentId: null`. | Un solo nivel; mismo proyecto o sector; hereda los sectores de ejecución y el objetivo del padre. |
@@ -80,8 +80,8 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 
 | Herramienta | Qué hace | Notas |
 |---|---|---|
-| `sector.list` | Sectores visibles con su ámbito (Grupo + nombre del grupo, Personal, Global), color, nivel de acceso y contadores; además agrupados por ámbito en `byScope`. | Filtros opcionales `scope` y `groupId`. |
-| `sector.get` | Detalle de un sector: ámbito, acceso y contadores de tareas. | 404 si no existe o no es visible. |
+| `sector.list` | Sectores visibles con su ámbito (Grupo + nombre del grupo, Personal, Global), color, descripción, nivel de acceso y contadores; además agrupados por ámbito en `byScope`. | Filtros opcionales `scope` y `groupId`. |
+| `sector.get` | Detalle de un sector: ámbito, descripción, acceso y contadores de tareas. | 404 si no existe o no es visible. |
 
 ## Documentación (`doc.*`)
 
@@ -151,7 +151,7 @@ puede ver (FR-008). Las marcadas **[destructiva]** exigen `confirmationToken`. L
 | `admin.group.create` | Crea un grupo. | — |
 | `admin.group.delete` | Borra un grupo. | **[destructiva]** |
 | `admin.sector.create` | Crea un sector en el ámbito indicado (grupo, global o personal). | Gate `canCreateSector`. |
-| `admin.sector.update` | Renombra y/o recolorea un sector. | Solo SUPERADMIN, igual que la web. |
+| `admin.sector.update` | Renombra, recolorea y/o cambia la descripción de un sector. | Solo SUPERADMIN, igual que la web. |
 | `admin.sector.delete` | Elimina un sector (las tareas de proyectos pierden el vínculo; las sueltas se borran). | **[destructiva]**, solo SUPERADMIN. |
 | `admin.sectorGrant.set` | Otorga o revoca el acceso de operación a un sector para otro usuario. | **[destructiva]** |
 | `admin.sectorGrant.list` | Lista los usuarios con `SectorGrant` sobre un sector. | Solo SUPERADMIN (expone datos de terceros). |

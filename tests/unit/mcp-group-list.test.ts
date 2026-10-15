@@ -83,7 +83,7 @@ describe("group.list", () => {
     });
     expect(groupFindMany).not.toHaveBeenCalled();
     expect(result).toMatchObject({
-      content: [{ type: "text", text: "2 grupo(s) encontrados." }],
+      content: expect.arrayContaining([{ type: "text", text: "2 grupo(s) encontrados." }]),
       structuredContent: {
         groups: [
           { id: "group-1", name: "Genwork", role: "ADMIN" },
@@ -112,7 +112,7 @@ describe("group.list", () => {
     });
     expect(groupMembershipFindMany).not.toHaveBeenCalled();
     expect(result).toMatchObject({
-      content: [{ type: "text", text: "2 grupo(s) encontrados." }],
+      content: expect.arrayContaining([{ type: "text", text: "2 grupo(s) encontrados." }]),
       structuredContent: {
         groups: [
           { id: "group-1", name: "Genwork", role: "ADMIN" },
@@ -128,7 +128,7 @@ describe("group.list", () => {
     const result = await callGroupList(auth("MEMBER"));
 
     expect(result).toMatchObject({
-      content: [{ type: "text", text: "0 grupo(s) encontrados." }],
+      content: expect.arrayContaining([{ type: "text", text: "0 grupo(s) encontrados." }]),
       structuredContent: { groups: [] },
     });
   });

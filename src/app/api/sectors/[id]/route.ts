@@ -17,9 +17,10 @@ const patchSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
     color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
+    description: z.string().trim().max(500).nullable().optional(),
   })
-  .refine((data) => data.name !== undefined || data.color !== undefined, {
-    message: "Debe incluir al menos name o color",
+  .refine((data) => data.name !== undefined || data.color !== undefined || data.description !== undefined, {
+    message: "Debe incluir al menos name, color o description",
   });
 
 /** Renombrar conserva vínculos (FR-015). */
@@ -27,7 +28,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   const { id } = await params;
   const sector = await getSectorWithOperate(id);
 
-  const { name, color } = patchSchema.parse(await req.json());
+  const { name, color, description } = patchSchema.parse(await req.json());
 
   if (name !== undefined) {
     const dup = await prisma.sector.findFirst({
@@ -46,6 +47,7 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     data: {
       ...(name !== undefined ? { name } : {}),
       ...(color !== undefined ? { color: color === null ? null : normalizeHex(color) } : {}),
+      ...(description !== undefined ? { description: description || null } : {}),
     },
   });
   return NextResponse.json(updated);
