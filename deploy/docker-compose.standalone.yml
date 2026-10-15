@@ -30,6 +30,7 @@ services:
       AUTH_URL: ${AUTH_URL:?definir en .env}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?definir en .env}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?definir en .env}
+      GENSTOCK_BASE_URL: ${GENSTOCK_BASE_URL:-}
 
 volumes:
   pgdata:
