@@ -13,6 +13,7 @@ import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/features/auth/login_screen.dart';
+import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
 import 'package:genwork_mobile/features/setup/server_setup_screen.dart';
 import 'package:genwork_mobile/shared/widgets/app_inline_notice.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
@@ -50,6 +51,9 @@ Future<void> _mount(
     ProviderScope(
       overrides: [
         sessionProvider.overrideWith(session ?? _SignedOutSession.new),
+        qrScannerBuilderProvider.overrideWithValue(
+          (context, onCode) => const SizedBox(key: ValueKey('setup_scanner')),
+        ),
       ],
       child: MaterialApp(
         theme: dark ? AppTheme.dark() : AppTheme.light(),
@@ -134,6 +138,8 @@ void main() {
 
     testWidgets('setup con la misma card ($tema)', (t) async {
       await _mount(t, const ServerSetupScreen(), dark: dark);
+      await t.tap(find.byKey(const ValueKey('setup_manual_toggle')));
+      await t.pumpAndSettle();
       expect(find.byType(WorkspacePanel), findsOneWidget);
       expect(find.byType(BrandName), findsOneWidget);
       expect(find.byKey(const ValueKey('setup_url_field')), findsOneWidget);
@@ -181,6 +187,8 @@ void main() {
       const ServerSetupScreen(),
       session: () => _SignedOutSession(failSetServer: true),
     );
+    await t.tap(find.byKey(const ValueKey('setup_manual_toggle')));
+    await t.pumpAndSettle();
     await t.enterText(
       find.byKey(const ValueKey('setup_url_field')),
       'mal.dominio',

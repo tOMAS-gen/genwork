@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 	<dict>
+		<key>NSCameraUsageDescription</key>
+		<string>La cámara se usa solo para escanear el código QR que vincula la app con tu servidor.</string>
 		<key>NSAppTransportSecurity</key>
 		<dict>
 			<!-- Servidor de desarrollo http:// en la LAN; producción siempre https. -->

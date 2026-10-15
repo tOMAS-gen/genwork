@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/app.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/providers.dart';
+import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -39,6 +40,9 @@ Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(instance),
         tokenStoreProvider.overrideWithValue(_MemoryTokenStore()),
+        qrScannerBuilderProvider.overrideWithValue(
+          (context, onCode) => const SizedBox(key: ValueKey('setup_scanner')),
+        ),
       ],
       child: const GenworkApp(),
     ),
@@ -47,8 +51,10 @@ Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
 }
 
 void main() {
-  testWidgets('primer inicio pide la URL del sistema', (tester) async {
+  testWidgets('primer inicio ofrece escribir la URL a mano', (tester) async {
     await _pump(tester, {});
+    await tester.tap(find.byKey(const ValueKey('setup_manual_toggle')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('setup_url_field')), findsOneWidget);
     expect(find.text('Continuar'), findsOneWidget);
   });

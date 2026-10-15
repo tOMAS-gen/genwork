@@ -67,6 +67,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
       GoRoute(path: Routes.setup, builder: (_, _) => const ServerSetupScreen()),
+      GoRoute(
+        path: Routes.addServer,
+        builder: (_, _) => const ServerSetupScreen(canGoBack: true),
+      ),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       ShellRoute(
         builder: (_, _, child) => RoleShell(child: child),

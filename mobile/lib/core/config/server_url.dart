@@ -5,7 +5,7 @@
 /// asume https. Devuelve null si no es una URL http(s) válida.
 Uri? normalizeServerUrl(String input) {
   var text = input.trim();
-  if (text.isEmpty) return null;
+  if (text.isEmpty || text.contains(RegExp(r'\s'))) return null;
   if (!text.contains('://')) text = 'https://$text';
 
   final uri = Uri.tryParse(text);
