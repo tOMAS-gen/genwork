@@ -26,6 +26,7 @@ export function CreateSectorDialog({
 }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
   const [scope, setScope] = useState(PERSONAL_SCOPE);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,6 +34,7 @@ export function CreateSectorDialog({
   const reset = () => {
     setName("");
     setColor(null);
+    setDescription("");
     setScope(PERSONAL_SCOPE);
     setError("");
   };
@@ -58,10 +60,11 @@ export function CreateSectorDialog({
     if (saving) return;
     setSaving(true);
     try {
-      const body: { name: string; color: string | null; groupId?: string; global?: boolean } = {
+      const body: { name: string; color: string | null; description?: string; groupId?: string; global?: boolean } = {
         name: name.trim(),
         color,
       };
+      if (description.trim()) body.description = description.trim();
       if (scope === GLOBAL_SCOPE) {
         body.global = true;
       } else if (scope !== PERSONAL_SCOPE) {
@@ -100,6 +103,20 @@ export function CreateSectorDialog({
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej.: Metalúrgica, Diseño, Compras"
           onKeyDown={(e) => e.key === "Enter" && void create()}
+          className="w-full rounded-control border border-border bg-field px-2.5 py-2 text-text transition-colors duration-150 placeholder:text-muted placeholder:opacity-70 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <label htmlFor="ns-description" className="text-[13px] font-medium text-muted">
+          Descripción (opcional)
+        </label>
+        <textarea
+          id="ns-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          maxLength={500}
+          rows={3}
+          placeholder="Para qué sirve este sector"
           className="w-full rounded-control border border-border bg-field px-2.5 py-2 text-text transition-colors duration-150 placeholder:text-muted placeholder:opacity-70 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
         />
       </div>

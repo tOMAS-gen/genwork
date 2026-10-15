@@ -29,6 +29,7 @@ function summarizeSector(sector: VisibleSector) {
     id: sector.id,
     name: sector.name,
     color: sector.color,
+    description: sector.description,
     scope: sector.scope,
     scopeLabel: scopeLabel(sector.scope),
     groupId: sector.groupId,
@@ -66,7 +67,7 @@ export function registerSectorTools(server: McpServer, ctx: McpAuth): void {
       title: "Listar sectores",
       description:
         "Lista los sectores visibles para el usuario indicando a qué ámbito pertenece cada uno " +
-        "(Grupo con su nombre, Personal o Global), su color, el nivel de acceso del usuario y los " +
+        "(Grupo con su nombre, Personal o Global), su id, su color, su descripción (para qué sirve), el nivel de acceso del usuario y los " +
         "contadores de tareas. Filtros opcionales por tipo de ámbito o por grupo.",
       inputSchema: {
         scope: z.enum(["GROUP", "PERSONAL", "GLOBAL"]).optional(),
@@ -103,7 +104,7 @@ export function registerSectorTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Ver sector",
       description:
-        "Detalle de un sector: nombre, color, ámbito (grupo/personal/global), nivel de acceso del " +
+        "Detalle de un sector: id, nombre, color, descripción, ámbito (grupo/personal/global), nivel de acceso del " +
         "usuario y contadores de tareas (total, pendientes, finalizadas).",
       inputSchema: { sectorId: z.string().uuid() },
     },

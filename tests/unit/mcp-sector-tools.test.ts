@@ -13,6 +13,7 @@ interface FakeSector {
   id: string;
   name: string;
   color: string | null;
+  description?: string | null;
   groupId: string | null;
   ownerId: string | null;
   group?: { id: string; name: string; publicRead: boolean } | null;
@@ -25,6 +26,7 @@ const db = vi.hoisted(() => ({
 }));
 
 const sectorUpdate = vi.hoisted(() => vi.fn());
+const sectorCreate = vi.hoisted(() => vi.fn());
 const sectorDelete = vi.hoisted(() => vi.fn());
 const sectorFindFirst = vi.hoisted(() => vi.fn(async () => null as FakeSector | null));
 
@@ -36,6 +38,8 @@ vi.mock("@/lib/db/client", () => ({
         db.sectors.find((s) => s.id === id) ?? null,
       ),
       findFirst: (...args: unknown[]) => sectorFindFirst(...(args as [])),
+      count: vi.fn(async () => 0),
+      create: (...args: unknown[]) => sectorCreate(...(args as [])),
       update: (...args: unknown[]) => sectorUpdate(...(args as [])),
       delete: (...args: unknown[]) => sectorDelete(...(args as [])),
     },
@@ -127,6 +131,7 @@ beforeEach(() => {
       id: SECTOR_ID,
       name: "Producción",
       color: "#112233",
+      description: "Planta y fabricación",
       groupId: GROUP_ID,
       ownerId: null,
       group: { id: GROUP_ID, name: "Genwork", publicRead: false },
@@ -219,6 +224,7 @@ describe("sector.get", () => {
       id: SECTOR_ID,
       name: "Producción",
       scopeLabel: "Grupo Genwork",
+      description: "Planta y fabricación",
       metrics: { total: 0, done: 0, pending: 0 },
     });
   });
@@ -281,6 +287,67 @@ describe("admin.sector.update", () => {
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain("Ya existe un sector");
     expect(sectorUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("description de sector", () => {
+  it("sector.list la devuelve y la incluye en el texto JSON", async () => {
+    const result = await call(
+      registerSectorTools,
+      auth("MEMBER", { memberGroupIds: new Set([GROUP_ID]) }),
+      "sector.list",
+    );
+    const sectors = result.structuredContent?.sectors as { id: string; description: string | null }[];
+    expect(sectors.find((s) => s.id === SECTOR_ID)?.description).toBe("Planta y fabricación");
+    expect(result.content[1].text).toContain(SECTOR_ID);
+    expect(result.content[1].text).toContain("Planta y fabricación");
+  });
+
+  it("admin.sector.update la escribe", async () => {
+    sectorUpdate.mockResolvedValueOnce({
+      id: SECTOR_ID, name: "Producción", color: "#112233", description: "Nueva", groupId: GROUP_ID, ownerId: null,
+    });
+    const result = await call(registerAdminTools, auth("SUPERADMIN"), "admin.sector.update", {
+      sectorId: SECTOR_ID,
+      description: "Nueva",
+    });
+    expect(result.isError).toBeUndefined();
+    expect(sectorUpdate).toHaveBeenCalledWith({ where: { id: SECTOR_ID }, data: { description: "Nueva" } });
+    expect(result.structuredContent).toMatchObject({ description: "Nueva" });
+  });
+
+  it("admin.sector.update con null la borra", async () => {
+    sectorUpdate.mockResolvedValueOnce({
+      id: SECTOR_ID, name: "Producción", color: null, description: null, groupId: GROUP_ID, ownerId: null,
+    });
+    await call(registerAdminTools, auth("SUPERADMIN"), "admin.sector.update", {
+      sectorId: SECTOR_ID,
+      description: null,
+    });
+    expect(sectorUpdate).toHaveBeenCalledWith({ where: { id: SECTOR_ID }, data: { description: null } });
+  });
+
+  it("admin.sector.update exige al menos un campo", async () => {
+    const result = await call(registerAdminTools, auth("SUPERADMIN"), "admin.sector.update", {
+      sectorId: SECTOR_ID,
+    });
+    expect(result.isError).toBe(true);
+    expect(sectorUpdate).not.toHaveBeenCalled();
+  });
+
+  it("admin.sector.create la guarda", async () => {
+    sectorCreate.mockResolvedValueOnce({
+      id: "nuevo", name: "Compras", color: "#112233", description: "Pedidos a proveedores", groupId: null, ownerId: "user-1",
+    });
+    const result = await call(registerAdminTools, auth("MEMBER"), "admin.sector.create", {
+      name: "Compras",
+      description: "Pedidos a proveedores",
+    });
+    expect(result.isError).toBeUndefined();
+    expect(sectorCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ name: "Compras", description: "Pedidos a proveedores" }),
+    });
+    expect(result.structuredContent).toMatchObject({ id: "nuevo", description: "Pedidos a proveedores" });
   });
 });
 

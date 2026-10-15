@@ -287,7 +287,8 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
     "task.update",
     {
       title: "Actualizar tarea",
-      description: "Reemplaza el texto de una tarea; re-resuelve sus etiquetas inline.",
+      description: "Reemplaza el texto de una tarea; re-resuelve sus etiquetas inline. Para mover la tarea a otro " +
+        "sector de ejecución, reescribí el texto con el #sector nuevo (los #sector del texto reemplazan a los anteriores).",
       inputSchema: taskUpdateInputShape,
     },
     async ({ taskId, text }) => {

@@ -24,6 +24,7 @@ export const GET = withApi(async () => {
       id: s.id,
       name: s.name,
       color: s.color,
+      description: s.description,
       groupId: s.groupId,
       ownerId: s.ownerId,
       _count: s._count,
@@ -36,6 +37,7 @@ export const GET = withApi(async () => {
 const createSchema = z.object({
   name: z.string().trim().min(1).max(80),
   color: z.string().refine(isValidHex, "Color inválido").nullable().optional(),
+  description: z.string().trim().max(500).optional(),
   groupId: z.string().uuid().optional(),
   global: z.boolean().optional(),
 });
@@ -43,7 +45,7 @@ const createSchema = z.object({
 export const POST = withApi(async (req) => {
   const session = await requireWriter();
   const ctx = await getUserContext(session.user.id);
-  const { name, color, groupId, global } = createSchema.parse(await req.json());
+  const { name, color, description, groupId, global } = createSchema.parse(await req.json());
 
   const scope: Scope = groupId
     ? { groupId, ownerId: null }
@@ -66,7 +68,13 @@ export const POST = withApi(async (req) => {
     (color ? normalizeHex(color) : null) ?? assignSectorColor(await prisma.sector.count());
 
   const sector = await prisma.sector.create({
-    data: { name, color: resolvedColor, groupId: scope.groupId, ownerId: scope.ownerId },
+    data: {
+      name,
+      color: resolvedColor,
+      description: description || null,
+      groupId: scope.groupId,
+      ownerId: scope.ownerId,
+    },
   });
   return NextResponse.json(sector, { status: 201 });
 });

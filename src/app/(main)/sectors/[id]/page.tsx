@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/ui/useApi";
 import { TaskListEditor } from "@/components/tasks/TaskListEditor";
@@ -15,6 +15,7 @@ import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
+import { Dialog } from "@/components/ui/Dialog";
 import { RenameDialog } from "@/components/ui/RenameDialog";
 import { ColorField } from "@/components/ui/ColorField";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -30,6 +31,7 @@ interface SectorView {
     id: string;
     name: string;
     color: string | null;
+    description: string | null;
     scope: {
       type: "GROUP" | "PERSONAL" | "GLOBAL";
       groupId?: string;
@@ -57,6 +59,16 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
   const [loadError, setLoadError] = useState(false);
   const [showStatusSettings, setShowStatusSettings] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  // El menú devuelve el foco a su botón al cerrarse; se lo reclamamos al textarea.
+  useEffect(() => {
+    if (!editingDescription) return;
+    const t = setTimeout(() => descriptionRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, [editingDescription]);
   const [taskView, setTaskView] = useState<"list" | "board">("list");
   const [me, setMe] = useState<{
     id: string;
@@ -186,6 +198,9 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
                     </p>
                     {!canOperate && <span className="work-state">Solo lectura</span>}
                   </div>
+                  {view.sector.description && (
+                    <p className="mt-1 mb-0 text-sm text-muted whitespace-pre-line">{view.sector.description}</p>
+                  )}
                 </div>
               </div>
               {canOperate && (
@@ -206,6 +221,14 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
                             label: "Renombrar…",
                             icon: <Pencil size={16} />,
                             onSelect: () => setRenaming(true),
+                          },
+                          {
+                            label: "Editar descripción…",
+                            icon: <Pencil size={16} />,
+                            onSelect: () => {
+                              setDescriptionDraft(view.sector.description ?? "");
+                              setEditingDescription(true);
+                            },
                           },
                           {
                             label: "Eliminar sector",
@@ -371,6 +394,45 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
           ))}
         </section>
       )}
+
+      <Dialog
+        open={editingDescription}
+        onClose={() => setEditingDescription(false)}
+        title="Descripción del sector"
+      >
+        <div className="grid gap-1.5">
+          <label htmlFor="sector-description" className="text-[13px] font-medium text-muted">
+            Para qué sirve este sector
+          </label>
+          <textarea
+            id="sector-description"
+            ref={descriptionRef}
+            value={descriptionDraft}
+            onChange={(e) => setDescriptionDraft(e.target.value)}
+            maxLength={500}
+            rows={4}
+            className="w-full rounded-control border border-border bg-field px-2.5 py-2 text-text transition-colors duration-150 placeholder:text-muted placeholder:opacity-70 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
+          />
+        </div>
+        <div className="flex justify-end gap-2 mt-2">
+          <button className="rounded-control border border-border bg-surface px-3.5 py-[7px] text-text transition-colors duration-150 hover:border-accent hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]" onClick={() => setEditingDescription(false)}>
+            Cancelar
+          </button>
+          <button
+            className="rounded-control border border-border bg-surface px-3.5 py-[7px] text-text transition-colors duration-150 hover:border-accent hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98]"
+            onClick={async () => {
+              await api(`/api/sectors/${id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ description: descriptionDraft.trim() || null }),
+              });
+              setEditingDescription(false);
+              load();
+            }}
+          >
+            Guardar
+          </button>
+        </div>
+      </Dialog>
 
       <RenameDialog
         open={renaming}
