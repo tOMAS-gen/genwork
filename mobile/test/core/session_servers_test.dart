@@ -231,6 +231,85 @@ void main() {
     expect(c.read(serverListProvider), hasLength(1));
   });
 
+  group('autoLogin', () {
+    bool flag(ProviderContainer c) => (c.read(sessionProvider).value as SignedOut).autoLogin;
+
+    test('addServer sin token → SignedOut con autoLogin; con token → SignedIn', () async {
+      final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+      final (c, store) = await _fixture();
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.addServer('https://b.test');
+      expect(flag(c), isTrue);
+      await n.addServer('https://a.test');
+      expect(c.read(sessionProvider).value, isA<SignedIn>());
+    });
+
+    test('switchServer a un perfil sin token → autoLogin', () async {
+      final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+      final b = ServerProfile.idFor(Uri.parse('https://b.test'));
+      final (c, store) = await _fixture();
+      store.byProfile[b] = _session('tb', 'ub');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.addServer('https://a.test');
+      await n.addServer('https://b.test');
+      await n.switchServer(a);
+      expect(flag(c), isTrue);
+    });
+
+    test('arranque con perfil sin token → sin autoLogin', () async {
+      final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
+      final (c, _) = await _fixture(prefs: {
+        'server_profiles': '[{"id":"${a.id}","url":"${a.url}","name":"A"}]',
+        'active_server_id': a.id,
+      });
+      await c.read(sessionProvider.future);
+      expect(flag(c), isFalse);
+    });
+
+    test('logout y 401 → sin autoLogin', () async {
+      final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+      final (c, store) = await _fixture();
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.addServer('https://a.test');
+      await n.logout();
+      expect(flag(c), isFalse);
+      store.byProfile[a] = _session('ta', 'ua');
+      await n.switchServer(a);
+      await n.handleUnauthorized('ta');
+      expect(flag(c), isFalse);
+    });
+
+    test('removeServer del activo cayendo a uno sin token → sin autoLogin', () async {
+      final b = ServerProfile.idFor(Uri.parse('https://b.test'));
+      final (c, store) = await _fixture();
+      store.byProfile[b] = _session('tb', 'ub');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.addServer('https://a.test');
+      await n.addServer('https://b.test'); // activo = b con token
+      await n.removeServer(b);
+      expect(c.read(sessionProvider).value, isA<SignedOut>());
+      expect(flag(c), isFalse);
+    });
+
+    test('consumeAutoLogin devuelve true una vez y limpia el flag', () async {
+      final (c, _) = await _fixture();
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      expect(n.consumeAutoLogin(), isFalse); // NeedsServer
+      await n.addServer('https://a.test');
+      expect(n.consumeAutoLogin(), isTrue);
+      expect(flag(c), isFalse);
+      expect(n.consumeAutoLogin(), isFalse);
+      expect((c.read(sessionProvider).value as SignedOut).serverUrl, Uri.parse('https://a.test'));
+    });
+  });
+
   test('token legacy pendiente se adopta aunque la migración de prefs ya corrió', () async {
     final id = ServerProfile.idFor(Uri.parse('https://old.test'));
     final profile = ServerProfile.forUrl(Uri.parse('https://old.test'), name: 'Old');

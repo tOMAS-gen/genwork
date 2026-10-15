@@ -11,9 +11,13 @@ class NeedsServer extends SessionState {
 }
 
 class SignedOut extends SessionState {
-  const SignedOut(this.serverUrl);
+  const SignedOut(this.serverUrl, {this.autoLogin = false});
 
   final Uri serverUrl;
+
+  /// De un solo uso: se agregó o eligió este servidor y el login del navegador
+  /// debe abrirse solo. Lo consume la pantalla de login.
+  final bool autoLogin;
 }
 
 class SignedIn extends SessionState {

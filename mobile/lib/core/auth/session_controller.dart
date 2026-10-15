@@ -34,9 +34,9 @@ class SessionController extends AsyncNotifier<SessionState> {
     return _stateFor(active);
   }
 
-  Future<SessionState> _stateFor(ServerProfile profile) async {
+  Future<SessionState> _stateFor(ServerProfile profile, {bool autoLogin = false}) async {
     final stored = await ref.read(tokenStoreProvider).read(profile.id);
-    if (stored == null) return SignedOut(profile.url);
+    if (stored == null) return SignedOut(profile.url, autoLogin: autoLogin);
     return SignedIn(serverUrl: profile.url, token: stored.token, user: stored.user);
   }
 
@@ -54,14 +54,14 @@ class SessionController extends AsyncNotifier<SessionState> {
     }
     final info = await ref.read(authRepositoryProvider(url)).checkServer();
     final profile = await ref.read(serverRegistryProvider).upsert(url, name: info.name);
-    await _activate(profile);
+    await _activate(profile, autoLogin: true);
   }
 
   /// Pasa a un servidor ya guardado: con token entra directo, sin token pide login.
   Future<void> switchServer(String id) async {
     final profile = ref.read(serverRegistryProvider).byId(id);
     if (profile == null) return;
-    await _activate(profile);
+    await _activate(profile, autoLogin: true);
   }
 
   /// Olvida un servidor: borra su token local (y lo revoca en el servidor si hay
@@ -95,12 +95,21 @@ class SessionController extends AsyncNotifier<SessionState> {
     } catch (_) {}
   }
 
-  Future<void> _activate(ServerProfile profile) async {
+  Future<void> _activate(ServerProfile profile, {bool autoLogin = false}) async {
     await ref.read(serverRegistryProvider).setActive(profile.id);
     ref.invalidate(serverListProvider);
-    final next = await _stateFor(profile);
+    final next = await _stateFor(profile, autoLogin: autoLogin);
     if (!ref.mounted) return;
     state = AsyncData(next);
+  }
+
+  /// Consume el pedido de login automático (una sola vez): devuelve true si el
+  /// estado era [SignedOut] con `autoLogin` y lo deja sin el flag.
+  bool consumeAutoLogin() {
+    final current = state.value;
+    if (current is! SignedOut || !current.autoLogin) return false;
+    state = AsyncData(SignedOut(current.serverUrl));
+    return true;
   }
 
   /// Login con el navegador del sistema. Lanza [LoginCancelled] o [ApiException].

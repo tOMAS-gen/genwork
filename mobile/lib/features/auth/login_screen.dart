@@ -26,6 +26,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _busy = false;
   String? _error;
 
+  @override
+  void initState() {
+    super.initState();
+    // Al agregar o elegir un servidor sin sesión el login abre solo, una vez.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(sessionProvider.notifier).consumeAutoLogin()) _login();
+    });
+  }
+
   Future<void> _login() async {
     setState(() {
       _busy = true;
