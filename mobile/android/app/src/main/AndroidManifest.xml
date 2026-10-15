@@ -27,6 +27,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- Vínculo por QR: genwork://connect?server=… (cámara nativa → app). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="genwork" android:host="connect" />
+            </intent-filter>
         </activity>
         <!-- Retorno del login móvil: genwork://auth?code=… (flutter_web_auth_2). -->
         <activity
