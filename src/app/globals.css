@@ -4159,3 +4159,112 @@
 a.my-day-source:hover {
   text-decoration: underline;
 }
+
+/* Vincular con Claude (settings/claude): valores largos que se cortan, no desbordan */
+.mcp-link {
+  min-width: 0;
+}
+.mcp-copy-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+  margin: var(--space-2) 0;
+}
+.mcp-copy-field code {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--hover-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.mcp-copy-field .btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mcp-token-reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  margin: var(--space-3) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.mcp-token-reveal .mcp-copy-field {
+  width: 100%;
+}
+.mcp-token-form input {
+  min-width: 0;
+}
+.mcp-token-list {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.mcp-token-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+.mcp-token-row.is-revoked {
+  opacity: 0.6;
+}
+.mcp-token-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+.mcp-token-info strong {
+  overflow-wrap: anywhere;
+}
+.mcp-load-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.mcp-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: 1.25rem;
+  margin: 0;
+}
+.mcp-steps li {
+  min-width: 0;
+}
+.mcp-other-clients {
+  margin-top: var(--space-3);
+}
+.mcp-other-clients summary {
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  .mcp-copy-field {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mcp-copy-field .btn {
+    align-self: flex-end;
+  }
+}

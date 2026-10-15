@@ -800,6 +800,8 @@ model McpConnection {
   userId     String
   label      String
   tokenHash  String    @unique
+  /// Últimos 4 caracteres del token, para reconocerlo en la UI sin guardarlo entero.
+  tokenLast4 String?
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
   revokedAt  DateTime?

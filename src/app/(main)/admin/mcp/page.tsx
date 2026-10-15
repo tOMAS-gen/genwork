@@ -1,16 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { PageHeader } from "@/components/ui/PageHeader";
-import { McpConnectionsPanel } from "@/components/settings/McpConnectionsPanel";
-import { usePageTitle } from "@/lib/usePageTitle";
-
+/** La sección pasó a /settings/claude, abierta a todo usuario interno. */
 export default function McpAdminPage() {
-  usePageTitle("Asistentes / MCP · Configuración");
-
-  return (
-    <div className="admin-page admin-form-page">
-      <PageHeader title="Asistentes / MCP" icon="settings" />
-      <McpConnectionsPanel />
-    </div>
-  );
+  redirect("/settings/claude");
 }
