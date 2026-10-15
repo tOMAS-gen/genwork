@@ -58,52 +58,84 @@ Future<(StreamController<Uri>, List<Uri>)> _pump(WidgetTester tester, {Uri? init
   return (links, calls);
 }
 
+final _link = Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test');
+const _dialogTitle = 'Vincular servidor';
+const _confirm = ValueKey('action_confirm');
+const _cancel = ValueKey('action_cancel');
+
+int _savedServers(WidgetTester tester) =>
+    ProviderScope.containerOf(tester.element(find.byType(GenworkApp)))
+        .read(serverListProvider)
+        .length;
+
 void main() {
-  testWidgets('un genwork://connect agrega el servidor y sigue al login', (tester) async {
+  testWidgets('un genwork://connect pide confirmar mostrando el host; al confirmar agrega y sigue al login', (tester) async {
     final (links, calls) = await _pump(tester);
-    links.add(Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test'));
+    links.add(_link);
+    await tester.pumpAndSettle();
+    expect(find.text(_dialogTitle), findsOneWidget);
+    expect(find.textContaining('«a.test»'), findsOneWidget);
+    expect(calls, isEmpty); // nada antes de confirmar
+    await tester.tap(find.byKey(_confirm));
     await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test')]);
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
   });
 
-  testWidgets('ignora el callback de login y links ajenos', (tester) async {
+  testWidgets('cancelar no consulta ni guarda ni activa nada', (tester) async {
+    final (links, calls) = await _pump(tester);
+    links.add(_link);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(_cancel));
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty);
+    expect(_savedServers(tester), 0);
+    expect(find.text(_dialogTitle), findsNothing);
+    expect(find.byKey(const ValueKey('setup_manual_toggle')), findsOneWidget);
+  });
+
+  testWidgets('reenviar el link tras cancelar vuelve a preguntar', (tester) async {
+    final (links, calls) = await _pump(tester);
+    links.add(_link);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(_cancel));
+    await tester.pumpAndSettle();
+    links.add(_link);
+    await tester.pumpAndSettle();
+    expect(find.text(_dialogTitle), findsOneWidget);
+    await tester.tap(find.byKey(_confirm));
+    await tester.pumpAndSettle();
+    expect(calls, [Uri.parse('https://a.test')]);
+  });
+
+  testWidgets('ignora el callback de login y links ajenos (sin diálogo)', (tester) async {
     final (links, calls) = await _pump(tester);
     links.add(Uri.parse('genwork://auth?code=abc&state=xyz'));
     links.add(Uri.parse('https://otro.test/'));
     links.add(Uri.parse('genwork://connect')); // sin server
     await tester.pumpAndSettle();
     expect(calls, isEmpty);
+    expect(find.text(_dialogTitle), findsNothing);
     expect(find.byKey(const ValueKey('setup_manual_toggle')), findsOneWidget);
   });
 
-  testWidgets('el mismo link por link inicial y por stream se maneja una sola vez', (tester) async {
-    final link = Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test');
-    await initializeDateFormatting('es');
-    SharedPreferences.setMockInitialValues({});
-    final prefs = await SharedPreferences.getInstance();
-    final links = StreamController<Uri>();
-    addTearDown(links.close);
-    final calls = <Uri>[];
-    await tester.pumpWidget(ProviderScope(
-      retry: (_, _) => null,
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-        tokenStoreProvider.overrideWithValue(_Tokens()),
-        qrScannerBuilderProvider.overrideWithValue((c, onCode) => const SizedBox()),
-        authRepositoryProvider.overrideWith((ref, url) => _FakeAuth(url, calls)),
-        incomingLinksProvider.overrideWithValue(links.stream),
-        initialLinkProvider.overrideWith((ref) async => link),
-      ],
-      child: const GenworkApp(),
-    ));
-    links.add(link);
+  testWidgets('el mismo link por link inicial y por stream pregunta y agrega una sola vez', (tester) async {
+    final (links, calls) = await _pump(tester, initial: _link);
+    links.add(_link);
+    await tester.pumpAndSettle();
+    expect(find.text(_dialogTitle), findsOneWidget);
+    await tester.tap(find.byKey(_confirm));
     await tester.pumpAndSettle();
     expect(calls.length, 1);
+    expect(find.text(_dialogTitle), findsNothing);
   });
 
-  testWidgets('un link inicial solo agrega el servidor', (tester) async {
-    final (_, calls) = await _pump(tester, initial: Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test'));
+  testWidgets('un link inicial solo pregunta y, al confirmar, agrega el servidor', (tester) async {
+    final (_, calls) = await _pump(tester, initial: _link);
+    await tester.pumpAndSettle();
+    expect(find.text(_dialogTitle), findsOneWidget);
+    await tester.tap(find.byKey(_confirm));
+    await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test')]);
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
   });
