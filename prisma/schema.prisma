@@ -311,6 +311,8 @@ model Task {
   completedAt       DateTime?
   completedById     String?
   createdAt         DateTime  @default(now())
+  /// Última modificación de cualquier campo (texto, estado, orden, etc.).
+  updatedAt         DateTime  @updatedAt
 
   dueDate DateTime?
 
