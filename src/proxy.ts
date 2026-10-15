@@ -24,7 +24,10 @@ export async function proxy(req: NextRequest) {
   const isPublic =
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/mcp");
+    pathname.startsWith("/api/mcp") ||
+    // Descubrimiento OAuth (RFC 8414/9728): no hay authorization server, así que
+    // debe responder 404 y no 307 a /login; si no, claude.ai lo toma como roto.
+    pathname.startsWith("/.well-known");
 
   const hasSession =
     req.cookies.has("authjs.session-token") || req.cookies.has("__Secure-authjs.session-token");

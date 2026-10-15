@@ -105,11 +105,11 @@ export default async function AdminHome() {
             </div>
           </div>
         </Link>
-        <Link className="card-interactive" href="/admin/mcp">
+        <Link className="card-interactive" href="/settings/claude">
           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
             <Bot size={20} />
             <div>
-              <div><strong>Asistentes / MCP</strong></div>
+              <div><strong>Vincular con Claude</strong></div>
               <span className="muted">Vinculación de asistentes de IA a la cuenta vía MCP</span>
             </div>
           </div>

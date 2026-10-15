@@ -4,7 +4,10 @@ import { usePathname } from "next/navigation";
 import { RouteTabs } from "@gen/ui";
 
 /** Secciones de la cuenta: las ve cualquier usuario. */
-const ACCOUNT_ITEMS = [["/settings", "Mi cuenta"]] as const;
+const ACCOUNT_ITEMS = [
+  ["/settings", "Mi cuenta"],
+  ["/settings/claude", "Vincular con Claude"],
+] as const;
 
 /** Secciones de todo el sistema: sólo para SUPERADMIN (guardadas por admin/layout). */
 const SYSTEM_ITEMS = [
@@ -18,7 +21,6 @@ const SYSTEM_ITEMS = [
   ["/admin/storage", "Almacenamiento"],
   ["/admin/reminders", "Recordatorios"],
   ["/admin/errors", "Errores"],
-  ["/admin/mcp", "Asistentes / MCP"],
 ] as const;
 
 /** Índices de sección: nunca se marcan activos por prefijo, o taparían a sus hijas. */

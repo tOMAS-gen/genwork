@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useToast } from "@/components/ui/Toast";
 
 /** Un agente de IA con su formato de configuración MCP. */
@@ -113,27 +113,21 @@ const TOKEN_PLACEHOLDER = "<TOKEN>";
  * conectar cada asistente de IA al MCP de Genwork. Si acaba de generarse un token
  * (`token`), se incrusta en el snippet; si no, queda el placeholder <TOKEN>.
  */
-export function McpSetupGuide({ token }: { token: string | null }) {
+export function McpSetupGuide({ token, url }: { token: string | null; url: string }) {
   const { toast } = useToast();
   const [agentId, setAgentId] = useState(AGENTS[0].id);
-  const [origin, setOrigin] = useState<string | null>(null);
-
-  // window no existe en el render del servidor
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
 
   const agent = AGENTS.find((a) => a.id === agentId) ?? AGENTS[0];
-  const url = `${origin ?? "https://<HOST>"}/api/mcp`;
   const snippet = useMemo(
     () => agent.snippet(url, token ?? TOKEN_PLACEHOLDER),
     [agent, url, token],
   );
 
   function handleCopy() {
-    void navigator.clipboard.writeText(snippet).then(() => {
-      toast("Config copiada", "success");
-    });
+    void navigator.clipboard
+      .writeText(snippet)
+      .then(() => toast("Config copiada", "success"))
+      .catch(() => toast("No se pudo copiar", "error"));
   }
 
   return (
