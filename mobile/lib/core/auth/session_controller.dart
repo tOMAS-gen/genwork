@@ -15,12 +15,12 @@ class SessionController extends AsyncNotifier<SessionState> {
   @override
   Future<SessionState> build() async {
     final registry = ref.read(serverRegistryProvider);
-    final migrated = await registry.migrateLegacy();
-    if (migrated != null) {
-      await ref.read(tokenStoreProvider).adoptLegacy(migrated.id);
-    }
+    await registry.migrateLegacy();
     final active = registry.active();
     if (active == null) return const NeedsServer();
+    // Siempre: si la app murió entre migrar la URL y mover el token, el token
+    // viejo quedaría huérfano. Es no-op si no hay nada que adoptar.
+    await ref.read(tokenStoreProvider).adoptLegacy(active.id);
     return _stateFor(active);
   }
 
@@ -112,9 +112,11 @@ class SessionController extends AsyncNotifier<SessionState> {
   }
 
   /// Un 401 de la API: el token fue revocado → sesión local fuera, al login.
-  Future<void> handleUnauthorized() async {
+  /// [token] es el del cliente que recibió el 401: si ya no es el de la sesión
+  /// actual (cambio de servidor), se ignora.
+  Future<void> handleUnauthorized(String token) async {
     final current = state.value;
-    if (current is! SignedIn) return;
+    if (current is! SignedIn || current.token != token) return;
     await ref.read(tokenStoreProvider).clear(_idOf(current.serverUrl));
     state = AsyncData(SignedOut(current.serverUrl));
   }

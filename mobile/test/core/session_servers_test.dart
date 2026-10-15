@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/auth/session.dart';
@@ -192,5 +194,53 @@ void main() {
     await n.removeServer(a);
     expect(c.read(sessionProvider).value, isA<SignedOut>());
     expect(c.read(serverListProvider), hasLength(1));
+  });
+
+  test('token legacy pendiente se adopta aunque la migración de prefs ya corrió', () async {
+    final id = ServerProfile.idFor(Uri.parse('https://old.test'));
+    final profile = ServerProfile.forUrl(Uri.parse('https://old.test'), name: 'Old');
+    final (c, store) = await _fixture(
+      prefs: {
+        'server_profiles': jsonEncode([profile.toJson()]),
+        'active_server_id': id,
+      },
+      legacy: _session('huerfano', 'u1'),
+    );
+    final s = await c.read(sessionProvider.future);
+    expect(s, isA<SignedIn>());
+    expect((s as SignedIn).token, 'huerfano');
+    expect(store.legacy, isNull);
+  });
+
+  test('401 con el token del servidor activo lo desloguea y no toca al otro', () async {
+    final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+    final b = ServerProfile.idFor(Uri.parse('https://b.test'));
+    final (c, store) = await _fixture();
+    store.byProfile[a] = _session('ta', 'ua');
+    store.byProfile[b] = _session('tb', 'ub');
+    await c.read(sessionProvider.future);
+    final n = c.read(sessionProvider.notifier);
+    await n.addServer('https://a.test');
+    await n.addServer('https://b.test');
+    await n.handleUnauthorized('tb');
+    expect(c.read(sessionProvider).value, isA<SignedOut>());
+    expect(store.byProfile.containsKey(b), isFalse);
+    expect(store.byProfile[a]!.token, 'ta');
+  });
+
+  test('401 tardío de un servidor anterior no desloguea al nuevo activo', () async {
+    final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+    final b = ServerProfile.idFor(Uri.parse('https://b.test'));
+    final (c, store) = await _fixture();
+    store.byProfile[a] = _session('ta', 'ua');
+    store.byProfile[b] = _session('tb', 'ub');
+    await c.read(sessionProvider.future);
+    final n = c.read(sessionProvider.notifier);
+    await n.addServer('https://a.test');
+    await n.addServer('https://b.test');
+    await n.switchServer(a);
+    await n.handleUnauthorized('tb');
+    expect((c.read(sessionProvider).value as SignedIn).token, 'ta');
+    expect(store.byProfile[a]!.token, 'ta');
   });
 }

@@ -118,7 +118,7 @@ void main() {
       });
       final pending = c.read(sessionProvider.notifier).refreshUser();
       await started.future;
-      await c.read(sessionProvider.notifier).handleUnauthorized();
+      await c.read(sessionProvider.notifier).handleUnauthorized('test');
       gate.complete({
         'id': 'u',
         'name': 'Persona',

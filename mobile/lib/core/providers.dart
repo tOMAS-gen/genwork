@@ -55,11 +55,12 @@ final currentUserProvider = Provider((ref) {
 final apiClientProvider = Provider<ApiClient>((ref) {
   final session = ref.watch(sessionProvider).value;
   if (session is! SignedIn) throw StateError('apiClientProvider sin sesión');
+  final token = session.token;
   return ApiClient(
     baseUrl: session.serverUrl,
-    token: session.token,
+    token: token,
     onUnauthorized: () =>
-        ref.read(sessionProvider.notifier).handleUnauthorized(),
+        ref.read(sessionProvider.notifier).handleUnauthorized(token),
   );
 });
 
