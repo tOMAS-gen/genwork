@@ -36,8 +36,8 @@ Hoy el primer inicio de la app móvil (Flutter, `mobile/`) pide escribir la URL 
 ### 1. Web — `/settings/movil`
 
 - Ruta `src/app/(main)/settings/movil/page.tsx`, mismo patrón y acceso que `settings/claude` (cualquier usuario interno).
-- QR generado en cliente (dependencia `qrcode`) con el payload:
-  `genwork://connect?server=<origen>&name=<nombre-del-sistema>` (valores URL-encoded).
+- QR generado en el servidor como SVG (dependencia `qrcode`) con el payload:
+  `genwork://connect?server=<origen>` (valor URL-encoded). **El QR solo pasa la URL del servidor**: nada de nombre ni credenciales; el nombre visible lo da `/info`.
 - Origen: se resuelve al implementar (variable de entorno de URL pública si existe; si no, el `host` de la request). Debe ser el origen público real, nunca `localhost` en producción.
 - También se muestra la URL en texto con botón "Copiar" (respaldo manual) y un enlace en el menú de ajustes.
 - `/api/auth/mobile/info` suma `name` (nombre del sistema). Campo opcional, compatible hacia atrás con apps viejas.

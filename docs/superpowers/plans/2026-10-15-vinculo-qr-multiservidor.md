@@ -4,7 +4,7 @@
 
 **Goal:** La web muestra un QR con la dirección del servidor; la app móvil lo escanea, guarda varios servidores y permite cambiar entre ellos sin cerrar sesión.
 
-**Architecture:** Web: página server-component `/settings/movil` que renderiza un QR SVG con el payload `genwork://connect?server=…&name=…` (sin credenciales); `/api/auth/mobile/info` suma `name`. Móvil: `ServerRegistry` (perfiles en SharedPreferences) + `TokenStore` por perfil (SecureStorage); `SessionController` pasa de "un servidor" a `addServer/switchServer/removeServer`. El router ya se recrea al cambiar de identidad (`app_router.dart`, `ref.invalidateSelf()`), y `apiClientProvider` depende de la sesión, así que el estado de un servidor no se filtra al otro.
+**Architecture:** Web: página server-component `/settings/movil` que renderiza un QR SVG con el payload `genwork://connect?server=…` (solo la URL, sin credenciales ni nombre); `/api/auth/mobile/info` suma `name` (el nombre visible lo da el servidor, no el QR). Móvil: `ServerRegistry` (perfiles en SharedPreferences) + `TokenStore` por perfil (SecureStorage); `SessionController` pasa de "un servidor" a `addServer/switchServer/removeServer`. El router ya se recrea al cambiar de identidad (`app_router.dart`, `ref.invalidateSelf()`), y `apiClientProvider` depende de la sesión, así que el estado de un servidor no se filtra al otro.
 
 **Tech Stack:** Next.js (App Router) + vitest + `qrcode`; Flutter + Riverpod 3 + go_router + `mobile_scanner` + `app_links` + `shared_preferences` + `flutter_secure_storage`.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - QR visible para **todo usuario interno**; el layout de `(main)` ya deja afuera a los clientes externos.
-- Payload del QR: `genwork://connect?server=<origen>&name=<nombre>` (valores URL-encoded). **Nunca** credenciales ni tokens.
+- Payload del QR: `genwork://connect?server=<origen>` (valor URL-encoded). **Solo la URL del servidor**: ni nombre, ni credenciales, ni tokens. El nombre visible lo obtiene la app de `/info`.
 - Ruta web nueva: `/settings/movil`, junto a `/settings/claude`.
 - `/api/auth/mobile/info`: el campo `name` es **opcional y compatible hacia atrás** (apps viejas lo ignoran; la app nueva usa el host si falta).
 - Móvil: tokens por perfil en SecureStorage con clave `auth_token:<id>` / `auth_user:<id>`; perfiles + `active_server_id` en SharedPreferences. `id` = primeros 16 hex de SHA-256 del origen normalizado.
@@ -49,7 +49,7 @@ Entradas que el spec insinúa y ninguna tarea cubriría sola; cada una tiene su 
 - Create `tests/unit/mobile-connect.test.ts`, `tests/unit/mobile-info-route.test.ts`.
 
 **Móvil (`mobile/`)**
-- Create `lib/core/servers/connect_payload.dart` — `ConnectTarget`, `parseConnectPayload`.
+- Create `lib/core/servers/connect_payload.dart` — `parseConnectPayload` (devuelve `Uri?`).
 - Create `lib/core/servers/server_profile.dart` — `ServerProfile`.
 - Create `lib/core/servers/server_registry.dart` — `ServerRegistry`.
 - Modify `lib/core/auth/token_store.dart` — por perfil + `adoptLegacy`.
@@ -79,7 +79,7 @@ Todos los comandos Flutter se corren desde `mobile/`; los de web desde la raíz 
 - Test: `tests/unit/mobile-connect.test.ts`, `tests/unit/mobile-info-route.test.ts`
 
 **Interfaces:**
-- Produces: `buildConnectPayload(origin: string, name: string): string`, `systemName(baseUrl: string, envName?: string): string`, `isLocalOrigin(origin: string): boolean`. La route `GET /api/auth/mobile/info` devuelve además `name: string`.
+- Produces: `buildConnectPayload(origin: string): string`, `systemName(baseUrl: string, envName?: string): string`, `isLocalOrigin(origin: string): boolean`. La route `GET /api/auth/mobile/info` devuelve además `name: string`.
 
 - [ ] **Step 0: Preparar entorno web**
 
@@ -95,22 +95,22 @@ import { describe, expect, it } from "vitest";
 import { buildConnectPayload, isLocalOrigin, systemName } from "@/lib/mobile/connect";
 
 describe("buildConnectPayload", () => {
-  it("arma genwork://connect con server y name codificados", () => {
-    expect(buildConnectPayload("https://work.test", "Taller Norte")).toBe(
-      "genwork://connect?server=https%3A%2F%2Fwork.test&name=Taller+Norte",
+  it("arma genwork://connect solo con server codificado", () => {
+    expect(buildConnectPayload("https://work.test")).toBe(
+      "genwork://connect?server=https%3A%2F%2Fwork.test",
     );
   });
 
   it("round-trip: se puede leer con URL", () => {
-    const url = new URL(buildConnectPayload("https://work.test/base", "Ñandú & Co"));
+    const url = new URL(buildConnectPayload("https://work.test/base"));
     expect(url.protocol).toBe("genwork:");
     expect(url.host).toBe("connect");
     expect(url.searchParams.get("server")).toBe("https://work.test/base");
-    expect(url.searchParams.get("name")).toBe("Ñandú & Co");
+    expect([...url.searchParams.keys()]).toEqual(["server"]);
   });
 
   it("nunca incluye credenciales", () => {
-    const payload = buildConnectPayload("https://work.test", "x");
+    const payload = buildConnectPayload("https://work.test");
     expect(payload).not.toMatch(/token|password|secret/i);
   });
 });
@@ -176,9 +176,9 @@ Expected: FAIL (módulo `@/lib/mobile/connect` inexistente; `body.name` undefine
 
 const CONNECT_BASE = "genwork://connect";
 
-/** Payload del QR: `genwork://connect?server=<origen>&name=<nombre>`. */
-export function buildConnectPayload(origin: string, name: string): string {
-  const params = new URLSearchParams({ server: origin, name });
+/** Payload del QR: `genwork://connect?server=<origen>`. Solo la dirección. */
+export function buildConnectPayload(origin: string): string {
+  const params = new URLSearchParams({ server: origin });
   return `${CONNECT_BASE}?${params.toString()}`;
 }
 
@@ -265,13 +265,13 @@ import { renderQrSvg } from "@/lib/mobile/qr";
 
 describe("renderQrSvg", () => {
   it("devuelve un SVG con el QR", async () => {
-    const svg = await renderQrSvg(buildConnectPayload("https://work.test", "work.test"));
+    const svg = await renderQrSvg(buildConnectPayload("https://work.test"));
     expect(svg.startsWith("<svg")).toBe(true);
     expect(svg).toContain("</svg>");
   });
 
   it("es determinístico para el mismo payload", async () => {
-    const payload = buildConnectPayload("https://work.test", "work.test");
+    const payload = buildConnectPayload("https://work.test");
     expect(await renderQrSvg(payload)).toBe(await renderQrSvg(payload));
   });
 });
@@ -316,7 +316,7 @@ export const metadata: Metadata = { title: "App móvil · Configuración" };
 export default async function MobileLinkPage() {
   const origin = appBaseUrl();
   const name = systemName(origin, process.env.SYSTEM_NAME);
-  const svg = await renderQrSvg(buildConnectPayload(origin, name));
+  const svg = await renderQrSvg(buildConnectPayload(origin));
 
   return (
     <div className="page-stack">
@@ -399,8 +399,7 @@ git commit -m "feat(mobile): página App móvil con QR de vínculo (/settings/mo
 **Interfaces:**
 - Consumes: `normalizeServerUrl(String) → Uri?` (`lib/core/config/server_url.dart`).
 - Produces:
-  - `class ConnectTarget { const ConnectTarget({required Uri url, String? name}); final Uri url; final String? name; }`
-  - `ConnectTarget? parseConnectPayload(String raw)`
+  - `Uri? parseConnectPayload(String raw)` — la URL del servidor que lleva el QR (o una URL plana); null si no sirve.
   - `class ServerProfile { final String id; final Uri url; final String name; factory ServerProfile.forUrl(Uri url, {String? name}); static String idFor(Uri url); Map<String, Object?> toJson(); static ServerProfile? tryFromJson(Object?); ServerProfile withName(String) }`
   - `class ServerRegistry { ServerRegistry(SharedPreferences); List<ServerProfile> profiles(); ServerProfile? byId(String?); ServerProfile? active(); Future<ServerProfile> upsert(Uri url, {String? name}); Future<void> setActive(String id); Future<void> remove(String id); Future<ServerProfile?> migrateLegacy(); }`
 
@@ -414,24 +413,29 @@ import 'package:genwork_mobile/core/servers/connect_payload.dart';
 
 void main() {
   test('lee el payload del QR de la web', () {
-    final t = parseConnectPayload(
-      'genwork://connect?server=https%3A%2F%2Fwork.test&name=Taller+Norte',
+    final url = parseConnectPayload(
+      'genwork://connect?server=https%3A%2F%2Fwork.test',
     )!;
-    expect(t.url.toString(), 'https://work.test');
-    expect(t.name, 'Taller Norte');
+    expect(url.toString(), 'https://work.test');
+  });
+
+  test('ignora parámetros extra: el QR solo aporta la URL', () {
+    final url = parseConnectPayload(
+      'genwork://connect?server=https%3A%2F%2Fwork.test&name=Otro',
+    )!;
+    expect(url.toString(), 'https://work.test');
   });
 
   test('acepta una URL plana como respaldo', () {
-    expect(parseConnectPayload('https://work.test/')!.url.toString(), 'https://work.test');
-    expect(parseConnectPayload('work.test')!.url.toString(), 'https://work.test');
-    expect(parseConnectPayload('work.test')!.name, isNull);
+    expect(parseConnectPayload('https://work.test/')!.toString(), 'https://work.test');
+    expect(parseConnectPayload('work.test')!.toString(), 'https://work.test');
   });
 
   test('conserva el puerto y el path base', () {
-    final t = parseConnectPayload(
+    final url = parseConnectPayload(
       'genwork://connect?server=http%3A%2F%2F192.168.0.10%3A3010%2Fbase',
     )!;
-    expect(t.url.toString(), 'http://192.168.0.10:3010/base');
+    expect(url.toString(), 'http://192.168.0.10:3010/base');
   });
 
   test('rechaza lo que no es de genwork', () {
@@ -536,18 +540,12 @@ Expected: FAIL (archivos `lib/core/servers/*` inexistentes).
 ```dart
 import '../config/server_url.dart';
 
-/// Servidor al que apunta un QR de vínculo (o una URL escrita a mano).
-class ConnectTarget {
-  const ConnectTarget({required this.url, this.name});
-
-  final Uri url;
-  final String? name;
-}
-
-/// Lee el payload del QR de la web (`genwork://connect?server=…&name=…`) o, como
-/// respaldo, una URL plana. Devuelve null si no es algo que pueda ser un genwork.
-/// La verificación real (`/api/auth/mobile/info`) la hace después `addServer`.
-ConnectTarget? parseConnectPayload(String raw) {
+/// Lee el payload del QR de la web (`genwork://connect?server=…`) o, como respaldo,
+/// una URL plana, y devuelve la URL del servidor. El QR solo aporta la dirección:
+/// el nombre visible lo da el servidor en `/api/auth/mobile/info`. Devuelve null
+/// si no es algo que pueda ser un genwork. La verificación real la hace después
+/// `addServer`.
+Uri? parseConnectPayload(String raw) {
   final text = raw.trim();
   if (text.isEmpty) return null;
 
@@ -556,14 +554,10 @@ ConnectTarget? parseConnectPayload(String raw) {
     if (uri == null || uri.scheme != 'genwork' || uri.host != 'connect') return null;
     final server = uri.queryParameters['server'];
     if (server == null) return null;
-    final url = normalizeServerUrl(server);
-    if (url == null) return null;
-    final name = uri.queryParameters['name']?.trim();
-    return ConnectTarget(url: url, name: (name == null || name.isEmpty) ? null : name);
+    return normalizeServerUrl(server);
   }
 
-  final url = normalizeServerUrl(text);
-  return url == null ? null : ConnectTarget(url: url);
+  return normalizeServerUrl(text);
 }
 ```
 
@@ -736,7 +730,7 @@ git commit -m "feat(mobile): parser del QR de vínculo y registro de servidores"
   - `abstract class TokenStore { Future<StoredSession?> read(String profileId); Future<void> write(String profileId, StoredSession session); Future<void> clear(String profileId); Future<void> adoptLegacy(String profileId); }`
   - `class ServerInfo { const ServerInfo({required this.name}); final String name; }` y `Future<ServerInfo> AuthRepository.checkServer()`.
   - Providers: `serverRegistryProvider` (Provider<ServerRegistry>), `serverListProvider` (Provider<List<ServerProfile>>), `authRepositoryProvider` (Provider.family<AuthRepository, Uri>).
-  - `SessionController`: `addServer(String input, {String? name})`, `switchServer(String id)`, `removeServer(String id)`; `changeServer()` queda como shim temporal (se elimina en Task 8).
+  - `SessionController`: `addServer(String input)`, `switchServer(String id)`, `removeServer(String id)`; `changeServer()` queda como shim temporal (se elimina en Task 8).
 
 - [ ] **Step 1: Escribir los tests que fallan**
 
@@ -1179,7 +1173,7 @@ class SessionController extends AsyncNotifier<SessionState> {
 
   /// Valida la URL contra `/api/auth/mobile/info`, la guarda (o actualiza si ya
   /// estaba) y pasa a ese servidor. Lanza [ApiException] si no es un genwork.
-  Future<void> addServer(String input, {String? name}) async {
+  Future<void> addServer(String input) async {
     final url = normalizeServerUrl(input);
     if (url == null) {
       throw const ApiException(
@@ -1457,7 +1451,7 @@ git commit -m "feat(mobile): rutas /servers y /servers/add accesibles con y sin 
 - Test: `mobile/test/features/server_setup_test.dart`
 
 **Interfaces:**
-- Consumes: `parseConnectPayload`, `ConnectTarget` (Task 3); `SessionController.addServer(String, {String? name})`, `authRepositoryProvider` (Task 4); `Routes.addServer` (Task 5).
+- Consumes: `parseConnectPayload` (Task 3); `SessionController.addServer(String)`, `authRepositoryProvider` (Task 4); `Routes.addServer` (Task 5).
 - Produces: `typedef QrScannerBuilder = Widget Function(BuildContext context, ValueChanged<String> onCode)`, `qrScannerBuilderProvider` (Provider<QrScannerBuilder>), `QrScannerView({required ValueChanged<String> onCode, VoidCallback? onUnavailable})`. `ServerSetupScreen({bool canGoBack = false})`.
 - Keys de UI: `setup_scanner`, `setup_manual_toggle`, `setup_scan_toggle`, `setup_url_field`, `setup_continue`.
 
@@ -1531,7 +1525,7 @@ class _FakeAuth extends AuthRepository {
 Widget _fakeScanner(BuildContext context, ValueChanged<String> onCode) => Column(
       key: const ValueKey('fake_scanner'),
       children: [
-        for (final p in ['genwork://connect?server=https%3A%2F%2Fa.test&name=A', 'texto cualquiera', 'https://ajeno.test'])
+        for (final p in ['genwork://connect?server=https%3A%2F%2Fa.test', 'texto cualquiera', 'https://ajeno.test'])
           TextButton(key: ValueKey('scan:$p'), onPressed: () => onCode(p), child: Text(p)),
       ],
     );
@@ -1576,7 +1570,7 @@ void main() {
 
   testWidgets('un QR válido guarda el servidor y sigue al login', (tester) async {
     final calls = await _pump(tester);
-    await tester.tap(find.byKey(const ValueKey('scan:genwork://connect?server=https%3A%2F%2Fa.test&name=A')));
+    await tester.tap(find.byKey(const ValueKey('scan:genwork://connect?server=https%3A%2F%2Fa.test')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
     expect(find.text('a.test'), findsOneWidget);
@@ -1603,7 +1597,7 @@ void main() {
 
   testWidgets('lecturas repetidas del mismo QR hacen una sola verificación', (tester) async {
     final calls = await _pump(tester);
-    final key = const ValueKey('scan:genwork://connect?server=https%3A%2F%2Fa.test&name=A');
+    final key = const ValueKey('scan:genwork://connect?server=https%3A%2F%2Fa.test');
     await tester.tap(find.byKey(key));
     await tester.tap(find.byKey(key), warnIfMissed: false);
     await tester.tap(find.byKey(key), warnIfMissed: false);
@@ -1774,17 +1768,15 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
     super.dispose();
   }
 
-  Future<void> _connect(ConnectTarget target) async {
+  Future<void> _connect(Uri url) async {
     if (_checking) return; // el escáner dispara la misma lectura varias veces
     setState(() {
       _checking = true;
       _error = null;
-      _connectingTo = target.name ?? target.url.host;
+      _connectingTo = url.host;
     });
     try {
-      await ref
-          .read(sessionProvider.notifier)
-          .addServer(target.url.toString(), name: target.name);
+      await ref.read(sessionProvider.notifier).addServer(url.toString());
       if (mounted && widget.canGoBack) context.go(Routes.myDay);
     } catch (e) {
       if (mounted) setState(() => _error = errorMessage(e));
@@ -1795,21 +1787,21 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
 
   void _onCode(String raw) {
     if (_checking) return;
-    final target = parseConnectPayload(raw);
-    if (target == null) {
+    final url = parseConnectPayload(raw);
+    if (url == null) {
       setState(() => _error = 'No es un QR de genwork.');
       return;
     }
-    _connect(target);
+    _connect(url);
   }
 
   void _submitManual() {
-    final target = parseConnectPayload(_controller.text);
-    if (target == null) {
+    final url = parseConnectPayload(_controller.text);
+    if (url == null) {
       setState(() => _error = 'Ingresá una dirección válida, ej. work.empresa.com');
       return;
     }
-    _connect(target);
+    _connect(url);
   }
 
   @override
@@ -2322,7 +2314,7 @@ Future<(StreamController<Uri>, List<Uri>)> _pump(WidgetTester tester) async {
 void main() {
   testWidgets('un genwork://connect agrega el servidor y sigue al login', (tester) async {
     final (links, calls) = await _pump(tester);
-    links.add(Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test&name=A'));
+    links.add(Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test'));
     await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test')]);
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
@@ -2402,12 +2394,10 @@ class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
 
   Future<void> _handle(Uri uri) async {
     if (uri.scheme != 'genwork' || uri.host != 'connect') return;
-    final target = parseConnectPayload(uri.toString());
-    if (target == null) return;
+    final url = parseConnectPayload(uri.toString());
+    if (url == null) return;
     try {
-      await ref
-          .read(sessionProvider.notifier)
-          .addServer(target.url.toString(), name: target.name);
+      await ref.read(sessionProvider.notifier).addServer(url.toString());
     } catch (e) {
       if (mounted) showErrorSnack(context, e);
     }
