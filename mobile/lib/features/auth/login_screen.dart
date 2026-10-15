@@ -29,11 +29,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Al agregar o elegir un servidor sin sesión el login abre solo, una vez.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (ref.read(sessionProvider.notifier).consumeAutoLogin()) _login();
+    // Al agregar o elegir un servidor sin sesión el login abre solo, una vez:
+    // tanto si esta pantalla recién se monta como si ya estaba abierta.
+    ref.listenManual(sessionProvider, (_, next) {
+      final s = next.value;
+      if (s is SignedOut && s.autoLogin) _maybeAutoLogin();
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoLogin());
+  }
+
+  void _maybeAutoLogin() {
+    if (!mounted || _busy) return;
+    // Consumir limpia el flag, así que esto no puede volver a dispararse.
+    if (ref.read(sessionProvider.notifier).consumeAutoLogin()) _login();
   }
 
   Future<void> _login() async {

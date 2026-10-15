@@ -6,6 +6,8 @@ import 'package:genwork_mobile/core/auth/session.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/network/api_exception.dart';
 import 'package:genwork_mobile/core/providers.dart';
+import 'package:genwork_mobile/core/router/app_router.dart';
+import 'package:genwork_mobile/core/router/routes.dart';
 import 'package:genwork_mobile/core/servers/server_profile.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
 import 'package:genwork_mobile/data/repositories/auth_repository.dart';
@@ -55,6 +57,7 @@ Future<(List<Uri>, ProviderContainer)> _pump(
   WidgetTester tester, {
   required Future<StoredSession> Function() login,
   bool savedServer = false,
+  bool twoServers = false,
 }) async {
   tester.view.physicalSize = const Size(400, 900);
   tester.view.devicePixelRatio = 1;
@@ -62,9 +65,11 @@ Future<(List<Uri>, ProviderContainer)> _pump(
   addTearDown(tester.view.resetDevicePixelRatio);
   await initializeDateFormatting('es');
   final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
+  final b = ServerProfile.forUrl(Uri.parse('https://b.test'), name: 'B');
   SharedPreferences.setMockInitialValues(savedServer
       ? {
-          'server_profiles': '[{"id":"${a.id}","url":"${a.url}","name":"A"}]',
+          'server_profiles': '[{"id":"${a.id}","url":"${a.url}","name":"A"}'
+              '${twoServers ? ',{"id":"${b.id}","url":"${b.url}","name":"B"}' : ''}]',
           'active_server_id': a.id,
         }
       : {});
@@ -128,5 +133,39 @@ void main() {
     expect(find.text('Sin acceso'), findsOneWidget);
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
     expect(calls, hasLength(1));
+  });
+
+  testWidgets('con el login ya abierto, agregar otro servidor sin sesión lo lanza una vez', (tester) async {
+    final (calls, c) = await _pump(
+      tester,
+      login: () async => throw const LoginCancelled(),
+      savedServer: true,
+    );
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty);
+    await c.read(sessionProvider.notifier).addServer('https://b.test');
+    await tester.pumpAndSettle();
+    expect(calls, [Uri.parse('https://b.test')]);
+    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
+  });
+
+  testWidgets('desde /login, elegir en /servers otro servidor sin sesión lo lanza una vez', (tester) async {
+    final b = ServerProfile.forUrl(Uri.parse('https://b.test'), name: 'B');
+    final (calls, c) = await _pump(
+      tester,
+      login: () async => throw const LoginCancelled(),
+      savedServer: true,
+      twoServers: true,
+    );
+    await tester.pumpAndSettle();
+    expect(calls, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('login_change_server')));
+    await tester.pumpAndSettle();
+    expect(c.read(routerProvider).state.uri.path, Routes.servers);
+    await tester.tap(find.byKey(ValueKey('server_${b.id}')));
+    await tester.pumpAndSettle();
+    expect(calls, [Uri.parse('https://b.test')]);
+    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
   });
 }
