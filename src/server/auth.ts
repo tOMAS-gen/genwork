@@ -1,9 +1,11 @@
-import NextAuth from "next-auth";
+import NextAuth, { type Session } from "next-auth";
+import { headers } from "next/headers";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db/client";
 import { canExistingUserSignIn, isEmailAllowed, normalizeEmail } from "@/lib/domain/access";
 import { enqueue } from "@/lib/storage/queue";
+import { extractMobileToken, userFromMobileToken } from "@/server/mobile-auth";
 import type { GlobalRole } from "@prisma/client";
 
 /**
@@ -204,9 +206,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 });
 
-/** Sesión requerida en route handlers; lanza 401 si no hay. */
+/**
+ * Sesión de la app móvil (feature 064) a partir del header
+ * `Authorization: Bearer genwork_mob_…`. Devuelve undefined si el request no trae
+ * un token móvil (sigue el camino de la cookie) y null si lo trae pero no es
+ * válido (no se cae a la cookie: un token inválido es un 401 explícito).
+ */
+async function mobileSession(): Promise<Session | null | undefined> {
+  let authorization: string | null;
+  try {
+    authorization = (await headers()).get("authorization");
+  } catch {
+    return undefined; // fuera del contexto de un request
+  }
+  const token = extractMobileToken(authorization);
+  if (!token) return undefined;
+  const user = await userFromMobileToken(token);
+  if (!user) return null;
+  return { user, expires: new Date(Date.now() + 60_000).toISOString() };
+}
+
+/** Sesión requerida en route handlers (cookie web o token móvil); lanza 401 si no hay. */
 export async function requireSession() {
-  const session = await auth();
+  const mobile = await mobileSession();
+  const session = mobile === undefined ? await auth() : mobile;
   if (!session?.user?.id) {
     throw Object.assign(new Error("No autenticado"), { status: 401 });
   }

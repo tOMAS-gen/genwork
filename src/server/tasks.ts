@@ -18,6 +18,7 @@ import {
 } from "@/lib/domain/tasks/statusResolution";
 import { deriveParentStatusId } from "@/lib/domain/tasks/parentStatus";
 import {
+  accessSector,
   canAddress,
   canToggle,
   type Scope,
@@ -699,6 +700,25 @@ export async function reorderSubtasks(parentId: string, orderedTaskIds: string[]
   await prisma.$transaction((tx) => reorderTaskSet(tx, { parentId }, orderedTaskIds, "subtareas"));
 }
 
+/** 404 si el contexto no existe o no se ve; 403 si solo se lee; 409 si el proyecto está archivado. */
+async function requireOperableContext(ctx: UserContext, input: ResolveInput): Promise<void> {
+  if (input.contextWorkId) await requireWorkAccess(ctx, input.contextWorkId, "operate");
+  if (!input.contextSectorId) return;
+  const sector = await prisma.sector.findUnique({
+    where: { id: input.contextSectorId },
+    include: { group: { select: { publicRead: true } } },
+  });
+  if (!sector) throw notFound("Sector no encontrado");
+  const level = accessSector(ctx, {
+    id: sector.id,
+    groupId: sector.groupId,
+    ownerId: sector.ownerId,
+    groupPublicRead: sector.group?.publicRead ?? false,
+  });
+  if (level === "none") throw notFound("Sector no encontrado");
+  if (level !== "operate") throw forbidden("Solo lectura en este sector");
+}
+
 export async function saveTask(
   ctx: UserContext,
   input: ResolveInput & { taskId?: string; editMeta?: EditMeta },
@@ -798,6 +818,11 @@ export async function saveTask(
     }
     input = { ...input, contextWorkId: contextObjective.workId };
   }
+
+  // Alta: exige OPERAR donde nace la tarea (una subtarea ya tomó arriba el
+  // contexto de su padre). Sin esto, cualquier MEMBER creaba tareas en
+  // proyectos y sectores ajenos con solo conocer el id (QA10).
+  if (!current) await requireOperableContext(ctx, input);
 
   const resolved = await resolveTask(ctx, input);
 

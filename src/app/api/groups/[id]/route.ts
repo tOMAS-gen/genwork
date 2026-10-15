@@ -49,6 +49,15 @@ export const DELETE = withApi<{ params: Promise<{ id: string }> }>(async (_req, 
   const ctx = await getUserContext(session.user.id);
   if (!canManageGroup(ctx, id)) throw forbidden("Solo los administradores del grupo");
 
-  await prisma.group.delete({ where: { id } });
+  // Las tareas del grupo usan sus estados propios (TaskStatus con onDelete:
+  // Restrict), así que la cascada Group → TaskStatus fallaba con P2003 y el
+  // borrado respondía 500 en cualquier grupo con tareas. Se borran primero las
+  // tareas de sus proyectos y sectores; el resto sigue en cascada.
+  await prisma.$transaction([
+    prisma.task.deleteMany({
+      where: { OR: [{ work: { groupId: id } }, { homeSector: { groupId: id } }] },
+    }),
+    prisma.group.delete({ where: { id } }),
+  ]);
   return NextResponse.json({ ok: true });
 });

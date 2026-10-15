@@ -7,18 +7,30 @@ import { SubmitButton } from "./SubmitButton";
 export const metadata: Metadata = { title: "Iniciar sesión" };
 
 /**
+ * Feature 064: el login móvil vuelve a `/api/auth/mobile/start` tras ingresar. Solo
+ * se aceptan rutas relativas del mismo origen (sin `//` ni `\\`) para no abrir una
+ * redirección a otro sitio.
+ */
+function safeCallbackUrl(value: string | undefined): string {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/";
+  return value;
+}
+
+/**
  * Único punto de entrada (FR-017). El rechazo por correo no autorizado muestra
  * mensaje claro sin exponer ningún dato (FR-020).
  */
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
-  const session = await auth();
-  if (session?.user) redirect("/");
+  const { error, callbackUrl } = await searchParams;
+  const redirectTo = safeCallbackUrl(callbackUrl);
 
-  const { error } = await searchParams;
+  const session = await auth();
+  if (session?.user) redirect(redirectTo);
+
   const denied = error === "AccessDenied";
 
   return (
@@ -29,7 +41,7 @@ export default async function LoginPage({
         <form
           action={async () => {
             "use server";
-            await signIn("google", { redirectTo: "/" });
+            await signIn("google", { redirectTo });
           }}
         >
           <SubmitButton className="btn btn-primary" style={{ width: "100%", padding: 12 }} pendingLabel="Ingresando…">
@@ -52,7 +64,7 @@ export default async function LoginPage({
                 key={key}
                 action={async () => {
                   "use server";
-                  await signIn("dev", { redirectTo: "/", user: key });
+                  await signIn("dev", { redirectTo, user: key });
                 }}
               >
                 <SubmitButton className="btn" style={{ width: "100%", marginTop: 6 }} pendingLabel="Ingresando…">

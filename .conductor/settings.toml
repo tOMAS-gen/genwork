@@ -6,6 +6,26 @@ run_mode = "nonconcurrent"
 
 [scripts.run.dev]
 available_in = [ "local" ]
-command = "docker compose -f deploy/docker-compose.dev.yml up -d && AUTH_URL=http://localhost:$CONDUCTOR_PORT npx next dev -p $CONDUCTOR_PORT"
+command = "bash scripts/mobile-dev.sh web"
 default = true
 icon = "play"
+
+[scripts.run.mobile_setup]
+available_in = [ "local" ]
+command = "bash scripts/mobile-dev.sh setup"
+icon = "database"
+
+[scripts.run.android]
+available_in = [ "local" ]
+command = "bash scripts/mobile-dev.sh android"
+icon = "smartphone"
+
+[scripts.run.mobile_evidence]
+available_in = [ "local" ]
+command = "node scripts/mobile-evidence.mjs"
+icon = "images"
+
+[scripts.run.mobile_check]
+available_in = [ "local" ]
+command = "node scripts/mobile-check.mjs"
+icon = "test-tube"

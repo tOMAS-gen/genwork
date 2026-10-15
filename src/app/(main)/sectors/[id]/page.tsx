@@ -198,6 +198,8 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
                       icon: <Settings size={16} />,
                       onSelect: () => setShowStatusSettings((v) => !v),
                     },
+                    // Renombrar, color y borrar: solo SUPERADMIN, como exige
+                    // PATCH/DELETE /api/sectors/[id] (antes el resto recibía 403).
                     ...(isSuperAdmin
                       ? [
                           {
@@ -205,14 +207,14 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
                             icon: <Pencil size={16} />,
                             onSelect: () => setRenaming(true),
                           },
+                          {
+                            label: "Eliminar sector",
+                            icon: <Trash2 size={16} />,
+                            danger: true,
+                            onSelect: () => void removeSector(),
+                          },
                         ]
                       : []),
-                    {
-                      label: "Eliminar sector",
-                      icon: <Trash2 size={16} />,
-                      danger: true,
-                      onSelect: () => void removeSector(),
-                    },
                   ]}
                 />
               )}
@@ -247,7 +249,7 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
             {view.byWork.length}{" "}
             {view.byWork.length === 1 ? "proyecto vinculado" : "proyectos vinculados"}
           </span>
-          {canOperate && (
+          {isSuperAdmin && (
             <div className="sector-color-control">
               <span className="work-field-label">Color del sector</span>
               <ColorField
