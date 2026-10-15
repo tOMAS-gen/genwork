@@ -373,7 +373,7 @@ export function MaterialsPanel({ workId, editable }: { workId: string; editable:
         />
       ) : (
         <div className="table-scroll-wrapper">
-          <table className="project-table materials-table">
+          <table className="data-table data-table-static materials-table">
             <thead>
               <tr>
                 <th>Material</th>
@@ -490,19 +490,31 @@ function renderStockSummary(
   const first = item.warehouses[0];
   const name = warehouseById.get(first.warehouse_id)?.name ?? "Almacén";
   if (first.stock_available === null) return `${name}: sin control`;
-  return `${name}: ${first.stock_available}`;
+  return `${name}: ${formatDecimal(first.stock_available, 6)}`;
 }
 
 function renderPriceSummary(
   item: GenstockSearchItem,
   priceListById: Map<string, { id: string; name: string; currency_id: string }>,
-  currencyById: Map<string, { id: string; code: string; symbol: string }>,
+  currencyById: Map<string, { id: string; code: string; symbol: string; decimals?: number }>,
 ) {
   const priced = item.prices.find((price) => price.price !== null);
   if (!priced?.price) return "Sin precio público";
   const list = priceListById.get(priced.price_list_id);
   const currency = currencyById.get(priced.currency_id);
-  return `${currency?.symbol ?? ""}${priced.price}${list ? ` · ${list.name}` : ""}`;
+  const price = formatDecimal(priced.price, currency?.decimals ?? 2, currency?.decimals ?? 2);
+  return `${currency?.symbol ?? ""}${price}${list ? ` · ${list.name}` : ""}`;
+}
+
+// Genstock manda decimales como string con escala fija ("24.00000000"): se
+// muestran en formato local sin ceros sobrantes.
+function formatDecimal(value: string, maxDigits: number, minDigits = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value;
+  return n.toLocaleString("es-AR", {
+    minimumFractionDigits: minDigits,
+    maximumFractionDigits: maxDigits,
+  });
 }
 
 function formatUnit(
@@ -531,5 +543,5 @@ function formatUnitFactor(unit: {
   if (!unit.unitFactor || unit.unitIsBase) return "";
   const label = unit.unitAbbreviation || unit.unitName || "unidad";
   const magnitude = unit.unitMagnitude || "unidad base";
-  return `1 ${label} = ${unit.unitFactor} ${magnitude}`;
+  return `1 ${label} = ${formatDecimal(unit.unitFactor, 8)} ${magnitude}`;
 }

@@ -29,6 +29,11 @@ Nextcloud incluido; también podés conectar un Nextcloud externo desde el panel
 
 *APP_ENCRYPTION_KEY es obligatoria si se usa Nextcloud.
 
+GENSTOCK_BASE_URL acepta `http://` o `https://` y se puede cambiar desde Configuración → Genstock
+(la URL guardada ahí tiene prioridad). Con HTTPS el certificado tiene que ser válido (ej. Let's
+Encrypt); si Genstock usa un certificado de una CA interna, pasá esa CA con
+`-e NODE_EXTRA_CA_CERTS=/ruta/ca.pem` montando el archivo en el contenedor.
+
 ## Pasos
 
 ```bash

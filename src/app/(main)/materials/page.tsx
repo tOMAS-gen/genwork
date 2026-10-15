@@ -130,7 +130,7 @@ export default function MaterialsPage() {
         />
       ) : (
         <div className="table-scroll-wrapper">
-          <table className="project-table materials-total-table">
+          <table className="data-table data-table-static materials-total-table">
             <thead>
               <tr>
                 <th>Material</th>
@@ -217,5 +217,8 @@ function formatUnitFactor(
   const label =
     material.unitAbbreviation || material.unitName || unit?.abbreviation || unit?.name || "unidad";
   const magnitude = material.unitMagnitude || unit?.magnitude || "unidad base";
-  return `1 ${label} = ${factor} ${magnitude}`;
+  const shown = Number.isFinite(Number(factor))
+    ? Number(factor).toLocaleString("es-AR", { maximumFractionDigits: 8 })
+    : factor;
+  return `1 ${label} = ${shown} ${magnitude}`;
 }

@@ -65,4 +65,27 @@ describe("genstock client", () => {
       status: 502,
     });
   });
+
+  it.each([
+    ["UNABLE_TO_VERIFY_LEAF_SIGNATURE", /certificado HTTPS/],
+    ["UNABLE_TO_GET_ISSUER_CERT_LOCALLY", /certificado HTTPS/],
+    ["DEPTH_ZERO_SELF_SIGNED_CERT", /certificado HTTPS/],
+    ["CERT_HAS_EXPIRED", /certificado HTTPS/],
+    ["ERR_TLS_CERT_ALTNAME_INVALID", /certificado HTTPS/],
+    ["ECONNREFUSED", /no responde/],
+    ["ENOTFOUND", /no se encontró/],
+  ])("explica la causa %s del fallo de conexión", async (code, message) => {
+    const { searchGenstockProducts } = await import("@/server/genstock");
+    process.env.GENSTOCK_BASE_URL = "https://genstock.local";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+      }),
+    );
+
+    const err = await searchGenstockProducts({ query: "cemento" }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: "GENSTOCK_UNAVAILABLE", status: 502 });
+    expect((err as Error).message).toMatch(message);
+  });
 });

@@ -131,8 +131,8 @@ async function fetchGenstock<T>(url: string): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, { cache: "no-store" });
-  } catch {
-    throw new ApiError(502, "GENSTOCK_UNAVAILABLE", "No se pudo conectar con Genstock");
+  } catch (err) {
+    throw new ApiError(502, "GENSTOCK_UNAVAILABLE", connectionErrorMessage(err));
   }
 
   if (!res.ok) {
@@ -140,4 +140,33 @@ async function fetchGenstock<T>(url: string): Promise<T> {
   }
 
   return (await res.json()) as T;
+}
+
+// fetch (undici) envuelve la causa real en `cause.code`: distinguir un
+// certificado HTTPS rechazado de un servidor caído ahorra adivinar qué falló.
+const TLS_ERROR_CODES = new Set([
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+  "UNABLE_TO_GET_ISSUER_CERT",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+  "SELF_SIGNED_CERT_IN_CHAIN",
+  "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "CERT_HAS_EXPIRED",
+  "CERT_NOT_YET_VALID",
+  "CERT_UNTRUSTED",
+]);
+
+function connectionErrorMessage(err: unknown): string {
+  const code = (err as { cause?: { code?: unknown } } | null)?.cause?.code;
+  if (typeof code === "string") {
+    if (TLS_ERROR_CODES.has(code) || code.startsWith("ERR_TLS_") || code.startsWith("ERR_SSL_")) {
+      return "No se pudo conectar con Genstock: el certificado HTTPS no es válido o no es de confianza";
+    }
+    if (code === "ECONNREFUSED") {
+      return "No se pudo conectar con Genstock: el servidor no responde en esa dirección";
+    }
+    if (code === "ENOTFOUND" || code === "EAI_AGAIN") {
+      return "No se pudo conectar con Genstock: no se encontró el servidor";
+    }
+  }
+  return "No se pudo conectar con Genstock";
 }
