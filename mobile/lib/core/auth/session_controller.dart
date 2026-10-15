@@ -1,27 +1,40 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../data/repositories/auth_repository.dart';
 import '../config/server_url.dart';
 import '../network/api_exception.dart';
 import '../providers.dart';
+import '../servers/server_profile.dart';
 import 'session.dart';
 import 'token_store.dart';
 
-/// Dueño del ciclo servidor → login → sesión. Las pantallas de setup/login solo
-/// llaman a estos métodos; el router redirige según el estado.
+/// Dueño del ciclo servidor → login → sesión, con **varios servidores
+/// guardados**: uno activo a la vez, cada uno con su propio token. Las pantallas
+/// solo llaman a estos métodos; el router redirige según el estado.
 class SessionController extends AsyncNotifier<SessionState> {
   @override
   Future<SessionState> build() async {
-    final server = ref.read(serverConfigStoreProvider).read();
-    if (server == null) return const NeedsServer();
-    final stored = await ref.read(tokenStoreProvider).read();
-    if (stored == null) return SignedOut(server);
-    return SignedIn(serverUrl: server, token: stored.token, user: stored.user);
+    final registry = ref.read(serverRegistryProvider);
+    final migrated = await registry.migrateLegacy();
+    if (migrated != null) {
+      await ref.read(tokenStoreProvider).adoptLegacy(migrated.id);
+    }
+    final active = registry.active();
+    if (active == null) return const NeedsServer();
+    return _stateFor(active);
   }
 
-  /// Valida y guarda la URL del sistema. Lanza [ApiException] si no es un genwork.
-  Future<void> setServer(String input) async {
+  Future<SessionState> _stateFor(ServerProfile profile) async {
+    final stored = await ref.read(tokenStoreProvider).read(profile.id);
+    if (stored == null) return SignedOut(profile.url);
+    return SignedIn(serverUrl: profile.url, token: stored.token, user: stored.user);
+  }
+
+  String _idOf(Uri url) => ServerProfile.idFor(url);
+
+  /// Valida la URL contra `/api/auth/mobile/info`, la guarda (o actualiza si ya
+  /// estaba) y pasa a ese servidor. Lanza [ApiException] si no es un genwork.
+  Future<void> addServer(String input) async {
     final url = normalizeServerUrl(input);
     if (url == null) {
       throw const ApiException(
@@ -29,15 +42,53 @@ class SessionController extends AsyncNotifier<SessionState> {
         message: 'Ingresá una dirección válida, ej. work.empresa.com',
       );
     }
-    await AuthRepository(serverUrl: url).checkServer();
-    await ref.read(serverConfigStoreProvider).write(url);
-    state = AsyncData(SignedOut(url));
+    final info = await ref.read(authRepositoryProvider(url)).checkServer();
+    final profile = await ref.read(serverRegistryProvider).upsert(url, name: info.name);
+    await _activate(profile);
   }
 
-  /// Vuelve a la pantalla de URL (borra servidor y sesión local).
+  /// Pasa a un servidor ya guardado: con token entra directo, sin token pide login.
+  Future<void> switchServer(String id) async {
+    final profile = ref.read(serverRegistryProvider).byId(id);
+    if (profile == null) return;
+    await _activate(profile);
+  }
+
+  /// Olvida un servidor: borra su token local (y lo revoca en el servidor si hay
+  /// red). Si era el activo, pasa a otro; si era el último, vuelve al primer inicio.
+  Future<void> removeServer(String id) async {
+    final registry = ref.read(serverRegistryProvider);
+    final profile = registry.byId(id);
+    if (profile == null) return;
+    final tokens = ref.read(tokenStoreProvider);
+    final stored = await tokens.read(id);
+    if (stored != null) {
+      await ref.read(authRepositoryProvider(profile.url)).logout(stored.token);
+    }
+    await tokens.clear(id);
+    final wasActive = registry.active()?.id == id;
+    await registry.remove(id);
+    ref.invalidate(serverListProvider);
+    if (!wasActive) return;
+    final next = registry.active();
+    if (next == null) {
+      state = const AsyncData(NeedsServer());
+    } else {
+      await _activate(next);
+    }
+  }
+
+  Future<void> _activate(ServerProfile profile) async {
+    await ref.read(serverRegistryProvider).setActive(profile.id);
+    ref.invalidate(serverListProvider);
+    final next = await _stateFor(profile);
+    if (!ref.mounted) return;
+    state = AsyncData(next);
+  }
+
+  /// TEMPORAL: se elimina en la tarea de la lista de servidores. Solo muestra la
+  /// pantalla de alta sin borrar nada.
   Future<void> changeServer() async {
-    await ref.read(tokenStoreProvider).clear();
-    await ref.read(serverConfigStoreProvider).clear();
     state = const AsyncData(NeedsServer());
   }
 
@@ -45,22 +96,18 @@ class SessionController extends AsyncNotifier<SessionState> {
   Future<void> login() async {
     final current = state.value;
     if (current is! SignedOut) return;
-    final stored = await AuthRepository(serverUrl: current.serverUrl).login();
-    await ref.read(tokenStoreProvider).write(stored);
+    final stored = await ref.read(authRepositoryProvider(current.serverUrl)).login();
+    await ref.read(tokenStoreProvider).write(_idOf(current.serverUrl), stored);
     state = AsyncData(
-      SignedIn(
-        serverUrl: current.serverUrl,
-        token: stored.token,
-        user: stored.user,
-      ),
+      SignedIn(serverUrl: current.serverUrl, token: stored.token, user: stored.user),
     );
   }
 
   Future<void> logout() async {
     final current = state.value;
     if (current is! SignedIn) return;
-    await AuthRepository(serverUrl: current.serverUrl).logout(current.token);
-    await ref.read(tokenStoreProvider).clear();
+    await ref.read(authRepositoryProvider(current.serverUrl)).logout(current.token);
+    await ref.read(tokenStoreProvider).clear(_idOf(current.serverUrl));
     state = AsyncData(SignedOut(current.serverUrl));
   }
 
@@ -68,7 +115,7 @@ class SessionController extends AsyncNotifier<SessionState> {
   Future<void> handleUnauthorized() async {
     final current = state.value;
     if (current is! SignedIn) return;
-    await ref.read(tokenStoreProvider).clear();
+    await ref.read(tokenStoreProvider).clear(_idOf(current.serverUrl));
     state = AsyncData(SignedOut(current.serverUrl));
   }
 
@@ -98,14 +145,10 @@ class SessionController extends AsyncNotifier<SessionState> {
         current.user.id != session.user.id) {
       return;
     }
-    await ref.read(tokenStoreProvider).write(session);
+    await ref.read(tokenStoreProvider).write(_idOf(current.serverUrl), session);
     if (!ref.mounted || !identical(state.value, current)) return;
     state = AsyncData(
-      SignedIn(
-        serverUrl: current.serverUrl,
-        token: session.token,
-        user: session.user,
-      ),
+      SignedIn(serverUrl: current.serverUrl, token: session.token, user: session.user),
     );
   }
 }

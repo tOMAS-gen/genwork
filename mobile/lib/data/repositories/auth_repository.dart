@@ -19,6 +19,14 @@ class LoginCancelled implements Exception {
   const LoginCancelled();
 }
 
+/// Lo que el servidor cuenta de sí mismo en `/api/auth/mobile/info`.
+class ServerInfo {
+  const ServerInfo({required this.name});
+
+  /// Nombre visible (`name` de `/info`; el host si el servidor es una versión vieja).
+  final String name;
+}
+
 /// Login móvil (feature 064): navegador del sistema → login web → deep link con
 /// código → canje PKCE por token Bearer.
 class AuthRepository {
@@ -29,11 +37,16 @@ class AuthRepository {
   final Dio _dio;
 
   /// Verifica que la URL apunte a un genwork con login móvil (`/api/auth/mobile/info`).
-  Future<void> checkServer() async {
+  Future<ServerInfo> checkServer() async {
     try {
       final res = await _dio.get<Object?>('/api/auth/mobile/info');
       final data = res.data;
-      if (data is Map && data['app'] == 'genwork') return;
+      if (data is Map && data['app'] == 'genwork') {
+        final name = data['name'];
+        return ServerInfo(
+          name: name is String && name.trim().isNotEmpty ? name.trim() : serverUrl.host,
+        );
+      }
     } on DioException catch (e) {
       if (e.response == null) throw ApiException.fromDio(e);
     }

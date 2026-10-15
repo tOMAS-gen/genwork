@@ -36,7 +36,7 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
       _error = null;
     });
     try {
-      await ref.read(sessionProvider.notifier).setServer(_controller.text);
+      await ref.read(sessionProvider.notifier).addServer(_controller.text);
     } catch (e) {
       if (mounted) setState(() => _error = errorMessage(e));
     } finally {

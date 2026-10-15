@@ -13,16 +13,29 @@ import '../data/repositories/works_repository.dart';
 import 'auth/session.dart';
 import 'auth/session_controller.dart';
 import 'auth/token_store.dart';
-import 'config/server_config_store.dart';
 import 'network/api_client.dart';
+import 'servers/server_profile.dart';
+import 'servers/server_registry.dart';
+import '../data/repositories/auth_repository.dart';
 
 /// Se sobreescribe en `main()` con la instancia ya cargada.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError('sharedPreferencesProvider sin override'),
 );
 
-final serverConfigStoreProvider = Provider<ServerConfigStore>(
-  (ref) => ServerConfigStore(ref.watch(sharedPreferencesProvider)),
+final serverRegistryProvider = Provider<ServerRegistry>(
+  (ref) => ServerRegistry(ref.watch(sharedPreferencesProvider)),
+);
+
+/// Servidores guardados. `SessionController` lo invalida cada vez que cambia la
+/// lista, así las pantallas se reconstruyen.
+final serverListProvider = Provider<List<ServerProfile>>(
+  (ref) => ref.watch(serverRegistryProvider).profiles(),
+);
+
+/// Repositorio de login/verificación de un servidor. Se puede sobreescribir en tests.
+final authRepositoryProvider = Provider.family<AuthRepository, Uri>(
+  (ref, url) => AuthRepository(serverUrl: url),
 );
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());

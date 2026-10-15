@@ -30,7 +30,7 @@ class _SignedOutSession extends SessionController {
   }
 
   @override
-  Future<void> setServer(String input) async {
+  Future<void> addServer(String input) async {
     if (failSetServer) throw StateError('x');
   }
 }

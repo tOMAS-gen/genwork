@@ -8,16 +8,19 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MemoryTokenStore implements TokenStore {
-  StoredSession? session;
+  final Map<String, StoredSession> sessions = {};
 
   @override
-  Future<void> clear() async => session = null;
+  Future<void> clear(String id) async => sessions.remove(id);
 
   @override
-  Future<StoredSession?> read() async => session;
+  Future<StoredSession?> read(String id) async => sessions[id];
 
   @override
-  Future<void> write(StoredSession s) async => session = s;
+  Future<void> write(String id, StoredSession s) async => sessions[id] = s;
+
+  @override
+  Future<void> adoptLegacy(String id) async {}
 }
 
 Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
