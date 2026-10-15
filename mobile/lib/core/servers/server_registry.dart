@@ -71,16 +71,31 @@ class ServerRegistry {
     }
   }
 
-  /// Versiones anteriores guardaban un solo `server_url`. Lo convierte en el
-  /// primer perfil (activo) y borra la clave vieja. Devuelve null si no había.
-  Future<ServerProfile?> migrateLegacy() async {
+  Uri? _legacyUrl() {
     final legacy = _prefs.getString(_legacyKey);
     if (legacy == null) return null;
-    await _prefs.remove(_legacyKey);
     final url = Uri.tryParse(legacy);
-    if (url == null || url.host.isEmpty) return null;
+    return (url == null || url.host.isEmpty) ? null : url;
+  }
+
+  /// Hay un `server_url` viejo pero no sirve (vacío o sin host). El token global
+  /// asociado no se puede atribuir a ningún servidor: quien llama debe
+  /// descartarlo (`TokenStore.discardLegacy`) y luego [dropLegacyUrl].
+  bool get hasInvalidLegacy =>
+      _prefs.containsKey(_legacyKey) && _legacyUrl() == null;
+
+  Future<void> dropLegacyUrl() => _prefs.remove(_legacyKey);
+
+  /// Versiones anteriores guardaban un solo `server_url`. Lo convierte en el
+  /// primer perfil (activo) y recién después borra la clave vieja: si la app
+  /// muere a mitad, el próximo inicio repite la migración (es idempotente).
+  /// Devuelve null si no había (o si era inválida: ver [hasInvalidLegacy]).
+  Future<ServerProfile?> migrateLegacy() async {
+    final url = _legacyUrl();
+    if (url == null) return null;
     final profile = await upsert(url);
     await setActive(profile.id);
+    await _prefs.remove(_legacyKey);
     return profile;
   }
 

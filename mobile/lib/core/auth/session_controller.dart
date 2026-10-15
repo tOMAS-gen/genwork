@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/foundation.dart';
 
 import '../config/server_url.dart';
 import '../network/api_exception.dart';
+import '../../data/repositories/auth_repository.dart';
 import '../providers.dart';
 import '../servers/server_profile.dart';
 import 'session.dart';
@@ -15,7 +18,14 @@ class SessionController extends AsyncNotifier<SessionState> {
   @override
   Future<SessionState> build() async {
     final registry = ref.read(serverRegistryProvider);
-    await registry.migrateLegacy();
+    if (registry.hasInvalidLegacy) {
+      // La URL vieja no sirve: su token no se puede atribuir a ningún servidor
+      // (ni a uno que se agregue después). Se descarta antes de borrar la clave.
+      await ref.read(tokenStoreProvider).discardLegacy();
+      await registry.dropLegacyUrl();
+    } else {
+      await registry.migrateLegacy();
+    }
     final active = registry.active();
     if (active == null) return const NeedsServer();
     // Siempre: si la app murió entre migrar la URL y mover el token, el token
@@ -62,20 +72,27 @@ class SessionController extends AsyncNotifier<SessionState> {
     if (profile == null) return;
     final tokens = ref.read(tokenStoreProvider);
     final stored = await tokens.read(id);
-    if (stored != null) {
-      await ref.read(authRepositoryProvider(profile.url)).logout(stored.token);
-    }
+    final repo = ref.read(authRepositoryProvider(profile.url));
     await tokens.clear(id);
     final wasActive = registry.active()?.id == id;
     await registry.remove(id);
     ref.invalidate(serverListProvider);
-    if (!wasActive) return;
-    final next = registry.active();
-    if (next == null) {
-      state = const AsyncData(NeedsServer());
-    } else {
-      await _activate(next);
+    if (wasActive) {
+      final next = registry.active();
+      if (next == null) {
+        state = const AsyncData(NeedsServer());
+      } else {
+        await _activate(next);
+      }
     }
+    // Revocar en el servidor es de mejor esfuerzo: sin red no bloquea nada.
+    if (stored != null) unawaited(_revoke(repo, stored.token));
+  }
+
+  Future<void> _revoke(AuthRepository repo, String token) async {
+    try {
+      await repo.logout(token);
+    } catch (_) {}
   }
 
   Future<void> _activate(ServerProfile profile) async {
@@ -92,6 +109,9 @@ class SessionController extends AsyncNotifier<SessionState> {
     if (current is! SignedOut) return;
     final stored = await ref.read(authRepositoryProvider(current.serverUrl)).login();
     await ref.read(tokenStoreProvider).write(_idOf(current.serverUrl), stored);
+    // Si mientras tanto se cambió de servidor, el token queda guardado en su
+    // perfil pero no se pisa la sesión activa.
+    if (!ref.mounted || !identical(state.value, current)) return;
     state = AsyncData(
       SignedIn(serverUrl: current.serverUrl, token: stored.token, user: stored.user),
     );
@@ -102,6 +122,7 @@ class SessionController extends AsyncNotifier<SessionState> {
     if (current is! SignedIn) return;
     await ref.read(authRepositoryProvider(current.serverUrl)).logout(current.token);
     await ref.read(tokenStoreProvider).clear(_idOf(current.serverUrl));
+    if (!ref.mounted || !identical(state.value, current)) return;
     state = AsyncData(SignedOut(current.serverUrl));
   }
 

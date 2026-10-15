@@ -20,11 +20,20 @@ import '../sectors/sectors_providers.dart';
 import '../works/works_providers.dart';
 import '../groups/groups_providers.dart';
 
+typedef LiveStreamFactory = Stream<LiveEvent> Function(
+  Dio dio, {
+  CancelToken? cancelToken,
+  String path,
+});
+
+/// Fábrica del stream SSE. Existe para poder reemplazarla en tests.
+final liveStreamFactoryProvider = Provider<LiveStreamFactory>((ref) => liveEventStream);
+
 final liveEventsProvider = Provider.autoDispose<Stream<LiveEvent>>((ref) {
   final cancel = CancelToken();
   ref.onDispose(cancel.cancel);
   final client = ref.watch(currentUserProvider)?.isClient == true;
-  return liveEventStream(
+  return ref.watch(liveStreamFactoryProvider)(
     ref.watch(apiClientProvider).dio,
     cancelToken: cancel,
     path: client ? '/api/portal/stream' : '/api/stream',

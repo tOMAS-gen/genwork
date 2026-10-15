@@ -35,6 +35,8 @@ class MemoryStore implements TokenStore {
 
   @override
   Future<void> adoptLegacy(String profileId) async {}
+  @override
+  Future<void> discardLegacy() async {}
 }
 
 void main() {

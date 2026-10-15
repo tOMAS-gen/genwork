@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/auth/session.dart';
@@ -8,7 +10,10 @@ import 'package:genwork_mobile/core/network/api_exception.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/servers/server_profile.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
+import 'package:genwork_mobile/core/servers/server_registry.dart';
+import 'package:genwork_mobile/data/models/live_event.dart';
 import 'package:genwork_mobile/data/repositories/auth_repository.dart';
+import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MemoryTokenStore implements TokenStore {
@@ -27,11 +32,17 @@ class MemoryTokenStore implements TokenStore {
     legacy = null;
     if (l != null) byProfile[id] = l;
   }
+
+  @override
+  Future<void> discardLegacy() async => legacy = null;
 }
 
 class FakeAuthRepository extends AuthRepository {
-  FakeAuthRepository(Uri url, {this.valid = true}) : super(serverUrl: url);
+  FakeAuthRepository(Uri url, {this.valid = true, this.onLogout, this.loginGate})
+      : super(serverUrl: url);
   final bool valid;
+  final Future<void> Function(String token)? onLogout;
+  final Future<StoredSession>? loginGate;
   @override
   Future<ServerInfo> checkServer() async {
     if (!valid) {
@@ -41,7 +52,24 @@ class FakeAuthRepository extends AuthRepository {
   }
 
   @override
-  Future<void> logout(String token) async {}
+  Future<void> logout(String token) async => onLogout?.call(token);
+
+  @override
+  Future<StoredSession> login() => loginGate!;
+}
+
+/// Registro cuyo `setActive` falla una vez: simula morir entre migrar y activar.
+class _CrashingRegistry extends ServerRegistry {
+  _CrashingRegistry(super.prefs);
+  bool crashed = false;
+  @override
+  Future<void> setActive(String id) async {
+    if (!crashed) {
+      crashed = true;
+      throw StateError('crash');
+    }
+    return super.setActive(id);
+  }
 }
 
 AppUser _user(String id) => AppUser.fromJson({
@@ -55,6 +83,8 @@ Future<(ProviderContainer, MemoryTokenStore)> _fixture({
   Map<String, Object> prefs = const {},
   Set<String> invalidHosts = const {},
   StoredSession? legacy,
+  Future<void> Function(String token)? onLogout,
+  Future<StoredSession>? loginGate,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   final instance = await SharedPreferences.getInstance();
@@ -63,7 +93,12 @@ Future<(ProviderContainer, MemoryTokenStore)> _fixture({
     sharedPreferencesProvider.overrideWithValue(instance),
     tokenStoreProvider.overrideWithValue(store),
     authRepositoryProvider.overrideWith(
-      (ref, url) => FakeAuthRepository(url, valid: !invalidHosts.contains(url.host)),
+      (ref, url) => FakeAuthRepository(
+        url,
+        valid: !invalidHosts.contains(url.host),
+        onLogout: onLogout,
+        loginGate: loginGate,
+      ),
     ),
   ]);
   addTearDown(container.dispose);
@@ -243,4 +278,141 @@ void main() {
     expect((c.read(sessionProvider).value as SignedIn).token, 'ta');
     expect(store.byProfile[a]!.token, 'ta');
   });
+
+  test('URL legacy inválida: sin perfil, token legacy descartado y no adoptado después', () async {
+    final (c, store) = await _fixture(
+      prefs: {'server_url': ''},
+      legacy: _session('huerfano', 'u1'),
+    );
+    expect(await c.read(sessionProvider.future), isA<NeedsServer>());
+    expect(store.legacy, isNull);
+    expect(c.read(serverListProvider), isEmpty);
+    await c.read(sessionProvider.notifier).addServer('https://nuevo.test');
+    expect(c.read(sessionProvider).value, isA<SignedOut>());
+    expect(store.byProfile, isEmpty);
+  });
+
+  test('si la migración muere tras el upsert, el próximo inicio termina SignedIn', () async {
+    SharedPreferences.setMockInitialValues({'server_url': 'https://old.test'});
+    final prefs = await SharedPreferences.getInstance();
+    final store = MemoryTokenStore()..legacy = _session('viejo', 'u1');
+    final registry = _CrashingRegistry(prefs);
+    ProviderContainer make() => ProviderContainer(overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          serverRegistryProvider.overrideWithValue(registry),
+          tokenStoreProvider.overrideWithValue(store),
+          authRepositoryProvider.overrideWith((ref, url) => FakeAuthRepository(url)),
+        ]);
+    final first = make();
+    addTearDown(first.dispose);
+    await expectLater(first.read(sessionProvider.future), throwsA(isA<StateError>()));
+    expect(prefs.getString('server_url'), isNotNull); // la clave vieja sigue
+    final second = make();
+    addTearDown(second.dispose);
+    final s = await second.read(sessionProvider.future);
+    expect(s, isA<SignedIn>());
+    expect((s as SignedIn).token, 'viejo');
+    expect(prefs.getString('server_url'), isNull);
+  });
+
+  test('removeServer no espera la revocación de red y revoca con el token del perfil', () async {
+    final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+    final never = Completer<void>();
+    final revoked = <String>[];
+    final (c, store) = await _fixture(onLogout: (t) {
+      revoked.add(t);
+      return never.future;
+    });
+    store.byProfile[a] = _session('ta', 'ua');
+    await c.read(sessionProvider.future);
+    final n = c.read(sessionProvider.notifier);
+    await n.addServer('https://a.test');
+    await n.removeServer(a).timeout(const Duration(seconds: 2));
+    expect(store.byProfile.containsKey(a), isFalse);
+    expect(c.read(serverListProvider), isEmpty);
+    expect(c.read(sessionProvider).value, isA<NeedsServer>());
+    expect(revoked, ['ta']);
+  });
+
+  test('login: si cambió el servidor activo, guarda el token en su perfil sin pisar el estado', () async {
+    final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+    final gate = Completer<StoredSession>();
+    final (c, store) = await _fixture(loginGate: gate.future);
+    await c.read(sessionProvider.future);
+    final n = c.read(sessionProvider.notifier);
+    await n.addServer('https://a.test'); // SignedOut de A
+    final login = n.login();
+    await n.addServer('https://b.test'); // el usuario cambia a B mientras tanto
+    gate.complete(_session('ta', 'ua'));
+    await login;
+    expect(store.byProfile[a]!.token, 'ta');
+    final s = c.read(sessionProvider).value;
+    expect(s, isA<SignedOut>());
+    expect((s as SignedOut).serverUrl, Uri.parse('https://b.test'));
+  });
+
+  test('cambiar de servidor reconstruye el cliente y cierra el stream live anterior', () async {
+    final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+    final b = ServerProfile.idFor(Uri.parse('https://b.test'));
+    final dios = <Dio>[];
+    final tokens = <CancelToken>[];
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final store = MemoryTokenStore()
+      ..byProfile[a] = _session('ta', 'ua')
+      ..byProfile[b] = _session('tb', 'ub');
+    final c = ProviderContainer(overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      tokenStoreProvider.overrideWithValue(store),
+      authRepositoryProvider.overrideWith((ref, url) => FakeAuthRepository(url)),
+      liveStreamFactoryProvider.overrideWithValue((dio, {cancelToken, path = '/api/stream'}) {
+        dios.add(dio);
+        tokens.add(cancelToken!);
+        return const Stream<LiveEvent>.empty();
+      }),
+    ]);
+    addTearDown(c.dispose);
+    await c.read(sessionProvider.future);
+    final n = c.read(sessionProvider.notifier);
+    await n.addServer('https://b.test');
+    await n.addServer('https://a.test'); // activo = a
+    final subClient = c.listen(apiClientProvider, (_, _) {});
+    final subLive = c.listen(liveEventsProvider, (_, _) {});
+    final clientA = subClient.read();
+    expect(clientA.dio.options.baseUrl, 'https://a.test');
+    expect(tokens, hasLength(1));
+    expect(tokens.single.isCancelled, isFalse);
+
+    await n.switchServer(b);
+    await Future<void>.delayed(Duration.zero); // deja correr el rebuild de los providers
+    final clientB = subClient.read();
+    expect(identical(clientA, clientB), isFalse);
+    expect(clientB.dio.options.baseUrl, 'https://b.test');
+    expect(tokens.first.isCancelled, isTrue); // se cerró el live de A
+    expect(tokens, hasLength(2));
+    expect(tokens.last.isCancelled, isFalse);
+    expect(dios.last, same(clientB.dio));
+
+    // El Bearer del cliente nuevo es el de B.
+    String? auth;
+    clientB.dio.httpClientAdapter = _CaptureAdapter((o) => auth = o.headers['Authorization'] as String?);
+    await clientB.dio.get('/x');
+    expect(auth, 'Bearer tb');
+    subLive.close();
+  });
+}
+
+class _CaptureAdapter implements HttpClientAdapter {
+  _CaptureAdapter(this.onRequest);
+  final void Function(RequestOptions) onRequest;
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, Stream<List<int>>? requestStream, Future<void>? cancelFuture) async {
+    onRequest(options);
+    return ResponseBody.fromString('{}', 200, headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    });
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

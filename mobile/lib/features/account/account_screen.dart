@@ -73,9 +73,10 @@ class AccountScreen extends ConsumerWidget {
                 key: const ValueKey('account_servers'),
                 leading: const Icon(AppIcons.qrScanner),
                 title: const Text('Servidores'),
-                subtitle: Text(
-                  '${ref.watch(serverListProvider).length} vinculados · cambiar o agregar',
-                ),
+                subtitle: Text(() {
+                  final n = ref.watch(serverListProvider).length;
+                  return '$n ${n == 1 ? 'vinculado' : 'vinculados'} · cambiar o agregar';
+                }()),
                 trailing: Icon(
                   AppIcons.chevronRight,
                   size: AppIconSizes.action,

@@ -22,6 +22,8 @@ class _MemoryTokenStore implements TokenStore {
 
   @override
   Future<void> adoptLegacy(String id) async {}
+  @override
+  Future<void> discardLegacy() async {}
 }
 
 Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {

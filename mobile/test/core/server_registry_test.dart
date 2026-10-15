@@ -72,4 +72,13 @@ void main() {
     final r = await _registry({'server_profiles': '{no es json'});
     expect(r.profiles(), isEmpty);
   });
+
+  test('migrateLegacy: URL inválida no crea perfil y la clave se limpia aparte', () async {
+    final r = await _registry({'server_url': ''});
+    expect(r.hasInvalidLegacy, isTrue);
+    expect(await r.migrateLegacy(), isNull);
+    expect(r.profiles(), isEmpty);
+    await r.dropLegacyUrl();
+    expect(r.hasInvalidLegacy, isFalse);
+  });
 }

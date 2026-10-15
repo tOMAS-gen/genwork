@@ -21,6 +21,8 @@ class _Tokens implements TokenStore {
   Future<void> clear(String id) async {}
   @override
   Future<void> adoptLegacy(String id) async {}
+  @override
+  Future<void> discardLegacy() async {}
 }
 
 class _FakeAuth extends AuthRepository {

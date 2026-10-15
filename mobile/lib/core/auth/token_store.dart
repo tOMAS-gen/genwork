@@ -15,6 +15,9 @@ abstract class TokenStore {
   /// Versiones anteriores guardaban un único token global. Lo mueve al perfil
   /// indicado y borra el viejo; si no hay nada, no hace nada.
   Future<void> adoptLegacy(String profileId);
+
+  /// Borra el token global viejo sin adoptarlo (su servidor ya no se conoce).
+  Future<void> discardLegacy();
 }
 
 class StoredSession {
@@ -72,6 +75,12 @@ class SecureTokenStore implements TokenStore {
       await _storage.write(key: _t(profileId), value: token);
       await _storage.write(key: _u(profileId), value: user);
     }
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _userKey);
+  }
+
+  @override
+  Future<void> discardLegacy() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
   }
