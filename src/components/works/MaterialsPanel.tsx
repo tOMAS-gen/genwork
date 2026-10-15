@@ -5,6 +5,7 @@ import { api } from "@/components/ui/useApi";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Check, Package, Search, Trash2 } from "@/components/ui/icons";
 import { useToast } from "@/components/ui/Toast";
+import { showConfirm } from "@/components/ui/ConfirmDialog";
 
 interface MaterialDto {
   id: string;
@@ -219,6 +220,12 @@ export function MaterialsPanel({ workId, editable }: { workId: string; editable:
   };
 
   const remove = async (material: MaterialDto) => {
+    const ok = await showConfirm(`¿Quitar "${material.productName}" de los materiales del proyecto?`, {
+      title: "Quitar material",
+      confirmLabel: "Quitar",
+      danger: true,
+    });
+    if (!ok) return;
     setSaving(true);
     setStatus("");
     try {
