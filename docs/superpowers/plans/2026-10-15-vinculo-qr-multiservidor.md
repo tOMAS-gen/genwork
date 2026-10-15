@@ -29,11 +29,11 @@
 
 Entradas que el spec insinúa y ninguna tarea cubriría sola; cada una tiene su test en la tarea dueña:
 
-1. **QR ajeno o ruido** (texto cualquiera, QR de otro sitio, `genwork://connect` sin `server`): mensaje "No es un QR de genwork", no se guarda ningún perfil. → Task 2 (parser) y Task 7 (pantalla).
+1. **QR ajeno o ruido** (texto cualquiera, QR de otro sitio, `genwork://connect` sin `server`): mensaje "No es un QR de genwork", no se guarda ningún perfil. → Task 3 (parser) y Task 6 (pantalla).
 2. **Mismo servidor escrito distinto** (`HTTPS://Work.Test/`, `work.test`, con `:443`): no duplica el perfil, solo lo activa. → Task 3.
 3. **Usuario actual con datos viejos** (`server_url` + token global): tras actualizar sigue logueado en ese servidor. → Task 4.
-4. **Quitar el servidor activo**: con otros guardados pasa a otro sin crash; si era el último, vuelve a "primer inicio". → Task 4 y Task 8.
-5. **El escáner dispara la misma lectura muchas veces**: una sola conexión/verificación, sin parpadeos ni perfiles duplicados. → Task 7.
+4. **Quitar el servidor activo**: con otros guardados pasa a otro sin crash; si era el último, vuelve a "primer inicio". → Task 4 y Task 7.
+5. **El escáner dispara la misma lectura muchas veces**: una sola conexión/verificación, sin parpadeos ni perfiles duplicados. → Task 6.
 
 ---
 
@@ -1441,7 +1441,7 @@ git commit -m "feat(mobile): rutas /servers y /servers/add accesibles con y sin 
 
 ## Parte C — Móvil (UI)
 
-> Estas pantallas pueden implementarse en paralelo por otro agente (según el reparto del proyecto: núcleo Claude, pantallas Codex) **después** de las Tasks 3–5. Seguir `mobile/AGENTS.md` y la guardia de tokens (ver Global Constraints).
+> Estas pantallas pueden implementarse por otro agente (según el reparto del proyecto: núcleo Claude, pantallas Codex) **después** de las Tasks 3–5. Orden: Task 6 → 7 → 8. Seguir `mobile/AGENTS.md` y la guardia de tokens (ver Global Constraints).
 
 ### Task 6 (móvil): Escáner QR en el alta de servidor
 
