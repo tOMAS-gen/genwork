@@ -230,7 +230,7 @@ export function SectorsView({
       )}
 
       {loading ? (
-        <div className="sector-grid">
+        <div className="card-grid-sm">
           <Skeleton variant="card" height="140px" />
           <Skeleton variant="card" height="140px" />
           <Skeleton variant="card" height="140px" />
@@ -256,7 +256,7 @@ export function SectorsView({
                 {renderHeaderButton(section, open)}
                 <div id={panelId} className={open ? "mt-3" : undefined}>
                   {open && (
-                    <div className="sector-grid">
+                    <div className="card-grid-sm">
                       {section.sectors.map((s) => (
                         <SectorCard key={s.id} sector={s} />
                       ))}

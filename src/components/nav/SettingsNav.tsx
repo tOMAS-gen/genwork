@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { RouteTabs } from "@gen/ui";
 
 /** Secciones de la cuenta: las ve cualquier usuario. */
 const ACCOUNT_ITEMS = [["/settings", "Mi cuenta"]] as const;
@@ -33,19 +33,16 @@ export function SettingsNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {
   const pathname = usePathname();
   const items = isSuperAdmin ? [...ACCOUNT_ITEMS, ...SYSTEM_ITEMS] : ACCOUNT_ITEMS;
 
-  return (
-    <nav className="section-tabs" aria-label="Secciones de configuración">
-      {items.map(([href, label]) => {
-        const active =
-          pathname === href ||
-          (!INDEX_HREFS.has(href) && pathname.startsWith(`${href}/`));
+  const active =
+    items.find(
+      ([href]) => pathname === href || (!INDEX_HREFS.has(href) && pathname.startsWith(`${href}/`)),
+    )?.[0] ?? null;
 
-        return (
-          <Link key={href} href={href} aria-current={active ? "page" : undefined}>
-            {label}
-          </Link>
-        );
-      })}
-    </nav>
+  return (
+    <RouteTabs
+      ariaLabel="Secciones de configuración"
+      activeHref={active}
+      items={items.map(([href, label]) => ({ href, label }))}
+    />
   );
 }

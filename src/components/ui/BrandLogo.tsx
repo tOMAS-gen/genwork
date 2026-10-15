@@ -1,8 +1,6 @@
+import { BrandLogo as GenBrandLogo } from "@gen/ui";
+
+/** Logotipo "›genwork" (BrandLogo de @gen/ui con el producto fijo). */
 export function BrandLogo({ className }: { className?: string }) {
-  return (
-    <span className={`brand-logo ${className ?? ""}`}>
-      <span className="brand-gen">›gen</span>
-      <span className="brand-work">work</span>
-    </span>
-  );
+  return <GenBrandLogo product="work" className={className} />;
 }

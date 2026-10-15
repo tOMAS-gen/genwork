@@ -46,7 +46,7 @@ export default function GroupsPage() {
       />
 
       {loading ? (
-        <div className="sector-grid">
+        <div className="card-grid-sm">
           <Skeleton variant="card" height="72px" />
           <Skeleton variant="card" height="72px" />
           <Skeleton variant="card" height="72px" />
@@ -59,7 +59,7 @@ export default function GroupsPage() {
           action={{ label: "Nuevo grupo", onClick: () => setDialogOpen(true) }}
         />
       ) : (
-        <div className="sector-grid">
+        <div className="card-grid-sm">
           {groups.map((g) => (
             <GroupCard key={g.id} group={g} />
           ))}

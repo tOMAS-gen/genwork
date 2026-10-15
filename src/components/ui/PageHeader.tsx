@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PageHeader as GenPageHeader } from "@gen/ui";
 import {
   AtSign,
   Bell,
@@ -23,7 +24,7 @@ const PAGE_ICONS = {
   board: LayoutDashboard,
 };
 
-/** Shared page heading: GenStock's compact icon, title and action alignment. */
+/** PageHeader de @gen/ui con los íconos de sección de genwork por nombre. */
 export function PageHeader({
   title,
   description,
@@ -35,21 +36,5 @@ export function PageHeader({
   icon?: keyof typeof PAGE_ICONS;
   actions?: ReactNode;
 }) {
-  const Icon = icon ? PAGE_ICONS[icon] : undefined;
-  return (
-    <header className="page-header">
-      <div className="page-header-heading">
-        {Icon && (
-          <span className="page-header-icon">
-            <Icon size={22} aria-hidden="true" />
-          </span>
-        )}
-        <div className="page-header-copy">
-          <h1>{title}</h1>
-          {description && <p>{description}</p>}
-        </div>
-      </div>
-      {actions && <div className="page-header-actions">{actions}</div>}
-    </header>
-  );
+  return <GenPageHeader title={title} description={description} icon={icon ? PAGE_ICONS[icon] : undefined} actions={actions} />;
 }

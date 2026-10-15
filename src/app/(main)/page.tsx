@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Menu } from "@/components/ui/Menu";
 import { Dialog } from "@/components/ui/Dialog";
+import { Pagination } from "@gen/ui";
 
 type ViewMode = "grid" | "list";
 type SortBy = "recent" | "name" | "progress";
@@ -325,7 +326,7 @@ function HomePageContent() {
       />
 
       {loading ? (
-        <div className="project-grid">
+        <div className="card-grid">
           <Skeleton variant="card" height="200px" />
           <Skeleton variant="card" height="200px" />
           <Skeleton variant="card" height="200px" />
@@ -363,7 +364,7 @@ function HomePageContent() {
           }}
         />
       ) : viewMode === "grid" ? (
-        <div className="project-grid">
+        <div className="card-grid">
           {pagedWorks.map((project) => (
             <ProjectCard
               key={project.id}
@@ -379,7 +380,7 @@ function HomePageContent() {
         </div>
       ) : (
         <div className="table-scroll-wrapper">
-          <table className="project-table">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Proyecto</th>
@@ -409,34 +410,7 @@ function HomePageContent() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button
-            type="button"
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          >
-            {"< Anterior"}
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              type="button"
-              className={page === currentPage ? "active" : ""}
-              onClick={() => setCurrentPage(page)}
-            >
-              {page}
-            </button>
-          ))}
-          <button
-            type="button"
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          >
-            {"Siguiente >"}
-          </button>
-        </div>
-      )}
+      <Pagination page={currentPage} totalPages={totalPages} onChange={setCurrentPage} />
 
       <Dialog
         open={archiveTarget !== null}

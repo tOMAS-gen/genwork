@@ -13,7 +13,7 @@ export function GroupCard({ group }: { group: GroupCardData }) {
   const colorClass = group.color ? "color-chip" : "pc-name-pill-default";
 
   return (
-    <Link href={`/groups/${group.id}`} className="project-card">
+    <Link href={`/groups/${group.id}`} className="card-interactive">
       <div className="card-header">
         <span
           className={`pc-name-pill ${colorClass}`}

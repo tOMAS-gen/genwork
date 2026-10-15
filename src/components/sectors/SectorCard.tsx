@@ -19,7 +19,7 @@ export function SectorCard({ sector }: { sector: SectorCardData }) {
   const pct = metrics.total > 0 ? Math.round((metrics.done / metrics.total) * 100) : 0;
 
   return (
-    <Link href={`/sectors/${sector.id}`} className="project-card sector-card">
+    <Link href={`/sectors/${sector.id}`} className="card-interactive sector-card">
       <div className="card-header">
         <span
           title={sector.name}

@@ -36,7 +36,7 @@ export default function PortalHomePage() {
       {error && <p className="form-error">{error}</p>}
 
       {works === null && !error && (
-        <div className="project-grid">
+        <div className="card-grid">
           <Skeleton height="160px" variant="card" />
           <Skeleton height="160px" variant="card" />
           <Skeleton height="160px" variant="card" />
@@ -52,7 +52,7 @@ export default function PortalHomePage() {
       )}
 
       {works !== null && works.length > 0 && (
-        <div className="project-grid">
+        <div className="card-grid">
           {works.map((work) => (
             <PortalProjectCard key={work.id} work={work} />
           ))}

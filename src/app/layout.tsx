@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Montserrat, Roboto_Mono } from "next/font/google";
-import { ToastProvider } from "@/components/ui/Toast";
+import { ThemeScript } from "@gen/ui";
+import "@gen/ui/styles.css";
+import "@gen/ui/themes/genwork.css";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-sans" });
 const robotoMono = Roboto_Mono({
@@ -46,20 +49,6 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-const THEME_INIT_SCRIPT = `
-(function () {
-  try {
-    var stored = localStorage.getItem("gw:theme");
-    var theme = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
-    var resolved =
-      theme === "system"
-        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-        : theme;
-    document.documentElement.dataset.theme = resolved;
-  } catch (e) {}
-})();
-`;
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
@@ -68,10 +57,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <ThemeScript storageKey="gw:theme" />
       </head>
       <body>
-        <ToastProvider>{children}</ToastProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

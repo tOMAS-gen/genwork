@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     include: ["tests/unit/**/*.test.{ts,tsx}", "src/**/__tests__/**/*.test.{ts,tsx}"],
     environment: "node",
+    // @gen/ui se distribuye como TS fuente: vitest tiene que transformarlo.
+    server: { deps: { inline: ["@gen/ui"] } },
   },
   resolve: {
     alias: {
