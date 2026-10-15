@@ -86,12 +86,6 @@ class SessionController extends AsyncNotifier<SessionState> {
     state = AsyncData(next);
   }
 
-  /// TEMPORAL: se elimina en la tarea de la lista de servidores. Solo muestra la
-  /// pantalla de alta sin borrar nada.
-  Future<void> changeServer() async {
-    state = const AsyncData(NeedsServer());
-  }
-
   /// Login con el navegador del sistema. Lanza [LoginCancelled] o [ApiException].
   Future<void> login() async {
     final current = state.value;

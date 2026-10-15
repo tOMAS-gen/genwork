@@ -25,6 +25,7 @@ import '../../features/reminders/reminders_screen.dart';
 import '../../features/sectors/sector_detail_screen.dart';
 import '../../features/sectors/sectors_list_screen.dart';
 import '../../features/setup/server_setup_screen.dart';
+import '../../features/setup/servers_screen.dart';
 import '../../features/shell/home_shell.dart';
 import '../../features/shell/splash_screen.dart';
 import '../../features/works/work_detail_screen.dart';
@@ -71,6 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.addServer,
         builder: (_, _) => const ServerSetupScreen(canGoBack: true),
       ),
+      GoRoute(path: Routes.servers, builder: (_, _) => const ServersScreen()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       ShellRoute(
         builder: (_, _, child) => RoleShell(child: child),

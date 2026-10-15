@@ -69,6 +69,20 @@ class AccountScreen extends ConsumerWidget {
                   style: AppTextStyles.technical.copyWith(color: c.muted),
                 ),
               ),
+              ListTile(
+                key: const ValueKey('account_servers'),
+                leading: const Icon(AppIcons.qrScanner),
+                title: const Text('Servidores'),
+                subtitle: Text(
+                  '${ref.watch(serverListProvider).length} vinculados · cambiar o agregar',
+                ),
+                trailing: Icon(
+                  AppIcons.chevronRight,
+                  size: AppIconSizes.action,
+                  color: c.muted,
+                ),
+                onTap: () => context.push(Routes.servers),
+              ),
               const ListTile(
                 leading: Icon(AppIcons.info),
                 title: Text('genwork'),
