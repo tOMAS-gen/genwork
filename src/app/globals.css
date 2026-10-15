@@ -4372,6 +4372,15 @@ a.my-day-source:hover {
   width: 100%;
 }
 
+/* En pantallas angostas la tabla scrollea antes que aplastar los campos. */
+.materials-table input[inputmode] {
+  min-width: 88px;
+}
+
+.materials-table input:not([inputmode]) {
+  min-width: 180px;
+}
+
 .materials-row-actions {
   display: flex;
   align-items: center;
