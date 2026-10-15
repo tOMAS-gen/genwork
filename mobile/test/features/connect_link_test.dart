@@ -33,7 +33,7 @@ class _FakeAuth extends AuthRepository {
   }
 }
 
-Future<(StreamController<Uri>, List<Uri>)> _pump(WidgetTester tester) async {
+Future<(StreamController<Uri>, List<Uri>)> _pump(WidgetTester tester, {Uri? initial}) async {
   await initializeDateFormatting('es');
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -48,7 +48,7 @@ Future<(StreamController<Uri>, List<Uri>)> _pump(WidgetTester tester) async {
       qrScannerBuilderProvider.overrideWithValue((c, onCode) => const SizedBox()),
       authRepositoryProvider.overrideWith((ref, url) => _FakeAuth(url, calls)),
       incomingLinksProvider.overrideWithValue(links.stream),
-      initialLinkProvider.overrideWith((ref) async => null),
+      initialLinkProvider.overrideWith((ref) async => initial),
     ],
     child: const GenworkApp(),
   ));
@@ -73,5 +73,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(calls, isEmpty);
     expect(find.byKey(const ValueKey('setup_manual_toggle')), findsOneWidget);
+  });
+
+  testWidgets('el mismo link por link inicial y por stream se maneja una sola vez', (tester) async {
+    final link = Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test');
+    await initializeDateFormatting('es');
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final links = StreamController<Uri>();
+    addTearDown(links.close);
+    final calls = <Uri>[];
+    await tester.pumpWidget(ProviderScope(
+      retry: (_, _) => null,
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        tokenStoreProvider.overrideWithValue(_Tokens()),
+        qrScannerBuilderProvider.overrideWithValue((c, onCode) => const SizedBox()),
+        authRepositoryProvider.overrideWith((ref, url) => _FakeAuth(url, calls)),
+        incomingLinksProvider.overrideWithValue(links.stream),
+        initialLinkProvider.overrideWith((ref) async => link),
+      ],
+      child: const GenworkApp(),
+    ));
+    links.add(link);
+    await tester.pumpAndSettle();
+    expect(calls.length, 1);
+  });
+
+  testWidgets('un link inicial solo agrega el servidor', (tester) async {
+    final (_, calls) = await _pump(tester, initial: Uri.parse('genwork://connect?server=https%3A%2F%2Fa.test'));
+    expect(calls, [Uri.parse('https://a.test')]);
+    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
   });
 }

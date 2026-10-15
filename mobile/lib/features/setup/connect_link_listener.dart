@@ -30,8 +30,15 @@ class ConnectLinkListener extends ConsumerStatefulWidget {
   ConsumerState<ConnectLinkListener> createState() => _ConnectLinkListenerState();
 }
 
+/// En arranque en frío el link llega por el stream y por `getInitialLink()`;
+/// un mismo link dentro de esta ventana (o mientras sigue en curso) se ignora.
+const _dedupeWindow = Duration(seconds: 5);
+
 class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
   StreamSubscription<Uri>? _sub;
+  String? _lastHandled;
+  DateTime? _lastHandledAt;
+  bool _inFlight = false;
 
   @override
   void initState() {
@@ -49,13 +56,25 @@ class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
   }
 
   Future<void> _handle(Uri uri) async {
+    if (!mounted) return;
     if (uri.scheme != 'genwork' || uri.host != 'connect') return;
     final url = parseConnectPayload(uri.toString());
     if (url == null) return;
+    final key = uri.toString();
+    final at = _lastHandledAt;
+    if (key == _lastHandled &&
+        (_inFlight || (at != null && DateTime.now().difference(at) < _dedupeWindow))) {
+      return;
+    }
+    _lastHandled = key;
+    _lastHandledAt = DateTime.now();
+    _inFlight = true;
     try {
       await ref.read(sessionProvider.notifier).addServer(url.toString());
     } catch (e) {
       if (mounted) showErrorSnack(context, e);
+    } finally {
+      _inFlight = false;
     }
   }
 
