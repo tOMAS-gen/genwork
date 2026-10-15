@@ -34,7 +34,7 @@ del servidor, `src/app/api/**`). Los modelos Dart equivalentes están en
 
 | Método y ruta | Descripción |
 |---|---|
-| `GET /api/auth/mobile/info` | Público. `{ app: "genwork", mobileApi: 1, auth: {...} }`. Valida la URL en el primer inicio. |
+| `GET /api/auth/mobile/info` | Público. `{ app: "genwork", mobileApi: 1, name, auth: {...} }`. Valida la URL en el primer inicio. `name` (string, opcional): nombre visible del sistema (`SYSTEM_NAME` o el host público); la app lo muestra en la lista de servidores y usa el host si falta. |
 | `GET /api/auth/mobile/start?code_challenge=&code_challenge_method=S256&state=` | En el navegador del sistema. Sin sesión → `/login?callbackUrl=…`. Con sesión → `302 genwork://auth?code=…&state=…`. Rol sin acceso → `genwork://auth?error=forbidden&state=…`. |
 | `POST /api/auth/mobile/token` | `{ code, codeVerifier, deviceName? }` → `{ token, user: { id, email, name, globalRole, image } }`. Error `400 INVALID_GRANT` (código vencido a los 2 min, usado o verifier incorrecto). |
 | `POST /api/auth/mobile/logout` | Con Bearer. Revoca el token. 204. |
