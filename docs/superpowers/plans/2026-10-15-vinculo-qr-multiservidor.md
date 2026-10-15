@@ -1558,10 +1558,14 @@ void main() {
     await _pump(tester);
     expect(find.byKey(const ValueKey('fake_scanner')), findsOneWidget);
     expect(find.byKey(const ValueKey('setup_url_field')), findsNothing);
+    // Instrucciones de cómo mostrar el QR en la web, junto al visor.
+    expect(find.byKey(const ValueKey('setup_qr_instructions')), findsOneWidget);
+    expect(find.textContaining('Configuración › App móvil'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('setup_manual_toggle')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('setup_url_field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('setup_qr_instructions')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('setup_scan_toggle')));
     await tester.pumpAndSettle();
@@ -1741,6 +1745,44 @@ import '../../shared/widgets/auth_card.dart';
 import '../../shared/widgets/state_views.dart';
 import 'qr_scanner_view.dart';
 
+/// Cómo mostrar el QR en la web. Se ve debajo del visor de cámara.
+class _QrInstructions extends StatelessWidget {
+  const _QrInstructions();
+
+  static const _steps = [
+    'En una computadora, abrí genwork e ingresá a tu sistema.',
+    'Andá a Configuración › App móvil.',
+    'Apuntá la cámara al código QR que aparece en pantalla.',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Column(
+      key: const ValueKey('setup_qr_instructions'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Cómo conseguir el código',
+          style: AppTextStyles.supporting.copyWith(
+            color: c.text,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        for (var i = 0; i < _steps.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xxs),
+            child: Text(
+              '${i + 1}. ${_steps[i]}',
+              style: AppTextStyles.supporting.copyWith(color: c.muted),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Alta de servidor. Primer inicio (`/setup`) o «Agregar servidor» (`/servers/add`):
 /// se escanea el QR de «Configuración › App móvil» de la web, o se escribe la
 /// dirección a mano. Se valida contra `/api/auth/mobile/info` y se guarda; después
@@ -1816,14 +1858,14 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
           textAlign: TextAlign.center,
           style: AppTextStyles.body.copyWith(color: c.text),
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          _manual
-              ? 'La encontrás en la barra del navegador.'
-              : 'Lo ves en Configuración › App móvil, en la web.',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.supporting.copyWith(color: c.muted),
-        ),
+        if (_manual) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'La encontrás en Configuración › App móvil de la web, o en la barra del navegador.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.supporting.copyWith(color: c.muted),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
         if (_manual) ...[
           TextField(
@@ -1840,8 +1882,11 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
               hintText: 'work.empresa.com',
             ),
           ),
-        ] else
+        ] else ...[
           ref.watch(qrScannerBuilderProvider)(context, _onCode),
+          const SizedBox(height: AppSpacing.md),
+          const _QrInstructions(),
+        ],
         if (_checking && _connectingTo != null) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(

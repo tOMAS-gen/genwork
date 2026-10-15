@@ -60,6 +60,7 @@ Hoy el primer inicio de la app móvil (Flutter, `mobile/`) pide escribir la URL 
 
 ### 3. Móvil — UI
 
+- **Instrucciones en la pantalla del escáner:** debajo del visor, pasos para mostrar el QR en la web (abrir genwork en una computadora › Configuración › App móvil › apuntar la cámara). Se ocultan en el modo de escritura manual, que explica dónde está la dirección.
 - **Setup / Agregar servidor:** escáner de cámara (`mobile_scanner`) como acción principal; "Escribir dirección a mano" como secundaria. Acepta `genwork://connect?...` o URL plana. Parseo en una función pura `parseConnectPayload`.
 - **Deep link `genwork://connect`:** abrir el QR con la cámara nativa abre la app y entra al mismo flujo (el scheme `genwork` ya existe para el callback de login; se agrega el host `connect`).
 - **Selector de servidor** (en Cuenta/Más y accesible desde login): lista con nombre, URL, usuario y marca del activo. Tocar = cambiar; "Agregar servidor" = escáner; eliminar con confirmación.
