@@ -4,13 +4,21 @@ import 'routes.dart';
 
 const _publicRoutes = {Routes.splash, Routes.setup, Routes.login};
 
+bool _isServerRoute(String location) =>
+    location == Routes.servers || location.startsWith('${Routes.servers}/');
+
 /// Redirección según sesión. Pura para poder testearla.
 ///
 /// - Cargando → splash.
 /// - Sin servidor → setup (primer inicio).
 /// - Sin sesión → login.
 /// - Con sesión → fuera de splash/setup/login.
+/// - Con o sin sesión → /servers* queda accesible (cambiar de servidor).
 String? authRedirect(SessionState? session, String location) {
+  // Cambiar de servidor está disponible para todos los roles, con o sin sesión.
+  if ((session is SignedOut || session is SignedIn) && _isServerRoute(location)) {
+    return null;
+  }
   return switch (session) {
     null => location == Routes.splash ? null : Routes.splash,
     NeedsServer() => location == Routes.setup ? null : Routes.setup,

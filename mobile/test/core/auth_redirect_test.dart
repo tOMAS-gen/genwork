@@ -30,6 +30,28 @@ void main() {
     expect(authRedirect(signedIn, Routes.work('w1')), isNull);
   });
 
+  test('las rutas de servidores están disponibles con y sin sesión', () {
+    for (final location in [Routes.servers, Routes.addServer]) {
+      expect(authRedirect(SignedOut(server), location), isNull);
+      expect(authRedirect(signedIn, location), isNull);
+    }
+  });
+
+  test('clientes y lectores también pueden cambiar de servidor', () {
+    const client = AppUser(id: 'c', email: 'c@b.c', name: 'C', role: GlobalRole.client, roleRaw: 'CLIENT');
+    const reader = AppUser(id: 'r', email: 'r@b.c', name: 'R', role: GlobalRole.reader, roleRaw: 'READER');
+    for (final u in [client, reader]) {
+      final s = SignedIn(serverUrl: server, token: 't', user: u);
+      expect(authRedirect(s, Routes.servers), isNull);
+      expect(authRedirect(s, Routes.addServer), isNull);
+    }
+  });
+
+  test('sin servidores, /servers/add redirige a setup', () {
+    expect(authRedirect(const NeedsServer(), Routes.addServer), Routes.setup);
+    expect(authRedirect(const NeedsServer(), Routes.servers), Routes.setup);
+  });
+
   test('links web de notificaciones → rutas de la app', () {
     expect(Routes.fromWebPath('/works/abc'), '/works/abc');
     expect(Routes.fromWebPath('/sectors/s1'), '/sectors/s1');
