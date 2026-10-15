@@ -141,6 +141,7 @@ model AccessConfig {
   domain              String?
   storageProvider     StorageProviderKind @default(NEXTCLOUD)
   storageConfig       Json?
+  genstockBaseUrl     String?
   // Recordatorios: zona horaria única del sistema (R4) y config de email cifrada (R5).
   timezone            String              @default("America/Argentina/Buenos_Aires")
   reminderEmailConfig Json?
@@ -277,6 +278,7 @@ model Work {
   attachments            Attachment[]
   archive                ArchiveRecord?
   labels                 WorkLabel[]
+  materials              WorkMaterial[]
   favorites              UserFavorite[]
   mcpActivity            McpActivityLog[]
   fileShares             FileShare[]
@@ -296,6 +298,32 @@ model DocPage {
   work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
   content   Json?
   updatedAt DateTime @updatedAt
+}
+
+model WorkMaterial {
+  id                String   @id @default(uuid())
+  workId            String
+  genstockProductId String
+  productName       String
+  productCode       String
+  humanCode         String
+  unitId            String
+  unitName          String?
+  unitAbbreviation  String?
+  unitAllowsDecimal Boolean?
+  unitMagnitude     String?
+  unitFactor        String?
+  unitIsBase        Boolean?
+  quantityRequired  Decimal  @db.Decimal(18, 6)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  work Work @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([workId, genstockProductId])
+  @@index([workId])
+  @@index([genstockProductId])
 }
 
 model Task {

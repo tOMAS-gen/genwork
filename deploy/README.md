@@ -14,19 +14,25 @@ Nextcloud incluido; también podés conectar un Nextcloud externo desde el panel
 
 ## Variables de entorno
 
-| Variable | Descripción | Obligatoria | Default |
-|----------|-------------|-------------|---------|
-| DATABASE_URL | URL de conexión PostgreSQL | Sí | — |
-| AUTH_SECRET | Secreto para firmar sesiones (next-auth) | Sí | — |
-| AUTH_URL | URL pública de la aplicación (ej. https://genwork.example.com) | Sí | — |
-| GOOGLE_CLIENT_ID | Client ID de Google OAuth | Sí | — |
-| GOOGLE_CLIENT_SECRET | Client Secret de Google OAuth | Sí | — |
-| NEXTCLOUD_URL | URL del servidor Nextcloud | No | — |
-| NEXTCLOUD_ADMIN_USER | Usuario administrador de Nextcloud | No | — |
-| NEXTCLOUD_ADMIN_PASSWORD | Contraseña del admin de Nextcloud | No | — |
-| APP_ENCRYPTION_KEY | Clave para encriptar secretos almacenados | No* | — |
+| Variable                 | Descripción                                                    | Obligatoria | Default |
+| ------------------------ | -------------------------------------------------------------- | ----------- | ------- |
+| DATABASE_URL             | URL de conexión PostgreSQL                                     | Sí          | —       |
+| AUTH_SECRET              | Secreto para firmar sesiones (next-auth)                       | Sí          | —       |
+| AUTH_URL                 | URL pública de la aplicación (ej. https://genwork.example.com) | Sí          | —       |
+| GOOGLE_CLIENT_ID         | Client ID de Google OAuth                                      | Sí          | —       |
+| GOOGLE_CLIENT_SECRET     | Client Secret de Google OAuth                                  | Sí          | —       |
+| NEXTCLOUD_URL            | URL del servidor Nextcloud                                     | No          | —       |
+| NEXTCLOUD_ADMIN_USER     | Usuario administrador de Nextcloud                             | No          | —       |
+| NEXTCLOUD_ADMIN_PASSWORD | Contraseña del admin de Nextcloud                              | No          | —       |
+| GENSTOCK_BASE_URL        | URL del backend de Genstock para buscar materiales (`/search`) | No          | —       |
+| APP_ENCRYPTION_KEY       | Clave para encriptar secretos almacenados                      | No*         | —       |
 
 *APP_ENCRYPTION_KEY es obligatoria si se usa Nextcloud.
+
+GENSTOCK_BASE_URL acepta `http://` o `https://` y se puede cambiar desde Configuración → Genstock
+(la URL guardada ahí tiene prioridad). Con HTTPS el certificado tiene que ser válido (ej. Let's
+Encrypt); si Genstock usa un certificado de una CA interna, pasá esa CA con
+`-e NODE_EXTRA_CA_CERTS=/ruta/ca.pem` montando el archivo en el contenedor.
 
 ## Pasos
 
@@ -55,6 +61,7 @@ docker run -d --name genwork \
   -e AUTH_URL="https://genwork.example.com" \
   -e GOOGLE_CLIENT_ID="xxx" \
   -e GOOGLE_CLIENT_SECRET="xxx" \
+  -e GENSTOCK_BASE_URL="https://genstock.example.com" \
   -p 3000:3000 \
   ghcr.io/tomas-gen/genwork:latest
 ```
@@ -71,6 +78,7 @@ docker run -d --name genwork \
   -e NEXTCLOUD_URL="https://cloud.example.com" \
   -e NEXTCLOUD_ADMIN_USER="admin" \
   -e NEXTCLOUD_ADMIN_PASSWORD="xxx" \
+  -e GENSTOCK_BASE_URL="https://genstock.example.com" \
   -e APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
   -p 3000:3000 \
   ghcr.io/tomas-gen/genwork:latest
