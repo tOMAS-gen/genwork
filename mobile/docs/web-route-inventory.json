@@ -1,0 +1,1011 @@
+{
+  "pages": [
+    {
+      "url": "/admin/access",
+      "task": "M16",
+      "mobile": "/more/settings/module/access",
+      "source": "src/app/(main)/admin/access/page.tsx"
+    },
+    {
+      "url": "/admin/clients",
+      "task": "M16",
+      "mobile": "/more/settings/module/clients",
+      "source": "src/app/(main)/admin/clients/page.tsx"
+    },
+    {
+      "url": "/admin/errors/[id]",
+      "task": "M16",
+      "mobile": "/more/settings/errors/:id",
+      "source": "src/app/(main)/admin/errors/[id]/page.tsx"
+    },
+    {
+      "url": "/admin/errors",
+      "task": "M16",
+      "mobile": "/more/settings/module/errors",
+      "source": "src/app/(main)/admin/errors/page.tsx"
+    },
+    {
+      "url": "/admin/labels",
+      "task": "M16",
+      "mobile": "/more/settings/catalog/labels",
+      "source": "src/app/(main)/admin/labels/page.tsx"
+    },
+    {
+      "url": "/admin/mcp",
+      "task": "M16",
+      "mobile": "/more/settings/module/mcp",
+      "source": "src/app/(main)/admin/mcp/page.tsx"
+    },
+    {
+      "url": "/admin",
+      "task": "M16",
+      "mobile": "/more/settings",
+      "source": "src/app/(main)/admin/page.tsx"
+    },
+    {
+      "url": "/admin/reminders",
+      "task": "M16",
+      "mobile": "/more/settings/module/reminders",
+      "source": "src/app/(main)/admin/reminders/page.tsx"
+    },
+    {
+      "url": "/admin/stages",
+      "task": "M16",
+      "mobile": "/more/settings/catalog/stages",
+      "source": "src/app/(main)/admin/stages/page.tsx"
+    },
+    {
+      "url": "/admin/storage",
+      "task": "M16",
+      "mobile": "/more/settings/module/storage",
+      "source": "src/app/(main)/admin/storage/page.tsx"
+    },
+    {
+      "url": "/admin/task-statuses",
+      "task": "M16",
+      "mobile": "/more/settings/catalog/statuses",
+      "source": "src/app/(main)/admin/task-statuses/page.tsx"
+    },
+    {
+      "url": "/admin/users",
+      "task": "M16",
+      "mobile": "/more/settings/module/users",
+      "source": "src/app/(main)/admin/users/page.tsx"
+    },
+    {
+      "url": "/board",
+      "task": "M10",
+      "mobile": "/board",
+      "source": "src/app/(main)/board/page.tsx"
+    },
+    {
+      "url": "/groups/[id]",
+      "task": "M11",
+      "mobile": "/groups/:id",
+      "source": "src/app/(main)/groups/[id]/page.tsx"
+    },
+    {
+      "url": "/groups",
+      "task": "M11",
+      "mobile": "/groups",
+      "source": "src/app/(main)/groups/page.tsx"
+    },
+    {
+      "url": "/notes/[id]",
+      "task": "M12",
+      "mobile": "/notes/:id",
+      "source": "src/app/(main)/notes/[id]/page.tsx"
+    },
+    {
+      "url": "/notes",
+      "task": "M12",
+      "mobile": "/notes",
+      "source": "src/app/(main)/notes/page.tsx"
+    },
+    {
+      "url": "/",
+      "task": "M05/M08",
+      "mobile": "/works · /templates",
+      "source": "src/app/(main)/page.tsx"
+    },
+    {
+      "url": "/references",
+      "task": "M04",
+      "mobile": "/my-day",
+      "source": "src/app/(main)/references/page.tsx"
+    },
+    {
+      "url": "/reminders",
+      "task": "M14",
+      "mobile": "/more/reminders",
+      "source": "src/app/(main)/reminders/page.tsx"
+    },
+    {
+      "url": "/sectors/[id]",
+      "task": "M09",
+      "mobile": "/sectors/:id",
+      "source": "src/app/(main)/sectors/[id]/page.tsx"
+    },
+    {
+      "url": "/sectors",
+      "task": "M09",
+      "mobile": "/sectors",
+      "source": "src/app/(main)/sectors/page.tsx"
+    },
+    {
+      "url": "/settings",
+      "task": "M15",
+      "mobile": "/more/settings",
+      "source": "src/app/(main)/settings/page.tsx"
+    },
+    {
+      "url": "/works/[id]",
+      "task": "M06–M08/M12/M13/M17",
+      "mobile": "/works/:id y subrutas",
+      "source": "src/app/(main)/works/[id]/page.tsx"
+    },
+    {
+      "url": "/login",
+      "task": "M03",
+      "mobile": "/login",
+      "source": "src/app/login/page.tsx"
+    },
+    {
+      "url": "/portal",
+      "task": "M18",
+      "mobile": "/portal",
+      "source": "src/app/portal/page.tsx"
+    },
+    {
+      "url": "/portal/works/[id]",
+      "task": "M18",
+      "mobile": "/portal/works/:id",
+      "source": "src/app/portal/works/[id]/page.tsx"
+    },
+    {
+      "url": "/tv",
+      "task": "M19",
+      "mobile": "/tv",
+      "source": "src/app/tv/page.tsx"
+    }
+  ],
+  "api": [
+    {
+      "url": "/api/admin/access/emails",
+      "methods": [
+        "GET",
+        "POST",
+        "DELETE"
+      ],
+      "source": "src/app/api/admin/access/emails/route.ts"
+    },
+    {
+      "url": "/api/admin/access",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "source": "src/app/api/admin/access/route.ts"
+    },
+    {
+      "url": "/api/admin/clients/[userId]",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/admin/clients/[userId]/route.ts"
+    },
+    {
+      "url": "/api/admin/clients",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/admin/clients/route.ts"
+    },
+    {
+      "url": "/api/admin/errors/[id]",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "source": "src/app/api/admin/errors/[id]/route.ts"
+    },
+    {
+      "url": "/api/admin/errors",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/admin/errors/route.ts"
+    },
+    {
+      "url": "/api/admin/reminders/gmail/authorize",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/admin/reminders/gmail/authorize/route.ts"
+    },
+    {
+      "url": "/api/admin/reminders/gmail/callback",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/admin/reminders/gmail/callback/route.ts"
+    },
+    {
+      "url": "/api/admin/reminders",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "source": "src/app/api/admin/reminders/route.ts"
+    },
+    {
+      "url": "/api/admin/storage/google/authorize",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/admin/storage/google/authorize/route.ts"
+    },
+    {
+      "url": "/api/admin/storage/google/callback",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/admin/storage/google/callback/route.ts"
+    },
+    {
+      "url": "/api/admin/storage/google/folders",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/admin/storage/google/folders/route.ts"
+    },
+    {
+      "url": "/api/admin/storage/jobs",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/admin/storage/jobs/route.ts"
+    },
+    {
+      "url": "/api/admin/storage",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "source": "src/app/api/admin/storage/route.ts"
+    },
+    {
+      "url": "/api/admin/storage/test",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/admin/storage/test/route.ts"
+    },
+    {
+      "url": "/api/admin/users",
+      "methods": [
+        "GET",
+        "PUT",
+        "POST"
+      ],
+      "source": "src/app/api/admin/users/route.ts"
+    },
+    {
+      "url": "/api/attachments/[id]",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/attachments/[id]/route.ts"
+    },
+    {
+      "url": "/api/auth/[...nextauth]",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/auth/[...nextauth]/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/info",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/auth/mobile/info/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/integrations/callback",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/auth/mobile/integrations/callback/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/integrations/cancel",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/mobile/integrations/cancel/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/integrations/finish",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/mobile/integrations/finish/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/integrations/start",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/mobile/integrations/start/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/logout",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/mobile/logout/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/start",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/auth/mobile/start/route.ts"
+    },
+    {
+      "url": "/api/auth/mobile/token",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/mobile/token/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/google-drive/callback",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/auth/storage-link/google-drive/callback/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/google-drive",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/auth/storage-link/google-drive/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/google-drive/start",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/auth/storage-link/google-drive/start/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/nextcloud/poll",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/storage-link/nextcloud/poll/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/nextcloud",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/auth/storage-link/nextcloud/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/nextcloud/start",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/auth/storage-link/nextcloud/start/route.ts"
+    },
+    {
+      "url": "/api/auth/storage-link/status",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/auth/storage-link/status/route.ts"
+    },
+    {
+      "url": "/api/board",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/board/route.ts"
+    },
+    {
+      "url": "/api/favorites/[workId]",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/favorites/[workId]/route.ts"
+    },
+    {
+      "url": "/api/favorites",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/favorites/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]/clients/[userId]",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ],
+      "source": "src/app/api/groups/[id]/clients/[userId]/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]/clients",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/groups/[id]/clients/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]/members/[userId]",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/groups/[id]/members/[userId]/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]/members",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/groups/[id]/members/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]/members/search",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/groups/[id]/members/search/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/groups/[id]/route.ts"
+    },
+    {
+      "url": "/api/groups/[id]/sector-grants",
+      "methods": [
+        "POST",
+        "DELETE"
+      ],
+      "source": "src/app/api/groups/[id]/sector-grants/route.ts"
+    },
+    {
+      "url": "/api/groups",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/groups/route.ts"
+    },
+    {
+      "url": "/api/labels/keys/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/labels/keys/[id]/route.ts"
+    },
+    {
+      "url": "/api/labels",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/labels/route.ts"
+    },
+    {
+      "url": "/api/labels/values/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/labels/values/[id]/route.ts"
+    },
+    {
+      "url": "/api/labels/values",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/labels/values/route.ts"
+    },
+    {
+      "url": "/api/mcp",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/mcp/route.ts"
+    },
+    {
+      "url": "/api/me/mcp-connections/[id]",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/me/mcp-connections/[id]/route.ts"
+    },
+    {
+      "url": "/api/me/mcp-connections/activity",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/me/mcp-connections/activity/route.ts"
+    },
+    {
+      "url": "/api/me/mcp-connections",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/me/mcp-connections/route.ts"
+    },
+    {
+      "url": "/api/me/my-day",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/me/my-day/route.ts"
+    },
+    {
+      "url": "/api/me/references",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/me/references/route.ts"
+    },
+    {
+      "url": "/api/me",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/me/route.ts"
+    },
+    {
+      "url": "/api/notes/[id]",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/notes/[id]/route.ts"
+    },
+    {
+      "url": "/api/notes",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/notes/route.ts"
+    },
+    {
+      "url": "/api/objectives/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/objectives/[id]/route.ts"
+    },
+    {
+      "url": "/api/objectives/[id]/save-as-template",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/objectives/[id]/save-as-template/route.ts"
+    },
+    {
+      "url": "/api/portal/stream",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/portal/stream/route.ts"
+    },
+    {
+      "url": "/api/portal/works/[id]/activity",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/portal/works/[id]/activity/route.ts"
+    },
+    {
+      "url": "/api/portal/works/[id]",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/portal/works/[id]/route.ts"
+    },
+    {
+      "url": "/api/portal/works",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/portal/works/route.ts"
+    },
+    {
+      "url": "/api/reminders/[id]",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/reminders/[id]/route.ts"
+    },
+    {
+      "url": "/api/reminders/deliveries/[id]",
+      "methods": [
+        "PATCH"
+      ],
+      "source": "src/app/api/reminders/deliveries/[id]/route.ts"
+    },
+    {
+      "url": "/api/reminders/deliveries",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/reminders/deliveries/route.ts"
+    },
+    {
+      "url": "/api/reminders",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "source": "src/app/api/reminders/route.ts"
+    },
+    {
+      "url": "/api/reminders/timezone",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/reminders/timezone/route.ts"
+    },
+    {
+      "url": "/api/sectors/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/sectors/[id]/route.ts"
+    },
+    {
+      "url": "/api/sectors/[id]/tasks",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/sectors/[id]/tasks/route.ts"
+    },
+    {
+      "url": "/api/sectors",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/sectors/route.ts"
+    },
+    {
+      "url": "/api/stages/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/stages/[id]/route.ts"
+    },
+    {
+      "url": "/api/stages/reorder",
+      "methods": [
+        "PUT"
+      ],
+      "source": "src/app/api/stages/reorder/route.ts"
+    },
+    {
+      "url": "/api/stages",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/stages/route.ts"
+    },
+    {
+      "url": "/api/stream",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/stream/route.ts"
+    },
+    {
+      "url": "/api/system-info",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/system-info/route.ts"
+    },
+    {
+      "url": "/api/tags/suggest",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/tags/suggest/route.ts"
+    },
+    {
+      "url": "/api/task-statuses/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/task-statuses/[id]/route.ts"
+    },
+    {
+      "url": "/api/task-statuses",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/task-statuses/route.ts"
+    },
+    {
+      "url": "/api/tasks/[id]/my-day",
+      "methods": [
+        "POST",
+        "DELETE"
+      ],
+      "source": "src/app/api/tasks/[id]/my-day/route.ts"
+    },
+    {
+      "url": "/api/tasks/[id]",
+      "methods": [
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/tasks/[id]/route.ts"
+    },
+    {
+      "url": "/api/tasks/[id]/status-changes",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/tasks/[id]/status-changes/route.ts"
+    },
+    {
+      "url": "/api/tasks/[id]/status",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/tasks/[id]/status/route.ts"
+    },
+    {
+      "url": "/api/tasks/[id]/subtasks/reorder",
+      "methods": [
+        "PATCH"
+      ],
+      "source": "src/app/api/tasks/[id]/subtasks/reorder/route.ts"
+    },
+    {
+      "url": "/api/tasks",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/tasks/route.ts"
+    },
+    {
+      "url": "/api/templates",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/templates/route.ts"
+    },
+    {
+      "url": "/api/upload-stream/[id]",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/upload-stream/[id]/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/archive/confirm",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/archive/confirm/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/archive/download",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/works/[id]/archive/download/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/archive",
+      "methods": [
+        "POST",
+        "GET"
+      ],
+      "source": "src/app/api/works/[id]/archive/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/attachments",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/attachments/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/client-grants/[userId]",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/works/[id]/client-grants/[userId]/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/client-grants",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/client-grants/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/doc",
+      "methods": [
+        "PUT"
+      ],
+      "source": "src/app/api/works/[id]/doc/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/download",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/works/[id]/files/download/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/enable",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/files/enable/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/folder",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/files/folder/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files",
+      "methods": [
+        "GET",
+        "DELETE",
+        "PATCH"
+      ],
+      "source": "src/app/api/works/[id]/files/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/share/[shareId]",
+      "methods": [
+        "DELETE"
+      ],
+      "source": "src/app/api/works/[id]/files/share/[shareId]/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/share/resolve-user",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/works/[id]/files/share/resolve-user/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/share",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/files/share/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/upload/complete",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/files/upload/complete/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/upload",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/files/upload/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/files/upload/session",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/files/upload/session/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/labels/primary",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ],
+      "source": "src/app/api/works/[id]/labels/primary/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/labels",
+      "methods": [
+        "PUT",
+        "DELETE"
+      ],
+      "source": "src/app/api/works/[id]/labels/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/mcp-activity",
+      "methods": [
+        "GET"
+      ],
+      "source": "src/app/api/works/[id]/mcp-activity/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/objectives/from-template",
+      "methods": [
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/objectives/from-template/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/objectives/reorder",
+      "methods": [
+        "PATCH"
+      ],
+      "source": "src/app/api/works/[id]/objectives/reorder/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/objectives",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/works/[id]/objectives/route.ts"
+    },
+    {
+      "url": "/api/works/[id]",
+      "methods": [
+        "GET",
+        "PATCH",
+        "DELETE"
+      ],
+      "source": "src/app/api/works/[id]/route.ts"
+    },
+    {
+      "url": "/api/works/[id]/tasks/reorder",
+      "methods": [
+        "PATCH"
+      ],
+      "source": "src/app/api/works/[id]/tasks/reorder/route.ts"
+    },
+    {
+      "url": "/api/works",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "source": "src/app/api/works/route.ts"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ function gitShortSha(): string {
 }
 
 const nextConfig: NextConfig = {
+  distDir: process.env.GENWORK_DEV_OUTPUT ?? ".next",
   output: "standalone",
   env: {
     GIT_SHA: gitShortSha(),

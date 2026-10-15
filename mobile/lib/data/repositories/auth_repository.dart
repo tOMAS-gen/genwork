@@ -23,7 +23,7 @@ class LoginCancelled implements Exception {
 /// código → canje PKCE por token Bearer.
 class AuthRepository {
   AuthRepository({required this.serverUrl, Dio? dio})
-      : _dio = dio ?? Dio(BaseOptions(baseUrl: serverUrl.toString(), contentType: Headers.jsonContentType));
+      : _dio = dio ?? Dio(BaseOptions(baseUrl: serverUrl.toString(), contentType: Headers.jsonContentType, connectTimeout: const Duration(seconds: 10), receiveTimeout: const Duration(seconds: 20), sendTimeout: const Duration(seconds: 20)));
 
   final Uri serverUrl;
   final Dio _dio;

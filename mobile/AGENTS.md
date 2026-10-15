@@ -1,7 +1,8 @@
 # genwork móvil — instrucciones para agentes
 
 App Flutter de genwork (Android + iOS). Leé primero [`PLAN.md`](PLAN.md): decisiones,
-qué está hecho y las tareas de UI (fase 3, `UI-01` … `UI-14`).
+qué está hecho y la guía vigente M00–M21 en
+[`docs/web-mobile-implementation-guide.md`](docs/web-mobile-implementation-guide.md).
 
 Para el producto y la marca: [`../PRODUCT.md`](../PRODUCT.md) y
 [`../DESIGN.md`](../DESIGN.md). El contrato de la API está en
@@ -40,11 +41,12 @@ también invalida al llegar eventos.
 
 ## Reglas para el trabajo de UI (Codex)
 
-1. **Solo presentación.** Podés editar `lib/core/theme/`, `lib/shared/widgets/` y los
-   `*_screen.dart`, `*_sheet.dart`, `*_dialog.dart` de `lib/features/`. No cambies
-   modelos, repositorios, providers, router, auth ni el cliente HTTP. Si una
-   pantalla necesita un dato que no existe, anotalo en `PLAN.md` → sección
-   "Pedidos de datos" y seguí con lo demás.
+1. **Paridad completa autorizada (M00–M21).** Se pueden modificar presentación,
+   modelos, repositorios, providers, router, auth, cliente HTTP y backend cuando
+   lo requiera la paridad con la web y el acceso CLIENT/READER. Conservá la
+   arquitectura y los permisos del servidor; agregá regresiones para los cambios
+   funcionales. El plan DS-xx anterior queda como referencia visual histórica y
+   sus restricciones de solo presentación/una tarea por sesión no se aplican a Mxx.
 2. **No rompas comportamiento.** Cada pantalla ya funciona: pull-to-refresh,
    reintentar, permisos (`canEdit`, `canOperate`, `canToggle`), estados de carga y
    error. El rediseño los conserva.

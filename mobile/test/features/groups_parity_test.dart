@@ -294,7 +294,7 @@ Future<GoRouter> mount(
       ),
     ],
   );
-  addTearDown(router.dispose);
+  // routerProvider es dueño del router y lo dispone junto al container.
   await t.pumpWidget(
     ProviderScope(
       retry: (_, _) => null,

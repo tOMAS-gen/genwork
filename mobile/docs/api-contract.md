@@ -25,8 +25,8 @@ del servidor, `src/app/api/**`). Los modelos Dart equivalentes están en
 - **Fechas**: ISO-8601 UTC (`2026-10-09T14:03:12.345Z`). Las fechas-día de
   recordatorios (`date`, `untilDate`, ocurrencias) son medianoche UTC del día.
 - **IDs**: UUID. **Colores**: `#rrggbb`. **Sin paginación** en el servidor.
-- **Roles**: `SUPERADMIN | MEMBER | READER | CLIENT`. La app solo emite token para
-  SUPERADMIN y MEMBER.
+- **Roles**: `SUPERADMIN | MEMBER | READER | CLIENT`. La app emite token para los cuatro roles. CLIENT consume solo el portal
+  y su cuenta; READER conserva la lectura autorizada del tablero.
 - **Estados de tarea**: configurables por ámbito; cada uno tiene
   `type: IN_PROGRESS | FINAL`. Cada tarea trae sus `statusOptions` aplicables.
 
@@ -421,3 +421,15 @@ en los clientes OAuth de Google usados por Drive/Gmail, con HTTPS en producción
 Reutiliza `GOOGLE_CLIENT_ID/SECRET`, `GDRIVE_CLIENT_ID/SECRET` opcionales para
 Drive y `APP_ENCRYPTION_KEY`. Reiniciar el servidor tras generar el cliente.
 La app informa configuración ausente; no simula una conexión exitosa.
+
+## Paridad M17–M19
+
+- Portal: GET /api/portal/works, /api/portal/works/[id],
+  /api/portal/works/[id]/activity?cursor= y /api/portal/stream. Los DTO son
+  específicos; no incluyen código/carpeta/grupo/adjuntos/access/statusOptions.
+- Actividad interna: GET /api/works/[id]/mcp-activity → {entries}.
+- Acceso cliente: GET/POST /api/works/[id]/client-grants y
+  DELETE /api/works/[id]/client-grants/[userId]. La app usa canManageClients.
+- Estados de sector: GET/POST /api/task-statuses?sectorId=; edición/borrado con
+  asSectorId. inherited/canWrite se interpretan según la respuesta del servidor.
+- No hay cambios de schema ni migraciones para habilitar estos roles.

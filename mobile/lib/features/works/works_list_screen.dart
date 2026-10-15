@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
+import '../../data/models/sector.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
@@ -20,6 +21,8 @@ import 'work_card.dart';
 import 'works_dashboard.dart';
 import 'works_filter.dart';
 import 'works_providers.dart';
+import 'works_filters_dialog.dart';
+import '../sectors/sectors_providers.dart';
 
 /// Listado de proyectos: búsqueda local, activos/archivados, favoritos primero.
 class WorksListScreen extends ConsumerStatefulWidget {
@@ -36,6 +39,13 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
   bool get _archived => _view == WorksView.archived;
   String _query = '';
   String? _group;
+  WorkFilters _filters = emptyWorkFilters;
+  int get _activeFilters =>
+      (_group == null ? 0 : 1) +
+      (_filters.groups.isEmpty ? 0 : 1) +
+      (_filters.sector == null ? 0 : 1) +
+      (_filters.label == null ? 0 : 1) +
+      (_filters.status == null ? 0 : 1);
 
   @override
   void didUpdateWidget(covariant WorksListScreen oldWidget) {
@@ -55,6 +65,11 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
         userId: userId,
         query: _query,
         groupId: _group,
+        groupIds: _filters.groups,
+        sectorId: _filters.sector,
+        labelValueId: _filters.label,
+        status: _filters.status,
+        sort: _filters.sort,
       );
 
   Future<void> _toggleFavorite(WorkSummary work) async {
@@ -178,8 +193,16 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
                             : AppIcons.filterActive,
                         color: _group == null ? c.muted : c.brand,
                       ),
-                      onSelected: (v) =>
-                          setState(() => _group = v == '__all__' ? null : v),
+                      onSelected: (v) => setState(() {
+                        _group = v == '__all__' ? null : v;
+                        _filters = (
+                          groups: <String>{},
+                          sector: _filters.sector,
+                          label: _filters.label,
+                          status: _filters.status,
+                          sort: _filters.sort,
+                        );
+                      }),
                       itemBuilder: (_) => [
                         const PopupMenuItem(
                           value: '__all__',
@@ -192,6 +215,46 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
                       ],
                     ),
                   ],
+                ),
+                TextButton.icon(
+                  key: const ValueKey('works_advanced_filters'),
+                  icon: const Icon(AppIcons.tune),
+                  label: Text(
+                    _activeFilters == 0
+                        ? 'Filtros y orden'
+                        : 'Filtros y orden ($_activeFilters)',
+                  ),
+                  onPressed: all == null
+                      ? null
+                      : () async {
+                          final sectors = await ref
+                              .read(sectorsProvider.future)
+                              .catchError((Object e) {
+                                if (context.mounted) showErrorSnack(context, e);
+                                return <SectorSummary>[];
+                              });
+                          if (!context.mounted) return;
+                          final result = await showWorksFilters(
+                            context,
+                            works: all,
+                            sectors: {for (final s in sectors) s.id: s.name},
+                            current: (
+                              groups: _group == null
+                                  ? _filters.groups
+                                  : {_group!},
+                              sector: _filters.sector,
+                              label: _filters.label,
+                              status: _filters.status,
+                              sort: _filters.sort,
+                            ),
+                          );
+                          if (result != null && mounted) {
+                            setState(() {
+                              _filters = result;
+                              _group = null;
+                            });
+                          }
+                        },
                 ),
                 if (list != null) ...[
                   const Divider(height: AppSpace.lg),
@@ -220,7 +283,8 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
               final visible = _visible(all, userId);
               if (visible.isEmpty) {
                 return EmptyView(
-                  message: _query.isNotEmpty || _group != null
+                  message:
+                      _query.isNotEmpty || _group != null || _activeFilters > 0
                       ? 'No hay resultados. Probá otra búsqueda o grupo.'
                       : switch (_view) {
                           WorksView.mine => 'Todavía no creaste proyectos.',
@@ -270,27 +334,31 @@ class _StatsGrid extends StatelessWidget {
       ('Completados', stats.completed, stats.pct(stats.completed)),
       ('Pendientes', stats.pending, stats.pct(stats.pending)),
     ];
-    Widget tile((String, int, int) i) => Expanded(
-      child: _StatTile(label: i.$1, value: i.$2, pct: i.$3),
-    );
-    return Column(
-      children: [
-        Row(
-          children: [
-            tile(items[0]),
-            const SizedBox(width: AppSpace.md),
-            tile(items[1]),
-          ],
-        ),
-        const SizedBox(height: AppSpace.md),
-        Row(
-          children: [
-            tile(items[2]),
-            const SizedBox(width: AppSpace.md),
-            tile(items[3]),
-          ],
-        ),
-      ],
+    return WorkspacePanel(
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final scale = MediaQuery.textScalerOf(context).scale(13) / 13;
+          final columns = constraints.maxWidth / scale >= 320 ? 4 : 2;
+          final width =
+              (constraints.maxWidth - AppSpacing.sm * (columns - 1)) / columns;
+          return Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              for (final item in items)
+                SizedBox(
+                  width: width,
+                  child: _StatTile(
+                    label: item.$1,
+                    value: item.$2,
+                    pct: item.$3,
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -308,29 +376,23 @@ class _StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return WorkspacePanel(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$value',
-            style: AppTextStyles.technical.copyWith(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: c.text,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$value',
+          style: AppTextStyles.technical.copyWith(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: c.text,
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(
-            '$label · $pct%',
-            style: AppTextStyles.technical.copyWith(
-              fontSize: 14,
-              color: c.muted,
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          '$label\n$pct%',
+          style: AppTextStyles.technical.copyWith(fontSize: 11, color: c.muted),
+        ),
+      ],
     );
   }
 }

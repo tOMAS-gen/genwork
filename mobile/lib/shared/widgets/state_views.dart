@@ -29,40 +29,42 @@ class LoadingView extends StatelessWidget {
       child: ExcludeSemantics(
         // Arriba, en el flujo de la página (no centrado), como los skeletons de
         // la web. Con texto grande (header alto) alcanzan dos.
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (
-                var i = 0;
-                i < (MediaQuery.textScalerOf(context).scale(13) > 16 ? 2 : 3);
-                i++
-              )
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: c.surface,
-                      border: Border.all(color: c.border),
-                      borderRadius: AppGeometry.card,
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        FractionallySizedBox(
-                          widthFactor: .7,
-                          child: GenSkeleton.text(height: AppSpacing.lg),
-                        ),
-                        SizedBox(height: AppSpacing.md),
-                        GenSkeleton.text(),
-                      ],
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (
+                  var i = 0;
+                  i < (MediaQuery.textScalerOf(context).scale(13) > 16 ? 2 : 3);
+                  i++
+                )
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: c.surface,
+                        border: Border.all(color: c.border),
+                        borderRadius: AppGeometry.card,
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FractionallySizedBox(
+                            widthFactor: .7,
+                            child: GenSkeleton.text(height: AppSpacing.lg),
+                          ),
+                          SizedBox(height: AppSpacing.md),
+                          GenSkeleton.text(),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

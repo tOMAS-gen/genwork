@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { isPathAllowedForClient } from "@/lib/domain/access/portalPaths";
+import { extractMobileToken, userFromMobileToken } from "@/server/mobile-auth";
 
 /**
  * Sin sesión no se ve nada (FR-017): toda ruta salvo /login y /api/auth requiere
@@ -28,11 +29,17 @@ export async function proxy(req: NextRequest) {
   const hasSession =
     req.cookies.has("authjs.session-token") || req.cookies.has("__Secure-authjs.session-token");
 
-  // Feature 064: la app móvil no tiene cookie, manda `Bearer genwork_mob_…`. Solo
-  // se deja pasar a la API; el handler valida el token (`requireSession`) y nunca
-  // se emite ni acepta para roles CLIENT/Lector, así que el gate de cliente de
-  // abajo no pierde nada.
-  if (!hasSession && pathname.startsWith("/api/") && hasMobileBearer(req)) {
+  // El Bearer tiene precedencia sobre cookies. Aplicar también el límite del
+  // portal a clientes móviles, incluso en handlers antiguos con requireSession.
+  const mobileToken = extractMobileToken(req.headers.get("authorization"));
+  if (pathname.startsWith("/api/") && mobileToken) {
+    const user = await userFromMobileToken(mobileToken);
+    if (!user) {
+      return NextResponse.json({ error: { code: "UNAUTHORIZED", message: "Iniciá sesión para continuar" } }, { status: 401 });
+    }
+    if (user.globalRole === "CLIENT" && !isPathAllowedForClient(pathname)) {
+      return NextResponse.json({ error: { code: "FORBIDDEN", message: "Tu cuenta solo tiene acceso al portal de cliente" } }, { status: 403 });
+    }
     return NextResponse.next();
   }
 
@@ -70,10 +77,6 @@ export async function proxy(req: NextRequest) {
   }
 
   return NextResponse.next();
-}
-
-function hasMobileBearer(req: NextRequest): boolean {
-  return /^Bearer\s+genwork_mob_\S+$/i.test((req.headers.get("authorization") ?? "").trim());
 }
 
 export const config = {

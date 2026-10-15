@@ -14,8 +14,27 @@ Reglas para agentes: [`AGENTS.md`](AGENTS.md).
 3. **Cerrar sesión** revoca el token en el servidor. "Cambiar servidor", en el
    login, vuelve al paso 1.
 
-Solo pueden usar la app las cuentas internas (administrador y miembro). Las
-cuentas de cliente y de lector siguen en la web.
+La app admite administrador, miembro, cliente y lector. Cada rol conserva los
+permisos de la web: los clientes entran al portal y los lectores al tablero de
+consulta. El espacio de trabajo interno es para administrador y miembro.
+
+## Comparar web y app (M00–M21)
+
+Desde la raíz, en terminales independientes:
+
+```sh
+bash scripts/mobile-dev.sh setup    # base local genwork_mobile_parity y fixtures
+bash scripts/mobile-dev.sh web      # puerto de Conductor o 3010
+bash scripts/mobile-dev.sh android  # adb reverse + Flutter con hot reload
+node scripts/mobile-inventory.mjs   # todas las URL web/API
+node scripts/mobile-check.mjs       # PKCE, roles y revocación contra la API
+node scripts/mobile-evidence.mjs    # índice de capturas en .context/mobile-parity/
+```
+
+Ingresá en la app la URL que imprime el comando Android. Los botones de prueba
+web permiten elegir admin/miembro/cliente/lector sin Google. El entorno usa una
+base QA separada; el seed es idempotente y conserva las ediciones posteriores.
+La guía de tareas está en `docs/web-mobile-implementation-guide.md`.
 
 ## Desarrollo
 

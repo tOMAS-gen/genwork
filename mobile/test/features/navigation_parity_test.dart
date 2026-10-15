@@ -234,7 +234,7 @@ Future<({GoRouter router, ProviderContainer container})> _mount(
   addTearDown(fixture.events.close);
   await container.read(sessionProvider.future);
   final router = container.read(routerProvider);
-  addTearDown(router.dispose);
+  // routerProvider es dueño del router y lo dispone junto al container.
   router.go(path);
   await tester.pumpWidget(
     UncontrolledProviderScope(

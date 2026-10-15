@@ -1,4 +1,8 @@
 import '../../data/models/work.dart';
+import '../../core/util/name_order.dart';
+import 'works_dashboard.dart';
+
+enum WorksSort { recent, name, progress }
 
 enum WorksView {
   all('Todos los proyectos'),
@@ -33,6 +37,11 @@ List<WorkSummary> filterWorks(
   String? userId,
   String query = '',
   String? groupId,
+  Set<String> groupIds = const {},
+  String? sectorId,
+  String? labelValueId,
+  ProjectStatus? status,
+  WorksSort sort = WorksSort.recent,
 }) {
   final search = query.trim().toLowerCase();
   return works.where((work) {
@@ -45,11 +54,28 @@ List<WorkSummary> filterWorks(
     }
     if (view == WorksView.favorites && !work.isFavorite) return false;
     if (groupId != null && (work.groupId ?? '') != groupId) return false;
+    if (groupIds.isNotEmpty && !groupIds.contains(work.groupId ?? '')) {
+      return false;
+    }
+    if (sectorId != null && !work.sectorIds.contains(sectorId)) return false;
+    if (labelValueId != null &&
+        !work.labels.any((l) => l.valueId == labelValueId)) {
+      return false;
+    }
+    if (status != null &&
+        projectStatus(work.progress.done, work.progress.total) != status) {
+      return false;
+    }
     return search.isEmpty ||
         '${work.name} ${work.description ?? ''} ${work.groupName ?? ''}'
             .toLowerCase()
             .contains(search);
   }).toList()..sort((a, b) {
+    if (sort == WorksSort.name) return compareNamesEs(a.name, b.name);
+    if (sort == WorksSort.progress) {
+      final progress = b.progress.ratio.compareTo(a.progress.ratio);
+      return progress == 0 ? compareNamesEs(a.name, b.name) : progress;
+    }
     if (a.isFavorite != b.isFavorite) return a.isFavorite ? -1 : 1;
     return b.createdAt.compareTo(a.createdAt);
   });

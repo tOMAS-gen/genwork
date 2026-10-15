@@ -1,5 +1,17 @@
 # genwork móvil — planificación (feature 064)
 
+## Plan vigente — paridad completa M00–M21
+
+Guía ejecutable y estado por sector:
+[`docs/web-mobile-implementation-guide.md`](docs/web-mobile-implementation-guide.md).
+Incluye entorno aislado, inventario de todas las URL, tareas por elemento,
+roles SUPERADMIN/MEMBER/CLIENT/READER y evidencias Android/iOS.
+
+Las secciones siguientes se conservan como historial. La limitación antigua a
+roles internos y a cambios de presentación queda reemplazada por el alcance
+M00–M21 autorizado. Una entrega histórica aprobada no certifica el QA nuevo.
+
+
 App Flutter (Android + iOS) para usar genwork sin el navegador. Nativa, consume la
 API REST existente con un token Bearer propio de la app.
 
@@ -462,3 +474,23 @@ Correcciones en servidor (acceso al crear tareas, dueño de grupo, borrado de
 grupo con tareas), web (controles según permisos) y app (selector de grupo, día
 de Mi día, etiquetas de TalkBack). 205 tests Flutter, 1.422 del servidor.
 Quedan iOS, nube real y gestos de TalkBack/VoiceOver en dispositivo físico.
+
+## Entrega M00–M19 — paridad ampliada (2026-10-15)
+
+Entorno local QA aislado y comandos Conductor; inventario de 28 páginas y 113
+endpoints; filtros combinados/orden de proyectos, resumen compacto, descripción
+plegable, actividad MCP y acceso cliente por proyecto. Estados de sector con
+ámbito inicial, referencias agrupadas y enlaces a objetivos que reabren la sección.
+
+Login móvil para los cuatro roles con navegación separada. CLIENT usa DTO/API/SSE
+del portal; READER usa tablero en consulta. El proxy mantiene el límite del portal
+con Bearer incluso si también hay cookie. Cambio de identidad/rol elimina las ramas
+anteriores; errores 403 del tablero retiran datos previos.
+
+QA y evidencias se detallan en la guía vigente. **M20/M21 siguen abiertos**: no se
+certifican todas las mutaciones en dispositivos, nube real ni lectores de pantalla;
+iOS no compila en esta máquina sin Xcode completo. El historial previo se conserva.
+
+Verificación final Mxx: **345 tests Flutter**, **1.435 tests backend**, análisis Dart,
+TypeScript, ESLint y detector visual sin hallazgos. APK debug compilado/instalado.
+Comparación actual: web y app como lector; evidencias en `.context/mobile-parity/`.

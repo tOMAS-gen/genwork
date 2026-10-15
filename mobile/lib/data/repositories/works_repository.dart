@@ -24,6 +24,23 @@ class WorksRepository {
   Future<WorkDetail> detail(String id) async =>
       WorkDetail.fromJson(await _api.get<Json>('/api/works/$id'));
 
+  Future<Json> activity(String id) =>
+      _api.get<Json>('/api/works/$id/mcp-activity');
+  Future<List<Json>> clientGrants(String id) async => parseList(
+    await _api.get<List<dynamic>>('/api/works/$id/client-grants'),
+    (v) => v,
+  );
+  Future<void> grantClient(
+    String id, {
+    required String email,
+    required String name,
+  }) => _api.post<Object?>(
+    '/api/works/$id/client-grants',
+    body: {'email': email, 'name': name},
+  );
+  Future<void> revokeClient(String id, String userId) =>
+      _api.delete<Object?>('/api/works/$id/client-grants/$userId');
+
   /// Crea un proyecto. [groupId] null = espacio personal. Devuelve el id.
   Future<String> create({
     required String name,

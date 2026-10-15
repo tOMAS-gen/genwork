@@ -15,12 +15,20 @@ import 'works_dashboard.dart';
 /// nombre 20/700, «Espacio personal / Grupo X» + estado, descripción, avance
 /// (20/600 + barra de 5 px `brand`), fecha límite y, sobre `field`, etiquetas y
 /// «Código / carpeta» con su botón Copiar. [menu] es el kebab de acciones.
-class WorkSummaryPanel extends StatelessWidget {
+class WorkSummaryPanel extends StatefulWidget {
   const WorkSummaryPanel({super.key, required this.work, this.menu});
 
   final WorkDetail work;
   final Widget? menu;
 
+  @override
+  State<WorkSummaryPanel> createState() => _WorkSummaryPanelState();
+}
+
+class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
+  bool _expanded = false;
+  WorkDetail get work => widget.work;
+  Widget? get menu => widget.menu;
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -130,12 +138,28 @@ class WorkSummaryPanel extends StatelessWidget {
                     ),
                     child: Text(
                       work.description!,
+                      maxLines: _expanded ? null : 3,
+                      overflow: _expanded ? null : TextOverflow.ellipsis,
                       style: AppTextStyles.itemTitle.copyWith(
                         fontWeight: FontWeight.w400,
                         color: c.text,
                       ),
                     ),
                   ),
+                  if (work.description!.length > 180 ||
+                      '\n'.allMatches(work.description!).length >= 3)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        key: const ValueKey('work_description_expand'),
+                        onPressed: () => setState(() => _expanded = !_expanded),
+                        child: Text(
+                          _expanded
+                              ? 'Mostrar menos'
+                              : 'Ver descripción completa',
+                        ),
+                      ),
+                    ),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 Row(

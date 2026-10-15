@@ -5,6 +5,9 @@ abstract final class Routes {
   static const splash = '/splash';
   static const setup = '/setup';
   static const login = '/login';
+  static const portal = '/portal';
+  static const tv = '/tv';
+  static String portalWork(String id) => '$portal/works/$id';
 
   static const myDay = '/my-day';
   static const board = '/board';
@@ -41,21 +44,101 @@ abstract final class Routes {
   /// de la app. Null si la app no tiene esa pantalla.
   static String? fromWebPath(String? path) {
     if (path == null) return null;
-    final segments = Uri.parse(path).pathSegments;
-    if (segments.length == 1 && segments[0] == 'templates') return templates;
-    if (segments.length == 1 && segments[0] == 'board') return board;
-    if (segments.length == 1 && segments[0] == 'references') return myDay;
-    if (segments.length == 2 && segments[0] == 'works') {
-      return work(segments[1]);
+    final uri = Uri.tryParse(path);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.hasAuthority ||
+        !path.startsWith('/')) {
+      return null;
     }
-    if (segments.length == 2 && segments[0] == 'groups') {
-      return group(segments[1]);
+    final segments = uri.pathSegments;
+    String location(String target) => Uri(
+      path: target,
+      queryParameters: uri.queryParameters.isEmpty ? null : uri.queryParameters,
+    ).toString();
+    if (segments.isEmpty) {
+      if (uri.queryParameters['filter'] == 'templates') return templates;
+      return location(works);
     }
-    if (segments.length == 2 && segments[0] == 'sectors') {
-      return sector(segments[1]);
+    if (segments.length == 1) {
+      final target = switch (segments.first) {
+        'templates' => templates,
+        'board' => board,
+        'references' => myDay,
+        'sectors' => sectors,
+        'groups' => groups,
+        'notes' => notes,
+        'reminders' => reminders,
+        'settings' || 'admin' => settings,
+        'portal' => portal,
+        'tv' => tv,
+        _ => null,
+      };
+      return target == null ? null : location(target);
     }
-    if (segments.length == 2 && segments[0] == 'notes') {
-      return note(segments[1]);
+    if (segments.first == 'portal' &&
+        segments.length == 3 &&
+        segments[1] == 'works') {
+      return portalWork(segments[2]);
+    }
+    if (segments.first == 'admin') {
+      if (segments.length == 3 && segments[1] == 'errors') {
+        return settingsError(segments[2]);
+      }
+      if (segments.length != 2) return null;
+      return switch (segments[1]) {
+        'labels' => catalog('labels'),
+        'stages' => catalog('stages'),
+        'task-statuses' => catalog('statuses'),
+        'access' ||
+        'users' ||
+        'clients' ||
+        'storage' ||
+        'reminders' ||
+        'errors' ||
+        'mcp' => setting(segments[1]),
+        _ => null,
+      };
+    }
+    if (segments.length == 2) {
+      final target = switch (segments.first) {
+        'works' => work(segments[1]),
+        'groups' => group(segments[1]),
+        'sectors' => sector(segments[1]),
+        'notes' => note(segments[1]),
+        'reminders' =>
+          segments[1] == 'new' ? newReminder : reminder(segments[1]),
+        _ => null,
+      };
+      if (target == null) return null;
+      final objective = uri.fragment.startsWith('objetivo-')
+          ? uri.fragment.substring(9)
+          : null;
+      return Uri(
+        path: target,
+        queryParameters:
+            {
+              ...uri.queryParameters,
+              if (objective != null && objective.isNotEmpty)
+                'objectiveId': objective,
+            }.isEmpty
+            ? null
+            : {
+                ...uri.queryParameters,
+                if (objective != null && objective.isNotEmpty)
+                  'objectiveId': objective,
+              },
+      ).toString();
+    }
+    if (segments.length == 3 &&
+        segments.first == 'works' &&
+        ['document', 'files', 'activity', 'clients'].contains(segments[2])) {
+      return location('/works/${segments[1]}/${segments[2]}');
+    }
+    if (segments.length == 3 &&
+        segments.first == 'groups' &&
+        ['clients', 'labels'].contains(segments[2])) {
+      return location('/groups/${segments[1]}/${segments[2]}');
     }
     return null;
   }

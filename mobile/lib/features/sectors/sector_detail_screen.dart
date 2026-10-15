@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/routes.dart';
+import '../../core/providers.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -80,6 +81,12 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
         onRetry: () => ref.invalidate(sectorBoardProvider(_query)),
         data: (b) {
           final c = context.colors;
+          final refsByOrigin = <String, List<Task>>{};
+          for (final task in b.refs) {
+            (refsByOrigin[task.work?.id ?? task.homeSector?.id ?? 'other'] ??=
+                    [])
+                .add(task);
+          }
           Widget tile(
             Task t, {
             required bool editable,
@@ -153,6 +160,19 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                       ),
                       const SizedBox(height: AppSpace.md),
                       SectorSummaryPanel(board: b, menu: menu),
+                      if (b.canOperate &&
+                          ref.watch(currentUserProvider)?.isWriter == true)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            key: const ValueKey('sector_status_settings'),
+                            icon: const Icon(AppIcons.settings),
+                            label: const Text('Estados del sector'),
+                            onPressed: () => context.push(
+                              '${Routes.catalog('statuses')}?scope=sector:${b.id}',
+                            ),
+                          ),
+                        ),
                       const SizedBox(height: AppSpace.md),
                       WorkspacePanel(
                         child: Padding(
@@ -255,11 +275,27 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                                 ],
                                 if (b.refs.isNotEmpty) ...[
                                   const _Header('Menciones'),
-                                  rows(
-                                    b.refs,
-                                    editable: b.canOperate,
-                                    showWork: true,
-                                  ),
+                                  for (final entry in refsByOrigin.entries) ...[
+                                    _Header(
+                                      entry.value.first.work?.name ??
+                                          entry.value.first.homeSector?.name ??
+                                          'Otras referencias',
+                                      onTap: entry.value.first.work != null
+                                          ? () => context.push(
+                                              Routes.work(entry.key),
+                                            )
+                                          : entry.value.first.homeSector != null
+                                          ? () => context.push(
+                                              Routes.sector(entry.key),
+                                            )
+                                          : null,
+                                    ),
+                                    rows(
+                                      entry.value,
+                                      editable: b.canOperate,
+                                      showWork: true,
+                                    ),
+                                  ],
                                 ],
                               ],
                             ],

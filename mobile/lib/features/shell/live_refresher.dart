@@ -1,4 +1,5 @@
 import '../settings/settings_providers.dart';
+import '../portal/portal_providers.dart';
 import '../settings/catalogs_providers.dart';
 import '../objectives/objectives_providers.dart';
 import '../board/board_providers.dart';
@@ -22,13 +23,29 @@ import '../groups/groups_providers.dart';
 final liveEventsProvider = Provider.autoDispose<Stream<LiveEvent>>((ref) {
   final cancel = CancelToken();
   ref.onDispose(cancel.cancel);
-  return liveEventStream(ref.watch(apiClientProvider).dio, cancelToken: cancel);
+  final client = ref.watch(currentUserProvider)?.isClient == true;
+  return liveEventStream(
+    ref.watch(apiClientProvider).dio,
+    cancelToken: cancel,
+    path: client ? '/api/portal/stream' : '/api/stream',
+  );
 });
 
 /// Escucha el SSE y refresca lo afectado; al volver la app a primer plano
 /// refresca todo (el SSE no tiene replay de lo que pasó en segundo plano).
 final liveRefresherProvider = Provider.autoDispose<void>((ref) {
+  final user = ref.watch(currentUserProvider);
   void refreshAll() {
+    if (user?.isClient == true) {
+      ref.invalidate(portalWorksProvider);
+      ref.invalidate(portalWorkProvider);
+      ref.invalidate(portalActivityProvider);
+      return;
+    }
+    if (user?.isReader == true) {
+      ref.invalidate(boardProvider);
+      return;
+    }
     ref.invalidate(workFilesProvider);
     ref.invalidate(fileSharesProvider);
     ref.invalidate(settingsDataProvider);
@@ -58,6 +75,10 @@ final liveRefresherProvider = Provider.autoDispose<void>((ref) {
   }
 
   final subscription = ref.watch(liveEventsProvider).listen((event) {
+    if (user?.isClient == true || user?.isReader == true) {
+      refreshAll();
+      return;
+    }
     switch (event) {
       case LiveConnected():
         refreshAll();

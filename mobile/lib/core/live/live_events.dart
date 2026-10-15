@@ -10,12 +10,16 @@ import '../../data/models/live_event.dart';
 ///
 /// El servidor manda `data: <json>\n\n` y un heartbeat cada 30 s; si pasan 75 s
 /// sin nada se da la conexión por muerta y se reconecta.
-Stream<LiveEvent> liveEventStream(Dio dio, {CancelToken? cancelToken}) async* {
+Stream<LiveEvent> liveEventStream(
+  Dio dio, {
+  CancelToken? cancelToken,
+  String path = '/api/stream',
+}) async* {
   var attempt = 0;
   while (cancelToken?.isCancelled != true) {
     try {
       final response = await dio.get<ResponseBody>(
-        '/api/stream',
+        path,
         cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.stream,

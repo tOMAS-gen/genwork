@@ -3,12 +3,12 @@ import 'json.dart';
 enum GlobalRole { superadmin, member, reader, client, unknown }
 
 GlobalRole parseRole(Object? value) => switch (value) {
-      'SUPERADMIN' => GlobalRole.superadmin,
-      'MEMBER' => GlobalRole.member,
-      'READER' => GlobalRole.reader,
-      'CLIENT' => GlobalRole.client,
-      _ => GlobalRole.unknown,
-    };
+  'SUPERADMIN' => GlobalRole.superadmin,
+  'MEMBER' => GlobalRole.member,
+  'READER' => GlobalRole.reader,
+  'CLIENT' => GlobalRole.client,
+  _ => GlobalRole.unknown,
+};
 
 /// Usuario autenticado (respuesta de `/api/auth/mobile/token` y `/api/me`).
 class AppUser {
@@ -29,15 +29,24 @@ class AppUser {
   final String? image;
 
   bool get isSuperAdmin => role == GlobalRole.superadmin;
+  bool get isClient => role == GlobalRole.client;
+  bool get isReader => role == GlobalRole.reader;
+  bool get isWriter => isSuperAdmin || role == GlobalRole.member;
 
   factory AppUser.fromJson(Json json) => AppUser(
-        id: json['id'] as String,
-        email: json['email'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        role: parseRole(json['globalRole']),
-        roleRaw: json['globalRole'] as String? ?? '',
-        image: json['image'] as String?,
-      );
+    id: json['id'] as String,
+    email: json['email'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    role: parseRole(json['globalRole']),
+    roleRaw: json['globalRole'] as String? ?? '',
+    image: json['image'] as String?,
+  );
 
-  Json toJson() => {'id': id, 'email': email, 'name': name, 'globalRole': roleRaw, 'image': image};
+  Json toJson() => {
+    'id': id,
+    'email': email,
+    'name': name,
+    'globalRole': roleRaw,
+    'image': image,
+  };
 }

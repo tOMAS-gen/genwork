@@ -1,5 +1,9 @@
 # Paridad visual genstock → genwork móvil (DS-00 … DS-30)
 
+> Histórico de la entrega DS completada. Para trabajo nuevo rige
+> [la guía M00–M21](web-mobile-implementation-guide.md), incluido su alcance
+> funcional y de roles. Los tokens de este documento siguen siendo referencia.
+
 Plan para que la app móvil use los componentes Flutter de genstock con la identidad de genwork web
 (azul `#3B5BFA` / `#5B7FFF`, neutros acromáticos, claro/oscuro/sistema). Decisiones acordadas:
 copiar y adaptar código de genstock (no paquete compartido), mantener el drawer con estilo

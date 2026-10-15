@@ -87,11 +87,11 @@ describe("token Bearer", () => {
 });
 
 describe("roles", () => {
-  it("cliente y lector no usan la app", () => {
+  it("los cuatro roles conocidos usan la app", () => {
     expect(canUseMobileApp("MEMBER")).toBe(true);
     expect(canUseMobileApp("SUPERADMIN")).toBe(true);
-    expect(canUseMobileApp("CLIENT")).toBe(false);
-    expect(canUseMobileApp("READER")).toBe(false);
+    expect(canUseMobileApp("CLIENT")).toBe(true);
+    expect(canUseMobileApp("READER")).toBe(true);
   });
 });
 
@@ -142,9 +142,9 @@ describe("redeemAuthCode", () => {
     expect(await redeemAuthCode("code", "x".repeat(43), "iPhone")).toBeNull();
   });
 
-  it("rechaza a un cliente externo", async () => {
+  it("canjea para un cliente externo conservando su rol", async () => {
     db.code!.user.globalRole = "CLIENT";
-    expect(await redeemAuthCode("code", VERIFIER, "iPhone")).toBeNull();
+    expect((await redeemAuthCode("code", VERIFIER, "iPhone"))?.user.globalRole).toBe("CLIENT");
   });
 
   it("rechaza código inexistente", async () => {
@@ -164,8 +164,8 @@ describe("userFromMobileToken", () => {
     expect(await userFromMobileToken("genwork_mob_x")).toBeNull();
   });
 
-  it("rechaza si el rol cambió a lector después de emitido", async () => {
+  it("devuelve el rol actual si cambió a lector después de emitido", async () => {
     db.session = { id: "s1", revokedAt: null, user: { ...member, globalRole: "READER" } };
-    expect(await userFromMobileToken("genwork_mob_x")).toBeNull();
+    expect((await userFromMobileToken("genwork_mob_x"))?.globalRole).toBe("READER");
   });
 });

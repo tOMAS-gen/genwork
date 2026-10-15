@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/router/routes.dart';
+import '../../core/network/api_exception.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -17,11 +18,15 @@ import 'board_providers.dart';
 
 /// Vista de tareas: avance y pendientes de cada sector, como `/board` de la web.
 class BoardScreen extends ConsumerWidget {
-  const BoardScreen({super.key});
+  const BoardScreen({super.key, this.readOnly = false});
+  final bool readOnly;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final value = ref.watch(boardProvider);
-    final columns = value.value;
+    final error = value.error;
+    final restricted =
+        error is ApiException && [401, 403, 404].contains(error.status);
+    final columns = restricted ? null : value.value;
     final progress = columns == null ? null : boardProgress(columns);
     final c = context.colors;
     final muted = AppTextStyles.body.copyWith(color: c.muted);
@@ -70,7 +75,8 @@ class BoardScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSpace.md),
-            for (final column in columns) _SectorCard(column: column),
+            for (final column in columns)
+              _SectorCard(column: column, readOnly: readOnly),
           ],
         ],
       ),
@@ -81,8 +87,9 @@ class BoardScreen extends ConsumerWidget {
 /// Card de un sector: acento del color del sector, nombre, conteo de
 /// pendientes, avance y, sobre `field`, las tareas pendientes.
 class _SectorCard extends StatelessWidget {
-  const _SectorCard({required this.column});
+  const _SectorCard({required this.column, this.readOnly = false});
   final BoardColumn column;
+  final bool readOnly;
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -100,7 +107,9 @@ class _SectorCard extends StatelessWidget {
           children: [
             InkWell(
               key: ValueKey('board_open_sector_${column.sector.id}'),
-              onTap: () => context.push(Routes.sector(column.sector.id)),
+              onTap: readOnly
+                  ? null
+                  : () => context.push(Routes.sector(column.sector.id)),
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 child: Column(
@@ -148,11 +157,12 @@ class _SectorCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: AppSpacing.xs),
-                        Icon(
-                          AppIcons.chevronRight,
-                          size: AppIconSizes.field,
-                          color: c.muted,
-                        ),
+                        if (!readOnly)
+                          Icon(
+                            AppIcons.chevronRight,
+                            size: AppIconSizes.field,
+                            color: c.muted,
+                          ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.sm),

@@ -253,6 +253,22 @@ Future<void> sheetTap(WidgetTester t, String key) async {
 }
 
 void main() {
+  testWidgets('el enlace de objetivo vuelve a abrir una sección plegada', (
+    t,
+  ) async {
+    final f = Fixture();
+    final app = await overview.mount(t, f, path: Routes.work('w'));
+    final tile = find.byKey(const PageStorageKey('work_section_o1'));
+    final controller = t.widget<ExpansionTile>(tile).controller!;
+    controller.collapse();
+    await t.pumpAndSettle();
+    expect(controller.isExpanded, isFalse);
+    app.router.go('/works/w?objectiveId=o1');
+    await t.pumpAndSettle();
+    expect(controller.isExpanded, isTrue);
+    expect(t.takeException(), isNull);
+  });
+
   setUpAll(() => initializeDateFormatting('es'));
   testWidgets('crear y editar objetivo; error conserva borrador', (t) async {
     final f = Fixture();

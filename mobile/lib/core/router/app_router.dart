@@ -30,17 +30,36 @@ import '../../features/shell/splash_screen.dart';
 import '../../features/works/work_detail_screen.dart';
 import '../../features/works/works_list_screen.dart';
 import '../../features/works/works_filter.dart';
+import '../../features/works/work_access_screen.dart';
+import '../../features/portal/portal_screen.dart';
+import '../../features/shell/role_shell.dart';
+import '../auth/session.dart';
 import '../providers.dart';
 import 'auth_redirect.dart';
 import 'routes.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  // El router vive toda la app; los cambios de sesión solo disparan redirect.
+  String? identity(SessionState? session) => session is SignedIn
+      ? '${session.serverUrl}|${session.token}|${session.user.id}|${session.user.role.name}'
+      : null;
+  var lastIdentity = identity(ref.read(sessionProvider).value);
   final sessionChanges = ValueNotifier<int>(0);
-  ref.listen(sessionProvider, (_, _) => sessionChanges.value++);
+  ref.listen(sessionProvider, (_, next) {
+    final nextIdentity = identity(next.value);
+    if (nextIdentity != null &&
+        lastIdentity != null &&
+        nextIdentity != lastIdentity) {
+      // Destruye las ramas anteriores al cambiar de identidad/rol. Logout solo
+      // redirige: el próximo ingreso con otro token recreará también el router.
+      ref.invalidateSelf();
+    } else {
+      lastIdentity ??= nextIdentity;
+      sessionChanges.value++;
+    }
+  });
   ref.onDispose(sessionChanges.dispose);
 
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: sessionChanges,
     redirect: (context, state) =>
@@ -49,6 +68,43 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
       GoRoute(path: Routes.setup, builder: (_, _) => const ServerSetupScreen()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
+      ShellRoute(
+        builder: (_, _, child) => RoleShell(child: child),
+        routes: [
+          GoRoute(
+            path: Routes.portal,
+            builder: (_, _) => const PortalScreen(),
+            routes: [
+              GoRoute(
+                path: 'account',
+                builder: (_, _) => const AccountScreen(),
+              ),
+              GoRoute(
+                path: 'works/:id',
+                builder: (_, s) =>
+                    PortalWorkScreen(id: s.pathParameters['id']!),
+                routes: [
+                  GoRoute(
+                    path: 'document',
+                    builder: (_, s) =>
+                        PortalDocumentScreen(id: s.pathParameters['id']!),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: Routes.tv,
+            builder: (_, _) => const BoardScreen(readOnly: true),
+            routes: [
+              GoRoute(
+                path: 'account',
+                builder: (_, _) => const AccountScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => HomeShell(navigationShell: shell),
         branches: [
@@ -69,9 +125,22 @@ final routerProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: ':id',
-                    builder: (_, state) =>
-                        WorkDetailScreen(workId: state.pathParameters['id']!),
+                    builder: (_, state) => WorkDetailScreen(
+                      workId: state.pathParameters['id']!,
+                      initialObjectiveId:
+                          state.uri.queryParameters['objectiveId'],
+                    ),
                     routes: [
+                      GoRoute(
+                        path: 'activity',
+                        builder: (_, state) =>
+                            WorkActivityScreen(id: state.pathParameters['id']!),
+                      ),
+                      GoRoute(
+                        path: 'clients',
+                        builder: (_, state) =>
+                            WorkClientsScreen(id: state.pathParameters['id']!),
+                      ),
                       GoRoute(
                         path: 'document',
                         builder: (_, state) => WorkDocumentScreen(
@@ -167,6 +236,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'catalog/:kind',
                         builder: (_, state) => CatalogSettingsScreen(
+                          initialScope:
+                              state.uri.queryParameters['scope'] ?? 'personal',
                           kind: CatalogKind.values.firstWhere(
                             (v) => v.name == state.pathParameters['kind'],
                             orElse: () => CatalogKind.labels,
@@ -238,4 +309,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });

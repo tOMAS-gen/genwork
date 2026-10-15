@@ -124,6 +124,7 @@ class WorkDetail {
     required this.canManageMyDay,
     required this.objectives,
     required this.tasks,
+    this.canManageClients = false,
     this.document,
     this.description,
     this.dueDate,
@@ -153,6 +154,7 @@ class WorkDetail {
   /// `access == "operate"`: puede crear y cambiar tareas.
   final bool canOperate;
   final bool canManageMyDay;
+  final bool canManageClients;
   bool get canManageObjectives => canOperate && !isArchived && !isTemplate;
   final List<Objective> objectives;
 
@@ -201,6 +203,7 @@ class WorkDetail {
       labels: parseList(json['labels'], LabelChip.fromJson),
       canOperate: json['access'] == 'operate',
       canManageMyDay: json['canManageMyDay'] == true,
+      canManageClients: json['canManageClients'] == true,
       objectives: parseList(json['objectives'], Objective.fromJson),
       tasks: parseList(json['tasks'], Task.fromJson),
     );

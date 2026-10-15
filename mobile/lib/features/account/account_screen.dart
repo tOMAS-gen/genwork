@@ -30,6 +30,7 @@ class AccountScreen extends ConsumerWidget {
       title: 'Mi cuenta',
       subtitle: 'Perfil, servidor y sesión.',
       icon: AppIcons.person,
+      showThemeToggle: user.isClient || user.isReader,
       bodyPadding: EdgeInsets.zero,
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -78,20 +79,21 @@ class AccountScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.md),
           WorkspaceListPanel(
             children: [
-              ListTile(
-                key: const ValueKey('account_settings'),
-                leading: const Icon(AppIcons.settings),
-                title: const Text('Configuración'),
-                subtitle: const Text(
-                  'Tema, almacenamiento y opciones del sistema',
+              if (user.isWriter)
+                ListTile(
+                  key: const ValueKey('account_settings'),
+                  leading: const Icon(AppIcons.settings),
+                  title: const Text('Configuración'),
+                  subtitle: const Text(
+                    'Tema, almacenamiento y opciones del sistema',
+                  ),
+                  trailing: Icon(
+                    AppIcons.chevronRight,
+                    size: AppIconSizes.action,
+                    color: c.muted,
+                  ),
+                  onTap: () => context.push(Routes.settings),
                 ),
-                trailing: Icon(
-                  AppIcons.chevronRight,
-                  size: AppIconSizes.action,
-                  color: c.muted,
-                ),
-                onTap: () => context.push(Routes.settings),
-              ),
               const LogoutTile(actionKey: 'account_logout'),
             ],
           ),

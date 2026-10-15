@@ -33,7 +33,7 @@ void main() {
   test('links web de notificaciones → rutas de la app', () {
     expect(Routes.fromWebPath('/works/abc'), '/works/abc');
     expect(Routes.fromWebPath('/sectors/s1'), '/sectors/s1');
-    expect(Routes.fromWebPath('/admin'), isNull);
+    expect(Routes.fromWebPath('/admin'), Routes.settings);
     expect(Routes.fromWebPath(null), isNull);
   });
 }

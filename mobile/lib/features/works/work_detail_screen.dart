@@ -33,9 +33,14 @@ import 'works_providers.dart';
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
 /// alta rápida de tareas en la sección elegida.
 class WorkDetailScreen extends ConsumerStatefulWidget {
-  const WorkDetailScreen({super.key, required this.workId});
+  const WorkDetailScreen({
+    super.key,
+    required this.workId,
+    this.initialObjectiveId,
+  });
 
   final String workId;
+  final String? initialObjectiveId;
 
   @override
   ConsumerState<WorkDetailScreen> createState() => _WorkDetailScreenState();
@@ -45,6 +50,30 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   /// Objetivo donde se crean las tareas nuevas (null = generales).
   String? _targetObjectiveId;
   bool _board = false;
+  final _objectiveKeys = <String, GlobalKey>{};
+  final _objectiveControllers = <String, ExpansibleController>{};
+  bool _revealedObjective = false;
+
+  @override
+  void dispose() {
+    for (final controller in _objectiveControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.workId != widget.workId) {
+      _targetObjectiveId = null;
+      _objectiveKeys.clear();
+    }
+    if (oldWidget.workId != widget.workId ||
+        oldWidget.initialObjectiveId != widget.initialObjectiveId) {
+      _revealedObjective = false;
+    }
+  }
 
   Future<void> _toggle(Task task) async {
     try {
@@ -90,6 +119,18 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
         onRetry: () => ref.invalidate(workDetailProvider(widget.workId)),
         data: (work) {
           final canEdit = work.canOperate && !work.isArchived;
+          if (!_revealedObjective && widget.initialObjectiveId != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              final target =
+                  _objectiveKeys[widget.initialObjectiveId]?.currentContext;
+              if (target != null) {
+                _objectiveControllers[widget.initialObjectiveId]?.expand();
+                _revealedObjective = true;
+                Scrollable.ensureVisible(target, alignment: 0);
+              }
+            });
+          }
           Widget taskTile(Task task) => TaskTile(
             task: task,
             flat: !_board,
@@ -159,7 +200,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                               child: GenTabBar(
                                 showIcons: true,
                                 activeIndex: 0,
-                                tabs: const [
+                                tabs: [
                                   GenTabItem(
                                     label: 'Tareas',
                                     icon: AppIcons.check,
@@ -172,6 +213,15 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                     label: 'Archivos',
                                     icon: AppIcons.projects,
                                   ),
+                                  const GenTabItem(
+                                    label: 'Actividad',
+                                    icon: AppIcons.info,
+                                  ),
+                                  if (work.canManageClients)
+                                    const GenTabItem(
+                                      label: 'Acceso cliente',
+                                      icon: AppIcons.view,
+                                    ),
                                 ],
                                 // Documentos y Archivos son pantallas propias.
                                 onSelect: (i) {
@@ -179,6 +229,10 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                     context.push('/works/${work.id}/document');
                                   } else if (i == 2) {
                                     context.push('/works/${work.id}/files');
+                                  } else if (i == 3) {
+                                    context.push('/works/${work.id}/activity');
+                                  } else if (i == 4) {
+                                    context.push('/works/${work.id}/clients');
                                   }
                                 },
                               ),
@@ -258,7 +312,19 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                         section.tasks.isNotEmpty ||
                                         canEdit)
                                       _WorkSectionView(
+                                        key: section.objective == null
+                                            ? null
+                                            : _objectiveKeys.putIfAbsent(
+                                                section.objective!.id,
+                                                GlobalKey.new,
+                                              ),
                                         work: work,
+                                        controller: section.objective == null
+                                            ? null
+                                            : _objectiveControllers.putIfAbsent(
+                                                section.objective!.id,
+                                                ExpansibleController.new,
+                                              ),
                                         section: section,
                                         canEdit: canEdit,
                                         board: _board,
@@ -336,6 +402,8 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
 /// izquierda, estado «Completo», acciones y avance.
 class _WorkSectionView extends ConsumerWidget {
   const _WorkSectionView({
+    super.key,
+    this.controller,
     required this.work,
     required this.section,
     required this.canEdit,
@@ -344,6 +412,7 @@ class _WorkSectionView extends ConsumerWidget {
   });
 
   final WorkDetail work;
+  final ExpansibleController? controller;
   final WorkSection section;
   final bool canEdit, board;
   final Widget Function(Task) taskTile;
@@ -440,6 +509,7 @@ class _WorkSectionView extends ConsumerWidget {
           ),
         ),
         child: ExpansionTile(
+          controller: controller,
           key: PageStorageKey('work_section_${objective.id}'),
           initiallyExpanded: true,
           tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),

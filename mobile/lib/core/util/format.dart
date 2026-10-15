@@ -30,3 +30,6 @@ String countLabel(int n, String singular, String plural) =>
 /// Minuto del día (0–1439) → "09:30".
 String formatMinuteOfDay(int minute) =>
     '${(minute ~/ 60).toString().padLeft(2, '0')}:${(minute % 60).toString().padLeft(2, '0')}';
+
+String formatDateTime(DateTime date) =>
+    DateFormat('d MMM y · HH:mm', 'es').format(date.toLocal());

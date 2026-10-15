@@ -1,5 +1,9 @@
 # Auditoría funcional: web → app móvil
 
+> Histórico. La guía vigente es [M00–M21](web-mobile-implementation-guide.md).
+> CLIENT/READER, filtros avanzados, actividad y acceso de clientes por proyecto
+> ya se incorporaron; consultar la guía para estado de verificación real.
+
 Fecha: **2026-10-09**. Estado del workspace `paris`, incluida la implementación móvil todavía sin commit.
 
 ## Conclusión
@@ -229,19 +233,19 @@ Fuentes: [DrawerNav web](../../src/components/nav/DrawerNav.tsx), [shell móvil]
 | NAV-05 | Implementado | Configuración accesible desde drawer y cuenta, con módulos según rol. | Media |
 | NAV-06 | Implementado | Vence hoy con contador, acciones compartidas de avisos y cierre de sesión en el drawer. | Media |
 
-### 2. Proyectos
+### 2. Proyectos (descripciones de la auditoría original; estado actualizado en Mxx)
 
 Fuentes: [dashboard web](../../src/app/(main)/page.tsx), [detalle web](../../src/app/(main)/works/[id]/page.tsx), [lista móvil](../lib/features/works/works_list_screen.dart), [detalle móvil](../lib/features/works/work_detail_screen.dart), [repositorio móvil](../lib/data/repositories/works_repository.dart).
 
 | ID | Estado | Falta implementar | Prioridad |
 |---|---|---|---|
-| PRO-01 | Parcial | Mis proyectos, Favoritos, búsqueda por descripción y filtro de grupo por ID implementados. Faltan sector, etiqueta, varios grupos simultáneos y avance. | Alta |
-| PRO-02 | Parcial | Orden seleccionable por fecha/nombre/avance y resumen de resultados/progreso. Evaluar lista o tarjetas adaptadas al teléfono sin exigir copiar la grilla de escritorio. | Media |
+| PRO-01 | Implementado M05 | Búsqueda y filtros combinados por creador, favorito, archivo, grupo(s), sector, etiqueta y avance; guía M05. | Alta |
+| PRO-02 | Implementado M05 | Orden por recientes/favoritos, nombre o avance y resumen de resultados; estadísticas compactas para teléfono. | Media |
 | PRO-03 | Hecho | Edición, archivado/restauración y borrado con nombre exacto, permisos y refresco. | Alta |
 | PRO-04 | Hecho | Etapas y asignaciones de etiquetas principales/secundarias con catálogos del ámbito. | Alta |
-| PRO-05 | Parcial | Copiar el código de referencia del proyecto. | Baja |
-| PRO-06 | Ausente | Pestaña Actividad. La web muestra actividad de conexiones MCP para ese proyecto; no debe presentarse como historial completo de todas las acciones del sistema. | Media |
-| PRO-07 | Ausente | Administrar acceso de clientes al proyecto, utilizando `canManageClients` y los permisos del ámbito. | Media |
+| PRO-05 | Implementado | Copiar el código de referencia del proyecto. | Baja |
+| PRO-06 | Implementado M17 | Actividad MCP del proyecto disponible como pantalla desde sus pestañas; no es un historial general. | Media |
+| PRO-07 | Implementado M17 | Alta y revocación de acceso de clientes por proyecto, condicionadas a canManageClients. | Media |
 
 Los documentos y archivos se detallan por separado para que PRO-03 no se confunda con completar todo el proyecto.
 
@@ -289,8 +293,8 @@ Fuentes: [listado web](../../src/components/sectors/SectorsView.tsx), [toolbar](
 |---|---|---|---|
 | SEC-01 | Hecho | Búsqueda, filtros por ID, los cuatro órdenes y agrupación plegable por ámbito. | Alta |
 | SEC-02 | Hecho | Alta por ámbito autorizado; nombre/color/borrado para SUPERADMIN, con consulta de impacto y confirmación. | Alta |
-| SEC-03 | Ausente | Configurar estados de tareas del sector, incluida la herencia del conjunto aplicable. | Media |
-| SEC-04 | Parcial | Alinear referencias con los permisos por tarea. La web actual permite completar referencias cuando corresponde; la app fuerza `editable: false` en todas. Agruparlas y enlazar su origen. | Alta |
+| SEC-03 | Implementado M09 | Acceso directo a Estados del sector y catálogo con ámbito inicial, herencia y canWrite. | Media |
+| SEC-04 | Implementado M09 | Referencias completables según permisos de contexto/tarea, agrupadas por origen navegable. | Alta |
 
 El endpoint de tareas del sector admite más filtros, pero la página web actual no conecta el componente genérico `filters/FilterBar`. Los filtros por etiqueta/estado/proyecto que figuran en la planificación son una ampliación respaldada por API, no una función visible de esa página que se pueda declarar ausente por comparación de UI.
 

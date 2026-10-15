@@ -17,16 +17,29 @@ import 'settings_form_dialog.dart';
 import 'settings_providers.dart';
 
 class CatalogSettingsScreen extends ConsumerStatefulWidget {
-  const CatalogSettingsScreen({super.key, required this.kind});
+  const CatalogSettingsScreen({
+    super.key,
+    required this.kind,
+    this.initialScope = 'personal',
+  });
   final CatalogKind kind;
+  final String initialScope;
   @override
   ConsumerState<CatalogSettingsScreen> createState() =>
       _CatalogSettingsScreenState();
 }
 
 class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
-  String scope = 'personal';
+  late String scope = widget.initialScope;
   bool busy = false;
+  @override
+  void didUpdateWidget(covariant CatalogSettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialScope != widget.initialScope) {
+      scope = widget.initialScope;
+    }
+  }
+
   CatalogQuery get query => (
     kind: widget.kind,
     scope: scope,

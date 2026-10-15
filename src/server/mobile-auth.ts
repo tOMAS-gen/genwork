@@ -61,12 +61,11 @@ export function verifyPkce(verifier: string, challenge: string): boolean {
 }
 
 /**
- * La app es para el equipo interno: un cliente externo vive en el portal web y el
- * Lector en la vista TV. Se chequea al emitir y en cada request (el rol puede
- * cambiar después de emitido el token).
+ * Todos los roles conocidos pueden iniciar sesión. El rol actual sigue
+ * autorizándose en cada recurso; un token móvil nunca concede permisos propios.
  */
 export function canUseMobileApp(role: GlobalRole): boolean {
-  return role !== "CLIENT" && role !== "READER";
+  return ["SUPERADMIN", "MEMBER", "CLIENT", "READER"].includes(role);
 }
 
 /** Devuelve el token si el header es `Bearer genwork_mob_…`, si no null. */
