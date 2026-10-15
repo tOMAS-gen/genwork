@@ -29,6 +29,8 @@ class _FakeAuth extends AuthRepository {
   _FakeAuth(Uri url, this.calls) : super(serverUrl: url);
   final List<Uri> calls;
   @override
+  Future<StoredSession> login() async => throw const LoginCancelled();
+  @override
   Future<ServerInfo> checkServer() async {
     calls.add(serverUrl);
     return ServerInfo(name: 'Sistema ${serverUrl.host}');

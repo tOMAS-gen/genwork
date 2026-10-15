@@ -28,6 +28,8 @@ class _Tokens implements TokenStore {
 class _FakeAuth extends AuthRepository {
   _FakeAuth(Uri url) : super(serverUrl: url);
   @override
+  Future<StoredSession> login() async => throw const LoginCancelled();
+  @override
   Future<void> logout(String token) async {}
 }
 
