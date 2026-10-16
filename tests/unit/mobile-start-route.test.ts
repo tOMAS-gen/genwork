@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -23,17 +23,21 @@ vi.mock("@/server/auth", () => ({
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (name: string) => (name in h.incoming ? { name, value: h.incoming[name] } : undefined),
-    set: (name: string, value: string, options: Record<string, unknown>) =>
-      h.sets.push({ name, value, options }),
-    delete: (arg: string | { name: string; path?: string }) =>
-      h.deletes.push(typeof arg === "string" ? { name: arg } : arg),
+    set: (name: string, value: string, options: Record<string, unknown>) => {
+      h.sets.push({ name, value, options });
+      h.incoming[name] = value;
+    },
+    delete: (arg: string | { name: string; path?: string }) => {
+      const o = typeof arg === "string" ? { name: arg } : arg;
+      h.deletes.push(o);
+      delete h.incoming[o.name];
+    },
   }),
 }));
 vi.mock("@/server/mobile-auth", () => ({
   canUseMobileApp: (role: string) => role !== "READER_NONE",
   isValidCodeChallenge: (c: string) => c.length >= 43,
   issueAuthCode: h.issueAuthCode,
-  sha256Hex: (v: string) => createHash("sha256").update(v).digest("hex"),
   mobileCallbackUrl: (p: Record<string, string>) =>
     `genwork://auth?${new URLSearchParams(p).toString()}`,
 }));
@@ -44,8 +48,10 @@ const CHALLENGE = "a".repeat(43);
 const query = `code_challenge=${CHALLENGE}&code_challenge_method=S256&state=st1`;
 const req = (q = query) => new Request(`https://work.test/api/auth/mobile/start?${q}`);
 const MARKER = "genwork_mobile_login";
+process.env.AUTH_SECRET = "test-secret";
 const hashFor = (challenge: string, state: string) =>
-  createHash("sha256").update(`${challenge}.${state}`).digest("hex");
+  createHmac("sha256", "test-secret").update(`${challenge}.${state}`).digest("hex");
+const DONE = "genwork_mobile_done";
 const MARK = hashFor(CHALLENGE, "st1");
 const returnTo = `/api/auth/mobile/start?${query}`;
 
@@ -159,6 +165,73 @@ describe("GET /api/auth/mobile/start", () => {
     expect(h.signOut).not.toHaveBeenCalled();
     expect(h.issueAuthCode).not.toHaveBeenCalled();
     expect(new URL(res.headers.get("location")!).pathname).toBe("/login");
+  });
+
+  it("duplicados (RSC + navegación): el 2º y 3º GET sin sesión repiten el mismo código sin reemitir", async () => {
+    h.session = { user: { id: "u1", globalRole: "ADMIN" } };
+    h.incoming[MARKER] = MARK;
+    const r1 = await GET(req());
+    expect(r1.headers.get("location")).toBe("genwork://auth?code=CODE1&state=st1");
+    expect(h.signOut).toHaveBeenCalledWith({ redirect: false });
+    const done = h.sets.find((c) => c.name === DONE)!;
+    expect(done.value).toBe(`${MARK}.CODE1`);
+    expect(done.options).toMatchObject({
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/api/auth/mobile",
+      maxAge: 600,
+    });
+    expect(markerCleared()).toBe(true);
+    h.session = null;
+    for (let i = 0; i < 2; i++) {
+      const r = await GET(req());
+      expect(r.headers.get("location")).toBe("genwork://auth?code=CODE1&state=st1");
+    }
+    expect(h.issueAuthCode).toHaveBeenCalledTimes(1);
+    expect(h.signIn).not.toHaveBeenCalled();
+    expect(markerSets()).toHaveLength(0);
+  });
+
+  it("cookie done de OTRO intento sin sesión: flujo normal con marca nueva", async () => {
+    h.dev = true;
+    h.incoming[DONE] = `${hashFor("b".repeat(43), "otro")}.CODEX`;
+    const res = await GET(req());
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/login");
+    expect(markerSets()[0].value).toBe(MARK);
+    expect(h.issueAuthCode).not.toHaveBeenCalled();
+  });
+
+  it("sesión + done viejo (sin marca): descarta el done y aplica las reglas normales", async () => {
+    h.dev = true;
+    h.session = { user: { id: "u1", globalRole: "ADMIN" } };
+    h.incoming[DONE] = `${MARK}.OLD`;
+    const res = await GET(req());
+    expect(h.deletes.some((d) => d.name === DONE)).toBe(true);
+    expect(h.signOut).toHaveBeenCalledWith({ redirect: false });
+    expect(h.issueAuthCode).not.toHaveBeenCalled();
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/login");
+  });
+
+  it("la marca es HMAC: un sha256 pelado forjado se rechaza como sesión previa", async () => {
+    h.dev = true;
+    const bare = createHash("sha256").update(`${CHALLENGE}.st1`).digest("hex");
+    expect(MARK).not.toBe(bare);
+    h.session = { user: { id: "u1", globalRole: "ADMIN" } };
+    h.incoming[MARKER] = bare;
+    await GET(req());
+    expect(h.issueAuthCode).not.toHaveBeenCalled();
+    expect(h.signOut).toHaveBeenCalled();
+  });
+
+  it("signOut falla tras emitir: limpia la marca y responde server_error", async () => {
+    h.session = { user: { id: "u1", globalRole: "ADMIN" } };
+    h.incoming[MARKER] = MARK;
+    h.signOut.mockRejectedValue(new Error("boom"));
+    const res = await GET(req());
+    expect(res.headers.get("location")).toBe("genwork://auth?error=server_error&state=st1");
+    expect(markerCleared()).toBe(true);
+    expect(h.sets.some((c) => c.name === DONE)).toBe(false);
   });
 
   it("challenge o state inválidos: 400 sin tocar cookies ni sesión", async () => {
