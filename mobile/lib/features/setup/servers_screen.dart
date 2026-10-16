@@ -68,7 +68,11 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
     } catch (e) {
       if (mounted) showErrorSnack(context, e);
     } finally {
-      if (mounted) setState(() => _busyId = null);
+      if (mounted) {
+        setState(() => _busyId = null);
+        // Un login automático que llegó mientras esta fila estaba ocupada.
+        _maybeAutoLogin();
+      }
     }
   }
 

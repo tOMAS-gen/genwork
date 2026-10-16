@@ -115,6 +115,22 @@ void main() {
     expect(logins, isEmpty);
   });
 
+  testWidgets('reenviar el mismo link tras un servidor que falla vuelve a preguntar', (tester) async {
+    final (links, calls) = await _pump(tester);
+    final foreign = Uri.parse('genwork://connect?server=https%3A%2F%2Fajeno.test');
+    links.add(foreign);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(_confirm));
+    await tester.pumpAndSettle();
+    expect(find.text('No es genwork'), findsOneWidget);
+    links.add(foreign); // dentro de la ventana de 5 s
+    await tester.pumpAndSettle();
+    expect(find.text(_dialogTitle), findsOneWidget);
+    await tester.tap(find.byKey(_confirm));
+    await tester.pumpAndSettle();
+    expect(calls, hasLength(2));
+  });
+
   testWidgets('cancelar no consulta ni guarda ni activa nada', (tester) async {
     final (links, calls) = await _pump(tester);
     links.add(_link);

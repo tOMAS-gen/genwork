@@ -24,6 +24,10 @@ enum ConnectResult { signedIn, cancelled }
 class SessionController extends AsyncNotifier<SessionState> {
   DateTime? _lastLoginAt;
 
+  /// Hay un login del navegador abierto (de cualquier pantalla): no se abre
+  /// otro hasta que termine.
+  bool _loginInFlight = false;
+
   @override
   Future<SessionState> build() async {
     final registry = ref.read(serverRegistryProvider);
@@ -111,6 +115,34 @@ class SessionController extends AsyncNotifier<SessionState> {
       await _activate(profile);
       return ConnectResult.signedIn;
     }
+    // Un solo navegador a la vez: el servidor (si se acaba de vincular) ya quedó
+    // guardado y se ve «Sin sesión» en la lista.
+    if (_loginInFlight) return ConnectResult.cancelled;
+    _loginInFlight = true;
+    try {
+      return await _browserLogin(profile, tokens, onBrowser);
+    } finally {
+      _loginInFlight = false;
+      _retryPendingAutoLogin();
+    }
+  }
+
+  /// Un login automático (arranque/401) que llegó con otro login en curso no se
+  /// pudo consumir: se vuelve a emitir el estado para que la lista de servidores
+  /// lo vea y lance un solo [loginActive].
+  void _retryPendingAutoLogin() {
+    if (!ref.mounted) return;
+    final current = state.value;
+    if (current is SignedOut && current.autoLogin) {
+      state = AsyncData(SignedOut(current.serverUrl, autoLogin: true));
+    }
+  }
+
+  Future<ConnectResult> _browserLogin(
+    ServerProfile profile,
+    TokenStore tokens,
+    VoidCallback? onBrowser,
+  ) async {
     final before = state.value;
     final StoredSession stored;
     try {
@@ -194,6 +226,8 @@ class SessionController extends AsyncNotifier<SessionState> {
   /// devuelve true si el estado era [SignedOut] con `autoLogin` y lo deja sin el
   /// flag. Después la lista de servidores llama a [loginActive].
   bool consumeAutoLogin() {
+    // Con otro login abierto queda pendiente; al terminar se reintenta.
+    if (_loginInFlight) return false;
     final current = state.value;
     if (current is! SignedOut || !current.autoLogin) return false;
     state = AsyncData(SignedOut(current.serverUrl));

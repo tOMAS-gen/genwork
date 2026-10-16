@@ -392,6 +392,117 @@ void main() {
     });
   });
 
+  group('un solo login del navegador a la vez', () {
+    final aUrl = Uri.parse('https://a.test');
+    final bUrl = Uri.parse('https://b.test');
+    final cUrl = Uri.parse('https://c.test');
+    final a = ServerProfile.idFor(aUrl);
+    final b = ServerProfile.idFor(bUrl);
+
+    Future<void> untilLogin(int n) async {
+      while (_loginCalls.length < n) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
+    test('dos connect a la vez: un solo navegador; el segundo cancela y queda guardado', () async {
+      final gate = Completer<StoredSession>();
+      final (c, _) = await _fixture(loginGate: (_) => gate.future);
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      final first = n.connect('https://a.test');
+      await untilLogin(1);
+      expect(await n.connect('https://b.test'), ConnectResult.cancelled);
+      expect(_loginCalls, [aUrl]);
+      expect(c.read(serverListProvider).map((p) => p.id), containsAll([a, b]));
+      gate.complete(_session('ta', 'ua'));
+      expect(await first, ConnectResult.signedIn);
+      expect((c.read(sessionProvider).value as SignedIn).serverUrl, aUrl);
+    });
+
+    test('select durante un login en curso no abre otro navegador', () async {
+      final gate = Completer<StoredSession>();
+      final (c, _) = await _fixture(loginGate: (_) => gate.future);
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      final first = n.connect('https://a.test');
+      await untilLogin(1);
+      await c.read(serverRegistryProvider).upsert(bUrl);
+      expect(await n.select(b), ConnectResult.cancelled);
+      expect(_loginCalls, [aUrl]);
+      gate.completeError(const LoginCancelled());
+      expect(await first, ConnectResult.cancelled);
+    });
+
+    test('loginActive durante un connect en curso no abre otro navegador', () async {
+      final gate = Completer<StoredSession>();
+      final pa = ServerProfile.forUrl(aUrl, name: 'A');
+      final (c, _) = await _fixture(
+        prefs: {
+          'server_profiles': '[{"id":"${pa.id}","url":"${pa.url}","name":"A"}]',
+          'active_server_id': pa.id,
+        },
+        loginGate: (_) => gate.future,
+      );
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      final first = n.connect('https://b.test');
+      await untilLogin(1);
+      expect(await n.loginActive(), ConnectResult.cancelled);
+      expect(_loginCalls, [bUrl]);
+      gate.completeError(const LoginCancelled());
+      await first;
+    });
+
+    test('un 401 durante otro login: no se consume en curso y al terminar lanza un solo loginActive', () async {
+      final gate = Completer<StoredSession>();
+      final (c, store) = await _fixture(
+        loginGate: (url) => url == cUrl ? gate.future : Future.error(const LoginCancelled()),
+      );
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.connect('https://a.test'); // SignedIn(A)
+      // Como la lista de servidores: al ver el flag, consume y lanza.
+      final consumed = <bool>[];
+      final sub = c.listen(sessionProvider, (_, next) {
+        final s = next.value;
+        if (s is SignedOut && s.autoLogin) {
+          final ok = n.consumeAutoLogin();
+          consumed.add(ok);
+          if (ok) n.loginActive();
+        }
+      });
+      addTearDown(sub.close);
+      final pending = n.connect('https://c.test'); // navegador de C
+      await untilLogin(1);
+      await n.handleUnauthorized('ta'); // 401 de A mientras tanto
+      expect(consumed, [false]);
+      expect((c.read(sessionProvider).value as SignedOut).autoLogin, isTrue);
+      gate.completeError(const LoginCancelled());
+      expect(await pending, ConnectResult.cancelled);
+      await untilLogin(2);
+      await Future<void>.delayed(Duration.zero);
+      expect(_loginCalls, [cUrl, aUrl]);
+      expect(consumed, [false, true]);
+      // Cancelado: sin flag, no hay bucle.
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(_loginCalls, hasLength(2));
+      expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
+    });
+
+    test('terminado un login, el siguiente connect abre el navegador normalmente', () async {
+      final (c, _) = await _fixture();
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      expect(await n.connect('https://a.test'), ConnectResult.cancelled);
+      expect(await n.connect('https://b.test'), ConnectResult.cancelled);
+      expect(_loginCalls, [aUrl, bUrl]);
+    });
+  });
+
   group('connect/select (login del navegador en el lugar)', () {
     final aUrl = Uri.parse('https://a.test');
     final bUrl = Uri.parse('https://b.test');

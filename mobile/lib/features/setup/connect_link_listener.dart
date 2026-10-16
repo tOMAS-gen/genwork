@@ -136,6 +136,8 @@ class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
           ref.read(routerProvider).go(Routes.myDay);
         }
       } catch (e) {
+        // Servidor inaccesible o ajeno: reenviar el mismo link vuelve a preguntar.
+        done = false;
         if (colors != null) messenger?.showSnackBar(errorSnackBar(colors, e));
       }
     } finally {
