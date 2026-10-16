@@ -236,6 +236,7 @@ Future<({GoRouter router, ProviderContainer container})> mount(
       sessionProvider.overrideWith(() => TestSession(f)),
       apiClientProvider.overrideWithValue(f.api),
       liveEventsProvider.overrideWithValue(f.events.stream),
+      serverListProvider.overrideWithValue(const []),
     ],
   );
   addTearDown(c.dispose);
@@ -669,19 +670,18 @@ void main() {
       await drawer(t, 'nav_logout');
       expect(f.logoutCalls, 1);
       expect(app.container.read(sessionProvider).value, isA<SignedIn>());
+      // El logout navega primero a la lista de servidores, aunque falle.
+      expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
       f.failLogout = false;
       f.gate = Completer<void>();
-      // El drawer permanece abierto cuando falla.
-      await t.tap(find.byKey(const ValueKey('nav_logout')));
+      app.router.go(Routes.myDay);
+      await t.pumpAndSettle();
+      await drawer(t, 'nav_logout');
       await t.pump();
-      expect(
-        t.widget<ListTile>(find.byKey(const ValueKey('nav_logout'))).onTap,
-        isNull,
-      );
+      expect(f.logoutCalls, 2);
       f.gate!.complete();
       await t.pumpAndSettle();
-      expect(f.logoutCalls, 2);
-      expect(app.router.routeInformationProvider.value.uri.path, Routes.login);
+      expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
     },
   );
   for (final dark in [false, true]) {

@@ -50,7 +50,9 @@ class ServersScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profiles = ref.watch(serverListProvider);
-    final activeUrl = _activeUrl(ref.watch(sessionProvider).value);
+    final session = ref.watch(sessionProvider).value;
+    final activeUrl = _activeUrl(session);
+    final activeSignedOut = session is SignedOut;
     final c = context.colors;
 
     return Scaffold(
@@ -69,9 +71,19 @@ class ServersScreen extends ConsumerWidget {
                       color: p.url == activeUrl ? c.brand : c.muted,
                     ),
                     title: Text(p.name),
-                    subtitle: Text(
-                      p.url.toString(),
-                      style: AppTextStyles.technical.copyWith(color: c.muted),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.url.toString(),
+                          style: AppTextStyles.technical.copyWith(color: c.muted),
+                        ),
+                        if (p.url == activeUrl && activeSignedOut)
+                          Text(
+                            'Sin sesión · tocá para ingresar',
+                            style: AppTextStyles.supporting.copyWith(color: c.brand),
+                          ),
+                      ],
                     ),
                     trailing: IconButton(
                       key: ValueKey('server_remove_${p.id}'),
@@ -79,7 +91,7 @@ class ServersScreen extends ConsumerWidget {
                       icon: const Icon(AppIcons.delete),
                       onPressed: () => _remove(context, ref, p),
                     ),
-                    onTap: p.url == activeUrl
+                    onTap: p.url == activeUrl && !activeSignedOut
                         ? () => context.canPop() ? context.pop() : context.go(Routes.myDay)
                         : () => _switch(context, ref, p),
                   ),
