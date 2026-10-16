@@ -31,7 +31,7 @@ Reparto del trabajo:
 |---|---|---|
 | Tipo de app | Nativa Flutter + API REST | UI nativa; administración por módulos incorporada en el punto 9 |
 | Ubicación | `mobile/` en este repo (monorepo) | Un cambio de API y su uso en la app van en el mismo PR |
-| Primer inicio | El usuario escanea el QR de la web (**Configuración › App móvil**) o escribe la URL → se valida con `GET /api/auth/mobile/info` → se guarda como perfil de servidor → login. Varios servidores: **Mi cuenta › Servidores** (cambiar, agregar, quitar), sesión propia por servidor | La app no tiene la URL fija (sirve para cualquier instalación de genwork) |
+| Primer inicio | El usuario escanea el QR de la web (**Configuración › App móvil**) o escribe la URL → se valida con `GET /api/auth/mobile/info` → se guarda como perfil de servidor → se abre directo el login del navegador (no hay pantalla de login nativa; cancelado o fallido, queda «Sin sesión» en la lista). Varios servidores: drawer › «Cambiar de servidor» o **Mi cuenta › Servidores** (estado de sesión de cada uno, cambiar, agregar, quitar), sesión propia por servidor | La app no tiene la URL fija (sirve para cualquier instalación de genwork) |
 | Login | Navegador del sistema → login web existente (Google + lista de acceso) → deep link `genwork://auth?code=…` → canje PKCE por token | Reusa el OAuth web: no hacen falta client IDs de Google para iOS/Android, y vale igual la allowlist |
 | Token | `genwork_mob_…` de larga vida, revocable. Solo se guarda su hash (`MobileSession`) | Mismo patrón que los tokens MCP |
 | Roles | Solo SUPERADMIN y MEMBER. CLIENT (portal) y READER (TV) quedan afuera | Se chequea al emitir y en cada request |
@@ -71,7 +71,7 @@ token inválido 401 → logout revoca → Lector recibe `error=forbidden`.
 | F2 ✅ | URL del sistema: normalización + persistencia | `lib/core/config/` |
 | F3 ✅ | Auth: PKCE, `AuthRepository` (navegador del sistema + canje), token en Keychain/Keystore, `SessionController` | `lib/core/auth/`, `lib/data/repositories/auth_repository.dart` |
 | F4 ✅ | Cliente API con Bearer, errores tipados, 401 → logout | `lib/core/network/` |
-| F5 ✅ | Router con redirección por sesión (splash → setup → login → app) y shell con ramas independientes (ahora accesibles desde el drawer) | `lib/core/router/`, `lib/features/shell/` |
+| F5 ✅ | Router con redirección por sesión (splash → setup → servidores → app; el login es del navegador) y shell con ramas independientes (ahora accesibles desde el drawer) | `lib/core/router/`, `lib/features/shell/` |
 | F6 ✅ | Modelos y repositorios de todo el MVP | `lib/data/` |
 | F7 ✅ | Providers por feature + `TaskActions` (mutaciones que refrescan) | `lib/features/*/…_providers.dart`, `lib/features/tasks/task_actions.dart` |
 | F8 ✅ | SSE + refresco al volver a primer plano | `lib/core/live/`, `lib/features/shell/live_refresher.dart` |
