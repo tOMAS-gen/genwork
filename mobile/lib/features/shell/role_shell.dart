@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth/session.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_icons.dart';
@@ -49,6 +50,8 @@ class _RoleShellState extends ConsumerState<RoleShell> {
   Widget build(BuildContext context) {
     ref.watch(liveRefresherProvider);
     final user = ref.watch(currentUserProvider);
+    final session = ref.watch(sessionProvider).value;
+    final serverHost = session is SignedIn ? session.serverUrl.host : null;
     final home = user?.isClient == true ? Routes.portal : Routes.tv;
     final location = GoRouterState.of(context).uri.path;
     void go(String path) {
@@ -92,6 +95,17 @@ class _RoleShellState extends ConsumerState<RoleShell> {
                   title: const Text('Mi cuenta'),
                   selected: location == '$home/account',
                   onTap: () => go('$home/account'),
+                ),
+                ListTile(
+                  key: const ValueKey('drawer_switch_server'),
+                  leading: const Icon(AppIcons.server),
+                  title: const Text('Cambiar de servidor'),
+                  subtitle: Text(serverHost ?? ''),
+                  onTap: () {
+                    // Abre la lista sin cerrar la sesión de este servidor.
+                    _key.currentState?.closeDrawer();
+                    context.push(Routes.servers);
+                  },
                 ),
                 const LogoutTile(actionKey: 'role_logout'),
               ],

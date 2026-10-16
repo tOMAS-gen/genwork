@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/auth/session.dart';
 import 'package:genwork_mobile/core/auth/session_controller.dart';
+import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/network/api_client.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/router/app_router.dart';
@@ -23,6 +24,7 @@ import 'package:genwork_mobile/data/models/json.dart';
 import 'package:genwork_mobile/data/models/live_event.dart';
 import 'package:genwork_mobile/data/models/sector.dart';
 import 'package:genwork_mobile/data/models/work.dart';
+import 'package:genwork_mobile/features/setup/servers_screen.dart';
 import 'package:genwork_mobile/features/shell/drawer_items.dart';
 import 'package:genwork_mobile/shared/widgets/count_badge.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
@@ -30,6 +32,7 @@ import 'package:genwork_mobile/features/works/works_filter.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Json project(
   String id,
@@ -77,6 +80,19 @@ class _Session extends SessionController {
       'globalRole': 'MEMBER',
     }),
   );
+}
+
+class _NoTokens implements TokenStore {
+  @override
+  Future<StoredSession?> read(String id) async => null;
+  @override
+  Future<void> write(String id, StoredSession s) async {}
+  @override
+  Future<void> clear(String id) async {}
+  @override
+  Future<void> adoptLegacy(String id) async {}
+  @override
+  Future<void> discardLegacy() async {}
 }
 
 class _Fixture {
@@ -222,9 +238,13 @@ Future<({GoRouter router, ProviderContainer container})> _mount(
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     retry: (_, _) => null,
     overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      tokenStoreProvider.overrideWithValue(_NoTokens()),
       sessionProvider.overrideWith(_Session.new),
       apiClientProvider.overrideWithValue(fixture.api),
       liveEventsProvider.overrideWithValue(fixture.events.stream),
@@ -385,6 +405,23 @@ void main() {
       expect(ordered.items.skip(7).map((i) => i.id), ['2', '3', '1', '0', '4']);
       expect(ordered.items.take(drawerItemLimit).length, 10);
       expect(items.first.name, 'Ñandú');
+    },
+  );
+
+  testWidgets(
+    'drawer «Cambiar de servidor» abre la lista sin cerrar la sesión',
+    (tester) async {
+      final fixture = _Fixture();
+      final app = await _mount(tester, fixture);
+      await _open(tester);
+      await _drawerTap(tester, 'drawer_switch_server');
+      expect(find.byType(ServersScreen), findsOneWidget);
+      expect(app.router.state.uri.path, Routes.servers);
+      expect(app.container.read(sessionProvider).value, isA<SignedIn>());
+      // Volver deja la app donde estaba, con la sesión intacta.
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(app.router.state.uri.path, Routes.works);
     },
   );
 

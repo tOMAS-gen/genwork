@@ -418,17 +418,26 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                     },
                   ),
                   if (session is SignedIn)
-                    const LogoutTile(actionKey: 'nav_logout'),
-                  if (session is SignedIn)
                     Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Text(
-                        session.serverUrl.host,
-                        style: AppTextStyles.supporting.copyWith(
-                          color: colors.muted,
-                        ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.hairline,
+                      ),
+                      // Abre la lista sin cerrar la sesión de este servidor.
+                      child: DrawerTile(
+                        id: 'drawer_switch_server',
+                        icon: AppIcons.server,
+                        label: 'Cambiar de servidor',
+                        subtitle: session.serverUrl.host,
+                        selected: false,
+                        onTap: () {
+                          _closeDrawer();
+                          context.push(Routes.servers);
+                        },
                       ),
                     ),
+                  if (session is SignedIn)
+                    const LogoutTile(actionKey: 'nav_logout'),
                 ],
               ),
             ),
