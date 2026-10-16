@@ -6,7 +6,7 @@ run_mode = "nonconcurrent"
 
 [scripts.run.dev]
 available_in = [ "local" ]
-command = "bash scripts/mobile-dev.sh web"
+command = "GENSTOCK_BASE_URL=${GENSTOCK_BASE_URL:-http://127.0.0.1:8110} bash scripts/mobile-dev.sh web"
 default = true
 icon = "play"
 

@@ -16,6 +16,7 @@ import { InlineDescription } from "@/components/works/InlineDescription";
 import { FilesBrowser } from "@/components/files/FilesBrowser";
 import { WorkActivityFeed } from "@/components/works/WorkActivityFeed";
 import { ClientAccessPanel } from "@/components/works/ClientAccessPanel";
+import { MaterialsPanel } from "@/components/works/MaterialsPanel";
 import { ProjectTaskList } from "@/components/objectives/ProjectTaskList";
 import { AddObjectiveDialog } from "@/components/objectives/AddObjectiveDialog";
 import { useCollapsedObjectives } from "@/components/objectives/useCollapsedObjectives";
@@ -35,6 +36,7 @@ import {
   AlertCircle,
   Plus,
   Info,
+  Package,
 } from "@/components/ui/icons";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
@@ -84,7 +86,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
   const [loadError, setLoadError] = useState(false);
   usePageTitle(work?.name ?? null);
   const [docLoaded, setDocLoaded] = useState(false);
-  const [activeTab, setActiveTab] = useState<"tasks" | "docs" | "files" | "activity" | "clients">(
+  const [activeTab, setActiveTab] = useState<"tasks" | "materials" | "docs" | "files" | "activity" | "clients">(
     "tasks",
   );
   const [taskView, setTaskView] = useState<"list" | "board">("list");
@@ -341,6 +343,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           panelId="project-content"
           items={[
             { key: "tasks", label: "Tareas", icon: CheckSquare },
+            { key: "materials", label: "Materiales", icon: Package },
             { key: "docs", label: "Documentos", icon: FileText },
             { key: "files", label: "Archivos", icon: Folder },
             { key: "activity", label: "Actividad", icon: Clock },
@@ -351,7 +354,7 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
               : []),
           ]}
           activeKey={activeTab}
-          onChange={(k) => setActiveTab(k as "tasks" | "docs" | "files" | "activity" | "clients")}
+          onChange={(k) => setActiveTab(k as "tasks" | "materials" | "docs" | "files" | "activity" | "clients")}
         />
 
         <div
@@ -438,6 +441,10 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
                 />
               )}
             </>
+          )}
+
+          {activeTab === "materials" && (
+            <MaterialsPanel workId={id} editable={editable && work.access === "operate"} />
           )}
 
           {activeTab === "docs" && docLoaded && (

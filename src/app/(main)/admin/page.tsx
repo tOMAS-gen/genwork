@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
-import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle, Eye, Bell, Bot, User } from "@/components/ui/icons";
+import { Shield, HardDrive, Users, Tag, Layers, CheckSquare, AlertCircle, Eye, Bell, Bot, User, Globe } from "@/components/ui/icons";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -57,6 +57,15 @@ export default async function AdminHome() {
             <div>
               <div><strong>Clientes</strong></div>
               <span className="muted">Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada</span>
+            </div>
+          </div>
+        </Link>
+        <Link className="card-interactive" href="/admin/genstock">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+            <Globe size={20} />
+            <div>
+              <div><strong>Integración con Genstock</strong></div>
+              <span className="muted">URL del server para buscar productos y materiales</span>
             </div>
           </div>
         </Link>

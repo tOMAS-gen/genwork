@@ -20,6 +20,7 @@ const SYSTEM_ITEMS = [
   ["/admin/stages", "Producción"],
   ["/admin/task-statuses", "Estados de tarea"],
   ["/admin/storage", "Almacenamiento"],
+  ["/admin/genstock", "Genstock"],
   ["/admin/reminders", "Recordatorios"],
   ["/admin/errors", "Errores"],
 ] as const;

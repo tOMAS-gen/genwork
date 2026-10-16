@@ -12,6 +12,7 @@ import {
   Layers,
   LayoutDashboard,
   LayoutGrid,
+  Package,
   Settings,
   Star,
   Sun,
@@ -182,6 +183,9 @@ export function DrawerNav({
           </Link>
           <Link href="/board" onClick={closeMobileDrawer} className={`rail-link${isActive("/board") ? " nav-active" : ""}`} aria-current={isActive("/board") ? "page" : undefined} data-tooltip="Vista de tareas" aria-label="Vista de tareas">
             <LayoutDashboard size={18} />
+          </Link>
+          <Link href="/materials" onClick={closeMobileDrawer} className={`rail-link${isActive("/materials") ? " nav-active" : ""}`} aria-current={isActive("/materials") ? "page" : undefined} data-tooltip="Materiales" aria-label="Materiales">
+            <Package size={18} />
           </Link>
           <Link href="/reminders" onClick={closeMobileDrawer} className={`rail-link${isActive("/reminders") ? " nav-active" : ""}`} aria-current={isActive("/reminders") ? "page" : undefined} data-tooltip="Recordatorios" aria-label="Recordatorios">
             <Calendar size={18} />
@@ -429,6 +433,15 @@ export function DrawerNav({
             style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
           >
             <LayoutDashboard size={16} className="muted" /> Vista de tareas
+          </Link>
+          <Link
+            className={`nav${isActive("/materials") ? " nav-active" : ""}`}
+            aria-current={isActive("/materials") ? "page" : undefined}
+            href="/materials"
+            onClick={closeMobileDrawer}
+            style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
+          >
+            <Package size={16} className="muted" /> Materiales
           </Link>
           <Link
             className={`nav${isActive("/reminders") ? " nav-active" : ""}`}

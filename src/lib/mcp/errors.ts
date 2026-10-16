@@ -5,13 +5,22 @@ import { McpAuthError } from "@/server/mcp-auth";
 import { ConfirmationError } from "@/lib/mcp/confirmation";
 import type { PendingConfirmation } from "@/lib/mcp/confirmation";
 
-/** Resultado exitoso de una herramienta MCP: texto legible + datos estructurados. */
+/**
+ * Resultado exitoso de una herramienta MCP: texto legible + datos estructurados.
+ * Muchos clientes MCP solo leen `content`, así que los datos (ids, colores, contadores…)
+ * también se serializan como un segundo bloque de texto JSON.
+ */
 export function toolSuccess(
   text: string,
   structuredContent?: Record<string, unknown>,
 ): CallToolResult {
   return {
-    content: [{ type: "text", text }],
+    content: [
+      { type: "text", text },
+      ...(structuredContent
+        ? [{ type: "text" as const, text: JSON.stringify(structuredContent) }]
+        : []),
+    ],
     ...(structuredContent ? { structuredContent } : {}),
   };
 }

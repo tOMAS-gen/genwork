@@ -17,7 +17,8 @@ import {
 } from "@/server/tasks";
 import { emit } from "@/server/events";
 import { getObjectiveWithAccess, setTaskObjective } from "@/server/objectives";
-import { TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
+import { ACTIVE_PROJECT_WORK, TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/workFilters";
+import { isContainerTask, isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
 import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
 import { listMyDay, setTaskMyDay } from "@/server/myDay";
 import type { McpAuth } from "@/server/mcp-auth";
@@ -45,13 +46,21 @@ function summarizeTask(
     workName: task.work?.name ?? null,
     objectiveId: task.objectiveId ?? null,
     objectiveTitle: task.objective?.title ?? null,
+    // Sector "home": solo existe en tareas sueltas (sin proyecto). Para tareas de
+    // proyecto es null y NO es lo que cambia el #sector del texto.
     homeSectorId: task.sectorId,
     dueDate: task.dueDate,
+    createdAt: task.createdAt,
+    updatedAt: task.updatedAt,
+    // Padre con hijas: contenedor, no suma a los contadores de sector.list.
+    isContainer: isContainerTask({ subtaskCount: subtaskInfo.count }),
     // 062-subtareas (Tarea 14): un solo nivel de anidado, igual que el DTO web
     // (WorkTaskDto en src/server/taskDto.ts) — parentId/subtaskCount/subtaskDone.
     parentId: task.parentId,
     subtaskCount: subtaskInfo.count,
     subtaskDone: subtaskInfo.done,
+    // Sectores donde se EJECUTA la tarea: son los `#sector` del texto. Mover la
+    // tarea de sector = reescribir el texto con otro #sector (task.update).
     execSectorIds: task.links.filter((l) => l.type === "EXEC" && l.sectorId).map((l) => l.sectorId),
     refSectorIds: task.links.filter((l) => l.type === "REF" && l.sectorId).map((l) => l.sectorId),
     refUserIds: task.links.filter((l) => l.type === "REF" && l.userId).map((l) => l.userId),
@@ -130,26 +139,61 @@ export const taskUpdateInputShape = {
   text: z.string().trim().min(1),
 };
 
+export const taskReplaceTextInputShape = {
+  taskId: z.string().uuid(),
+  find: z.string().min(1),
+  replace: z.string(),
+};
+
 export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
+  /** Camino único de edición de texto (task.update y task.replaceText): permiso, saveTask y log. */
+  async function editTaskText(existing: TaskWithLinks, rawText: string, toolName: string) {
+    if (!canToggle(ctx.userContext, await toTaskRef(existing))) throw forbidden();
+
+    const adopt = existing.originType === "SECTOR" && existing.adoptedAt === null;
+    const task = await saveTask(ctx.userContext, {
+      rawText,
+      taskId: existing.id,
+      contextWorkId: existing.workId ?? undefined,
+      contextSectorId: existing.sectorId ?? undefined,
+      editMeta: { lastEditedById: ctx.userId, adopt },
+    });
+
+    await logMcpActivity({
+      connectionId: ctx.connectionId,
+      userId: ctx.userId,
+      toolName,
+      targetType: "Task",
+      targetId: task.id,
+      workId: task.workId ?? undefined,
+      summary: `El asistente de IA editó la tarea "${task.displayText}".`,
+    });
+    return task;
+  }
+
   server.registerTool(
     "task.list",
     {
       title: "Listar tareas",
       description:
-        "Lista tareas de un proyecto o de un sector (al menos uno de los dos, o un objectiveId). " +
+        "Lista tareas de un proyecto, de un sector o de un grupo (al menos uno de los tres, o un objectiveId). " +
+        "Con groupId trae las tareas de los proyectos activos del grupo y las sueltas de sus sectores. " +
         "Con parentId, trae solo las hijas de esa tarea (un solo nivel de anidado). Con objectiveId " +
         "trae solo las de ese objetivo (sin workId se usa su proyecto); objectiveId null trae las " +
         "tareas generales del proyecto (requiere workId). Cada tarea trae workName, objectiveId y " +
-        "objectiveTitle; en un proyecto van primero las generales y después cada objetivo en orden.",
+        "objectiveTitle, createdAt, updatedAt e isContainer (padre con subtareas). El resumen `summary` " +
+        "cuenta igual que sector.list: los contenedores se listan pero NO suman a total/pending/done. " +
+        "En proyecto van primero las generales y después cada objetivo en orden.",
       inputSchema: {
         workId: z.string().uuid().optional(),
         sectorId: z.string().uuid().optional(),
+        groupId: z.string().uuid().optional(),
         statusType: z.enum(["IN_PROGRESS", "FINAL"]).optional(),
         parentId: z.string().uuid().optional(),
         objectiveId: z.string().uuid().nullable().optional(),
       },
     },
-    async ({ workId: inputWorkId, sectorId, statusType, parentId, objectiveId }) => {
+    async ({ workId: inputWorkId, sectorId, groupId, statusType, parentId, objectiveId }) => {
       try {
         // objetivos: `objectiveId` sin proyecto ni sector → el proyecto del
         // objetivo (404 si no se ve). Las generales (null) necesitan proyecto.
@@ -157,11 +201,11 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
         if (objectiveId === null && !workId) {
           throw badRequest("Para filtrar tareas generales indicá workId");
         }
-        if (objectiveId && !workId && !sectorId) {
+        if (objectiveId && !workId && !sectorId && !groupId) {
           const { objective } = await getObjectiveWithAccess(ctx.userContext, objectiveId, "read");
           workId = objective.workId;
         }
-        if (!workId && !sectorId) throw badRequest("Indicá workId o sectorId");
+        if (!workId && !sectorId && !groupId) throw badRequest("Indicá workId, sectorId o groupId");
 
         let tasks: TaskWithLinks[];
         if (workId) {
@@ -184,6 +228,33 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           // objetivos: `position` es densa por sección, así que el orden del
           // proyecto es el de la página: generales, después cada objetivo.
           tasks = [...tasks].sort(compareProjectTaskOrder);
+        } else if (!sectorId) {
+          // Por grupo: proyectos activos del grupo + sueltas de sus sectores.
+          const group = await prisma.group.findUnique({
+            where: { id: groupId! },
+            select: { id: true, publicRead: true },
+          });
+          if (!group) throw notFound("Grupo no encontrado");
+          const level = access(ctx.userContext, {
+            groupId: group.id,
+            ownerId: null,
+            groupPublicRead: group.publicRead,
+          });
+          if (level === "none") throw notFound("Grupo no encontrado");
+          tasks = await prisma.task.findMany({
+            where: {
+              OR: [
+                { work: { groupId: group.id, ...ACTIVE_PROJECT_WORK } },
+                { workId: null, homeSector: { groupId: group.id } },
+              ],
+              ...(statusType ? { status: { type: statusType } } : {}),
+            },
+            include: taskWithLinksInclude,
+          });
+          tasks = [...tasks].sort(
+            (a, b) =>
+              (a.work?.name ?? "").localeCompare(b.work?.name ?? "") || compareProjectTaskOrder(a, b),
+          );
         } else {
           const sector = await prisma.sector.findUnique({
             where: { id: sectorId! },
@@ -235,11 +306,24 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
           labelsByTaskId(tasks.map((t) => t.id)),
           subtaskCountsByTaskId(tasks.map((t) => t.id)),
         ]);
-        return toolSuccess(`${tasks.length} tarea(s) encontrada(s).`, {
-          tasks: tasks.map((t) =>
-            summarizeTask(t, byTask.get(t.id) ?? [], subtaskCounts.get(t.id) ?? NO_SUBTASKS),
-          ),
-        });
+        const summarized = tasks.map((t) =>
+          summarizeTask(t, byTask.get(t.id) ?? [], subtaskCounts.get(t.id) ?? NO_SUBTASKS),
+        );
+        // Mismo criterio que sector.list: el contenedor no suma a los contadores.
+        const counted = tasks.filter((t, i) => !summarized[i].isContainer);
+        const pending = counted.filter((t) => isTaskUnfinished({ id: "", status: t.status })).length;
+        const summary = {
+          listed: tasks.length,
+          containers: tasks.length - counted.length,
+          total: counted.length,
+          pending,
+          done: counted.length - pending,
+        };
+        return toolSuccess(
+          `${tasks.length} tarea(s) encontrada(s) (${summary.total} cuentan: ${summary.pending} pendiente(s), ` +
+            `${summary.done} finalizada(s); ${summary.containers} contenedor(es) con subtareas).`,
+          { tasks: summarized, summary },
+        );
       } catch (err) {
         return toToolErrorResult(err);
       }
@@ -287,33 +371,49 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
     "task.update",
     {
       title: "Actualizar tarea",
-      description: "Reemplaza el texto de una tarea; re-resuelve sus etiquetas inline.",
+      description:
+        "Reemplaza el texto completo de una tarea; re-resuelve sus etiquetas inline. Para mover la tarea a " +
+        "otro sector reescribí el texto con el #sector nuevo: los #sector del texto son `execSectorIds` y " +
+        "reemplazan a los anteriores (`homeSectorId` solo existe en tareas sueltas sin proyecto y no cambia). " +
+        "Para cambiar solo un fragmento usá task.replaceText.",
       inputSchema: taskUpdateInputShape,
     },
     async ({ taskId, text }) => {
       try {
         const existing = await getTaskOrThrow(taskId);
-        if (!canToggle(ctx.userContext, await toTaskRef(existing))) throw forbidden();
+        const task = await editTaskText(existing, text, "task.update");
+        return toolSuccess(`Tarea "${task.displayText}" actualizada.`, await summarizeTaskWithLabels(task));
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
 
-        const adopt = existing.originType === "SECTOR" && existing.adoptedAt === null;
-        const task = await saveTask(ctx.userContext, {
-          rawText: text,
-          taskId,
-          contextWorkId: existing.workId ?? undefined,
-          contextSectorId: existing.sectorId ?? undefined,
-          editMeta: { lastEditedById: ctx.userId, adopt },
-        });
-
-        await logMcpActivity({
-          connectionId: ctx.connectionId,
-          userId: ctx.userId,
-          toolName: "task.update",
-          targetType: "Task",
-          targetId: task.id,
-          workId: task.workId ?? undefined,
-          summary: `El asistente de IA editó la tarea "${task.displayText}".`,
-        });
-
+  server.registerTool(
+    "task.replaceText",
+    {
+      title: "Reemplazar fragmento del texto de una tarea",
+      description:
+        "Edición parcial: reemplaza `find` por `replace` dentro del texto original de la tarea (con sus " +
+        "etiquetas inline) sin reenviarlo completo. `find` debe aparecer exactamente una vez; si aparece " +
+        "0 o más de 1 veces falla sin cambiar nada. El texto resultante se re-parsea igual que en task.update.",
+      inputSchema: taskReplaceTextInputShape,
+    },
+    async ({ taskId, find, replace }) => {
+      try {
+        const existing = await getTaskOrThrow(taskId);
+        const occurrences = existing.rawText.split(find).length - 1;
+        if (occurrences !== 1) {
+          throw badRequest(
+            occurrences === 0
+              ? `El fragmento no aparece en el texto de la tarea: "${existing.rawText}"`
+              : `El fragmento aparece ${occurrences} veces; hacelo más específico`,
+          );
+        }
+        // Función de reemplazo: evita que `$&`, `$1`, etc. se interpreten.
+        const next = existing.rawText.replace(find, () => replace).trim();
+        if (!next) throw badRequest("El texto resultante quedaría vacío");
+        const task = await editTaskText(existing, next, "task.replaceText");
         return toolSuccess(`Tarea "${task.displayText}" actualizada.`, await summarizeTaskWithLabels(task));
       } catch (err) {
         return toToolErrorResult(err);
