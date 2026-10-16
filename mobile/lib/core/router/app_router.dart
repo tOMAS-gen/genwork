@@ -16,7 +16,6 @@ import '../../features/groups/group_detail_screen.dart';
 import '../../features/groups/group_clients_screen.dart';
 import '../../features/groups/group_labels_screen.dart';
 import '../../features/account/more_screen.dart';
-import '../../features/auth/login_screen.dart';
 import '../../features/my_day/my_day_screen.dart';
 import '../../features/notes/note_detail_screen.dart';
 import '../../features/notes/notes_list_screen.dart';
@@ -25,6 +24,7 @@ import '../../features/reminders/reminders_screen.dart';
 import '../../features/sectors/sector_detail_screen.dart';
 import '../../features/sectors/sectors_list_screen.dart';
 import '../../features/setup/server_setup_screen.dart';
+import '../../features/setup/servers_screen.dart';
 import '../../features/shell/home_shell.dart';
 import '../../features/shell/splash_screen.dart';
 import '../../features/works/work_detail_screen.dart';
@@ -67,7 +67,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
       GoRoute(path: Routes.setup, builder: (_, _) => const ServerSetupScreen()),
-      GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: Routes.addServer,
+        builder: (_, _) => const ServerSetupScreen(canGoBack: true),
+      ),
+      GoRoute(path: Routes.servers, builder: (_, _) => const ServersScreen()),
       ShellRoute(
         builder: (_, _, child) => RoleShell(child: child),
         routes: [

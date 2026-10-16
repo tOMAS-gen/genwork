@@ -206,7 +206,7 @@ void main() {
   test('destinos por rol y límites de navegación', () {
     expect(authRedirect(session('CLIENT'), '/works/w'), Routes.portal);
     expect(authRedirect(session('CLIENT'), '/portal/works/w'), isNull);
-    expect(authRedirect(session('READER'), '/login'), Routes.tv);
+    expect(authRedirect(session('READER'), Routes.setup), Routes.tv);
     expect(authRedirect(session('READER'), '/more/settings'), Routes.tv);
     expect(authRedirect(session('MEMBER'), '/portal'), Routes.myDay);
     expect(authRedirect(session('SUPERADMIN'), '/works/w'), isNull);

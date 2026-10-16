@@ -127,16 +127,17 @@ class EmptyView extends StatelessWidget {
 
 /// Muestra un SnackBar (con el estilo del tema) con el error de una acción.
 void showErrorSnack(BuildContext context, Object error) {
-  final c = context.colors;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          Icon(AppIcons.error, size: AppIconSizes.action, color: c.danger),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text(errorMessage(error))),
-        ],
-      ),
-    ),
-  );
+  ScaffoldMessenger.of(context).showSnackBar(errorSnackBar(context.colors, error));
 }
+
+/// El SnackBar de [showErrorSnack], para mostrarlo con un `ScaffoldMessenger`
+/// guardado antes (cuando la pantalla que falló ya no está montada).
+SnackBar errorSnackBar(GenColors c, Object error) => SnackBar(
+  content: Row(
+    children: [
+      Icon(AppIcons.error, size: AppIconSizes.action, color: c.danger),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(child: Text(errorMessage(error))),
+    ],
+  ),
+);

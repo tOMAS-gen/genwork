@@ -5,14 +5,42 @@ Reglas para agentes: [`AGENTS.md`](AGENTS.md).
 
 ## Cómo funciona el ingreso
 
-1. **Primer inicio**: la app pide la URL del sistema (ej. `work.gen.net.ar`). La
-   valida contra `GET /api/auth/mobile/info` y la guarda.
-2. **Ingresar con Google**: abre el login web del servidor en el navegador del
-   sistema. Al ingresar, el servidor vuelve a la app con `genwork://auth?code=…`
-   y la app canjea ese código (PKCE) por un token propio, guardado en el
-   Keychain / Keystore.
-3. **Cerrar sesión** revoca el token en el servidor. "Cambiar servidor", en el
-   login, vuelve al paso 1.
+No hay pantalla de login propia: el ingreso es siempre el login web del
+servidor, abierto en el navegador del sistema.
+
+1. **Vincular el servidor**: en la web, **Configuración › App móvil** muestra un
+   QR con la dirección del sistema (sin credenciales). La app lo escanea en el
+   primer inicio (debajo del visor está «Escribir dirección a mano»), lo valida
+   contra `GET /api/auth/mobile/info` y lo guarda en el acto. El QR también abre
+   la app si se lee con la cámara del teléfono (`genwork://connect?server=…`,
+   siempre con confirmación).
+2. **Ingresar**: al vincular o elegir un servidor sin sesión se abre directo el
+   login web de ese servidor (Google + lista de acceso) en el navegador. Al
+   ingresar, el servidor vuelve a la app con `genwork://auth?code=…` y la app
+   canjea ese código (PKCE) por un token propio, guardado en el Keychain /
+   Keystore, y entra a Mi día. Si se cierra el navegador o el login falla (con
+   un aviso), el servidor queda guardado «Sin sesión» en la lista de servidores.
+   El login del navegador **no deja una sesión web abierta**: apenas el servidor
+   emite el código cierra la sesión web de ese navegador, así que «Cerrar sesión»
+   en la app deja todo cerrado. Cada ingreso desde la app es una autenticación
+   nueva: si ese navegador tenía una sesión web previa del servidor, **se
+   descarta** (no se reutiliza) y se vuelve a pedir el login.
+3. **Lista de servidores** (drawer › «Cambiar de servidor», o **Mi cuenta ›
+   Servidores**): muestra cada sistema vinculado con su estado («Sesión
+   iniciada · email» o «Sin sesión») y marca el activo. Tocar uno con sesión
+   entra sin volver a ingresar; uno sin sesión abre su login en el navegador.
+   Cada servidor tiene su propia sesión, así que puede haber varios iniciados a
+   la vez. «Agregar servidor» pide otro QR; quitar uno cierra su sesión y lo
+   olvida.
+4. **Sin sesión** la app cae en la lista de servidores. Al arrancar sin token, o
+   si el servidor rechaza el token (401), el login del servidor activo se abre
+   solo una vez (salvo un 401 dentro de los 30 s siguientes a ingresar, para no
+   entrar en bucle). **Cerrar sesión** revoca el token solo del servidor activo
+   y lleva a la lista sin abrir el navegador.
+
+Variables del servidor relacionadas: `NEXTAUTH_URL` (o `AUTH_URL`) debe ser la
+dirección pública del sistema, porque es la que lleva el QR. `SYSTEM_NAME` es
+opcional: nombre que muestra la app para el servidor (por defecto, el host).
 
 La app admite administrador, miembro, cliente y lector. Cada rol conserva los
 permisos de la web: los clientes entran al portal y los lectores al tablero de

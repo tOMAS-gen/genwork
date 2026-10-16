@@ -207,6 +207,7 @@ Future<void> _pump(
       overrides: [
         richEditorBuilderProvider.overrideWithValue(fakeRichEditor),
         sessionProvider.overrideWith(_TestSession.new),
+        serverListProvider.overrideWithValue(const []),
         if (notesRepository != null)
           notesRepositoryProvider.overrideWithValue(notesRepository),
         liveRefresherProvider.overrideWith((ref) {}),

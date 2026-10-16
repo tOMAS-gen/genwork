@@ -21,17 +21,22 @@ class MemoryStore implements TokenStore {
   );
   int writes = 0;
   @override
-  Future<StoredSession?> read() async => value;
+  Future<StoredSession?> read(String profileId) async => value;
   @override
-  Future<void> write(StoredSession session) async {
+  Future<void> write(String profileId, StoredSession session) async {
     value = session;
     writes++;
   }
 
   @override
-  Future<void> clear() async {
+  Future<void> clear(String profileId) async {
     value = null;
   }
+
+  @override
+  Future<void> adoptLegacy(String profileId) async {}
+  @override
+  Future<void> discardLegacy() async {}
 }
 
 void main() {
@@ -115,7 +120,7 @@ void main() {
       });
       final pending = c.read(sessionProvider.notifier).refreshUser();
       await started.future;
-      await c.read(sessionProvider.notifier).handleUnauthorized();
+      await c.read(sessionProvider.notifier).handleUnauthorized('test');
       gate.complete({
         'id': 'u',
         'name': 'Persona',

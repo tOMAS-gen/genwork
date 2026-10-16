@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/auth/session.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_icons.dart';
@@ -47,8 +48,13 @@ class _RoleShellState extends ConsumerState<RoleShell> {
 
   @override
   Widget build(BuildContext context) {
+    final session = ref.watch(sessionProvider).value;
+    // Sin sesión (transición a /servers tras cerrar sesión o un 401) no se lee
+    // nada que dependa de `apiClientProvider`, que falla a propósito sin sesión.
+    if (session is! SignedIn) return const SizedBox.shrink();
     ref.watch(liveRefresherProvider);
     final user = ref.watch(currentUserProvider);
+    final serverHost = session.serverUrl.host;
     final home = user?.isClient == true ? Routes.portal : Routes.tv;
     final location = GoRouterState.of(context).uri.path;
     void go(String path) {
@@ -92,6 +98,17 @@ class _RoleShellState extends ConsumerState<RoleShell> {
                   title: const Text('Mi cuenta'),
                   selected: location == '$home/account',
                   onTap: () => go('$home/account'),
+                ),
+                ListTile(
+                  key: const ValueKey('drawer_switch_server'),
+                  leading: const Icon(AppIcons.server),
+                  title: const Text('Cambiar de servidor'),
+                  subtitle: Text(serverHost),
+                  onTap: () {
+                    // Abre la lista sin cerrar la sesión de este servidor.
+                    _key.currentState?.closeDrawer();
+                    context.push(Routes.servers);
+                  },
                 ),
                 const LogoutTile(actionKey: 'role_logout'),
               ],

@@ -4,20 +4,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/app.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/providers.dart';
+import 'package:genwork_mobile/data/repositories/auth_repository.dart';
+import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
+import 'package:genwork_mobile/features/setup/servers_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Sin navegador real: el login automático se cancela.
+class _NoBrowserAuth extends AuthRepository {
+  _NoBrowserAuth(Uri url) : super(serverUrl: url);
+  @override
+  Future<StoredSession> login() async => throw const LoginCancelled();
+}
+
 class _MemoryTokenStore implements TokenStore {
-  StoredSession? session;
+  final Map<String, StoredSession> sessions = {};
 
   @override
-  Future<void> clear() async => session = null;
+  Future<void> clear(String id) async => sessions.remove(id);
 
   @override
-  Future<StoredSession?> read() async => session;
+  Future<StoredSession?> read(String id) async => sessions[id];
 
   @override
-  Future<void> write(StoredSession s) async => session = s;
+  Future<void> write(String id, StoredSession s) async => sessions[id] = s;
+
+  @override
+  Future<void> adoptLegacy(String id) async {}
+  @override
+  Future<void> discardLegacy() async {}
 }
 
 Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
@@ -36,6 +51,10 @@ Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(instance),
         tokenStoreProvider.overrideWithValue(_MemoryTokenStore()),
+        authRepositoryProvider.overrideWith((ref, url) => _NoBrowserAuth(url)),
+        qrScannerBuilderProvider.overrideWithValue(
+          (context, onCode) => const SizedBox(key: ValueKey('setup_scanner')),
+        ),
       ],
       child: const GenworkApp(),
     ),
@@ -44,15 +63,18 @@ Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
 }
 
 void main() {
-  testWidgets('primer inicio pide la URL del sistema', (tester) async {
+  testWidgets('primer inicio ofrece escribir la URL a mano', (tester) async {
     await _pump(tester, {});
+    await tester.tap(find.byKey(const ValueKey('setup_manual_toggle')));
+    await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('setup_url_field')), findsOneWidget);
     expect(find.text('Continuar'), findsOneWidget);
   });
 
-  testWidgets('con URL guardada y sin sesión muestra el login', (tester) async {
+  testWidgets('con URL guardada y sin sesión muestra la lista de servidores', (tester) async {
     await _pump(tester, {'server_url': 'https://work.test'});
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
-    expect(find.text('work.test'), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(find.text('https://work.test'), findsOneWidget);
+    expect(find.text('Sin sesión'), findsOneWidget);
   });
 }

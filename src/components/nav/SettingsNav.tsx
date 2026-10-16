@@ -7,6 +7,7 @@ import { RouteTabs } from "@gen/ui";
 const ACCOUNT_ITEMS = [
   ["/settings", "Mi cuenta"],
   ["/settings/claude", "Vincular con Claude"],
+  ["/settings/movil", "App móvil"],
 ] as const;
 
 /** Secciones de todo el sistema: sólo para SUPERADMIN (guardadas por admin/layout). */

@@ -4,12 +4,20 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../data/models/app_user.dart';
 
-/// Token Bearer de la app y el usuario con el que se emitió, en el almacenamiento
-/// seguro del sistema (Keychain / Keystore).
+/// Token Bearer de la app y el usuario con el que se emitió, **uno por servidor
+/// guardado** (`profileId`), en el almacenamiento seguro del sistema (Keychain /
+/// Keystore).
 abstract class TokenStore {
-  Future<StoredSession?> read();
-  Future<void> write(StoredSession session);
-  Future<void> clear();
+  Future<StoredSession?> read(String profileId);
+  Future<void> write(String profileId, StoredSession session);
+  Future<void> clear(String profileId);
+
+  /// Versiones anteriores guardaban un único token global. Lo mueve al perfil
+  /// indicado y borra el viejo; si no hay nada, no hace nada.
+  Future<void> adoptLegacy(String profileId);
+
+  /// Borra el token global viejo sin adoptarlo (su servidor ya no se conoce).
+  Future<void> discardLegacy();
 }
 
 class StoredSession {
@@ -26,10 +34,10 @@ class SecureTokenStore implements TokenStore {
   static const _userKey = 'auth_user';
   final FlutterSecureStorage _storage;
 
-  @override
-  Future<StoredSession?> read() async {
-    final token = await _storage.read(key: _tokenKey);
-    final user = await _storage.read(key: _userKey);
+  String _t(String id) => '$_tokenKey:$id';
+  String _u(String id) => '$_userKey:$id';
+
+  StoredSession? _decode(String? token, String? user) {
     if (token == null || user == null) return null;
     try {
       return StoredSession(
@@ -42,13 +50,37 @@ class SecureTokenStore implements TokenStore {
   }
 
   @override
-  Future<void> write(StoredSession session) async {
-    await _storage.write(key: _tokenKey, value: session.token);
-    await _storage.write(key: _userKey, value: jsonEncode(session.user.toJson()));
+  Future<StoredSession?> read(String profileId) async => _decode(
+        await _storage.read(key: _t(profileId)),
+        await _storage.read(key: _u(profileId)),
+      );
+
+  @override
+  Future<void> write(String profileId, StoredSession session) async {
+    await _storage.write(key: _t(profileId), value: session.token);
+    await _storage.write(key: _u(profileId), value: jsonEncode(session.user.toJson()));
   }
 
   @override
-  Future<void> clear() async {
+  Future<void> clear(String profileId) async {
+    await _storage.delete(key: _t(profileId));
+    await _storage.delete(key: _u(profileId));
+  }
+
+  @override
+  Future<void> adoptLegacy(String profileId) async {
+    final token = await _storage.read(key: _tokenKey);
+    final user = await _storage.read(key: _userKey);
+    if (token != null && user != null && await read(profileId) == null) {
+      await _storage.write(key: _t(profileId), value: token);
+      await _storage.write(key: _u(profileId), value: user);
+    }
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _userKey);
+  }
+
+  @override
+  Future<void> discardLegacy() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
   }

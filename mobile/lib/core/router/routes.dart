@@ -4,7 +4,11 @@ import '../../features/works/works_filter.dart';
 abstract final class Routes {
   static const splash = '/splash';
   static const setup = '/setup';
-  static const login = '/login';
+
+  /// Servidores guardados (cambiar/quitar) y alta de uno nuevo por QR.
+  static const servers = '/servers';
+  static const addServer = '/servers/add';
+
   static const portal = '/portal';
   static const tv = '/tv';
   static String portalWork(String id) => '$portal/works/$id';

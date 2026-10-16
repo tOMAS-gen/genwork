@@ -12,26 +12,23 @@ import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
-import 'package:genwork_mobile/features/auth/login_screen.dart';
+import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
 import 'package:genwork_mobile/features/setup/server_setup_screen.dart';
 import 'package:genwork_mobile/shared/widgets/app_inline_notice.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:genwork_mobile/shared/widgets/workspace_panel.dart';
 
 class _SignedOutSession extends SessionController {
-  _SignedOutSession({this.failLogin = false, this.failSetServer = false});
-  final bool failLogin, failSetServer;
+  _SignedOutSession({this.failSetServer = false});
+  final bool failSetServer;
   @override
   Future<SessionState> build() async =>
       SignedOut(Uri.parse('https://work.empresa.com'));
-  @override
-  Future<void> login() async {
-    if (failLogin) throw StateError('x');
-  }
 
   @override
-  Future<void> setServer(String input) async {
+  Future<ConnectResult> connect(String input, {VoidCallback? onBrowser}) async {
     if (failSetServer) throw StateError('x');
+    return ConnectResult.cancelled;
   }
 }
 
@@ -50,6 +47,9 @@ Future<void> _mount(
     ProviderScope(
       overrides: [
         sessionProvider.overrideWith(session ?? _SignedOutSession.new),
+        qrScannerBuilderProvider.overrideWithValue(
+          (context, onCode) => const SizedBox(key: ValueKey('setup_scanner')),
+        ),
       ],
       child: MaterialApp(
         theme: dark ? AppTheme.dark() : AppTheme.light(),
@@ -94,10 +94,10 @@ void main() {
 
   for (final dark in [false, true]) {
     final tema = dark ? 'oscuro' : 'claro';
-    testWidgets('login igual a la web: card, marca 24 y bajada ($tema)', (
+    testWidgets('setup igual a la web: card, marca 24 y bajada ($tema)', (
       t,
     ) async {
-      await _mount(t, const LoginScreen(), dark: dark);
+      await _mount(t, const ServerSetupScreen(), dark: dark);
       final c = dark ? GenColors.dark : GenColors.light;
       // Card de la web: surface, borde 1, radio 8, padding 16 en página de 24.
       final panel = find.byType(WorkspacePanel);
@@ -123,17 +123,12 @@ void main() {
       );
       expect(tagline.style!.fontSize, 13);
       expect(tagline.style!.color, c.muted);
-      // Botón primario a todo el ancho, ≥ 47 de alto.
-      final button = find.byKey(const ValueKey('login_google'));
-      expect(t.getSize(button).width, 390 - 24 * 2 - 16 * 2);
-      expect(t.getSize(button).height, greaterThanOrEqualTo(47));
-      expect(find.text('Cambiar servidor'), findsOneWidget);
-      expect(find.text('work.empresa.com'), findsOneWidget);
-      await _capture(t, 'login-${dark ? 'dark' : 'light'}');
     });
 
     testWidgets('setup con la misma card ($tema)', (t) async {
       await _mount(t, const ServerSetupScreen(), dark: dark);
+      await t.tap(find.byKey(const ValueKey('setup_manual_toggle')));
+      await t.pumpAndSettle();
       expect(find.byType(WorkspacePanel), findsOneWidget);
       expect(find.byType(BrandName), findsOneWidget);
       expect(find.byKey(const ValueKey('setup_url_field')), findsOneWidget);
@@ -144,8 +139,8 @@ void main() {
     for (final scale in [1.0, 1.5]) {
       testWidgets('sin overflow a 360 dp y $scale× ($tema)', (t) async {
         for (final screen in <Widget>[
-          const LoginScreen(),
           const ServerSetupScreen(),
+          const ServerSetupScreen(canGoBack: true),
         ]) {
           await _mount(t, screen, dark: dark, scale: scale, width: 360);
           expect(t.takeException(), isNull, reason: '${screen.runtimeType}');
@@ -153,25 +148,6 @@ void main() {
       });
     }
   }
-
-  testWidgets('login: el error se muestra con AppInlineNotice.error', (
-    t,
-  ) async {
-    await _mount(
-      t,
-      const LoginScreen(),
-      session: () => _SignedOutSession(failLogin: true),
-    );
-    await t.tap(find.byKey(const ValueKey('login_google')));
-    await t.pumpAndSettle();
-    final notice = t.widget<AppInlineNotice>(find.byType(AppInlineNotice));
-    expect(notice.tone, AppInlineNoticeTone.error);
-    expect(
-      find.text('Ocurrió un error inesperado. Probá de nuevo.'),
-      findsOneWidget,
-    );
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
-  });
 
   testWidgets('setup: el error se muestra con AppInlineNotice.error', (
     t,
@@ -181,6 +157,8 @@ void main() {
       const ServerSetupScreen(),
       session: () => _SignedOutSession(failSetServer: true),
     );
+    await t.tap(find.byKey(const ValueKey('setup_manual_toggle')));
+    await t.pumpAndSettle();
     await t.enterText(
       find.byKey(const ValueKey('setup_url_field')),
       'mal.dominio',
@@ -193,7 +171,7 @@ void main() {
   testWidgets('el contenido se acota a 480 de ancho en pantallas anchas', (
     t,
   ) async {
-    await _mount(t, const LoginScreen(), width: 900);
+    await _mount(t, const ServerSetupScreen(), width: 900);
     expect(
       t.getSize(find.byType(WorkspacePanel)).width,
       lessThanOrEqualTo(480),

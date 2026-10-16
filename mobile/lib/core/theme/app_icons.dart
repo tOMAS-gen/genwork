@@ -27,6 +27,9 @@ abstract final class AppIconSizes {
 }
 
 abstract final class AppIcons {
+  static const qrScanner = Icons.qr_code_scanner_outlined;
+  static const keyboard = Icons.keyboard_outlined;
+
   /// Reintentar / recargar
   static const retry = Icons.refresh_outlined;
   static const themeSystem = Icons.computer_outlined;
