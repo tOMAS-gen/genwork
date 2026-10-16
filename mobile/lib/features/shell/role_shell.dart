@@ -48,10 +48,13 @@ class _RoleShellState extends ConsumerState<RoleShell> {
 
   @override
   Widget build(BuildContext context) {
+    final session = ref.watch(sessionProvider).value;
+    // Sin sesión (transición a /servers tras cerrar sesión o un 401) no se lee
+    // nada que dependa de `apiClientProvider`, que falla a propósito sin sesión.
+    if (session is! SignedIn) return const SizedBox.shrink();
     ref.watch(liveRefresherProvider);
     final user = ref.watch(currentUserProvider);
-    final session = ref.watch(sessionProvider).value;
-    final serverHost = session is SignedIn ? session.serverUrl.host : null;
+    final serverHost = session.serverUrl.host;
     final home = user?.isClient == true ? Routes.portal : Routes.tv;
     final location = GoRouterState.of(context).uri.path;
     void go(String path) {
@@ -100,7 +103,7 @@ class _RoleShellState extends ConsumerState<RoleShell> {
                   key: const ValueKey('drawer_switch_server'),
                   leading: const Icon(AppIcons.server),
                   title: const Text('Cambiar de servidor'),
-                  subtitle: Text(serverHost ?? ''),
+                  subtitle: Text(serverHost),
                   onTap: () {
                     // Abre la lista sin cerrar la sesión de este servidor.
                     _key.currentState?.closeDrawer();

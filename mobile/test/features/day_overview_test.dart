@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:genwork_mobile/core/auth/session.dart';
 import 'package:genwork_mobile/core/auth/session_controller.dart';
+import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/network/api_client.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/router/app_router.dart';
@@ -201,6 +203,35 @@ class Fixture {
   }
 }
 
+class _NoTokens implements TokenStore {
+  @override
+  Future<StoredSession?> read(String id) async => null;
+  @override
+  Future<void> write(String id, StoredSession s) async {}
+  @override
+  Future<void> clear(String id) async {}
+  @override
+  Future<void> adoptLegacy(String id) async {}
+  @override
+  Future<void> discardLegacy() async {}
+}
+
+/// Corre [body] juntando los errores que Flutter reporta (la pantalla roja de
+/// debug se arma con ellos) y los devuelve.
+Future<List<FlutterErrorDetails>> captureFlutterErrors(
+  Future<void> Function() body,
+) async {
+  final errors = <FlutterErrorDetails>[];
+  final previous = FlutterError.onError;
+  FlutterError.onError = errors.add;
+  try {
+    await body();
+  } finally {
+    FlutterError.onError = previous;
+  }
+  return errors;
+}
+
 class TestSession extends SessionController {
   TestSession(this.f);
   final Fixture f;
@@ -225,18 +256,38 @@ Future<({GoRouter router, ProviderContainer container})> mount(
   String path = '/board',
   bool dark = false,
   double scale = 1,
+  bool realSessionGuards = false,
 }) async {
   t.view.physicalSize = const Size(360, 800);
   t.view.devicePixelRatio = 1;
   addTearDown(t.view.resetPhysicalSize);
   addTearDown(t.view.resetDevicePixelRatio);
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final c = ProviderContainer(
     retry: (_, _) => null,
     overrides: [
       sessionProvider.overrideWith(() => TestSession(f)),
-      apiClientProvider.overrideWithValue(f.api),
-      liveEventsProvider.overrideWithValue(f.events.stream),
+      if (realSessionGuards) ...[
+        // Como en producción: sin sesión, el cliente HTTP (y lo que dependa de
+        // él) falla.
+        apiClientProvider.overrideWith((ref) {
+          if (ref.watch(sessionProvider).value is! SignedIn) {
+            throw StateError('apiClientProvider sin sesión');
+          }
+          return f.api;
+        }),
+        liveEventsProvider.overrideWith((ref) {
+          ref.watch(apiClientProvider);
+          return f.events.stream;
+        }),
+      ] else ...[
+        apiClientProvider.overrideWithValue(f.api),
+        liveEventsProvider.overrideWithValue(f.events.stream),
+      ],
       serverListProvider.overrideWithValue(const []),
+      sharedPreferencesProvider.overrideWithValue(prefs),
+      tokenStoreProvider.overrideWithValue(_NoTokens()),
     ],
   );
   addTearDown(c.dispose);
@@ -684,6 +735,39 @@ void main() {
       expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
     },
   );
+  testWidgets('cerrar sesión con el shell montado no rompe (sin pantalla roja)', (
+    t,
+  ) async {
+    final f = Fixture();
+    final app = await mount(t, f, path: Routes.myDay, realSessionGuards: true);
+    final errors = await captureFlutterErrors(() async {
+      await drawer(t, 'nav_logout');
+      await t.pumpAndSettle();
+    });
+    expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+    expect(t.takeException(), isNull);
+    expect(app.container.read(sessionProvider).value, isA<SignedOut>());
+    expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
+  });
+
+  testWidgets('un 401 con el shell montado lleva a la lista sin pantalla roja', (
+    t,
+  ) async {
+    final f = Fixture();
+    final app = await mount(t, f, path: Routes.myDay, realSessionGuards: true);
+    final errors = await captureFlutterErrors(() async {
+      await app.container
+          .read(sessionProvider.notifier)
+          .handleUnauthorized('test');
+      await t.pump();
+      await t.pumpAndSettle();
+    });
+    expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+    expect(t.takeException(), isNull);
+    expect(app.container.read(sessionProvider).value, isA<SignedOut>());
+    expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
+  });
+
   for (final dark in [false, true]) {
     testWidgets('panorama, Mi día y Vence hoy 360dp / 1.5x tema $dark', (
       t,

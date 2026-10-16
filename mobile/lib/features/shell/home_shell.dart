@@ -56,6 +56,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     _deliveriesPoll = Timer.periodic(const Duration(minutes: 1), (_) {
       final lifecycle = WidgetsBinding.instance.lifecycleState;
       if ((lifecycle == null || lifecycle == AppLifecycleState.resumed) &&
+          ref.read(sessionProvider).value is SignedIn &&
           !ref.read(deliveriesProvider).isLoading) {
         ref.invalidate(deliveriesProvider);
         refreshUser();
@@ -90,10 +91,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final session = ref.watch(sessionProvider).value;
+    // Al cerrar sesión (o 401, o quitar el servidor activo) el shell sigue
+    // montado un frame durante la transición a /servers. Sin sesión no se lee
+    // nada que dependa de `apiClientProvider` (que falla a propósito sin
+    // sesión): ni el live, ni el drawer, ni las ramas, que así se liberan.
+    if (session is! SignedIn) return const SizedBox.shrink();
     ref.watch(liveRefresherProvider);
     final colors = context.colors;
-    final session = ref.watch(sessionProvider).value;
-    final user = session is SignedIn ? session.user : null;
+    final user = session.user;
     final uri = GoRouterState.of(context).uri;
     final path = uri.path;
     final worksView = WorksView.fromUri(uri);
@@ -183,58 +189,57 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                       ],
                     ),
                   ),
-                  if (user != null)
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Decorativo: el nombre se lee al lado.
-                          ExcludeSemantics(
-                            child: CircleAvatar(
-                              radius: AppSpacing.md,
-                              backgroundColor: colors.brand,
-                              foregroundColor: colors.onBrand,
-                              foregroundImage: user.image == null
-                                  ? null
-                                  : NetworkImage(user.image!),
-                              onForegroundImageError: user.image == null
-                                  ? null
-                                  : (_, _) {},
-                              child: Text(
-                                user.name.isEmpty
-                                    ? '?'
-                                    : user.name[0].toUpperCase(),
-                                style: AppTextStyles.supporting.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.onBrand,
-                                ),
+                  Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Decorativo: el nombre se lee al lado.
+                        ExcludeSemantics(
+                          child: CircleAvatar(
+                            radius: AppSpacing.md,
+                            backgroundColor: colors.brand,
+                            foregroundColor: colors.onBrand,
+                            foregroundImage: user.image == null
+                                ? null
+                                : NetworkImage(user.image!),
+                            onForegroundImageError: user.image == null
+                                ? null
+                                : (_, _) {},
+                            child: Text(
+                              user.name.isEmpty
+                                  ? '?'
+                                  : user.name[0].toUpperCase(),
+                              style: AppTextStyles.supporting.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colors.onBrand,
                               ),
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.sm),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.name,
-                                  style: AppTextStyles.itemTitle.copyWith(
-                                    color: colors.text,
-                                  ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                user.name,
+                                style: AppTextStyles.itemTitle.copyWith(
+                                  color: colors.text,
                                 ),
-                                Text(
-                                  user.email,
-                                  style: AppTextStyles.supporting.copyWith(
-                                    color: colors.muted,
-                                  ),
+                              ),
+                              Text(
+                                user.email,
+                                style: AppTextStyles.supporting.copyWith(
+                                  color: colors.muted,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
+                  ),
                   const Divider(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(
@@ -417,27 +422,25 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                       _route(Routes.dueToday);
                     },
                   ),
-                  if (session is SignedIn)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                        vertical: AppSpacing.hairline,
-                      ),
-                      // Abre la lista sin cerrar la sesión de este servidor.
-                      child: DrawerTile(
-                        id: 'drawer_switch_server',
-                        icon: AppIcons.server,
-                        label: 'Cambiar de servidor',
-                        subtitle: session.serverUrl.host,
-                        selected: false,
-                        onTap: () {
-                          _closeDrawer();
-                          context.push(Routes.servers);
-                        },
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xs,
+                      vertical: AppSpacing.hairline,
                     ),
-                  if (session is SignedIn)
-                    const LogoutTile(actionKey: 'nav_logout'),
+                    // Abre la lista sin cerrar la sesión de este servidor.
+                    child: DrawerTile(
+                      id: 'drawer_switch_server',
+                      icon: AppIcons.server,
+                      label: 'Cambiar de servidor',
+                      subtitle: session.serverUrl.host,
+                      selected: false,
+                      onTap: () {
+                        _closeDrawer();
+                        context.push(Routes.servers);
+                      },
+                    ),
+                  ),
+                  const LogoutTile(actionKey: 'nav_logout'),
                 ],
               ),
             ),
