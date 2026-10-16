@@ -19,13 +19,23 @@ void main() {
     expect(authRedirect(const NeedsServer(), Routes.setup), isNull);
   });
 
-  test('sin sesión → login', () {
-    expect(authRedirect(SignedOut(server), Routes.works), Routes.login);
-    expect(authRedirect(SignedOut(server), Routes.login), isNull);
+  test('sin sesión → lista de servidores (no hay pantalla de login nativa)', () {
+    expect(authRedirect(SignedOut(server), Routes.works), Routes.servers);
+    expect(authRedirect(SignedOut(server), Routes.splash), Routes.servers);
+    expect(authRedirect(SignedOut(server), Routes.setup), Routes.servers);
+    expect(authRedirect(SignedOut(server), '/login'), Routes.servers);
+    expect(authRedirect(SignedOut(server), Routes.servers), isNull);
+  });
+
+  test('rol desconocido con sesión → lista de servidores', () {
+    const unknown = AppUser(id: 'x', email: 'x@b.c', name: 'X', role: GlobalRole.unknown, roleRaw: 'RARO');
+    final s = SignedIn(serverUrl: server, token: 't', user: unknown);
+    expect(authRedirect(s, Routes.myDay), Routes.servers);
+    expect(authRedirect(s, Routes.servers), isNull);
   });
 
   test('con sesión sale de las pantallas públicas y no toca el resto', () {
-    expect(authRedirect(signedIn, Routes.login), Routes.myDay);
+    expect(authRedirect(signedIn, Routes.setup), Routes.myDay);
     expect(authRedirect(signedIn, Routes.splash), Routes.myDay);
     expect(authRedirect(signedIn, Routes.work('w1')), isNull);
   });

@@ -16,7 +16,6 @@ import '../../features/groups/group_detail_screen.dart';
 import '../../features/groups/group_clients_screen.dart';
 import '../../features/groups/group_labels_screen.dart';
 import '../../features/account/more_screen.dart';
-import '../../features/auth/login_screen.dart';
 import '../../features/my_day/my_day_screen.dart';
 import '../../features/notes/note_detail_screen.dart';
 import '../../features/notes/notes_list_screen.dart';
@@ -73,7 +72,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const ServerSetupScreen(canGoBack: true),
       ),
       GoRoute(path: Routes.servers, builder: (_, _) => const ServersScreen()),
-      GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       ShellRoute(
         builder: (_, _, child) => RoleShell(child: child),
         routes: [

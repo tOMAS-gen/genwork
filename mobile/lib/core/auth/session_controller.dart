@@ -15,6 +15,9 @@ import 'token_store.dart';
 /// rechazando tokens recién emitidos: no se vuelve a abrir el navegador solo.
 const kFreshLoginWindow = Duration(seconds: 30);
 
+/// Resultado de entrar a un servidor: con sesión, o el usuario cerró el navegador.
+enum ConnectResult { signedIn, cancelled }
+
 /// Dueño del ciclo servidor → login → sesión, con **varios servidores
 /// guardados**: uno activo a la vez, cada uno con su propio token. Las pantallas
 /// solo llaman a estos métodos; el router redirige según el estado.
@@ -41,17 +44,27 @@ class SessionController extends AsyncNotifier<SessionState> {
     return _stateFor(active, autoLogin: true);
   }
 
-  Future<SessionState> _stateFor(ServerProfile profile, {bool autoLogin = false}) async {
+  Future<SessionState> _stateFor(
+    ServerProfile profile, {
+    bool autoLogin = false,
+  }) async {
     final stored = await ref.read(tokenStoreProvider).read(profile.id);
     if (stored == null) return SignedOut(profile.url, autoLogin: autoLogin);
-    return SignedIn(serverUrl: profile.url, token: stored.token, user: stored.user);
+    return SignedIn(
+      serverUrl: profile.url,
+      token: stored.token,
+      user: stored.user,
+    );
   }
 
   String _idOf(Uri url) => ServerProfile.idFor(url);
 
-  /// Valida la URL contra `/api/auth/mobile/info`, la guarda (o actualiza si ya
-  /// estaba) y pasa a ese servidor. Lanza [ApiException] si no es un genwork.
-  Future<void> addServer(String input) async {
+  /// Valida la URL contra `/api/auth/mobile/info`, la guarda en el acto (o la
+  /// actualiza si ya estaba) y entra: con token guardado directo, sin token por
+  /// el login del navegador. Lanza [ApiException] si no es un genwork, o el error
+  /// del login (el servidor queda guardado igual). [onBrowser] avisa justo antes
+  /// de abrir el navegador.
+  Future<ConnectResult> connect(String input, {VoidCallback? onBrowser}) async {
     final url = normalizeServerUrl(input);
     if (url == null) {
       throw const ApiException(
@@ -60,15 +73,82 @@ class SessionController extends AsyncNotifier<SessionState> {
       );
     }
     final info = await ref.read(authRepositoryProvider(url)).checkServer();
-    final profile = await ref.read(serverRegistryProvider).upsert(url, name: info.name);
-    await _activate(profile, autoLogin: true);
+    final profile = await ref
+        .read(serverRegistryProvider)
+        .upsert(url, name: info.name);
+    ref.invalidate(serverListProvider);
+    return _enter(profile, onBrowser: onBrowser);
   }
 
-  /// Pasa a un servidor ya guardado: con token entra directo, sin token pide login.
-  Future<void> switchServer(String id) async {
+  /// Entra a un servidor ya guardado: con token directo, sin token por el
+  /// navegador. Mismos resultados y errores que [connect].
+  Future<ConnectResult> select(String id, {VoidCallback? onBrowser}) async {
     final profile = ref.read(serverRegistryProvider).byId(id);
-    if (profile == null) return;
-    await _activate(profile, autoLogin: true);
+    if (profile == null) return ConnectResult.cancelled;
+    return _enter(profile, onBrowser: onBrowser);
+  }
+
+  /// Login del navegador para el servidor activo sin sesión (arranque o 401,
+  /// tras [consumeAutoLogin]). Cancelar o fallar lo deja como estaba.
+  Future<ConnectResult> loginActive() async {
+    final current = state.value;
+    if (current is! SignedOut) return ConnectResult.cancelled;
+    final profile = ref
+        .read(serverRegistryProvider)
+        .byId(_idOf(current.serverUrl));
+    if (profile == null) return ConnectResult.cancelled;
+    return _enter(profile);
+  }
+
+  /// El login corre "en el lugar": el estado no cambia mientras el navegador
+  /// está abierto, así la pantalla que lo pidió sigue montada.
+  Future<ConnectResult> _enter(
+    ServerProfile profile, {
+    VoidCallback? onBrowser,
+  }) async {
+    final tokens = ref.read(tokenStoreProvider);
+    if (await tokens.read(profile.id) != null) {
+      await _activate(profile);
+      return ConnectResult.signedIn;
+    }
+    final before = state.value;
+    final StoredSession stored;
+    try {
+      onBrowser?.call();
+      stored = await ref.read(authRepositoryProvider(profile.url)).login();
+    } on LoginCancelled {
+      await _afterFailedLogin(profile, before);
+      return ConnectResult.cancelled;
+    } catch (_) {
+      await _afterFailedLogin(profile, before);
+      rethrow;
+    }
+    // El token queda en su perfil aunque mientras tanto haya cambiado el estado.
+    await tokens.write(profile.id, stored);
+    _lastLoginAt = ref.read(authClockProvider)();
+    if (!ref.mounted) return ConnectResult.signedIn;
+    ref.invalidate(serverListProvider);
+    if (!identical(state.value, before)) return ConnectResult.signedIn;
+    state = AsyncData(
+      SignedIn(serverUrl: profile.url, token: stored.token, user: stored.user),
+    );
+    await ref.read(serverRegistryProvider).setActive(profile.id);
+    return ConnectResult.signedIn;
+  }
+
+  /// Navegador cancelado o fallido: el servidor sigue guardado. Una sesión
+  /// iniciada en otro servidor no se toca; si no había, este queda activo y
+  /// sin sesión (sin login automático).
+  Future<void> _afterFailedLogin(
+    ServerProfile profile,
+    SessionState? before,
+  ) async {
+    if (!ref.mounted || !identical(state.value, before) || before is SignedIn) {
+      return;
+    }
+    state = AsyncData(SignedOut(profile.url));
+    await ref.read(serverRegistryProvider).setActive(profile.id);
+    if (ref.mounted) ref.invalidate(serverListProvider);
   }
 
   /// Olvida un servidor: borra su token local (y lo revoca en el servidor si hay
@@ -102,16 +182,17 @@ class SessionController extends AsyncNotifier<SessionState> {
     } catch (_) {}
   }
 
-  Future<void> _activate(ServerProfile profile, {bool autoLogin = false}) async {
+  Future<void> _activate(ServerProfile profile) async {
     await ref.read(serverRegistryProvider).setActive(profile.id);
     ref.invalidate(serverListProvider);
-    final next = await _stateFor(profile, autoLogin: autoLogin);
+    final next = await _stateFor(profile);
     if (!ref.mounted) return;
     state = AsyncData(next);
   }
 
-  /// Consume el pedido de login automático (una sola vez): devuelve true si el
-  /// estado era [SignedOut] con `autoLogin` y lo deja sin el flag.
+  /// Consume el pedido de login automático (una sola vez, arranque o 401):
+  /// devuelve true si el estado era [SignedOut] con `autoLogin` y lo deja sin el
+  /// flag. Después la lista de servidores llama a [loginActive].
   bool consumeAutoLogin() {
     final current = state.value;
     if (current is! SignedOut || !current.autoLogin) return false;
@@ -119,25 +200,12 @@ class SessionController extends AsyncNotifier<SessionState> {
     return true;
   }
 
-  /// Login con el navegador del sistema. Lanza [LoginCancelled] o [ApiException].
-  Future<void> login() async {
-    final current = state.value;
-    if (current is! SignedOut) return;
-    final stored = await ref.read(authRepositoryProvider(current.serverUrl)).login();
-    await ref.read(tokenStoreProvider).write(_idOf(current.serverUrl), stored);
-    // Si mientras tanto se cambió de servidor, el token queda guardado en su
-    // perfil pero no se pisa la sesión activa.
-    _lastLoginAt = ref.read(authClockProvider)();
-    if (!ref.mounted || !identical(state.value, current)) return;
-    state = AsyncData(
-      SignedIn(serverUrl: current.serverUrl, token: stored.token, user: stored.user),
-    );
-  }
-
   Future<void> logout() async {
     final current = state.value;
     if (current is! SignedIn) return;
-    await ref.read(authRepositoryProvider(current.serverUrl)).logout(current.token);
+    await ref
+        .read(authRepositoryProvider(current.serverUrl))
+        .logout(current.token);
     await ref.read(tokenStoreProvider).clear(_idOf(current.serverUrl));
     if (!ref.mounted || !identical(state.value, current)) return;
     state = AsyncData(SignedOut(current.serverUrl));
@@ -154,7 +222,8 @@ class SessionController extends AsyncNotifier<SessionState> {
     // el servidor rechace tokens recién emitidos (evita el bucle).
     final last = _lastLoginAt;
     final fresh =
-        last != null && ref.read(authClockProvider)().difference(last) < kFreshLoginWindow;
+        last != null &&
+        ref.read(authClockProvider)().difference(last) < kFreshLoginWindow;
     state = AsyncData(SignedOut(current.serverUrl, autoLogin: !fresh));
   }
 
@@ -187,7 +256,11 @@ class SessionController extends AsyncNotifier<SessionState> {
     await ref.read(tokenStoreProvider).write(_idOf(current.serverUrl), session);
     if (!ref.mounted || !identical(state.value, current)) return;
     state = AsyncData(
-      SignedIn(serverUrl: current.serverUrl, token: session.token, user: session.user),
+      SignedIn(
+        serverUrl: current.serverUrl,
+        token: session.token,
+        user: session.user,
+      ),
     );
   }
 }

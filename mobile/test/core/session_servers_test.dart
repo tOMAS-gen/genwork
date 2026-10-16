@@ -38,12 +38,17 @@ class MemoryTokenStore implements TokenStore {
   Future<void> discardLegacy() async => legacy = null;
 }
 
+/// Logins pedidos al navegador (falso) en el test actual.
+final _loginCalls = <Uri>[];
+
 class FakeAuthRepository extends AuthRepository {
   FakeAuthRepository(Uri url, {this.valid = true, this.onLogout, this.loginGate})
       : super(serverUrl: url);
   final bool valid;
   final Future<void> Function(String token)? onLogout;
-  final Future<StoredSession>? loginGate;
+
+  /// Resultado del login del navegador; sin él, el usuario lo cancela.
+  final Future<StoredSession> Function(Uri url)? loginGate;
   @override
   Future<ServerInfo> checkServer() async {
     if (!valid) {
@@ -56,7 +61,12 @@ class FakeAuthRepository extends AuthRepository {
   Future<void> logout(String token) async => onLogout?.call(token);
 
   @override
-  Future<StoredSession> login() => loginGate!;
+  Future<StoredSession> login() {
+    _loginCalls.add(serverUrl);
+    final gate = loginGate;
+    if (gate == null) return Future.error(const LoginCancelled());
+    return gate(serverUrl);
+  }
 }
 
 /// Registro cuyo `setActive` falla una vez: simula morir entre migrar y activar.
@@ -85,7 +95,7 @@ Future<(ProviderContainer, MemoryTokenStore)> _fixture({
   Set<String> invalidHosts = const {},
   StoredSession? legacy,
   Future<void> Function(String token)? onLogout,
-  Future<StoredSession>? loginGate,
+  Future<StoredSession> Function(Uri url)? loginGate,
   DateTime Function()? clock,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
@@ -109,6 +119,8 @@ Future<(ProviderContainer, MemoryTokenStore)> _fixture({
 }
 
 void main() {
+  setUp(_loginCalls.clear);
+
   test('sin perfiles → NeedsServer', () async {
     final (c, _) = await _fixture();
     expect(await c.read(sessionProvider.future), isA<NeedsServer>());
@@ -127,35 +139,36 @@ void main() {
     expect(store.legacy, isNull);
   });
 
-  test('addServer guarda con el nombre de /info, activa y queda SignedOut', () async {
+  test('connect guarda con el nombre de /info, activa y (login cancelado) queda SignedOut', () async {
     final (c, _) = await _fixture();
     await c.read(sessionProvider.future);
-    await c.read(sessionProvider.notifier).addServer('https://a.test');
+    await c.read(sessionProvider.notifier).connect('https://a.test');
     expect(c.read(sessionProvider).value, isA<SignedOut>());
     expect(c.read(serverListProvider).single.name, 'Sistema a.test');
   });
 
-  test('addServer con un servidor inválido no guarda nada', () async {
+  test('connect con un servidor inválido no guarda nada ni abre el navegador', () async {
     final (c, _) = await _fixture(invalidHosts: {'x.test'});
     await c.read(sessionProvider.future);
     await expectLater(
-      c.read(sessionProvider.notifier).addServer('https://x.test'),
+      c.read(sessionProvider.notifier).connect('https://x.test'),
       throwsA(isA<ApiException>()),
     );
     expect(c.read(serverListProvider), isEmpty);
     expect(c.read(sessionProvider).value, isA<NeedsServer>());
+    expect(_loginCalls, isEmpty);
   });
 
-  test('addServer del mismo servidor escrito distinto no duplica', () async {
+  test('connect del mismo servidor escrito distinto no duplica', () async {
     final (c, _) = await _fixture();
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('A.TEST/');
+    await n.connect('https://a.test');
+    await n.connect('A.TEST/');
     expect(c.read(serverListProvider), hasLength(1));
   });
 
-  test('switchServer cambia entre dos sesiones sin pedir login', () async {
+  test('select cambia entre dos sesiones sin pedir login', () async {
     final a = ServerProfile.idFor(Uri.parse('https://a.test'));
     final b = ServerProfile.idFor(Uri.parse('https://b.test'));
     final (c, store) = await _fixture();
@@ -163,23 +176,24 @@ void main() {
     store.byProfile[b] = _session('tb', 'ub');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test');
+    await n.connect('https://a.test');
+    await n.connect('https://b.test');
     expect((c.read(sessionProvider).value as SignedIn).token, 'tb');
 
-    await n.switchServer(a);
+    await n.select(a);
     final s = c.read(sessionProvider).value as SignedIn;
     expect(s.token, 'ta');
     expect(s.serverUrl, Uri.parse('https://a.test'));
+    expect(_loginCalls, isEmpty);
   });
 
-  test('switchServer a uno sin token queda SignedOut de ese servidor', () async {
+  test('select a uno sin token y login cancelado queda SignedOut de ese servidor', () async {
     final (c, _) = await _fixture();
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test');
-    await n.switchServer(ServerProfile.idFor(Uri.parse('https://a.test')));
+    await n.connect('https://a.test');
+    await n.connect('https://b.test');
+    await n.select(ServerProfile.idFor(Uri.parse('https://a.test')));
     final s = c.read(sessionProvider).value;
     expect(s, isA<SignedOut>());
     expect((s as SignedOut).serverUrl, Uri.parse('https://a.test'));
@@ -193,8 +207,8 @@ void main() {
     store.byProfile[b] = _session('tb', 'ub');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test');
+    await n.connect('https://a.test');
+    await n.connect('https://b.test');
     await n.logout();
     expect(store.byProfile.containsKey(b), isFalse);
     expect(store.byProfile.containsKey(a), isTrue);
@@ -209,8 +223,8 @@ void main() {
     store.byProfile[b] = _session('tb', 'ub');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test'); // activo = b
+    await n.connect('https://a.test');
+    await n.connect('https://b.test'); // activo = b
 
     await n.removeServer(b);
     expect((c.read(sessionProvider).value as SignedIn).token, 'ta');
@@ -227,8 +241,8 @@ void main() {
     store.byProfile[a] = _session('ta', 'ua');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test'); // activo = b (SignedOut)
+    await n.connect('https://a.test');
+    await n.connect('https://b.test'); // activo = b (SignedOut)
     await n.removeServer(a);
     expect(c.read(sessionProvider).value, isA<SignedOut>());
     expect(c.read(serverListProvider), hasLength(1));
@@ -237,29 +251,16 @@ void main() {
   group('autoLogin', () {
     bool flag(ProviderContainer c) => (c.read(sessionProvider).value as SignedOut).autoLogin;
 
-    test('addServer sin token → SignedOut con autoLogin; con token → SignedIn', () async {
-      final a = ServerProfile.idFor(Uri.parse('https://a.test'));
-      final (c, store) = await _fixture();
-      store.byProfile[a] = _session('ta', 'ua');
+    test('connect/select cancelados no dejan autoLogin (la pantalla ya lanzó el login)', () async {
+      final (c, _) = await _fixture();
       await c.read(sessionProvider.future);
       final n = c.read(sessionProvider.notifier);
-      await n.addServer('https://b.test');
-      expect(flag(c), isTrue);
-      await n.addServer('https://a.test');
-      expect(c.read(sessionProvider).value, isA<SignedIn>());
-    });
-
-    test('switchServer a un perfil sin token → autoLogin', () async {
-      final a = ServerProfile.idFor(Uri.parse('https://a.test'));
-      final b = ServerProfile.idFor(Uri.parse('https://b.test'));
-      final (c, store) = await _fixture();
-      store.byProfile[b] = _session('tb', 'ub');
-      await c.read(sessionProvider.future);
-      final n = c.read(sessionProvider.notifier);
-      await n.addServer('https://a.test');
-      await n.addServer('https://b.test');
-      await n.switchServer(a);
-      expect(flag(c), isTrue);
+      await n.connect('https://a.test');
+      expect(flag(c), isFalse);
+      await n.connect('https://b.test');
+      await n.select(ServerProfile.idFor(Uri.parse('https://a.test')));
+      expect(flag(c), isFalse);
+      expect(_loginCalls, hasLength(3));
     });
 
     test('arranque con perfil sin token → autoLogin', () async {
@@ -278,11 +279,11 @@ void main() {
       store.byProfile[a] = _session('ta', 'ua');
       await c.read(sessionProvider.future);
       final n = c.read(sessionProvider.notifier);
-      await n.addServer('https://a.test');
+      await n.connect('https://a.test');
       await n.logout();
       expect(flag(c), isFalse);
       store.byProfile[a] = _session('ta', 'ua');
-      await n.switchServer(a);
+      await n.select(a);
       await n.handleUnauthorized('ta');
       expect(flag(c), isTrue);
     });
@@ -290,13 +291,13 @@ void main() {
     test('401 dentro de la ventana tras un login exitoso → sin autoLogin (anti-bucle)', () async {
       var now = DateTime(2026, 1, 1, 12);
       final (c, _) = await _fixture(
-        loginGate: Future.value(_session('tz', 'uz')),
+        loginGate: (_) async => _session('tz', 'uz'),
         clock: () => now,
       );
       await c.read(sessionProvider.future);
       final n = c.read(sessionProvider.notifier);
-      await n.addServer('https://a.test');
-      await n.login();
+      await n.connect('https://a.test');
+      expect((c.read(sessionProvider).value as SignedIn).token, 'tz');
       now = now.add(kFreshLoginWindow - const Duration(seconds: 1));
       await n.handleUnauthorized('tz');
       expect(flag(c), isFalse);
@@ -305,13 +306,13 @@ void main() {
     test('401 pasada la ventana tras un login → autoLogin', () async {
       var now = DateTime(2026, 1, 1, 12);
       final (c, _) = await _fixture(
-        loginGate: Future.value(_session('tz', 'uz')),
+        loginGate: (_) async => _session('tz', 'uz'),
         clock: () => now,
       );
       await c.read(sessionProvider.future);
       final n = c.read(sessionProvider.notifier);
-      await n.addServer('https://a.test');
-      await n.login();
+      await n.connect('https://a.test');
+      expect((c.read(sessionProvider).value as SignedIn).token, 'tz');
       now = now.add(kFreshLoginWindow + const Duration(seconds: 1));
       await n.handleUnauthorized('tz');
       expect(flag(c), isTrue);
@@ -323,23 +324,166 @@ void main() {
       store.byProfile[b] = _session('tb', 'ub');
       await c.read(sessionProvider.future);
       final n = c.read(sessionProvider.notifier);
-      await n.addServer('https://a.test');
-      await n.addServer('https://b.test'); // activo = b con token
+      await n.connect('https://a.test');
+      await n.connect('https://b.test'); // activo = b con token
       await n.removeServer(b);
       expect(c.read(sessionProvider).value, isA<SignedOut>());
       expect(flag(c), isFalse);
     });
 
-    test('consumeAutoLogin devuelve true una vez y limpia el flag', () async {
-      final (c, _) = await _fixture();
+    Future<ProviderContainer> startupSignedOut({
+      Future<StoredSession> Function(Uri url)? loginGate,
+    }) async {
+      final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
+      final (c, _) = await _fixture(
+        prefs: {
+          'server_profiles': '[{"id":"${a.id}","url":"${a.url}","name":"A"}]',
+          'active_server_id': a.id,
+        },
+        loginGate: loginGate,
+      );
       await c.read(sessionProvider.future);
+      return c;
+    }
+
+    test('consumeAutoLogin devuelve true una vez y limpia el flag', () async {
+      final c = await startupSignedOut();
       final n = c.read(sessionProvider.notifier);
-      expect(n.consumeAutoLogin(), isFalse); // NeedsServer
-      await n.addServer('https://a.test');
       expect(n.consumeAutoLogin(), isTrue);
       expect(flag(c), isFalse);
       expect(n.consumeAutoLogin(), isFalse);
       expect((c.read(sessionProvider).value as SignedOut).serverUrl, Uri.parse('https://a.test'));
+    });
+
+    test('consumeAutoLogin sin servidor → false', () async {
+      final (c, _) = await _fixture();
+      await c.read(sessionProvider.future);
+      expect(c.read(sessionProvider.notifier).consumeAutoLogin(), isFalse);
+    });
+
+    test('loginActive: login ok → SignedIn del servidor activo', () async {
+      final c = await startupSignedOut(loginGate: (_) async => _session('ta', 'ua'));
+      final n = c.read(sessionProvider.notifier);
+      n.consumeAutoLogin();
+      expect(await n.loginActive(), ConnectResult.signedIn);
+      final s = c.read(sessionProvider).value as SignedIn;
+      expect(s.token, 'ta');
+      expect(_loginCalls, [Uri.parse('https://a.test')]);
+    });
+
+    test('loginActive: cancelado → sigue SignedOut sin autoLogin', () async {
+      final c = await startupSignedOut();
+      final n = c.read(sessionProvider.notifier);
+      n.consumeAutoLogin();
+      expect(await n.loginActive(), ConnectResult.cancelled);
+      expect(flag(c), isFalse);
+      expect(c.read(serverListProvider), hasLength(1));
+    });
+
+    test('loginActive con sesión iniciada no abre el navegador', () async {
+      final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+      final (c, store) = await _fixture();
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.connect('https://a.test');
+      expect(await n.loginActive(), ConnectResult.cancelled);
+      expect(_loginCalls, isEmpty);
+    });
+  });
+
+  group('connect/select (login del navegador en el lugar)', () {
+    final aUrl = Uri.parse('https://a.test');
+    final bUrl = Uri.parse('https://b.test');
+    final a = ServerProfile.idFor(aUrl);
+    final b = ServerProfile.idFor(bUrl);
+    String? activeId(ProviderContainer c) => c.read(serverRegistryProvider).active()?.id;
+
+    test('con token guardado entra sin abrir el navegador', () async {
+      final (c, store) = await _fixture();
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final r = await c.read(sessionProvider.notifier).connect('https://a.test');
+      expect(r, ConnectResult.signedIn);
+      expect((c.read(sessionProvider).value as SignedIn).token, 'ta');
+      expect(_loginCalls, isEmpty);
+    });
+
+    test('sin token + login ok → SignedIn, token guardado en su perfil y activo', () async {
+      final (c, store) = await _fixture(loginGate: (_) async => _session('ta', 'ua'));
+      await c.read(sessionProvider.future);
+      final r = await c.read(sessionProvider.notifier).connect('https://a.test');
+      expect(r, ConnectResult.signedIn);
+      final s = c.read(sessionProvider).value as SignedIn;
+      expect(s.serverUrl, aUrl);
+      expect(store.byProfile[a]!.token, 'ta');
+      expect(activeId(c), a);
+      expect(_loginCalls, [aUrl]);
+    });
+
+    test('sin token + cancelado desde el primer inicio → SignedOut y servidor guardado', () async {
+      final (c, store) = await _fixture();
+      await c.read(sessionProvider.future);
+      final r = await c.read(sessionProvider.notifier).connect('https://a.test');
+      expect(r, ConnectResult.cancelled);
+      final s = c.read(sessionProvider).value as SignedOut;
+      expect(s.serverUrl, aUrl);
+      expect(s.autoLogin, isFalse);
+      expect(c.read(serverListProvider).single.id, a);
+      expect(activeId(c), a);
+      expect(store.byProfile, isEmpty);
+    });
+
+    test('sin token + cancelado con otra sesión iniciada → la sesión de A sigue intacta', () async {
+      final (c, store) = await _fixture();
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.connect('https://a.test');
+      final before = c.read(sessionProvider).value;
+      expect(await n.connect('https://b.test'), ConnectResult.cancelled);
+      expect(identical(c.read(sessionProvider).value, before), isTrue);
+      expect(activeId(c), a);
+      expect(c.read(serverListProvider).map((p) => p.id), containsAll([a, b]));
+      // Elegir B (guardado, sin sesión) y cancelar tampoco toca a A.
+      expect(await n.select(b), ConnectResult.cancelled);
+      expect(identical(c.read(sessionProvider).value, before), isTrue);
+      expect(_loginCalls, [bUrl, bUrl]);
+    });
+
+    test('sin token + error → relanza; desde el primer inicio queda SignedOut', () async {
+      final (c, _) = await _fixture(
+        loginGate: (_) async => throw const ApiException(code: 'FORBIDDEN', message: 'Sin acceso'),
+      );
+      await c.read(sessionProvider.future);
+      await expectLater(
+        c.read(sessionProvider.notifier).connect('https://a.test'),
+        throwsA(isA<ApiException>()),
+      );
+      expect((c.read(sessionProvider).value as SignedOut).serverUrl, aUrl);
+      expect(c.read(serverListProvider), hasLength(1));
+    });
+
+    test('sin token + error con otra sesión iniciada → relanza y A sigue intacta', () async {
+      final (c, store) = await _fixture(
+        loginGate: (_) async => throw const ApiException(code: 'FORBIDDEN', message: 'Sin acceso'),
+      );
+      store.byProfile[a] = _session('ta', 'ua');
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.connect('https://a.test');
+      final before = c.read(sessionProvider).value;
+      await expectLater(n.connect('https://b.test'), throwsA(isA<ApiException>()));
+      expect(identical(c.read(sessionProvider).value, before), isTrue);
+      expect(activeId(c), a);
+    });
+
+    test('select de un id desconocido no hace nada', () async {
+      final (c, _) = await _fixture();
+      await c.read(sessionProvider.future);
+      expect(await c.read(sessionProvider.notifier).select('nope'), ConnectResult.cancelled);
+      expect(c.read(sessionProvider).value, isA<NeedsServer>());
+      expect(_loginCalls, isEmpty);
     });
   });
 
@@ -367,8 +511,8 @@ void main() {
     store.byProfile[b] = _session('tb', 'ub');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test');
+    await n.connect('https://a.test');
+    await n.connect('https://b.test');
     await n.handleUnauthorized('tb');
     expect(c.read(sessionProvider).value, isA<SignedOut>());
     expect(store.byProfile.containsKey(b), isFalse);
@@ -383,9 +527,9 @@ void main() {
     store.byProfile[b] = _session('tb', 'ub');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
-    await n.addServer('https://b.test');
-    await n.switchServer(a);
+    await n.connect('https://a.test');
+    await n.connect('https://b.test');
+    await n.select(a);
     await n.handleUnauthorized('tb');
     expect((c.read(sessionProvider).value as SignedIn).token, 'ta');
     expect(store.byProfile[a]!.token, 'ta');
@@ -399,7 +543,7 @@ void main() {
     expect(await c.read(sessionProvider.future), isA<NeedsServer>());
     expect(store.legacy, isNull);
     expect(c.read(serverListProvider), isEmpty);
-    await c.read(sessionProvider.notifier).addServer('https://nuevo.test');
+    await c.read(sessionProvider.notifier).connect('https://nuevo.test');
     expect(c.read(sessionProvider).value, isA<SignedOut>());
     expect(store.byProfile, isEmpty);
   });
@@ -438,7 +582,7 @@ void main() {
     store.byProfile[a] = _session('ta', 'ua');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test');
+    await n.connect('https://a.test');
     await n.removeServer(a).timeout(const Duration(seconds: 2));
     expect(store.byProfile.containsKey(a), isFalse);
     expect(c.read(serverListProvider), isEmpty);
@@ -446,21 +590,44 @@ void main() {
     expect(revoked, ['ta']);
   });
 
-  test('login: si cambió el servidor activo, guarda el token en su perfil sin pisar el estado', () async {
+  test('login: si el estado cambió durante el navegador, guarda el token en su perfil sin pisar el estado', () async {
     final a = ServerProfile.idFor(Uri.parse('https://a.test'));
+    final b = ServerProfile.idFor(Uri.parse('https://b.test'));
     final gate = Completer<StoredSession>();
-    final (c, store) = await _fixture(loginGate: gate.future);
+    final (c, store) = await _fixture(loginGate: (_) => gate.future);
+    store.byProfile[b] = _session('tb', 'ub');
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://a.test'); // SignedOut de A
-    final login = n.login();
-    await n.addServer('https://b.test'); // el usuario cambia a B mientras tanto
+    final login = n.connect('https://a.test'); // navegador de A abierto
+    while (_loginCalls.isEmpty) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    await n.connect('https://b.test'); // mientras tanto entra a B (tiene token)
+    final during = c.read(sessionProvider).value as SignedIn;
     gate.complete(_session('ta', 'ua'));
     await login;
     expect(store.byProfile[a]!.token, 'ta');
-    final s = c.read(sessionProvider).value;
-    expect(s, isA<SignedOut>());
-    expect((s as SignedOut).serverUrl, Uri.parse('https://b.test'));
+    expect(identical(c.read(sessionProvider).value, during), isTrue);
+    expect(c.read(serverRegistryProvider).active()?.id, b);
+  });
+
+  test('cancelar tras un cambio de estado durante el navegador no pisa el estado', () async {
+    final b = ServerProfile.idFor(Uri.parse('https://b.test'));
+    final gate = Completer<StoredSession>();
+    final (c, store) = await _fixture(loginGate: (_) => gate.future);
+    store.byProfile[b] = _session('tb', 'ub');
+    await c.read(sessionProvider.future);
+    final n = c.read(sessionProvider.notifier);
+    final login = n.connect('https://a.test');
+    while (_loginCalls.isEmpty) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    await n.connect('https://b.test');
+    final during = c.read(sessionProvider).value;
+    gate.completeError(const LoginCancelled());
+    expect(await login, ConnectResult.cancelled);
+    expect(identical(c.read(sessionProvider).value, during), isTrue);
+    expect(c.read(serverRegistryProvider).active()?.id, b);
   });
 
   test('cambiar de servidor reconstruye el cliente y cierra el stream live anterior', () async {
@@ -486,8 +653,8 @@ void main() {
     addTearDown(c.dispose);
     await c.read(sessionProvider.future);
     final n = c.read(sessionProvider.notifier);
-    await n.addServer('https://b.test');
-    await n.addServer('https://a.test'); // activo = a
+    await n.connect('https://b.test');
+    await n.connect('https://a.test'); // activo = a
     final subClient = c.listen(apiClientProvider, (_, _) {});
     final subLive = c.listen(liveEventsProvider, (_, _) {});
     final clientA = subClient.read();
@@ -495,7 +662,7 @@ void main() {
     expect(tokens, hasLength(1));
     expect(tokens.single.isCancelled, isFalse);
 
-    await n.switchServer(b);
+    await n.select(b);
     await Future<void>.delayed(Duration.zero); // deja correr el rebuild de los providers
     final clientB = subClient.read();
     expect(identical(clientA, clientB), isFalse);

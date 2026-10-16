@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/session_controller.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/servers/connect_payload.dart';
@@ -54,8 +55,9 @@ class _QrInstructions extends StatelessWidget {
 
 /// Alta de servidor. Primer inicio (`/setup`) o «Agregar servidor» (`/servers/add`):
 /// se escanea el QR de «Configuración › App móvil» de la web, o se escribe la
-/// dirección a mano. Se valida contra `/api/auth/mobile/info` y se guarda; después
-/// sigue el login con Google.
+/// dirección a mano. Se valida contra `/api/auth/mobile/info`, se guarda y se abre
+/// directo el login del navegador de ese servidor (sin pantalla intermedia).
+/// Cancelado o fallido, el servidor queda guardado «Sin sesión» en la lista.
 class ServerSetupScreen extends ConsumerStatefulWidget {
   const ServerSetupScreen({super.key, this.canGoBack = false});
 
@@ -72,6 +74,7 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
   bool _checking = false;
   String? _error;
   String? _connectingTo;
+  bool _openingBrowser = false;
 
   @override
   void dispose() {
@@ -83,14 +86,48 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
     if (_checking) return; // el escáner dispara la misma lectura varias veces
     setState(() {
       _checking = true;
+      _openingBrowser = false;
       _error = null;
       _connectingTo = url.host;
     });
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final colors = context.colors;
+    var browser = false; // ya validado y guardado: se abrió el navegador
     try {
-      await ref.read(sessionProvider.notifier).addServer(url.toString());
-      if (mounted && widget.canGoBack) context.go(Routes.myDay);
+      final result = await ref
+          .read(sessionProvider.notifier)
+          .connect(
+            url.toString(),
+            onBrowser: () {
+              browser = true;
+              if (mounted) setState(() => _openingBrowser = true);
+            },
+          );
+      // Deja que el router procese el cambio de sesión antes de navegar: si no,
+      // su refresco pendiente vuelve a apilar esta pantalla.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      if (result == ConnectResult.signedIn) {
+        // En el primer inicio redirige el router; desde «Agregar servidor» se
+        // entra a la app.
+        if (widget.canGoBack) context.go(Routes.myDay);
+      } else if (widget.canGoBack) {
+        // Navegador cancelado: el servidor quedó guardado, volver a la lista.
+        context.canPop() ? context.pop() : context.go(Routes.servers);
+      }
+      // En el primer inicio, cancelar deja SignedOut y el router lleva a la lista.
     } catch (e) {
-      if (mounted) setState(() => _error = errorMessage(e));
+      if (!browser) {
+        // No se pudo validar el servidor: nada guardado, el aviso va acá.
+        if (mounted) setState(() => _error = errorMessage(e));
+      } else {
+        // Falló el login: el servidor quedó guardado y se termina en la lista.
+        messenger?.showSnackBar(errorSnackBar(colors, e));
+        await WidgetsBinding.instance.endOfFrame;
+        if (mounted && widget.canGoBack) {
+          context.canPop() ? context.pop() : context.go(Routes.servers);
+        }
+      }
     } finally {
       if (mounted) setState(() => _checking = false);
     }
@@ -109,7 +146,9 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
   void _submitManual() {
     final url = parseConnectPayload(_controller.text);
     if (url == null) {
-      setState(() => _error = 'Ingresá una dirección válida, ej. work.empresa.com');
+      setState(
+        () => _error = 'Ingresá una dirección válida, ej. work.empresa.com',
+      );
       return;
     }
     _connect(url);
@@ -118,6 +157,18 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    // Con el escáner va justo debajo del visor; escribiendo, debajo del botón.
+    final modeToggle = TextButton.icon(
+      key: ValueKey(_manual ? 'setup_scan_toggle' : 'setup_manual_toggle'),
+      onPressed: _checking
+          ? null
+          : () => setState(() {
+              _manual = !_manual;
+              _error = null;
+            }),
+      icon: Icon(_manual ? AppIcons.qrScanner : AppIcons.keyboard),
+      label: Text(_manual ? 'Escanear QR' : 'Escribir dirección a mano'),
+    );
     return AuthCard(
       children: [
         Text(
@@ -153,13 +204,18 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
           ),
         ] else ...[
           ref.watch(qrScannerBuilderProvider)(context, _onCode),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.xs),
+          modeToggle,
+          const SizedBox(height: AppSpacing.xs),
           const _QrInstructions(),
         ],
         if (_checking && _connectingTo != null) ...[
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Conectando con $_connectingTo…',
+            _openingBrowser
+                ? 'Abriendo el navegador…'
+                : 'Conectando con $_connectingTo…',
+            key: const ValueKey('setup_busy'),
             textAlign: TextAlign.center,
             style: AppTextStyles.supporting.copyWith(color: c.muted),
           ),
@@ -180,17 +236,7 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
                 ? const Text('Verificando conexión…')
                 : const Text('Continuar'),
           ),
-        TextButton.icon(
-          key: ValueKey(_manual ? 'setup_scan_toggle' : 'setup_manual_toggle'),
-          onPressed: _checking
-              ? null
-              : () => setState(() {
-                  _manual = !_manual;
-                  _error = null;
-                }),
-          icon: Icon(_manual ? AppIcons.qrScanner : AppIcons.keyboard),
-          label: Text(_manual ? 'Escanear QR' : 'Escribir dirección a mano'),
-        ),
+        if (_manual) modeToggle,
         if (widget.canGoBack)
           TextButton(
             key: const ValueKey('setup_back'),

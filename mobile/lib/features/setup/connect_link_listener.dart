@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/auth/session_controller.dart';
 import '../../core/providers.dart';
 import '../../core/servers/connect_payload.dart';
 import '../../core/router/app_router.dart';
 import '../../core/router/routes.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/action_confirmation_dialog.dart';
+import '../../shared/widgets/state_views.dart';
 
 /// Links entrantes mientras la app está abierta. Se puede reemplazar en tests.
 final incomingLinksProvider = Provider<Stream<Uri>>(
@@ -20,8 +23,8 @@ final initialLinkProvider = FutureProvider<Uri?>(
   (ref) => AppLinks().getInitialLink(),
 );
 
-/// Escucha `genwork://connect?server=…` (el QR leído con la cámara nativa) y
-/// agrega ese servidor. Ignora el callback del login (`genwork://auth`) y todo
+/// Escucha `genwork://connect?server=…` (el QR leído con la cámara nativa) y,
+/// tras confirmar, guarda ese servidor y abre su login en el navegador. Ignora el callback del login (`genwork://auth`) y todo
 /// lo demás.
 class ConnectLinkListener extends ConsumerStatefulWidget {
   const ConnectLinkListener({super.key, required this.child});
@@ -29,7 +32,8 @@ class ConnectLinkListener extends ConsumerStatefulWidget {
   final Widget child;
 
   @override
-  ConsumerState<ConnectLinkListener> createState() => _ConnectLinkListenerState();
+  ConsumerState<ConnectLinkListener> createState() =>
+      _ConnectLinkListenerState();
 }
 
 /// En arranque en frío el link llega por el stream y por `getInitialLink()`;
@@ -71,7 +75,9 @@ class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
       final delegate = ref.read(routerProvider).routerDelegate;
       final onSplash = delegate.currentConfiguration.uri.path == Routes.splash;
       final loading = !ref.read(sessionProvider).hasValue;
-      return (onSplash || loading) ? null : delegate.navigatorKey.currentContext;
+      return (onSplash || loading)
+          ? null
+          : delegate.navigatorKey.currentContext;
     }
 
     for (var frames = 0; frames < _maxWaitFrames; frames++) {
@@ -94,7 +100,8 @@ class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
     final key = uri.toString();
     final at = _lastHandledAt;
     if (key == _lastHandled &&
-        (_inFlight || (at != null && DateTime.now().difference(at) < _dedupeWindow))) {
+        (_inFlight ||
+            (at != null && DateTime.now().difference(at) < _dedupeWindow))) {
       return;
     }
     _lastHandled = key;
@@ -112,8 +119,25 @@ class _ConnectLinkListenerState extends ConsumerState<ConnectLinkListener> {
             'Una aplicación o página pidió vincular «${url.host}». '
             'Vinculá solo servidores que reconozcas.',
         confirmLabel: 'Vincular',
-        onConfirm: () => ref.read(sessionProvider.notifier).addServer(url.toString()),
+        onConfirm: () async {},
       );
+      if (!done || !mounted) return;
+      // Ya confirmado y con el diálogo cerrado: se guarda y se abre el login del
+      // navegador. Cancelado o fallido, queda «Sin sesión» en la lista.
+      final messenger = navigator.mounted
+          ? ScaffoldMessenger.maybeOf(navigator)
+          : null;
+      final colors = navigator.mounted ? navigator.colors : null;
+      try {
+        final result = await ref
+            .read(sessionProvider.notifier)
+            .connect(url.toString());
+        if (result == ConnectResult.signedIn && mounted) {
+          ref.read(routerProvider).go(Routes.myDay);
+        }
+      } catch (e) {
+        if (colors != null) messenger?.showSnackBar(errorSnackBar(colors, e));
+      }
     } finally {
       _inFlight = false;
       // Cancelado o fallido: un reenvío del mismo link debe volver a preguntar.

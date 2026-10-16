@@ -6,6 +6,7 @@ import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/data/repositories/auth_repository.dart';
 import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
+import 'package:genwork_mobile/features/setup/servers_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,9 +71,10 @@ void main() {
     expect(find.text('Continuar'), findsOneWidget);
   });
 
-  testWidgets('con URL guardada y sin sesión muestra el login', (tester) async {
+  testWidgets('con URL guardada y sin sesión muestra la lista de servidores', (tester) async {
     await _pump(tester, {'server_url': 'https://work.test'});
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
-    expect(find.text('work.test'), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(find.text('https://work.test'), findsOneWidget);
+    expect(find.text('Sin sesión'), findsOneWidget);
   });
 }

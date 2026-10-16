@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +14,8 @@ import 'package:genwork_mobile/core/servers/server_profile.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
 import 'package:genwork_mobile/data/repositories/auth_repository.dart';
 import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
+import 'package:genwork_mobile/features/setup/server_setup_screen.dart';
+import 'package:genwork_mobile/features/setup/servers_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -94,8 +98,16 @@ Future<(List<Uri>, ProviderContainer)> _pump(
   return (calls, container);
 }
 
+Future<void> _unmount(WidgetTester tester) async {
+  // Desmonta el shell (que arranca timers de carga/live) antes de terminar.
+  await tester.pumpWidget(const SizedBox());
+  await tester.pump(const Duration(minutes: 1));
+}
+
+String _path(ProviderContainer c) => c.read(routerProvider).state.uri.path;
+
 void main() {
-  testWidgets('agregar un servidor sin sesión abre el login una sola vez y queda dentro', (tester) async {
+  testWidgets('vincular un servidor sin sesión lo guarda, abre el navegador una vez y entra', (tester) async {
     final (calls, c) = await _pump(tester, login: () async => _ok());
     await tester.tap(find.byKey(const ValueKey('scan')));
     await tester.pump(const Duration(milliseconds: 100));
@@ -103,34 +115,49 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(calls, [Uri.parse('https://a.test')]);
     expect(c.read(sessionProvider).value, isA<SignedIn>());
-    // Desmonta el shell (que arranca timers de carga/live) antes de terminar.
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump(const Duration(minutes: 1));
+    expect(c.read(serverListProvider), hasLength(1));
+    expect(_path(c), Routes.myDay);
+    await _unmount(tester);
   });
 
-  testWidgets('arranque con servidor guardado sin token abre el login una sola vez', (tester) async {
+  testWidgets('mientras se abre el navegador sigue en el escáner mostrando el estado', (tester) async {
+    final gate = Completer<StoredSession>();
+    final (calls, c) = await _pump(tester, login: () => gate.future);
+    await tester.tap(find.byKey(const ValueKey('scan')));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(calls, hasLength(1));
+    expect(_path(c), Routes.setup);
+    expect(find.byType(ServerSetupScreen), findsOneWidget);
+    expect(find.text('Abriendo el navegador…'), findsOneWidget);
+    gate.completeError(const LoginCancelled());
+    await tester.pumpAndSettle();
+    expect(find.byType(ServersScreen), findsOneWidget);
+  });
+
+  testWidgets('arranque con servidor guardado sin token abre el navegador una sola vez y entra', (tester) async {
     final (calls, c) = await _pump(tester, login: () async => _ok(), savedServer: true);
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 100));
     expect(calls, [Uri.parse('https://a.test')]);
     expect(c.read(sessionProvider).value, isA<SignedIn>());
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump(const Duration(minutes: 1));
+    expect(_path(c), Routes.myDay);
+    await _unmount(tester);
   });
 
-  testWidgets('arranque con login cancelado deja el botón y no reintenta', (tester) async {
-    final (calls, _) = await _pump(
+  testWidgets('arranque con login cancelado deja la lista de servidores y no reintenta', (tester) async {
+    final (calls, c) = await _pump(
       tester,
       login: () async => throw const LoginCancelled(),
       savedServer: true,
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(_path(c), Routes.servers);
     await tester.pump(const Duration(seconds: 1));
     expect(calls, hasLength(1));
   });
 
-  testWidgets('cerrar sesión a mano cae en el login sin abrir el navegador', (tester) async {
+  testWidgets('cerrar sesión a mano cae en la lista sin abrir el navegador', (tester) async {
     final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
     final (calls, c) = await _pump(
       tester,
@@ -144,53 +171,75 @@ void main() {
     c.read(routerProvider).go(Routes.servers);
     await tester.pumpAndSettle();
     await c.read(sessionProvider.notifier).logout();
-    expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
-    c.read(routerProvider).go(Routes.login);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
+    expect(find.byType(ServersScreen), findsOneWidget);
     expect(calls, isEmpty);
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump(const Duration(minutes: 1));
+    await _unmount(tester);
   });
 
-  testWidgets('login cancelado deja la pantalla con el botón y no reintenta', (tester) async {
-    final (calls, _) = await _pump(tester, login: () async => throw const LoginCancelled());
+  testWidgets('401 con la sesión vencida cae en la lista y abre el navegador una vez', (tester) async {
+    final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
+    final (calls, c) = await _pump(
+      tester,
+      login: () async => throw const LoginCancelled(),
+      savedServer: true,
+      tokens: {a.id: _ok()},
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    c.read(routerProvider).go(Routes.servers);
+    await tester.pumpAndSettle();
+    await c.read(sessionProvider.notifier).handleUnauthorized('t');
+    await tester.pumpAndSettle();
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(calls, [Uri.parse('https://a.test')]);
+    await tester.pump(const Duration(seconds: 1));
+    expect(calls, hasLength(1));
+    await _unmount(tester);
+  });
+
+  testWidgets('401 recién ingresado (ventana anti-bucle) no abre el navegador', (tester) async {
+    final (calls, c) = await _pump(tester, login: () async => _ok());
+    await tester.tap(find.byKey(const ValueKey('scan')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(c.read(sessionProvider).value, isA<SignedIn>());
+    c.read(routerProvider).go(Routes.servers);
+    await tester.pumpAndSettle();
+    await c.read(sessionProvider.notifier).handleUnauthorized('t');
+    await tester.pumpAndSettle();
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(calls, hasLength(1)); // solo el del vínculo
+    await _unmount(tester);
+  });
+
+  testWidgets('vincular y cancelar deja el servidor guardado «Sin sesión» en la lista', (tester) async {
+    final (calls, c) = await _pump(tester, login: () async => throw const LoginCancelled());
     await tester.tap(find.byKey(const ValueKey('scan')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(find.text('Sin sesión'), findsOneWidget);
+    expect(c.read(serverListProvider), hasLength(1));
     expect(calls, hasLength(1));
     await tester.pump(const Duration(seconds: 1));
     expect(calls, hasLength(1));
   });
 
-  testWidgets('error del login se muestra inline y no reintenta', (tester) async {
-    final (calls, _) = await _pump(
+  testWidgets('un login fallido al vincular muestra el error en un aviso y queda en la lista', (tester) async {
+    final (calls, c) = await _pump(
       tester,
       login: () async => throw const ApiException(code: 'FORBIDDEN', message: 'Sin acceso'),
     );
     await tester.tap(find.byKey(const ValueKey('scan')));
     await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsOneWidget);
     expect(find.text('Sin acceso'), findsOneWidget);
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(c.read(serverListProvider), hasLength(1));
     expect(calls, hasLength(1));
   });
 
-  testWidgets('con el login ya abierto, agregar otro servidor sin sesión lo lanza una vez', (tester) async {
-    final (calls, c) = await _pump(
-      tester,
-      login: () async => throw const LoginCancelled(),
-      savedServer: true,
-    );
-    await tester.pumpAndSettle();
-    expect(calls, [Uri.parse('https://a.test')]); // arranque
-    await c.read(sessionProvider.notifier).addServer('https://b.test');
-    await tester.pumpAndSettle();
-    expect(calls, [Uri.parse('https://a.test'), Uri.parse('https://b.test')]);
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
-    expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
-  });
-
-  testWidgets('desde /login, elegir en /servers otro servidor sin sesión lo lanza una vez', (tester) async {
+  testWidgets('desde la lista tras cancelar el arranque, tocar otro servidor abre su navegador una vez', (tester) async {
     final b = ServerProfile.forUrl(Uri.parse('https://b.test'), name: 'B');
     final (calls, c) = await _pump(
       tester,
@@ -200,12 +249,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test')]); // arranque
-    await tester.tap(find.byKey(const ValueKey('login_change_server')));
-    await tester.pumpAndSettle();
-    expect(c.read(routerProvider).state.uri.path, Routes.servers);
+    expect(_path(c), Routes.servers);
     await tester.tap(find.byKey(ValueKey('server_${b.id}')));
     await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test'), Uri.parse('https://b.test')]);
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect((c.read(sessionProvider).value as SignedOut).serverUrl, Uri.parse('https://b.test'));
   });
 }

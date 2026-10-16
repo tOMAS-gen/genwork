@@ -89,7 +89,6 @@ Future<ProviderContainer> _pumpMini(
     ),
     GoRoute(path: Routes.servers, builder: (_, _) => const ServersScreen()),
     GoRoute(path: Routes.myDay, builder: (_, _) => const Scaffold(body: Text('mi_dia'))),
-    GoRoute(path: Routes.login, builder: (_, _) => const Text('login_nativo')),
   ]);
   addTearDown(router.dispose);
   await tester.pumpWidget(ProviderScope(
@@ -104,30 +103,31 @@ Future<ProviderContainer> _pumpMini(
 }
 
 void main() {
-  testWidgets('cerrar sesión lleva a la lista de servidores, sin login nativo ni navegador', (tester) async {
+  testWidgets('cerrar sesión lleva a la lista de servidores sin abrir el navegador', (tester) async {
     final s = await _setup(tester, signedIn: true);
     final c = await _pumpMini(tester, s);
     expect(c.read(sessionProvider).value, isA<SignedIn>());
     await tester.tap(find.byKey(const ValueKey('account_logout')));
     await tester.pumpAndSettle();
     expect(find.byType(ServersScreen), findsOneWidget);
-    expect(find.byKey(const ValueKey('login_google')), findsNothing);
+    expect(find.text('Sin sesión'), findsOneWidget);
     expect(s.calls, isEmpty);
     final state = c.read(sessionProvider).value as SignedOut;
     expect(state.autoLogin, isFalse);
     expect(s.tokens.byProfile, isEmpty);
   });
 
-  testWidgets('servidor activo con sesión: sin leyenda y tocarlo no abre el login', (tester) async {
+  testWidgets('servidor activo con sesión: muestra la sesión y tocarlo no abre el navegador', (tester) async {
     final s = await _setup(tester, signedIn: true);
     await _pumpMini(tester, s, initial: Routes.servers);
-    expect(find.text('Sin sesión · tocá para ingresar'), findsNothing);
+    expect(find.text('Sesión iniciada · u@test'), findsOneWidget);
+    expect(find.text('Sin sesión'), findsNothing);
     await tester.tap(find.byKey(ValueKey('server_${_a.id}')));
     await tester.pumpAndSettle();
     expect(s.calls, isEmpty);
   });
 
-  testWidgets('servidor activo sin sesión: muestra la leyenda y tocarlo abre el login una vez', (tester) async {
+  testWidgets('arranque sin sesión: cae en la lista, abre el navegador una vez y cancelar no reintenta', (tester) async {
     final s = await _setup(tester, signedIn: false);
     await tester.pumpWidget(ProviderScope(
       retry: (_, _) => null,
@@ -135,14 +135,17 @@ void main() {
       child: const GenworkApp(),
     ));
     await tester.pumpAndSettle();
-    expect(s.calls, hasLength(1)); // arranque: auto login cancelado
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(s.calls, hasLength(1)); // arranque: login automático cancelado
+    await tester.pump(const Duration(seconds: 1));
+    expect(s.calls, hasLength(1));
     final c = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
-    c.read(routerProvider).go(Routes.servers);
-    await tester.pumpAndSettle();
-    expect(find.text('Sin sesión · tocá para ingresar'), findsOneWidget);
+    expect(c.read(routerProvider).state.uri.path, Routes.servers);
+    expect(find.text('Sin sesión'), findsOneWidget);
+    // Tocar el servidor activo sin sesión vuelve a abrir el navegador, una vez.
     await tester.tap(find.byKey(ValueKey('server_${_a.id}')));
     await tester.pumpAndSettle();
     expect(s.calls, hasLength(2));
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(find.byType(ServersScreen), findsOneWidget);
   });
 }

@@ -5,10 +5,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/app.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
+import 'package:genwork_mobile/core/network/api_exception.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/data/repositories/auth_repository.dart';
 import 'package:genwork_mobile/features/setup/connect_link_listener.dart';
 import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
+import 'package:genwork_mobile/features/setup/servers_screen.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,14 +27,24 @@ class _Tokens implements TokenStore {
   Future<void> discardLegacy() async {}
 }
 
+/// Logins pedidos al navegador (falso, siempre cancelado) en el test actual.
+final logins = <Uri>[];
+
 class _FakeAuth extends AuthRepository {
   _FakeAuth(Uri url, this.calls) : super(serverUrl: url);
   final List<Uri> calls;
   @override
-  Future<StoredSession> login() async => throw const LoginCancelled();
+  Future<StoredSession> login() async {
+    logins.add(serverUrl);
+    throw const LoginCancelled();
+  }
+
   @override
   Future<ServerInfo> checkServer() async {
     calls.add(serverUrl);
+    if (serverUrl.host == 'ajeno.test') {
+      throw const ApiException(code: 'NOT_GENWORK', message: 'No es genwork');
+    }
     return ServerInfo(name: 'Sistema ${serverUrl.host}');
   }
 }
@@ -71,7 +83,9 @@ int _savedServers(WidgetTester tester) =>
         .length;
 
 void main() {
-  testWidgets('un genwork://connect pide confirmar mostrando el host; al confirmar agrega y sigue al login', (tester) async {
+  setUp(logins.clear);
+
+  testWidgets('un genwork://connect pide confirmar mostrando el host; al confirmar guarda y abre el navegador', (tester) async {
     final (links, calls) = await _pump(tester);
     links.add(_link);
     await tester.pumpAndSettle();
@@ -81,7 +95,24 @@ void main() {
     await tester.tap(find.byKey(_confirm));
     await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test')]);
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(logins, [Uri.parse('https://a.test')]);
+    // Navegador cancelado: el servidor queda guardado y se ve la lista.
+    expect(_savedServers(tester), 1);
+    expect(find.byType(ServersScreen), findsOneWidget);
+    expect(find.text('Sin sesión'), findsOneWidget);
+  });
+
+  testWidgets('si el servidor del link no es genwork, avisa con un mensaje y no guarda nada', (tester) async {
+    final (links, _) = await _pump(tester);
+    links.add(Uri.parse('genwork://connect?server=https%3A%2F%2Fajeno.test'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(_confirm));
+    await tester.pumpAndSettle();
+    expect(find.text(_dialogTitle), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.text('No es genwork'), findsOneWidget);
+    expect(_savedServers(tester), 0);
+    expect(logins, isEmpty);
   });
 
   testWidgets('cancelar no consulta ni guarda ni activa nada', (tester) async {
@@ -139,6 +170,7 @@ void main() {
     await tester.tap(find.byKey(_confirm));
     await tester.pumpAndSettle();
     expect(calls, [Uri.parse('https://a.test')]);
-    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    expect(logins, [Uri.parse('https://a.test')]);
+    expect(find.byType(ServersScreen), findsOneWidget);
   });
 }
