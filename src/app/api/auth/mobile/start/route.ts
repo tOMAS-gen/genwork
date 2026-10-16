@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/server/auth";
+import { auth, DEV_AUTH_ENABLED, signIn } from "@/server/auth";
 import {
   canUseMobileApp,
   isValidCodeChallenge,
@@ -30,9 +30,15 @@ export async function GET(req: Request) {
 
   const session = await auth();
   if (!session?.user?.id) {
+    const returnTo = `${url.pathname}${url.search}`;
+    if (!DEV_AUTH_ENABLED) {
+      // Directo al selector de Google y vuelta acá (sin la pantalla /login). `signIn`
+      // lanza el redirect de Next: debe propagarse, no se captura.
+      await signIn("google", { redirectTo: returnTo });
+    }
     const baseUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? url.origin;
     const login = new URL("/login", baseUrl);
-    login.searchParams.set("callbackUrl", `${url.pathname}${url.search}`);
+    login.searchParams.set("callbackUrl", returnTo);
     return NextResponse.redirect(login);
   }
 
