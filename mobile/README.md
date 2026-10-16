@@ -20,6 +20,11 @@ servidor, abierto en el navegador del sistema.
    canjea ese código (PKCE) por un token propio, guardado en el Keychain /
    Keystore, y entra a Mi día. Si se cierra el navegador o el login falla (con
    un aviso), el servidor queda guardado «Sin sesión» en la lista de servidores.
+   El login del navegador **no deja una sesión web abierta**: apenas el servidor
+   emite el código cierra la sesión web de ese navegador, así que «Cerrar sesión»
+   en la app deja todo cerrado. Cada ingreso desde la app es una autenticación
+   nueva: si ese navegador tenía una sesión web previa del servidor, **se
+   descarta** (no se reutiliza) y se vuelve a pedir el login.
 3. **Lista de servidores** (drawer › «Cambiar de servidor», o **Mi cuenta ›
    Servidores**): muestra cada sistema vinculado con su estado («Sesión
    iniciada · email» o «Sin sesión») y marca el activo. Tocar uno con sesión
