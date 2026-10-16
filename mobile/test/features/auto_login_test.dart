@@ -36,6 +36,8 @@ class _FakeAuth extends AuthRepository {
   @override
   Future<ServerInfo> checkServer() async => ServerInfo(name: 'Sistema ${serverUrl.host}');
   @override
+  Future<void> logout(String token) async {}
+  @override
   Future<StoredSession> login() {
     loginCalls.add(serverUrl);
     return loginBehavior();
@@ -58,6 +60,7 @@ Future<(List<Uri>, ProviderContainer)> _pump(
   required Future<StoredSession> Function() login,
   bool savedServer = false,
   bool twoServers = false,
+  Map<String, StoredSession> tokens = const {},
 }) async {
   tester.view.physicalSize = const Size(400, 900);
   tester.view.devicePixelRatio = 1;
@@ -79,7 +82,7 @@ Future<(List<Uri>, ProviderContainer)> _pump(
     retry: (_, _) => null,
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
-      tokenStoreProvider.overrideWithValue(_Tokens()),
+      tokenStoreProvider.overrideWithValue(_Tokens()..byProfile.addAll(tokens)),
       qrScannerBuilderProvider.overrideWithValue(_fakeScanner),
       authRepositoryProvider.overrideWith((ref, url) => _FakeAuth(url, calls, login)),
     ],
@@ -105,12 +108,49 @@ void main() {
     await tester.pump(const Duration(minutes: 1));
   });
 
-  testWidgets('arranque con servidor guardado sin token no abre el login solo', (tester) async {
+  testWidgets('arranque con servidor guardado sin token abre el login una sola vez', (tester) async {
     final (calls, c) = await _pump(tester, login: () async => _ok(), savedServer: true);
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(calls, [Uri.parse('https://a.test')]);
+    expect(c.read(sessionProvider).value, isA<SignedIn>());
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(minutes: 1));
+  });
+
+  testWidgets('arranque con login cancelado deja el botón y no reintenta', (tester) async {
+    final (calls, _) = await _pump(
+      tester,
+      login: () async => throw const LoginCancelled(),
+      savedServer: true,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    expect(calls, hasLength(1));
+  });
+
+  testWidgets('cerrar sesión a mano cae en el login sin abrir el navegador', (tester) async {
+    final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
+    final (calls, c) = await _pump(
+      tester,
+      login: () async => throw const LoginCancelled(),
+      savedServer: true,
+      tokens: {a.id: _ok()},
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(c.read(sessionProvider).value, isA<SignedIn>());
+    // Fuera del shell (que necesita datos reales) para aislar el cierre de sesión.
+    c.read(routerProvider).go(Routes.servers);
+    await tester.pumpAndSettle();
+    await c.read(sessionProvider.notifier).logout();
+    expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
+    c.read(routerProvider).go(Routes.login);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
     expect(calls, isEmpty);
-    expect(c.read(sessionProvider).value, isA<SignedOut>());
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(minutes: 1));
   });
 
   testWidgets('login cancelado deja la pantalla con el botón y no reintenta', (tester) async {
@@ -142,10 +182,10 @@ void main() {
       savedServer: true,
     );
     await tester.pumpAndSettle();
-    expect(calls, isEmpty);
+    expect(calls, [Uri.parse('https://a.test')]); // arranque
     await c.read(sessionProvider.notifier).addServer('https://b.test');
     await tester.pumpAndSettle();
-    expect(calls, [Uri.parse('https://b.test')]);
+    expect(calls, [Uri.parse('https://a.test'), Uri.parse('https://b.test')]);
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
     expect((c.read(sessionProvider).value as SignedOut).autoLogin, isFalse);
   });
@@ -159,13 +199,13 @@ void main() {
       twoServers: true,
     );
     await tester.pumpAndSettle();
-    expect(calls, isEmpty);
+    expect(calls, [Uri.parse('https://a.test')]); // arranque
     await tester.tap(find.byKey(const ValueKey('login_change_server')));
     await tester.pumpAndSettle();
     expect(c.read(routerProvider).state.uri.path, Routes.servers);
     await tester.tap(find.byKey(ValueKey('server_${b.id}')));
     await tester.pumpAndSettle();
-    expect(calls, [Uri.parse('https://b.test')]);
+    expect(calls, [Uri.parse('https://a.test'), Uri.parse('https://b.test')]);
     expect(find.byKey(const ValueKey('login_google')), findsOneWidget);
   });
 }

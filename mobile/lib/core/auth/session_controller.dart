@@ -11,10 +11,16 @@ import '../servers/server_profile.dart';
 import 'session.dart';
 import 'token_store.dart';
 
+/// Si un 401 llega antes de este tiempo desde un login exitoso, el servidor está
+/// rechazando tokens recién emitidos: no se vuelve a abrir el navegador solo.
+const kFreshLoginWindow = Duration(seconds: 30);
+
 /// Dueño del ciclo servidor → login → sesión, con **varios servidores
 /// guardados**: uno activo a la vez, cada uno con su propio token. Las pantallas
 /// solo llaman a estos métodos; el router redirige según el estado.
 class SessionController extends AsyncNotifier<SessionState> {
+  DateTime? _lastLoginAt;
+
   @override
   Future<SessionState> build() async {
     final registry = ref.read(serverRegistryProvider);
@@ -31,7 +37,8 @@ class SessionController extends AsyncNotifier<SessionState> {
     // Siempre: si la app murió entre migrar la URL y mover el token, el token
     // viejo quedaría huérfano. Es no-op si no hay nada que adoptar.
     await ref.read(tokenStoreProvider).adoptLegacy(active.id);
-    return _stateFor(active);
+    // Sin token guardado al arrancar: se va directo al login del navegador.
+    return _stateFor(active, autoLogin: true);
   }
 
   Future<SessionState> _stateFor(ServerProfile profile, {bool autoLogin = false}) async {
@@ -120,6 +127,7 @@ class SessionController extends AsyncNotifier<SessionState> {
     await ref.read(tokenStoreProvider).write(_idOf(current.serverUrl), stored);
     // Si mientras tanto se cambió de servidor, el token queda guardado en su
     // perfil pero no se pisa la sesión activa.
+    _lastLoginAt = ref.read(authClockProvider)();
     if (!ref.mounted || !identical(state.value, current)) return;
     state = AsyncData(
       SignedIn(serverUrl: current.serverUrl, token: stored.token, user: stored.user),
@@ -142,7 +150,12 @@ class SessionController extends AsyncNotifier<SessionState> {
     final current = state.value;
     if (current is! SignedIn || current.token != token) return;
     await ref.read(tokenStoreProvider).clear(_idOf(current.serverUrl));
-    state = AsyncData(SignedOut(current.serverUrl));
+    // Token vencido o revocado: no hay login vigente → al navegador, salvo que
+    // el servidor rechace tokens recién emitidos (evita el bucle).
+    final last = _lastLoginAt;
+    final fresh =
+        last != null && ref.read(authClockProvider)().difference(last) < kFreshLoginWindow;
+    state = AsyncData(SignedOut(current.serverUrl, autoLogin: !fresh));
   }
 
   /// Revalida los permisos visibles sin cerrar la sesión por una caída de red.

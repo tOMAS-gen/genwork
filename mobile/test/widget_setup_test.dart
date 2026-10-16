@@ -4,9 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/app.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/providers.dart';
+import 'package:genwork_mobile/data/repositories/auth_repository.dart';
 import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Sin navegador real: el login automático se cancela.
+class _NoBrowserAuth extends AuthRepository {
+  _NoBrowserAuth(Uri url) : super(serverUrl: url);
+  @override
+  Future<StoredSession> login() async => throw const LoginCancelled();
+}
 
 class _MemoryTokenStore implements TokenStore {
   final Map<String, StoredSession> sessions = {};
@@ -42,6 +50,7 @@ Future<void> _pump(WidgetTester tester, Map<String, Object> prefs) async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(instance),
         tokenStoreProvider.overrideWithValue(_MemoryTokenStore()),
+        authRepositoryProvider.overrideWith((ref, url) => _NoBrowserAuth(url)),
         qrScannerBuilderProvider.overrideWithValue(
           (context, onCode) => const SizedBox(key: ValueKey('setup_scanner')),
         ),

@@ -40,6 +40,9 @@ final authRepositoryProvider = Provider.family<AuthRepository, Uri>(
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());
 
+/// Reloj de la sesión (se sobreescribe en tests).
+final authClockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
 final sessionProvider = AsyncNotifierProvider<SessionController, SessionState>(
   SessionController.new,
 );

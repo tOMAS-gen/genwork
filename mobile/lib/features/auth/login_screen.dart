@@ -64,6 +64,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider).value;
     final server = session is SignedOut ? session.serverUrl.host : '';
+    // Con el login automático pendiente ya se ve "Abriendo sesión…" (sin parpadeo).
+    final busy = _busy || (session is SignedOut && session.autoLogin);
 
     return AuthCard(
       children: [
@@ -72,8 +74,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           style: FilledButton.styleFrom(
             minimumSize: const Size.fromHeight(AppSpacing.xxxl),
           ),
-          onPressed: _busy ? null : _login,
-          child: Text(_busy ? 'Abriendo sesión…' : 'Ingresar con Google'),
+          onPressed: busy ? null : _login,
+          child: Text(busy ? 'Abriendo sesión…' : 'Ingresar con Google'),
         ),
         if (_error != null) ...[
           const SizedBox(height: AppSpacing.sm),
@@ -89,7 +91,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         TextButton(
           key: const ValueKey('login_change_server'),
-          onPressed: _busy ? null : () => context.push(Routes.servers),
+          onPressed: busy ? null : () => context.push(Routes.servers),
           child: const Text('Cambiar servidor'),
         ),
       ],

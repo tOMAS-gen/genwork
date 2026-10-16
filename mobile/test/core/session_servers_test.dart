@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/auth/session.dart';
+import 'package:genwork_mobile/core/auth/session_controller.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
 import 'package:genwork_mobile/core/network/api_exception.dart';
 import 'package:genwork_mobile/core/providers.dart';
@@ -85,6 +86,7 @@ Future<(ProviderContainer, MemoryTokenStore)> _fixture({
   StoredSession? legacy,
   Future<void> Function(String token)? onLogout,
   Future<StoredSession>? loginGate,
+  DateTime Function()? clock,
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
   final instance = await SharedPreferences.getInstance();
@@ -92,6 +94,7 @@ Future<(ProviderContainer, MemoryTokenStore)> _fixture({
   final container = ProviderContainer(overrides: [
     sharedPreferencesProvider.overrideWithValue(instance),
     tokenStoreProvider.overrideWithValue(store),
+    if (clock != null) authClockProvider.overrideWithValue(clock),
     authRepositoryProvider.overrideWith(
       (ref, url) => FakeAuthRepository(
         url,
@@ -259,17 +262,17 @@ void main() {
       expect(flag(c), isTrue);
     });
 
-    test('arranque con perfil sin token → sin autoLogin', () async {
+    test('arranque con perfil sin token → autoLogin', () async {
       final a = ServerProfile.forUrl(Uri.parse('https://a.test'), name: 'A');
       final (c, _) = await _fixture(prefs: {
         'server_profiles': '[{"id":"${a.id}","url":"${a.url}","name":"A"}]',
         'active_server_id': a.id,
       });
       await c.read(sessionProvider.future);
-      expect(flag(c), isFalse);
+      expect(flag(c), isTrue);
     });
 
-    test('logout y 401 → sin autoLogin', () async {
+    test('logout → sin autoLogin; 401 → autoLogin', () async {
       final a = ServerProfile.idFor(Uri.parse('https://a.test'));
       final (c, store) = await _fixture();
       store.byProfile[a] = _session('ta', 'ua');
@@ -281,7 +284,37 @@ void main() {
       store.byProfile[a] = _session('ta', 'ua');
       await n.switchServer(a);
       await n.handleUnauthorized('ta');
+      expect(flag(c), isTrue);
+    });
+
+    test('401 dentro de la ventana tras un login exitoso → sin autoLogin (anti-bucle)', () async {
+      var now = DateTime(2026, 1, 1, 12);
+      final (c, _) = await _fixture(
+        loginGate: Future.value(_session('tz', 'uz')),
+        clock: () => now,
+      );
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.addServer('https://a.test');
+      await n.login();
+      now = now.add(kFreshLoginWindow - const Duration(seconds: 1));
+      await n.handleUnauthorized('tz');
       expect(flag(c), isFalse);
+    });
+
+    test('401 pasada la ventana tras un login → autoLogin', () async {
+      var now = DateTime(2026, 1, 1, 12);
+      final (c, _) = await _fixture(
+        loginGate: Future.value(_session('tz', 'uz')),
+        clock: () => now,
+      );
+      await c.read(sessionProvider.future);
+      final n = c.read(sessionProvider.notifier);
+      await n.addServer('https://a.test');
+      await n.login();
+      now = now.add(kFreshLoginWindow + const Duration(seconds: 1));
+      await n.handleUnauthorized('tz');
+      expect(flag(c), isTrue);
     });
 
     test('removeServer del activo cayendo a uno sin token → sin autoLogin', () async {
