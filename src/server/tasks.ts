@@ -703,9 +703,13 @@ export async function reorderSubtasks(parentId: string, orderedTaskIds: string[]
 /** 404 si el contexto no existe o no se ve; 403 si solo se lee; 409 si el proyecto está archivado. */
 async function requireOperableContext(ctx: UserContext, input: ResolveInput): Promise<void> {
   if (input.contextWorkId) await requireWorkAccess(ctx, input.contextWorkId, "operate");
-  if (!input.contextSectorId) return;
+  if (input.contextSectorId) await requireOperableSector(ctx, input.contextSectorId);
+}
+
+/** 404 si el sector no existe o no se ve; 403 si solo se lee. */
+export async function requireOperableSector(ctx: UserContext, sectorId: string): Promise<void> {
   const sector = await prisma.sector.findUnique({
-    where: { id: input.contextSectorId },
+    where: { id: sectorId },
     include: { group: { select: { publicRead: true } } },
   });
   if (!sector) throw notFound("Sector no encontrado");

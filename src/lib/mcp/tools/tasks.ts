@@ -21,6 +21,7 @@ import { ACTIVE_PROJECT_WORK, TASK_IN_ACTIVE_PROJECT_OR_LOOSE } from "@/server/w
 import { isContainerTask, isTaskUnfinished } from "@/lib/domain/tasks/unfinishedCount";
 import { compareProjectTaskOrder } from "@/lib/domain/objectives/taskOrder";
 import { listMyDay, setTaskMyDay } from "@/server/myDay";
+import { setTaskHomeSector } from "@/server/taskSector";
 import type { McpAuth } from "@/server/mcp-auth";
 import { toolSuccess, toToolErrorResult, toolConfirmationRequired } from "@/lib/mcp/errors";
 import { createConfirmation, consumeConfirmation } from "@/lib/mcp/confirmation";
@@ -47,7 +48,7 @@ function summarizeTask(
     objectiveId: task.objectiveId ?? null,
     objectiveTitle: task.objective?.title ?? null,
     // Sector "home": solo existe en tareas sueltas (sin proyecto). Para tareas de
-    // proyecto es null y NO es lo que cambia el #sector del texto.
+    // proyecto es null. Lo cambia task.setSector, no el #sector del texto.
     homeSectorId: task.sectorId,
     dueDate: task.dueDate,
     createdAt: task.createdAt,
@@ -59,8 +60,9 @@ function summarizeTask(
     parentId: task.parentId,
     subtaskCount: subtaskInfo.count,
     subtaskDone: subtaskInfo.done,
-    // Sectores donde se EJECUTA la tarea: son los `#sector` del texto. Mover la
-    // tarea de sector = reescribir el texto con otro #sector (task.update).
+    // Sectores donde se EJECUTA la tarea: los `#sector` del texto más, en una
+    // suelta, su sector home. Tarea de proyecto: se mueve reescribiendo el
+    // #sector (task.update); suelta: con task.setSector.
     execSectorIds: task.links.filter((l) => l.type === "EXEC" && l.sectorId).map((l) => l.sectorId),
     refSectorIds: task.links.filter((l) => l.type === "REF" && l.sectorId).map((l) => l.sectorId),
     refUserIds: task.links.filter((l) => l.type === "REF" && l.userId).map((l) => l.userId),
@@ -372,10 +374,10 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
     {
       title: "Actualizar tarea",
       description:
-        "Reemplaza el texto completo de una tarea; re-resuelve sus etiquetas inline. Para mover la tarea a " +
-        "otro sector reescribí el texto con el #sector nuevo: los #sector del texto son `execSectorIds` y " +
-        "reemplazan a los anteriores (`homeSectorId` solo existe en tareas sueltas sin proyecto y no cambia). " +
-        "Para cambiar solo un fragmento usá task.replaceText.",
+        "Reemplaza el texto completo de una tarea; re-resuelve sus etiquetas inline. En una tarea de " +
+        "proyecto, el #sector del texto define sus `execSectorIds`: reescribirlo la mueve de sector. En una " +
+        "tarea suelta (con `homeSectorId`) un #sector nuevo solo SUMA un sector y la tarea sigue en el suyo: " +
+        "para moverla usá task.setSector. Para cambiar solo un fragmento usá task.replaceText.",
       inputSchema: taskUpdateInputShape,
     },
     async ({ taskId, text }) => {
@@ -643,6 +645,45 @@ export function registerTaskTools(server: McpServer, ctx: McpAuth): void {
             ? `Tarea "${updated.displayText}" reordenada.`
             : `Tarea "${updated.displayText}" movida ${where}.`,
           await summarizeTaskWithLabels(updated),
+        );
+      } catch (err) {
+        return toToolErrorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "task.setSector",
+    {
+      title: "Mover tarea suelta a otro sector",
+      description:
+        "Mueve una tarea suelta (sin proyecto, con `homeSectorId`) a otro sector: cambia su " +
+        "`homeSectorId`, deja de aparecer en el sector anterior (salvo que el texto lo nombre con " +
+        "#sector) y queda al final del destino; sus subtareas se mudan con ella. No aplica a tareas " +
+        "de proyecto (cambiá el #sector del texto con task.update) ni a subtareas (siguen a su " +
+        "padre). Requiere operar la tarea y el sector destino. Idempotente.",
+      inputSchema: { taskId: z.string().uuid(), sectorId: z.string().uuid() },
+    },
+    async ({ taskId, sectorId }) => {
+      try {
+        const { task, moved } = await setTaskHomeSector(ctx.userContext, taskId, sectorId);
+        if (!moved) {
+          return toolSuccess("La tarea ya estaba en ese sector.", await summarizeTaskWithLabels(task));
+        }
+
+        const sectorName = task.homeSector?.name ?? "otro sector";
+        await logMcpActivity({
+          connectionId: ctx.connectionId,
+          userId: ctx.userId,
+          toolName: "task.setSector",
+          targetType: "Task",
+          targetId: taskId,
+          summary: `El asistente de IA movió la tarea "${task.displayText}" al sector "${sectorName}".`,
+        });
+
+        return toolSuccess(
+          `Tarea "${task.displayText}" movida al sector "${sectorName}".`,
+          await summarizeTaskWithLabels(task),
         );
       } catch (err) {
         return toToolErrorResult(err);
