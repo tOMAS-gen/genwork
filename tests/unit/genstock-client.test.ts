@@ -243,33 +243,48 @@ describe("genstock client", () => {
       expect(context.units?.map((unit) => unit.factor)).toEqual(["0.00100000", "1.00000000"]);
     });
 
-    it.each([
-      ["el precio", { ...wireItem, prices: [{ ...wireItem.prices[0], price: "1250.50" }] }],
-      [
-        "el stock",
-        {
-          ...wireItem,
-          warehouses: [{ ...wireItem.warehouses[0], stock_available: "24.00000000" }],
-        },
-      ],
-    ])("falla con 502 si %s llega como texto (Genstock anterior a la 1.17)", async (_, body) => {
-      const { getGenstockItem } = await import("@/server/genstock");
+    it("acepta un Genstock 1.16.x que manda los decimales como texto, sin cambiarlos", async () => {
+      const { searchGenstockProducts } = await import("@/server/genstock");
       process.env.GENSTOCK_BASE_URL = "http://genstock.local";
-      stubJson(body);
+      stubJson({
+        items: [
+          {
+            ...wireItem,
+            prices: [
+              { ...wireItem.prices[0], price: "1250.50", min_quantity: "3.50000000" },
+              wireItem.prices[1],
+            ],
+            warehouses: [
+              { ...wireItem.warehouses[0], stock_available: "24.00000000" },
+              wireItem.warehouses[1],
+            ],
+          },
+        ],
+        total: 1,
+        limit: 12,
+        offset: 0,
+        has_more: false,
+        exact_match_product_id: null,
+      });
 
-      const err = await getGenstockItem("p-1").catch((e: unknown) => e);
+      const res = await searchGenstockProducts({ query: "cemento" });
 
-      expect(err).toBeInstanceOf(ApiError);
-      expect(err).toMatchObject({ code: "GENSTOCK_INCOMPATIBLE", status: 502 });
-      expect((err as Error).message).toMatch(/texto.*1\.17/);
+      expect(res.items[0].prices.map((p) => [p.price, p.min_quantity])).toEqual([
+        ["1250.50", "3.50000000"],
+        [null, null],
+      ]);
+      expect(res.items[0].warehouses.map((w) => w.stock_available)).toEqual([
+        "24.00000000",
+        null,
+      ]);
     });
 
-    it("falla con 502 si el factor de una unidad llega como texto", async () => {
+    it("acepta el factor de unidad en texto de un Genstock 1.16.x", async () => {
       const { getGenstockContext } = await import("@/server/genstock");
       process.env.GENSTOCK_BASE_URL = "http://genstock.local";
       stubJson({
         price_lists: [],
-        currencies: [],
+        currencies: [{ id: "ars", code: "ARS", symbol: "$", decimals: 2 }],
         warehouses: [],
         units: [
           {
@@ -284,14 +299,59 @@ describe("genstock client", () => {
         ],
       });
 
+      const context = await getGenstockContext();
+
+      expect(context.units?.[0].factor).toBe("0.00100000");
+    });
+
+    it.each([["1250.50"], ["24.00000000"], ["-3.5"], ["25"]])(
+      "pasa sin cambios el texto decimal %s",
+      async (value) => {
+        const { scaledToDecimal } = await import("@/server/genstock");
+        expect(scaledToDecimal(value, 2, "el precio")).toBe(value);
+      },
+    );
+
+    it("falla con 502 si el precio llega como texto que no es un decimal", async () => {
+      const { getGenstockItem } = await import("@/server/genstock");
+      process.env.GENSTOCK_BASE_URL = "http://genstock.local";
+      stubJson({ ...wireItem, prices: [{ ...wireItem.prices[0], price: "abc" }] });
+
+      const err = await getGenstockItem("p-1").catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ApiError);
+      expect(err).toMatchObject({ code: "GENSTOCK_INCOMPATIBLE", status: 502 });
+      expect((err as Error).message).toMatch(/el precio/);
+    });
+
+    it("falla con 502 si el factor de una unidad no viene", async () => {
+      const { getGenstockContext } = await import("@/server/genstock");
+      process.env.GENSTOCK_BASE_URL = "http://genstock.local";
+      stubJson({
+        price_lists: [],
+        currencies: [],
+        warehouses: [],
+        units: [
+          {
+            id: "u-g",
+            name: "Gramo",
+            abbreviation: "g",
+            magnitude: "kg",
+            factor: null,
+            is_base: false,
+            allows_decimal: true,
+          },
+        ],
+      });
+
       await expect(getGenstockContext()).rejects.toMatchObject({
         code: "GENSTOCK_INCOMPATIBLE",
         status: 502,
       });
     });
 
-    it.each([[1.5], [Number.MAX_SAFE_INTEGER + 2], [true]])(
-      "rechaza %s porque no es un entero escalado",
+    it.each([[1.5], [Number.MAX_SAFE_INTEGER + 2], [true], [""], ["1,5"], ["1e5"], ["1.2.3"]])(
+      "rechaza %s porque no es un entero escalado ni un decimal",
       async (value) => {
         const { scaledToDecimal } = await import("@/server/genstock");
         expect(() => scaledToDecimal(value, 2, "el precio")).toThrow(ApiError);

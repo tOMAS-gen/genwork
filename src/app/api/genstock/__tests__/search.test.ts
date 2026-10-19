@@ -92,7 +92,7 @@ describe("/api/genstock/search", () => {
     expect(body.items[0].warehouses[0]).toMatchObject({ stock_available: "3.50000000" });
   });
 
-  it("responde 502 si Genstock es anterior a la 1.17 y manda decimales como texto", async () => {
+  it("con un Genstock 1.16.x pasa los decimales en texto sin cambios", async () => {
     fetchMock.mockResolvedValueOnce(
       page([
         {
@@ -100,6 +100,26 @@ describe("/api/genstock/search", () => {
           prices: [
             { price_list_id: "pl-1", currency_id: "ars", price: "1250.50", min_quantity: null },
           ],
+          warehouses: [
+            { warehouse_id: "w-1", stock_mode: "controlled", stock_available: "3.50000000" },
+          ],
+        },
+      ]),
+    );
+
+    const { status, body } = await search("q=cemento");
+
+    expect(status).toBe(200);
+    expect(body.items[0].prices[0]).toMatchObject({ price: "1250.50" });
+    expect(body.items[0].warehouses[0]).toMatchObject({ stock_available: "3.50000000" });
+  });
+
+  it("responde 502 si Genstock manda un decimal inválido", async () => {
+    fetchMock.mockResolvedValueOnce(
+      page([
+        {
+          ...item("cemento", true),
+          prices: [{ price_list_id: "pl-1", currency_id: "ars", price: 1250.5, min_quantity: null }],
         },
       ]),
     );

@@ -16,8 +16,9 @@ export interface GenstockSearchProduct {
 
 // Genwork trabaja los decimales de Genstock como TEXTO decimal exacto con la
 // escala fija del tipo ("1250.50", "3.50000000"): así los guarda (unitFactor),
-// los expone en su propia API y los muestra. Genstock 1.17 (contrato de nivel 4)
-// los manda como ENTEROS ESCALADOS; la conversión ocurre solo acá, al leerlos.
+// los expone en su propia API y los muestra. Genstock 1.16.x ya los manda así;
+// Genstock 1.17+ (contrato de nivel 4) los manda como ENTEROS ESCALADOS. La
+// conversión ocurre solo acá, al leerlos, y acepta las dos formas.
 export interface GenstockSearchPrice {
   price_list_id: string;
   currency_id: string;
@@ -65,7 +66,7 @@ export interface GenstockSearchContext {
   units?: GenstockUnit[];
 }
 
-// Forma en el cable (contrato de nivel 4): cada decimal es un entero escalado.
+// Forma en el cable: cada decimal es un entero escalado (nivel 4) o texto (1.16.x).
 type Wire<T, K extends keyof T> = Omit<T, K> & { [P in K]: unknown };
 type WirePrice = Wire<GenstockSearchPrice, "price" | "min_quantity">;
 type WireWarehouseStock = Wire<GenstockWarehouseStock, "stock_available">;
@@ -87,33 +88,42 @@ export const GENSTOCK_CLIENT_CONTRACT = "4";
 // moneda: currency_decimals es informativo y no se lee para escalar.
 export const GENSTOCK_SCALE = { amount: 2, quantity: 8 } as const;
 
+// Texto decimal que mandaba Genstock antes del nivel 4 ("1250.50", "24.00000000").
+const DECIMAL_TEXT_RE = /^-?\d+(?:\.\d+)?$/;
+
 /**
- * Convierte un entero escalado de Genstock en texto decimal exacto, sin pasar
- * por punto flotante: 125050 con escala 2 → "1250.50"; 350000000 con escala 8
- * → "3.50000000". Falla con 502 si el valor no es un entero escalado: un
- * decimal en texto delata un Genstock anterior a la 1.17 (nivel 4).
+ * Lleva un decimal de Genstock al texto decimal exacto que usa Genwork. El tipo
+ * JSON dice qué servidor respondió, sin ambigüedad:
+ * - número → entero escalado del contrato de nivel 4 (Genstock 1.17+): se
+ *   convierte con la escala fija del tipo, sin punto flotante (125050 con
+ *   escala 2 → "1250.50"; 350000000 con escala 8 → "3.50000000");
+ * - texto → decimal de Genstock 1.16.x: pasa sin cambios, como antes;
+ * - null → null.
+ * Cualquier otra cosa (fracción, entero fuera del rango seguro, texto que no es
+ * un decimal) falla con 502.
  */
 export function scaledToDecimal(value: unknown, scale: number, field: string): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value === "string") {
-    throw new ApiError(
-      502,
-      "GENSTOCK_INCOMPATIBLE",
-      `Genstock devolvió ${field} como texto: el servidor es anterior a la 1.17 (contrato de nivel 4) y no es compatible. Actualizá Genstock.`,
-    );
+    if (DECIMAL_TEXT_RE.test(value)) return value;
+    throw invalidDecimal(field);
   }
   if (typeof value !== "number" || !Number.isSafeInteger(value)) {
-    throw new ApiError(
-      502,
-      "GENSTOCK_INCOMPATIBLE",
-      `Genstock devolvió ${field} con un formato inesperado: se esperaba un entero escalado`,
-    );
+    throw invalidDecimal(field);
   }
   const negative = value < 0;
   const digits = Math.abs(value).toString().padStart(scale + 1, "0");
   const whole = digits.slice(0, digits.length - scale);
   const fraction = digits.slice(digits.length - scale);
   return `${negative ? "-" : ""}${whole}${scale > 0 ? `.${fraction}` : ""}`;
+}
+
+function invalidDecimal(field: string): ApiError {
+  return new ApiError(
+    502,
+    "GENSTOCK_INCOMPATIBLE",
+    `Genstock devolvió ${field} con un formato inesperado: se esperaba un entero escalado o un decimal`,
+  );
 }
 
 function requiredDecimal(value: unknown, scale: number, field: string): string {
