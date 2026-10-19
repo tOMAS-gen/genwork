@@ -547,8 +547,9 @@ function renderPriceSummary(
   return `${currency?.symbol ?? ""}${price}${list ? ` · ${list.name}` : ""}`;
 }
 
-// Genstock manda decimales como string con escala fija ("24.00000000"): se
-// muestran en formato local sin ceros sobrantes.
+// La API de Genwork entrega los decimales de Genstock como string con escala
+// fija ("24.00000000"; src/server/genstock.ts los convierte desde los enteros
+// escalados del nivel 4): se muestran en formato local sin ceros sobrantes.
 function formatDecimal(value: string, maxDigits: number, minDigits = 0) {
   const n = Number(value);
   if (!Number.isFinite(n)) return value;

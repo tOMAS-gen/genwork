@@ -14,11 +14,18 @@ export interface GenstockSearchProduct {
   tag_values?: { id: string; name: string; key_id?: string; key_name?: string }[];
 }
 
+// Genwork trabaja los decimales de Genstock como TEXTO decimal exacto con la
+// escala fija del tipo ("1250.50", "3.50000000"): así los guarda (unitFactor),
+// los expone en su propia API y los muestra. Genstock 1.16.x ya los manda así;
+// Genstock 1.17+ (contrato de nivel 4) los manda como ENTEROS ESCALADOS. La
+// conversión ocurre solo acá, al leerlos, y acepta las dos formas.
 export interface GenstockSearchPrice {
   price_list_id: string;
   currency_id: string;
   price: string | null;
   min_quantity: string | null;
+  // Informativo: siempre 2 en nivel 4. No se usa para escalar el dinero.
+  currency_decimals?: number;
 }
 
 export interface GenstockWarehouseStock {
@@ -42,19 +49,128 @@ export interface GenstockSearchResponse {
   exact_match_product_id: string | null;
 }
 
+export interface GenstockUnit {
+  id: string;
+  name: string;
+  abbreviation: string;
+  magnitude: string;
+  factor: string;
+  is_base: boolean;
+  allows_decimal: boolean;
+}
+
 export interface GenstockSearchContext {
   price_lists: { id: string; name: string; currency_id: string }[];
   currencies: { id: string; code: string; symbol: string; decimals: number }[];
   warehouses: { id: string; name: string }[];
-  units?: {
-    id: string;
-    name: string;
-    abbreviation: string;
-    magnitude: string;
-    factor: string;
-    is_base: boolean;
-    allows_decimal: boolean;
-  }[];
+  units?: GenstockUnit[];
+}
+
+// Forma en el cable: cada decimal es un entero escalado (nivel 4) o texto (1.16.x).
+type Wire<T, K extends keyof T> = Omit<T, K> & { [P in K]: unknown };
+type WirePrice = Wire<GenstockSearchPrice, "price" | "min_quantity">;
+type WireWarehouseStock = Wire<GenstockWarehouseStock, "stock_available">;
+type WireSearchItem = Omit<GenstockSearchItem, "prices" | "warehouses"> & {
+  prices?: WirePrice[] | null;
+  warehouses?: WireWarehouseStock[] | null;
+};
+type WireSearchResponse = Omit<GenstockSearchResponse, "items"> & {
+  items?: WireSearchItem[] | null;
+};
+type WireSearchContext = Omit<GenstockSearchContext, "units"> & {
+  units?: Wire<GenstockUnit, "factor">[] | null;
+};
+
+// Contrato de la API de Genstock que habla este cliente.
+export const GENSTOCK_CLIENT_CONTRACT = "4";
+
+// Escalas fijas por tipo (GET /health → "scales"). El dinero va a 2 en toda
+// moneda: currency_decimals es informativo y no se lee para escalar.
+export const GENSTOCK_SCALE = { amount: 2, quantity: 8 } as const;
+
+// Texto decimal que mandaba Genstock antes del nivel 4 ("1250.50", "24.00000000").
+const DECIMAL_TEXT_RE = /^-?\d+(?:\.\d+)?$/;
+
+/**
+ * Lleva un decimal de Genstock al texto decimal exacto que usa Genwork. El tipo
+ * JSON dice qué servidor respondió, sin ambigüedad:
+ * - número → entero escalado del contrato de nivel 4 (Genstock 1.17+): se
+ *   convierte con la escala fija del tipo, sin punto flotante (125050 con
+ *   escala 2 → "1250.50"; 350000000 con escala 8 → "3.50000000");
+ * - texto → decimal de Genstock 1.16.x: pasa sin cambios, como antes;
+ * - null → null.
+ * Cualquier otra cosa (fracción, entero fuera del rango seguro, texto que no es
+ * un decimal) falla con 502.
+ */
+export function scaledToDecimal(value: unknown, scale: number, field: string): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") {
+    if (DECIMAL_TEXT_RE.test(value)) return value;
+    throw invalidDecimal(field);
+  }
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+    throw invalidDecimal(field);
+  }
+  const negative = value < 0;
+  const digits = Math.abs(value).toString().padStart(scale + 1, "0");
+  const whole = digits.slice(0, digits.length - scale);
+  const fraction = digits.slice(digits.length - scale);
+  return `${negative ? "-" : ""}${whole}${scale > 0 ? `.${fraction}` : ""}`;
+}
+
+function invalidDecimal(field: string): ApiError {
+  return new ApiError(
+    502,
+    "GENSTOCK_INCOMPATIBLE",
+    `Genstock devolvió ${field} con un formato inesperado: se esperaba un entero escalado o un decimal`,
+  );
+}
+
+function requiredDecimal(value: unknown, scale: number, field: string): string {
+  const decimal = scaledToDecimal(value, scale, field);
+  if (decimal === null) {
+    throw new ApiError(502, "GENSTOCK_INCOMPATIBLE", `Genstock no devolvió ${field}`);
+  }
+  return decimal;
+}
+
+function fromWireItem(item: WireSearchItem): GenstockSearchItem {
+  return {
+    ...item,
+    prices: (item.prices ?? []).map((price) => ({
+      ...price,
+      price: scaledToDecimal(price.price, GENSTOCK_SCALE.amount, "el precio"),
+      min_quantity: scaledToDecimal(
+        price.min_quantity,
+        GENSTOCK_SCALE.quantity,
+        "la cantidad mínima",
+      ),
+    })),
+    warehouses: (item.warehouses ?? []).map((warehouse) => ({
+      ...warehouse,
+      stock_available: scaledToDecimal(
+        warehouse.stock_available,
+        GENSTOCK_SCALE.quantity,
+        "el stock disponible",
+      ),
+    })),
+  };
+}
+
+function fromWireSearch(response: WireSearchResponse): GenstockSearchResponse {
+  return { ...response, items: (response.items ?? []).map(fromWireItem) };
+}
+
+function fromWireContext(context: WireSearchContext): GenstockSearchContext {
+  const { units, ...rest } = context;
+  if (!units) return rest;
+  return {
+    ...rest,
+    units: units.map((unit) => ({
+      ...unit,
+      factor: requiredDecimal(unit.factor, GENSTOCK_SCALE.quantity, "el factor de la unidad"),
+    })),
+  };
 }
 
 export function genstockUrl(
@@ -113,27 +229,36 @@ export async function searchGenstockProducts({
   if (query.trim()) params.set("q", query.trim());
   if (limit) params.set("limit", String(limit));
   if (supplyOnly) params.set("is_supply", "true");
-  return fetchGenstock<GenstockSearchResponse>(
-    genstockUrl("/search", params, await getGenstockBaseUrl()),
+  return fromWireSearch(
+    await fetchGenstock<WireSearchResponse>(
+      genstockUrl("/search", params, await getGenstockBaseUrl()),
+    ),
   );
 }
 
 export async function getGenstockItem(productId: string): Promise<GenstockSearchItem> {
-  return fetchGenstock<GenstockSearchItem>(
-    genstockUrl(`/search/${productId}`, undefined, await getGenstockBaseUrl()),
+  return fromWireItem(
+    await fetchGenstock<WireSearchItem>(
+      genstockUrl(`/search/${productId}`, undefined, await getGenstockBaseUrl()),
+    ),
   );
 }
 
 export async function getGenstockContext(): Promise<GenstockSearchContext> {
-  return fetchGenstock<GenstockSearchContext>(
-    genstockUrl("/search/context", undefined, await getGenstockBaseUrl()),
+  return fromWireContext(
+    await fetchGenstock<WireSearchContext>(
+      genstockUrl("/search/context", undefined, await getGenstockBaseUrl()),
+    ),
   );
 }
 
 async function fetchGenstock<T>(url: string): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(url, { cache: "no-store" });
+    res = await fetch(url, {
+      cache: "no-store",
+      headers: { "X-Client-Contract": GENSTOCK_CLIENT_CONTRACT },
+    });
   } catch (err) {
     throw new ApiError(502, "GENSTOCK_UNAVAILABLE", connectionErrorMessage(err));
   }

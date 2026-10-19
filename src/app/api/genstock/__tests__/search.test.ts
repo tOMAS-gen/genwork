@@ -66,4 +66,67 @@ describe("/api/genstock/search", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("http://genstock/search?q=taladro&limit=12");
     expect(body).toMatchObject({ supplyFallback: false });
   });
+
+  it("expone a la app los decimales de Genstock como texto decimal exacto", async () => {
+    fetchMock.mockResolvedValueOnce(
+      page([
+        {
+          ...item("cemento", true),
+          prices: [
+            { price_list_id: "pl-1", currency_id: "ars", price: 125050, min_quantity: null },
+          ],
+          warehouses: [
+            { warehouse_id: "w-1", stock_mode: "controlled", stock_available: 350000000 },
+          ],
+        },
+      ]),
+    );
+
+    const { status, body } = await search("q=cemento");
+
+    expect(status).toBe(200);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      headers: { "X-Client-Contract": "4" },
+    });
+    expect(body.items[0].prices[0]).toMatchObject({ price: "1250.50", min_quantity: null });
+    expect(body.items[0].warehouses[0]).toMatchObject({ stock_available: "3.50000000" });
+  });
+
+  it("con un Genstock 1.16.x pasa los decimales en texto sin cambios", async () => {
+    fetchMock.mockResolvedValueOnce(
+      page([
+        {
+          ...item("cemento", true),
+          prices: [
+            { price_list_id: "pl-1", currency_id: "ars", price: "1250.50", min_quantity: null },
+          ],
+          warehouses: [
+            { warehouse_id: "w-1", stock_mode: "controlled", stock_available: "3.50000000" },
+          ],
+        },
+      ]),
+    );
+
+    const { status, body } = await search("q=cemento");
+
+    expect(status).toBe(200);
+    expect(body.items[0].prices[0]).toMatchObject({ price: "1250.50" });
+    expect(body.items[0].warehouses[0]).toMatchObject({ stock_available: "3.50000000" });
+  });
+
+  it("responde 502 si Genstock manda un decimal inválido", async () => {
+    fetchMock.mockResolvedValueOnce(
+      page([
+        {
+          ...item("cemento", true),
+          prices: [{ price_list_id: "pl-1", currency_id: "ars", price: 1250.5, min_quantity: null }],
+        },
+      ]),
+    );
+
+    const { status, body } = await search("q=cemento");
+
+    expect(status).toBe(502);
+    expect(JSON.stringify(body)).toContain("GENSTOCK_INCOMPATIBLE");
+  });
 });
