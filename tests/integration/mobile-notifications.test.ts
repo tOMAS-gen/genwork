@@ -143,6 +143,17 @@ suite("mobile notifications with PostgreSQL", () => {
       (await prisma.mobilePushDevice.findUniqueOrThrow({ where: { id: deviceId } })).enabled,
     ).toBe(false);
   });
+  it("fails malformed tokens without retrying and keeps the device", async () => {
+    await setUrgent(owner, taskId, true, "work");
+    send.mockRejectedValueOnce({ code: "messaging/invalid-argument" });
+    await dispatchPush();
+    const job = await prisma.mobilePushJob.findFirstOrThrow({ where: { deviceId } });
+    expect(job.status).toBe("FAILED");
+    expect(job.attempts).toBe(1);
+    expect(
+      (await prisma.mobilePushDevice.findUniqueOrThrow({ where: { id: deviceId } })).enabled,
+    ).toBe(true);
+  });
   it("does not send after session revocation", async () => {
     await setUrgent(owner, taskId, true, "work");
     await prisma.mobileSession.update({
