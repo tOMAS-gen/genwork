@@ -70,6 +70,20 @@ Google; no se carga tarjeta. Los nombres de botones pueden variar levemente.
 4. **Generar la credencial de envío.** En la misma configuración, abrir la pestaña
    **Cuentas de servicio** → **Generar nueva clave privada** → **Generar clave**.
    Se descarga un JSON.
+
+   Si la cuenta es de una organización de Google Workspace, puede aparecer *"No
+   se permite crear claves en esta cuenta de servicio"*. Es la política
+   `iam.disableServiceAccountKeyCreation`, activa por defecto. Para anularla solo en
+   este proyecto:
+   1. En Google Cloud, con el selector en la **organización**, ir a **IAM** y
+      darse el rol **Administrador de políticas de la organización**.
+   2. Con el selector en el **proyecto**, ir a **Políticas de la organización** →
+      *Inhabilitar la creación de claves de cuentas de servicio* → **Administrar
+      política** → **Anular política del elemento superior** → regla
+      **Desactivado** → **Configurar política**. Revisar también la versión
+      administrada (`iam.managed.…`).
+   3. Esperar unos minutos y generar la clave. La clave sigue funcionando aunque
+      después se vuelva a heredar la política.
 5. **Guardar los archivos.** En la raíz del repo, crear `.firebase-secrets/` y
    mover ahí los dos archivos con estos nombres exactos:
    - `.firebase-secrets/google-services.json` (paso 2)

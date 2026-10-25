@@ -44,11 +44,11 @@ Detalle y criterios en [tasks.md](tasks.md).
 
 ### Phase 1: Documentación y activación
 - [x] T1: Documentar el modelo privado y la guía paso a paso de Firebase (PR #29)
-- [ ] T2: Crear el proyecto Firebase y dejar las credenciales locales (**usuario**, guiado por T1)
+- [x] T2: Crear el proyecto Firebase y dejar las credenciales locales (**usuario**, guiado por T1)
 
 ### Checkpoint A
 - [ ] PR #29 mergeado (lo hace el usuario)
-- [ ] Credenciales presentes y fuera de `git ls-files`
+- [x] Credenciales presentes y fuera de `git ls-files`
 
 ### Phase 2: Validación real
 - [ ] T3: Levantar el entorno local con push activado e instalar el APK con Firebase en el moto e40 y el emulador

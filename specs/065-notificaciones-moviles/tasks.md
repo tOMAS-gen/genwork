@@ -25,22 +25,24 @@ Comandos comunes: `A=~/Library/Android/sdk/platform-tools/adb`, teléfono `ZE223
 
 ---
 
-### T2: Crear el proyecto Firebase (usuario)
+### T2: Crear el proyecto Firebase (usuario) ✅
 
 **Description:** el usuario sigue la guía de T1. Claude acompaña paso a paso y verifica cada archivo sin mostrar secretos.
 
 **Acceptance criteria:**
-- [ ] Existe `mobile/config/firebase.android.json` con las 4 claves completas (sin valores de ejemplo).
-- [ ] Existe `.firebase-secrets/firebase.json`, con `type: service_account` y un `project_id` igual al de la app.
-- [ ] Ninguno de los dos aparece en `git ls-files` ni en `git status`.
+- [x] Existe `mobile/config/firebase.android.json` con las 4 claves completas (sin valores de ejemplo).
+- [x] Existe `.firebase-secrets/firebase.json`, con `type: service_account` y un `project_id` igual al de la app.
+- [x] Ninguno de los dos aparece en `git ls-files` ni en `git status`.
 
 **Verification:**
-- [ ] `node -e` que imprime solo `type`, `project_id` y si `private_key` existe (sí/no).
-- [ ] `git ls-files | grep -i firebase` solo devuelve `firebase.example.json`.
+- [x] `node -e` que imprime solo `type`, `project_id` y si `private_key` existe (sí/no).
+- [x] `git ls-files | grep -i firebase` solo devuelve `firebase.example.json`.
 
 **Dependencies:** T1 · **Files:** ninguno versionado · **Scope:** XS
 
 ---
+
+**Notas (2026-10-25):** proyecto `genwork-43383`, app `ar.genwork.mobile`. La organización `gen.net.ar` bloqueaba crear claves (`iam.disableServiceAccountKeyCreation`); se anuló solo en el proyecto genwork, con `seo@` como Administrador de políticas. Envío en seco a FCM: credencial aceptada.
 
 ### Checkpoint A
 - [ ] PR #29 mergeado por el usuario; rama nueva `tOMAS-gen/notifications-android-validation` desde main
