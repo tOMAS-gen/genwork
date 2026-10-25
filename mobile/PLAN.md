@@ -512,3 +512,8 @@ Android con base `genwork_notifications_qa` aislada. Evidencias en
 
 Pendiente externo: proyecto Firebase, credenciales de envío, clave APNs y firma
 para validar push real. iOS requiere Xcode completo, no instalado en esta máquina.
+
+Cierre (2026-10-25): genwork es privado, con un único proyecto Firebase compartido
+por los servidores propios. Spec, plan y tareas de la validación Android en
+[`../specs/065-notificaciones-moviles/`](../specs/065-notificaciones-moviles/spec.md).
+iOS diferido hasta tener Apple Developer.

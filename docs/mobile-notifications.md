@@ -2,7 +2,26 @@
 
 La app ofrece una bandeja persistente y push opcional en Android/iOS. El servidor
 resuelve los destinatarios y los horarios; Firebase solamente transporta mensajes.
-No se implementa push web ni un intermediario para instalaciones de terceros.
+No se implementa push web.
+
+## Modelo de distribución: genwork es privado
+
+Todos los servidores de genwork los administra una sola persona; no hay
+instalaciones de terceros. Por eso alcanza con **un único proyecto Firebase**:
+
+- La app se compila con ese proyecto, y cada token FCM que genera solo acepta
+  envíos de ese proyecto.
+- Cada servidor propio recibe una copia de la **misma credencial de envío**
+  (JSON de cuenta de servicio). Un teléfono vinculado a varios servidores
+  recibe avisos de todos.
+- La credencial **nunca se comparte**: con ella se puede mandar cualquier aviso
+  a cualquier teléfono con la app, y revocarla obliga a rotarla en todos los
+  servidores. Tampoco se construye un intermediario para terceros.
+- Cloud Messaging no tiene costo. El límite es de 600.000 mensajes por minuto por
+  proyecto, compartido entre todos los servidores.
+
+Sin Firebase configurado, la bandeja, el contador en vivo y los emails siguen
+funcionando. Solo falta el aviso en el teléfono con la app cerrada.
 
 ## Reglas
 
@@ -24,19 +43,70 @@ No se implementa push web ni un intermediario para instalaciones de terceros.
   ya aceptados por FCM no pueden retirarse de manera garantizada al cerrar sesión.
   Los nuevos envíos se bloquean al revocar la sesión; los taps locales se descartan.
 
+## Activación de Firebase paso a paso
+
+Se hace una sola vez y sirve para todos los servidores. Hace falta una cuenta de
+Google; no se carga tarjeta. Los nombres de botones pueden variar levemente.
+
+> ⚠️ **La clave de la cuenta de servicio (paso 4) es un secreto.** No pegarla en
+> chats, issues ni commits, ni mandarla por mail. Guardarla solo en
+> `.firebase-secrets/` (ignorado por git) y en los servidores propios.
+
+1. **Crear el proyecto.** Entrar a <https://console.firebase.google.com> y
+   tocar **Crear un proyecto**. Nombre sugerido: `genwork`. Google Analytics
+   no hace falta: desactivarlo. Tocar **Crear proyecto** y esperar.
+2. **Registrar la app Android.** En la portada del proyecto, tocar el ícono de
+   Android (**Agregar app**). Datos:
+   - Nombre del paquete: `ar.net.gen.genwork_mobile` (exacto).
+   - Sobrenombre: `genwork Android`.
+   - SHA-1: dejar vacío (no lo usa push).
+
+   Tocar **Registrar app** y después **Descargar google-services.json**. Los
+   pasos siguientes del asistente (agregar SDK y Gradle) se saltean con
+   **Siguiente** y **Ir a la consola**: la app ya los resuelve.
+3. **Confirmar Cloud Messaging.** Engranaje ⚙️ → **Configuración del proyecto** →
+   pestaña **Cloud Messaging**. *API de Firebase Cloud Messaging (V1)* tiene que
+   decir **Habilitada**. Si no, usar el menú ⋮ de esa fila para habilitarla.
+4. **Generar la credencial de envío.** En la misma configuración, abrir la pestaña
+   **Cuentas de servicio** → **Generar nueva clave privada** → **Generar clave**.
+   Se descarga un JSON.
+5. **Guardar los archivos.** En la raíz del repo, crear `.firebase-secrets/` y
+   mover ahí los dos archivos con estos nombres exactos:
+   - `.firebase-secrets/google-services.json` (paso 2)
+   - `.firebase-secrets/firebase.json` (paso 4, el secreto)
+6. **Generar la configuración de la app** desde la raíz del repo:
+
+   ```sh
+   node -e '
+   const g = require("./.firebase-secrets/google-services.json");
+   const c = g.client.find(c => c.client_info.android_client_info.package_name === "ar.net.gen.genwork_mobile");
+   require("fs").writeFileSync("mobile/config/firebase.android.json", JSON.stringify({
+     FIREBASE_PROJECT_ID: g.project_info.project_id,
+     FIREBASE_API_KEY: c.api_key[0].current_key,
+     FIREBASE_APP_ID: c.client_info.mobilesdk_app_id,
+     FIREBASE_SENDER_ID: g.project_info.project_number,
+   }, null, 2) + "\n");'
+   ```
+
+   Estos valores identifican la app y viajan dentro del APK: no son secretos.
+7. **Verificar** que nada quedó versionado: `git status --short` no debe listar
+   `.firebase-secrets/` ni `firebase.android.json`.
+
+iOS necesita además una cuenta Apple Developer: registrar la app
+`ar.net.gen.genworkMobile` en el mismo proyecto y cargar la clave APNs (ver
+**Configuración de la app**).
+
 ## Configuración del servidor
 
-1. Crear un proyecto Firebase compartido por tus instalaciones y registrar las apps:
-   Android `ar.net.gen.genwork_mobile`; iOS `ar.net.gen.genworkMobile`.
-2. Habilitar FCM y una identidad de servicio con permiso de envío. Montar su JSON
-   **fuera del repositorio**, solo en los servidores que administrás. Nunca dentro
-   del APK/IPA ni en variables `NEXT_PUBLIC_*`.
-3. Configurar `GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase.json`,
+1. Copiar `.firebase-secrets/firebase.json` a cada servidor propio, **fuera del
+   repositorio** (por ejemplo, como secreto de Docker). Nunca va dentro del
+   APK/IPA ni en variables `NEXT_PUBLIC_*`.
+2. Configurar `GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/firebase.json`,
    `FIREBASE_PROJECT_ID=<proyecto>` y `PUSH_ENABLED=true`.
    `AUTH_URL` debe ser la URL pública usada para vincular ese servidor en la app.
-4. Aplicar `npx prisma migrate deploy` antes de arrancar el backend actualizado.
+3. Aplicar `npx prisma migrate deploy` antes de arrancar el backend actualizado.
    La migración es aditiva y excluye entregas históricas del envío push.
-5. El proceso Node debe permanecer activo: el ticker existente procesa cada 30 s.
+4. El proceso Node debe permanecer activo: el ticker existente procesa cada 30 s.
    La cola usa PostgreSQL y leases para admitir varias réplicas y recuperarse de
    caídas. Un deploy serverless sin proceso persistente requiere otro ejecutor.
 
@@ -47,10 +117,11 @@ al dispositivo; la cola distingue PENDING/SENDING/SENT/FAILED/CANCELLED.
 
 ## Configuración de la app
 
-Copiar `mobile/config/firebase.example.json` a `firebase.android.json` y a
-`firebase.ios.json`, con los valores de **cada app** registrados en Firebase.
-La inicialización usa FirebaseOptions explícitas; no requiere guardar credenciales
-de servidor ni google-services.json en el proyecto.
+`mobile/config/firebase.android.json` se genera en el paso 6 de la activación.
+Para iOS, copiar `mobile/config/firebase.example.json` a `firebase.ios.json` con
+los valores de la app iOS. Ambos están en `.gitignore`. La inicialización usa
+FirebaseOptions explícitas: `google-services.json` no se versiona ni se agrega
+al proyecto Android.
 
 ```sh
 cd mobile
