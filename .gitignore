@@ -40,3 +40,8 @@ tsconfig.tsbuildinfo
 # Herramientas locales
 .impeccable/
 .superpowers/
+
+# Local Firebase build configuration and service-account credentials
+mobile/config/firebase.android.json
+mobile/config/firebase.ios.json
+.firebase-secrets/

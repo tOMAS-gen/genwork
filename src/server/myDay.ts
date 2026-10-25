@@ -109,6 +109,7 @@ async function toMyDayDto(
     id: task.id,
     rawText: task.rawText,
     displayText: task.displayText,
+    isUrgent: task.isUrgent ?? false,
     status: task.status,
     statusOptions: statusOptions.map(statusOptionDto),
     workId: task.workId,

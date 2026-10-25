@@ -43,6 +43,7 @@ export function taskRefFromLoadedTask(task: TaskWithPermissionData): TaskRef {
 /** Tipo intermedio con las relaciones mínimas necesarias para permisos y agrupamiento. */
 export type TaskWithPermissionData = {
   id: string;
+  isUrgent?: boolean;
   rawText: string;
   displayText: string;
   statusId: string;

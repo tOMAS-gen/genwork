@@ -1,3 +1,4 @@
+import '../notifications/notifications_providers.dart';
 import '../settings/settings_providers.dart';
 import '../portal/portal_providers.dart';
 import '../settings/catalogs_providers.dart';
@@ -55,6 +56,8 @@ final liveRefresherProvider = Provider.autoDispose<void>((ref) {
       ref.invalidate(boardProvider);
       return;
     }
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(taskNotificationInfoProvider);
     ref.invalidate(workFilesProvider);
     ref.invalidate(fileSharesProvider);
     ref.invalidate(settingsDataProvider);
@@ -92,6 +95,8 @@ final liveRefresherProvider = Provider.autoDispose<void>((ref) {
       case LiveConnected():
         refreshAll();
       case TaskChanged():
+        ref.invalidate(notificationsProvider);
+        ref.invalidate(taskNotificationInfoProvider);
         ref.invalidate(groupsProvider);
         ref.invalidate(groupWorksProvider);
         ref.invalidate(myDayProvider);

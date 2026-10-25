@@ -16,6 +16,8 @@ abstract final class Routes {
   static const myDay = '/my-day';
   static const board = '/board';
   static const templates = '/templates';
+  static const notifications = '/more/notifications';
+  static const notificationSettings = '/more/notification-settings';
   static const dueToday = '/more/due-today';
   static const works = '/works';
   static const sectors = '/sectors';

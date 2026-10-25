@@ -164,3 +164,10 @@ Ver `specs/001-gestion-trabajos-sectores/quickstart.md` — escenarios end-to-en
 ```bash
 npm test    # dominio: parser de etiquetas, permisos, filtros, archivado, acceso
 ```
+
+## Notificaciones Android/iOS
+
+Configurar `PUSH_ENABLED=true`, `FIREBASE_PROJECT_ID` y
+`GOOGLE_APPLICATION_CREDENTIALS` apuntando a un secreto montado en el contenedor.
+Guía de Firebase/APNs, migración, builds y pruebas:
+[`../docs/mobile-notifications.md`](../docs/mobile-notifications.md).

@@ -304,7 +304,7 @@ se detalla en su entrega más abajo.
 
 | # | Tarea | Notas |
 |---|---|---|
-| N1 | **Push de recordatorios** (FCM/APNs) | Backend: registrar device token por `MobileSession` y enviar cuando se dispara un `ReminderDelivery` (hoy solo hay campanita + mail) |
+| N1 | **Implementado; activación externa pendiente** | Bandeja, urgencia y push FCM/APNs; ver entrega Notificaciones móviles y guía de configuración |
 | N2 | **Dispositivos vinculados** en la web (listar / revocar `MobileSession`) | Ajustes → Mi cuenta, igual que las conexiones MCP |
 | N3 ✅ | **Autocompletar sintaxis** en el composer (`/` `#` `@` `$`) | Hay `GET /api/tags/suggest` |
 | N4 ✅ | **Objetivos**: crear / renombrar / borrar | Endpoints ya existen (`/api/works/[id]/objectives`, `/api/objectives/[id]`) |
@@ -494,3 +494,21 @@ iOS no compila en esta máquina sin Xcode completo. El historial previo se conse
 Verificación final Mxx: **345 tests Flutter**, **1.435 tests backend**, análisis Dart,
 TypeScript, ESLint y detector visual sin hallazgos. APK debug compilado/instalado.
 Comparación actual: web y app como lector; evidencias en `.context/mobile-parity/`.
+
+## Notificaciones móviles — 2026-10-17
+
+Implementados: bandeja unificada con lectura/descarte/posposición, contador y
+filtros; urgencia manual desde la tarea y alta de recordatorio vinculado; audiencia
+por menciones y operadores de sectores REF/EXEC. Integración FCM/APNs configurable,
+registro por MobileSession, preferencias por usuario/servidor y apertura validada
+para múltiples servidores. Cola PostgreSQL con leases, reintentos y cancelación;
+migración aditiva sin envíos históricos. Se conservan las rutas de recordatorios.
+
+Guía de activación y contrato: [`../docs/mobile-notifications.md`](../docs/mobile-notifications.md).
+Pruebas: suite backend, regresiones Flutter y pruebas de integración con PostgreSQL
+real/FCM simulado. APK debug compilado y flujo de bandeja → tarea verificado en
+Android con base `genwork_notifications_qa` aislada. Evidencias en
+`.context/notifications/`. La base conserva un proyecto/tarea de demostración.
+
+Pendiente externo: proyecto Firebase, credenciales de envío, clave APNs y firma
+para validar push real. iOS requiere Xcode completo, no instalado en esta máquina.

@@ -133,6 +133,8 @@ model User {
   myDayTasks         Task[]             @relation("TaskMyDayBy")
   mobileSessions     MobileSession[]
   mobileAuthCodes    MobileAuthCode[]
+  notifications      MobileNotification[]
+  pushPreferences    PushPreference?
 }
 
 model AccessConfig {
@@ -328,6 +330,9 @@ model WorkMaterial {
 
 model Task {
   id                String    @id @default(uuid())
+  isUrgent          Boolean   @default(false)
+  urgencyVersion    Int       @default(0)
+  notifications     MobileNotification[]
   rawText           String
   displayText       String
   statusId          String
@@ -759,6 +764,7 @@ model ReminderLead {
 
   reminder   Reminder           @relation(fields: [reminderId], references: [id], onDelete: Cascade)
   deliveries ReminderDelivery[]
+  notificationDispatches ReminderNotificationDispatch[]
 
   @@unique([reminderId, daysBefore, minuteOfDay])
 }
@@ -774,6 +780,8 @@ model ReminderDelivery {
   snoozedUntil   DateTime?
   emailStatus    EmailStatus    @default(PENDING)
   emailError     String?
+  notificationEligible Boolean @default(true)
+  notification MobileNotification?
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
@@ -801,6 +809,7 @@ model MobileSession {
   revokedAt  DateTime?
 
   integrationFlows MobileIntegrationFlow[]
+  pushDevices MobilePushDevice[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -930,4 +939,78 @@ model MobileIntegrationFlow {
   session MobileSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   @@index([sessionId])
   @@index([expiresAt])
+}
+
+
+model MobilePushDevice {
+  id String @id @default(uuid())
+  sessionId String
+  installationId String @unique
+  token String @unique
+  platform String
+  enabled Boolean @default(true)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  session MobileSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  jobs MobilePushJob[]
+  @@index([sessionId])
+}
+
+model PushPreference {
+  userId String @id
+  reminders Boolean @default(true)
+  urgent Boolean @default(true)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MobileNotification {
+  id String @id @default(uuid())
+  sourceKey String
+  userId String
+  kind String
+  taskId String?
+  deliveryId String? @unique
+  title String
+  createdAt DateTime @default(now())
+  dueAt DateTime @default(now())
+  readAt DateTime?
+  dismissedAt DateTime?
+  pushVersion Int @default(0)
+  queuedVersion Int @default(-1)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  delivery ReminderDelivery? @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  jobs MobilePushJob[]
+  @@unique([sourceKey, userId])
+  @@index([userId, dismissedAt, dueAt])
+}
+
+model MobilePushJob {
+  id String @id @default(uuid())
+  notificationId String
+  deviceId String
+  version Int
+  status String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  leaseUntil DateTime?
+  claimId String?
+  lastError String?
+  createdAt DateTime @default(now())
+  notification MobileNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  device MobilePushDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@unique([notificationId, deviceId, version])
+  @@index([status, nextAttemptAt])
+}
+
+model NotificationConfig {
+  id Int @id @default(1)
+  activatedAt DateTime @default(now())
+}
+
+model ReminderNotificationDispatch {
+  leadId String
+  occurrenceDate DateTime
+  lead ReminderLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  @@id([leadId, occurrenceDate])
 }

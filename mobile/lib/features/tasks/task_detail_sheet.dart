@@ -1,3 +1,5 @@
+import '../notifications/notifications_providers.dart';
+import '../notifications/task_notification_controls.dart';
 import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/task_text_field.dart';
@@ -36,6 +38,7 @@ Future<void> showTaskDetail(
   bool canManageMyDay = false,
   bool fromSector = false,
   bool readOnly = false,
+  bool notificationContext = false,
   String? workId,
   String? sectorId,
 }) {
@@ -44,6 +47,7 @@ Future<void> showTaskDetail(
       fullscreenDialog: true,
       builder: (_) => TaskDetailSheet(
         task: task,
+        notificationContext: notificationContext,
         canEdit: !readOnly && canEdit && task.canToggle != false,
         canManageMyDay: !readOnly && (task.canManageMyDay ?? canManageMyDay),
         fromSector: fromSector,
@@ -61,11 +65,13 @@ class TaskDetailSheet extends ConsumerStatefulWidget {
     required this.canEdit,
     required this.canManageMyDay,
     required this.fromSector,
+    this.notificationContext = false,
     this.workId,
     this.sectorId,
   });
 
   final Task task;
+  final bool notificationContext;
   final bool canEdit;
   final bool canManageMyDay;
   final bool fromSector;
@@ -154,7 +160,9 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final detail = ref.watch(taskDetailProvider(_query));
+    final detail = widget.notificationContext
+        ? ref.watch(notificationTaskDetailProvider(widget.task.id))
+        : ref.watch(taskDetailProvider(_query));
     final latest = detail.value;
     if (latest?.task case final Task task) _acceptTask(task);
     final unavailable =
@@ -198,10 +206,18 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
             if (detail.hasError)
               ErrorView(
                 error: detail.error!,
-                onRetry: () => ref.invalidate(taskDetailProvider(_query)),
+                onRetry: () {
+                  ref.invalidate(taskDetailProvider(_query));
+                  ref.invalidate(taskNotificationInfoProvider(widget.task.id));
+                },
               ),
             if (detail.hasValue && latest?.task == null)
               const Text('La tarea ya no está disponible en esta vista.'),
+            TaskNotificationControls(
+              task: _task,
+              canEdit: canEditText,
+              fromSector: widget.fromSector,
+            ),
             TaskTextField(
               fieldKey: 'task_text_field',
               workId: _task.workId ?? widget.workId,
@@ -444,9 +460,15 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                           context,
                           title: 'Ordenar subtareas',
                           load: () async {
-                            final current = await ref.refresh(
-                              taskDetailProvider(_query).future,
-                            );
+                            final current = widget.notificationContext
+                                ? await ref.refresh(
+                                    notificationTaskDetailProvider(
+                                      widget.task.id,
+                                    ).future,
+                                  )
+                                : await ref.refresh(
+                                    taskDetailProvider(_query).future,
+                                  );
                             if (current.task == null || !current.canOperate) {
                               throw StateError(
                                 'La tarea no está disponible para editar.',

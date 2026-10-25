@@ -1,3 +1,4 @@
+import { syncDeliveryNotification } from "@/server/notifications/service";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
@@ -24,9 +25,10 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   if (delivery.userId !== session.user.id) throw forbidden();
 
   if (body.action === "DISMISS") {
-    const updated = await prisma.reminderDelivery.update({
-      where: { id },
-      data: { status: "DISMISSED" },
+    const updated = await prisma.$transaction(async tx => {
+      const result = await tx.reminderDelivery.update({ where: { id }, data: { status: "DISMISSED" } });
+      await syncDeliveryNotification(tx, id);
+      return result;
     });
     return NextResponse.json({ delivery: updated });
   }
@@ -53,9 +55,10 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
     );
   }
 
-  const updated = await prisma.reminderDelivery.update({
-    where: { id },
-    data: { status: "SNOOZED", snoozedUntil },
+  const updated = await prisma.$transaction(async tx => {
+    const result = await tx.reminderDelivery.update({ where: { id }, data: { status: "SNOOZED", snoozedUntil } });
+    await syncDeliveryNotification(tx, id, snoozedUntil);
+    return result;
   });
   return NextResponse.json({ delivery: updated });
 });

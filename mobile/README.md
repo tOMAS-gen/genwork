@@ -117,3 +117,9 @@ menú de cada sección. El estado de las secciones se conserva al navegar. La
 paridad restante con el menú y funciones de la web se implementa por pasos en
 `PLAN.md`. Las capturas actuales son `../.context/drawer-light.png` y
 `../.context/drawer-dark.png`.
+
+## Notificaciones
+
+Bandeja y urgencia disponibles sin servicios externos. Para enviar avisos al
+teléfono, configurar Firebase y APNs según
+[`../docs/mobile-notifications.md`](../docs/mobile-notifications.md).

@@ -1,3 +1,4 @@
+import '../../data/models/task.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,7 +21,15 @@ import '../sectors/sectors_providers.dart';
 import 'reminders_providers.dart';
 
 class ReminderFormScreen extends ConsumerStatefulWidget {
-  const ReminderFormScreen({super.key, this.reminderId, this.initialDate});
+  const ReminderFormScreen({
+    super.key,
+    this.reminderId,
+    this.initialDate,
+    this.initialTask,
+    this.recipientCount,
+  });
+  final Task? initialTask;
+  final int? recipientCount;
   final String? reminderId;
   final DateTime? initialDate;
   @override
@@ -113,6 +122,11 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
         _linkType = r.linkType;
         _linkId = r.linkId;
         leads = r.leads.isEmpty ? leads : r.leads;
+      }
+      if (widget.reminderId == null && widget.initialTask != null) {
+        _linkType = 'TASK';
+        _linkId = widget.initialTask!.id;
+        _title.text = widget.initialTask!.displayText;
       }
       for (final lead in _leads) {
         lead.days.dispose();
@@ -714,7 +728,9 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AppWorkSection(
-                    title: 'Alcance y vínculo',
+                    title: _linkType == 'TASK'
+                        ? 'Destinatarios de la tarea'
+                        : 'Alcance y vínculo',
                     icon: AppIcons.link,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -779,6 +795,12 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
                             _linkId = null;
                           },
                         ),
+                        if (_linkType == 'TASK')
+                          Text(
+                            widget.recipientCount == 0
+                                ? 'Esta tarea todavía no tiene destinatarios. Agregá una mención o un sector ejecutor.'
+                                : 'Se avisará a las personas mencionadas y a quienes operan los sectores mencionados o ejecutores de la tarea. El alcance no amplía esos destinatarios.',
+                          ),
                         if (_linkType == 'WORK')
                           _catalog(
                             ref

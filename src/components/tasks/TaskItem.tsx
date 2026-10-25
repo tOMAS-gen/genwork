@@ -31,6 +31,7 @@ const inheritedDueDateFormatter = new Intl.DateTimeFormat("es-AR", { day: "2-dig
 export interface TaskDto {
   id: string;
   /** Texto crudo (con etiquetas /#@) — lo usa la edición inline (T008, R2 de 004). */
+  isUrgent?: boolean;
   rawText: string;
   displayText: string;
   status: { id: string; name: string; color: string; type: "IN_PROGRESS" | "FINAL" };

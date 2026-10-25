@@ -1,0 +1,6 @@
+{
+  "FIREBASE_PROJECT_ID": "your-firebase-project",
+  "FIREBASE_API_KEY": "your-platform-api-key",
+  "FIREBASE_APP_ID": "your-platform-firebase-app-id",
+  "FIREBASE_SENDER_ID": "your-project-number"
+}

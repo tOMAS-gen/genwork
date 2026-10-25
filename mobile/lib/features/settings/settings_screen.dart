@@ -60,6 +60,7 @@ class SettingsHomeScreen extends ConsumerWidget {
           label('Tu cuenta y preferencias'),
           links([
             const ThemeToggleTile(key: ValueKey('settings_theme')),
+            _link(context, 'Notificaciones', Routes.notificationSettings, 'notifications'),
             for (final section in [
               SettingsSection.system,
               SettingsSection.storageLink,
