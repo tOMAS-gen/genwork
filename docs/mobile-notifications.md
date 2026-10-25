@@ -57,7 +57,7 @@ Google; no se carga tarjeta. Los nombres de botones pueden variar levemente.
    no hace falta: desactivarlo. Tocar **Crear proyecto** y esperar.
 2. **Registrar la app Android.** En la portada del proyecto, tocar el ícono de
    Android (**Agregar app**). Datos:
-   - Nombre del paquete: `ar.net.gen.genwork_mobile` (exacto).
+   - Nombre del paquete: `ar.genwork.mobile` (exacto).
    - Sobrenombre: `genwork Android`.
    - SHA-1: dejar vacío (no lo usa push).
 
@@ -79,7 +79,7 @@ Google; no se carga tarjeta. Los nombres de botones pueden variar levemente.
    ```sh
    node -e '
    const g = require("./.firebase-secrets/google-services.json");
-   const c = g.client.find(c => c.client_info.android_client_info.package_name === "ar.net.gen.genwork_mobile");
+   const c = g.client.find(c => c.client_info.android_client_info.package_name === "ar.genwork.mobile");
    require("fs").writeFileSync("mobile/config/firebase.android.json", JSON.stringify({
      FIREBASE_PROJECT_ID: g.project_info.project_id,
      FIREBASE_API_KEY: c.api_key[0].current_key,
@@ -93,7 +93,7 @@ Google; no se carga tarjeta. Los nombres de botones pueden variar levemente.
    `.firebase-secrets/` ni `firebase.android.json`.
 
 iOS necesita además una cuenta Apple Developer: registrar la app
-`ar.net.gen.genworkMobile` en el mismo proyecto y cargar la clave APNs (ver
+`ar.genwork.mobile` en el mismo proyecto y cargar la clave APNs (ver
 **Configuración de la app**).
 
 ## Configuración del servidor

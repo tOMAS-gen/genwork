@@ -320,7 +320,7 @@ se detalla en su entrega más abajo.
 
 | # | Tarea |
 |---|---|
-| R1 | Bundle/application id definitivo (hoy `ar.net.gen.genwork_mobile`) y nombre de tienda |
+| R1 | Bundle/application id definitivo: **`ar.genwork.mobile`** (Android e iOS, 2026-10-25) ✅; falta nombre de tienda |
 | R2 | Firma Android (keystore de release, hoy firma con debug) y certificados iOS (cuenta Apple Developer) |
 | R3 | Build en CI (GitHub Actions: `flutter analyze`, `flutter test`, apk/ipa) |
 | R4 | Política de privacidad y fichas de tienda (Play Console / App Store Connect) |

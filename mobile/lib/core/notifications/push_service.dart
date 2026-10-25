@@ -19,7 +19,7 @@ FirebaseOptions get pushFirebaseOptions => FirebaseOptions(
   appId: const String.fromEnvironment('FIREBASE_APP_ID'),
   messagingSenderId: const String.fromEnvironment('FIREBASE_SENDER_ID'),
   projectId: _project,
-  iosBundleId: 'ar.net.gen.genworkMobile',
+  iosBundleId: 'ar.genwork.mobile',
 );
 
 @pragma('vm:entry-point')

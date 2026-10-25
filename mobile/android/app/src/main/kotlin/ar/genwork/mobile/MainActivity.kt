@@ -1,4 +1,4 @@
-package ar.net.gen.genwork_mobile
+package ar.genwork.mobile
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

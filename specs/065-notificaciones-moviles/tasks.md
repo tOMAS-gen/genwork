@@ -14,7 +14,7 @@ Comandos comunes: `A=~/Library/Android/sdk/platform-tools/adb`, teléfono `ZE223
 
 **Acceptance criteria:**
 - [x] No queda ninguna mención a "instalaciones de terceros" como escenario soportado; la decisión privada está explicada con su porqué.
-- [x] La guía cubre crear el proyecto, registrar la app Android `ar.net.gen.genwork_mobile`, descargar `google-services.json` y pasar sus valores a `mobile/config/firebase.android.json`, generar la clave de cuenta de servicio en `.firebase-secrets/firebase.json` y configurar las variables del servidor.
+- [x] La guía cubre crear el proyecto, registrar la app Android `ar.genwork.mobile`, descargar `google-services.json` y pasar sus valores a `mobile/config/firebase.android.json`, generar la clave de cuenta de servicio en `.firebase-secrets/firebase.json` y configurar las variables del servidor.
 - [x] La guía advierte en negrita que nunca hay que pegar ni commitear la clave de la cuenta de servicio.
 
 **Verification:**
