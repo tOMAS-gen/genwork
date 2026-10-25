@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-25
 
-**Status**: v1 implementada · spec aprobada 2026-10-25 · cierre (push real Android) pendiente
+**Status**: v1 implementada · push real validado en Android 2026-10-25 ([evidencias](evidencias/README.md)) · iOS diferido
 
 **Input**: User description: "continúa con el proceso de notificaciones" — formalizar lo ya implementado y definir el cierre: activar Firebase y validar push real.
 
@@ -73,7 +73,7 @@ Como usuario con permiso de edición, quiero marcar una tarea como urgente desde
 
 ---
 
-### User Story 4 — Push al teléfono con la app cerrada (Priority: P1) 🟡 código listo · validación real pendiente
+### User Story 4 — Push al teléfono con la app cerrada (Priority: P1) ✅ validada en Android
 
 Como usuario, quiero recibir el aviso en el teléfono aunque la app esté cerrada, para no tener que abrirla a revisar.
 
@@ -211,10 +211,10 @@ Funciones chicas, nombres en inglés en el código, textos de UI y documentació
 
 ## Success Criteria *(mandatory)*
 
-- **SC-001** ✅: suites backend (1532) y Flutter (455) en verde; `tsc` y `dart analyze` sin hallazgos (verificado el 2026-10-25, PR #29).
-- **SC-002**: con la app cerrada en Android, un aviso urgente llega en menos de 1 minuto en al menos 9 de 10 intentos (el ticker procesa cada 30 s) y su job queda SENT.
-- **SC-003**: los 9 escenarios de US4 pasan en Android real, con evidencia guardada.
-- **SC-004**: `git ls-files` no contiene ningún archivo de credenciales de Firebase.
+- **SC-001** ✅: suites backend (1535 + 11 de integración) y Flutter (456) en verde; `tsc` y `dart analyze` sin hallazgos (2026-10-25, tras los fixes de T7).
+- **SC-002** ✅ (10/10, máx. 31 s): con la app cerrada en Android, un aviso urgente llega en menos de 1 minuto en al menos 9 de 10 intentos (el ticker procesa cada 30 s) y su job queda SENT.
+- **SC-003** ✅: los 9 escenarios de US4 pasan en Android real, con evidencia guardada.
+- **SC-004** ✅: `git ls-files` no contiene ningún archivo de credenciales de Firebase.
 - **SC-005**: la guía de activación permite a alguien sin experiencia previa en Firebase dejar un servidor enviando push sin más ayuda.
 - **SC-006**: PR #29 mergeado con la documentación actualizada al modelo privado.
 

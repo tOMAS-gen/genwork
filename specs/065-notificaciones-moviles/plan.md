@@ -51,22 +51,22 @@ Detalle y criterios en [tasks.md](tasks.md).
 - [x] Credenciales presentes y fuera de `git ls-files`
 
 ### Phase 2: Validación real
-- [ ] T3: Levantar el entorno local con push activado e instalar el APK con Firebase en el moto e40 y el emulador
-- [ ] T4: Validar la recepción (US4 escenarios 1–3)
-- [ ] T5: Validar los controles del usuario y el servidor sin Firebase (US4 escenarios 5–8)
+- [x] T3: Levantar el entorno local con push activado e instalar el APK con Firebase en el moto e40 y el emulador
+- [x] T4: Validar la recepción (US4 escenarios 1–3)
+- [x] T5: Validar los controles del usuario y el servidor sin Firebase (US4 escenarios 5–8)
 
 ### Checkpoint B
-- [ ] Los escenarios 1–3 y 5–8 tienen evidencia; los defectos están listados
+- [x] Los escenarios 1–3 y 5–8 tienen evidencia; los defectos están listados
 - [ ] Revisión con el usuario
 
 ### Phase 3: Robustez y cierre
-- [ ] T6: Dos servidores, reintentos y latencia (US4 escenarios 4 y 9, SC-002)
-- [ ] T7: Corregir los defectos encontrados (condicional, con TDD)
-- [ ] T8: Escribir la evidencia, actualizar la spec y abrir el PR de cierre
+- [x] T6: Dos servidores, reintentos y latencia (US4 escenarios 4 y 9, SC-002)
+- [x] T7: Corregir los defectos encontrados (condicional, con TDD)
+- [x] T8: Escribir la evidencia, actualizar la spec y abrir el PR de cierre
 
 ### Checkpoint C
-- [ ] SC-001 a SC-006 cumplidos
-- [ ] Suites en verde
+- [x] SC-001 a SC-006 cumplidos
+- [x] Suites en verde
 
 ## Risks and Mitigations
 
