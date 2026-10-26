@@ -16,6 +16,9 @@ import '../sectors/sectors_providers.dart';
 import 'settings_form_dialog.dart';
 import 'settings_providers.dart';
 import 'settings_tabs.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../core/theme/app_theme.dart';
 
 class CatalogSettingsScreen extends ConsumerStatefulWidget {
   const CatalogSettingsScreen({
@@ -241,14 +244,32 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
       },
       body: ListView(
         key: const ValueKey('catalog_list'),
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: AppSpace.page,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          if (widget.kind == CatalogKind.statuses)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                'Conjunto general de estados: “en curso” (uno o más) y “final” (exactamente uno) por ámbito. '
+                'Los sectores pueden adaptar el suyo propio desde su configuración.',
+                style: AppTextStyles.body.copyWith(color: context.colors.muted),
+              ),
+            ),
+          // Rótulo arriba del campo, como la web.
+          Text(
+            'Ámbito',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.w500,
+              color: context.colors.muted,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xxs + AppSpacing.hairline),
           DropdownButtonFormField<String>(
             key: const ValueKey('catalog_scope'),
             initialValue: scope,
             isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Ámbito'),
+            style: AppTextStyles.body.copyWith(color: context.colors.text),
             items: choices.entries
                 .map(
                   (e) => DropdownMenuItem(

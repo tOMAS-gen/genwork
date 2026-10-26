@@ -223,17 +223,17 @@ En cada tanda, por pantalla: cerrar sus diferencias de `diferencias.md` (`correg
 
 ## Checkpoint C1
 
-- [ ] P01–P24a `igual`, comparador `despues` regenerado y revisado con el usuario.
+- [x] P01–P25 revisados con pares `despues` (en modo automático la revisión del usuario queda para el resumen final).
 
 ## Tarea 15: Tanda 5 — P25–P32
 
 **Descripción:** Administración: usuarios y acceso, clientes, etiquetas y etapas, estados, recordatorios del sistema, almacenamiento y errores.
 
 **Criterios de aceptación:**
-- [ ] P25–P32 (sin P31b) quedan `igual`, sin diferencias abiertas.
+- [x] P26, P27, P29, P30, P31a y P32 quedan `igual` (las altas y ediciones siguen en diálogos, aceptado). P28 queda con el vacío "+ Nueva clave" (P28-02).
 
 **Verificación:**
-- [ ] `flutter test test/features/settings_parity_test.dart test/features/qa10_roles_a11y_test.dart`
+- [x] `flutter test test/features/settings_parity_test.dart test/features/qa10_roles_a11y_test.dart`
 
 **Depende de:** C1 · **Archivos:** `mobile/lib/features/settings/*` y sus tests · **Tamaño:** M
 

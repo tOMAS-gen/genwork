@@ -298,7 +298,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final cards =
         widget.section == SettingsSection.users ||
         widget.section == SettingsSection.clients ||
-        widget.section == SettingsSection.mcp;
+        widget.section == SettingsSection.mcp ||
+        widget.section == SettingsSection.reminders;
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
       title: widget.section.title,
@@ -478,11 +479,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ];
       case SettingsSection.users:
         return [
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'El rol Lector es para pantallas de visualización (ej.: el correo del televisor): ve el dashboard y nunca puede modificar nada.',
+              style: AppTextStyles.body.copyWith(color: context.colors.muted),
+            ),
+          ),
           if (list.isEmpty) const Text('No hay usuarios internos.'),
           for (final raw in list) userCard(Json.from(raw as Map)),
         ];
       case SettingsSection.clients:
         return [
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Un cliente entra con su correo y solo ve los proyectos que le asignes, sin poder modificar nada. '
+              'Los proyectos se asignan desde la pestaña "Acceso cliente" de cada proyecto.',
+              style: AppTextStyles.body.copyWith(color: context.colors.muted),
+            ),
+          ),
           button(
             'add_client',
             'Agregar cliente',
@@ -495,9 +511,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case SettingsSection.errors:
         return [
           if (list.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Text('No hay errores en este estado.'),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Text(
+                _filter == null
+                    ? 'No hay errores registrados.'
+                    : 'No hay errores en este estado.',
+              ),
             ),
           for (final raw in list)
             tile(
@@ -667,58 +687,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
         ];
       case SettingsSection.reminders:
+        // Dos bloques, como la web: zona horaria y correo de avisos.
         return [
-          tile('Zona horaria del sistema', '${json['timezone']}'),
-          button(
-            'timezone',
-            'Cambiar zona horaria',
-            () => edit(
-              'Zona horaria',
-              [
-                SettingsField(
-                  'timezone',
-                  'Zona IANA',
-                  initial: json['timezone'] ?? '',
-                  maxLength: 64,
+          PanelSection(
+            title: 'Zona horaria del sistema',
+            description:
+                'Una sola zona horaria para todos los horarios de recordatorios. Se muestra en el calendario.',
+            children: [
+              tile('Zona horaria del sistema', '${json['timezone']}'),
+              button(
+                'timezone',
+                'Cambiar zona horaria',
+                () => edit(
+                  'Zona horaria',
+                  [
+                    SettingsField(
+                      'timezone',
+                      'Zona IANA',
+                      initial: json['timezone'] ?? '',
+                      maxLength: 64,
+                    ),
+                  ],
+                  (v) => repo.saveReminders(v),
+                  description:
+                      'La zona rige los días y horarios de todos los recordatorios.',
                 ),
-              ],
-              (v) => repo.saveReminders(v),
-              description:
-                  'La zona rige los días y horarios de todos los recordatorios.',
-            ),
+              ),
+            ],
           ),
-          GoogleIntegrationButton(
-            purpose: 'gmail',
-            label: json['emailConnected'] == true
-                ? 'Reconectar Gmail'
-                : 'Conectar Gmail',
-            onChanged: refresh,
+          PanelSection(
+            title: 'Email (Gmail)',
+            description:
+                'Los avisos por email se envían con la cuenta de Google conectada (scope gmail.send).',
+            children: [
+              GoogleIntegrationButton(
+                purpose: 'gmail',
+                label: json['emailConnected'] == true
+                    ? 'Reconectar Gmail'
+                    : 'Conectar Gmail',
+                onChanged: refresh,
+              ),
+              tile(
+                'Correo de avisos',
+                json['emailConnected'] == true
+                    ? 'Conectado${json['emailFrom'] == null ? '' : ' · ${json['emailFrom']}'}'
+                    : 'Sin conectar',
+              ),
+              if (json['emailConnected'] == true)
+                button(
+                  'disconnect_gmail',
+                  'Desconectar Gmail',
+                  () async {
+                    if (await settingsConfirm(
+                      context,
+                      '¿Desconectar Gmail?',
+                      'Se dejarán de enviar los avisos por correo.',
+                      action: 'Desconectar',
+                    )) {
+                      await run(
+                        () => repo.saveReminders({'disconnectEmail': true}),
+                      );
+                    }
+                  },
+                  icon: AppIcons.unlink,
+                  destructive: true,
+                ),
+            ],
           ),
-          tile(
-            'Correo de avisos',
-            json['emailConnected'] == true
-                ? 'Conectado${json['emailFrom'] == null ? '' : ' · ${json['emailFrom']}'}'
-                : 'Sin conectar',
-          ),
-          if (json['emailConnected'] == true)
-            button(
-              'disconnect_gmail',
-              'Desconectar Gmail',
-              () async {
-                if (await settingsConfirm(
-                  context,
-                  '¿Desconectar Gmail?',
-                  'Se dejarán de enviar los avisos por correo.',
-                  action: 'Desconectar',
-                )) {
-                  await run(
-                    () => repo.saveReminders({'disconnectEmail': true}),
-                  );
-                }
-              },
-              icon: AppIcons.unlink,
-              destructive: true,
-            ),
         ];
     }
   }

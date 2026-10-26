@@ -47,14 +47,14 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P24a | Vincular con Claude | `/settings/claude` | `/more/settings/module/mcp` y `module/activity` | S19 | M15 | admin | — | igual | igual |
 | P24b | App móvil | `/settings/movil` | **falta en Android** | S19 | — | admin | — | web | web |
 | P25 | Administración | `/admin` | `/more/settings` | S20 | M16 | admin | — | igual | igual |
-| P26 | Usuarios y acceso | `/admin/users`, `/admin/access` | `module/users`, `module/access`, `module/emails` | S20 | M16 | admin | usuarios de prueba | par | par |
-| P27 | Clientes | `/admin/clients` | `module/clients` | S21 | M16 | admin | `cliente@test.local` | par | par |
+| P26 | Usuarios y acceso | `/admin/users`, `/admin/access` | `module/users`, `module/access`, `module/emails` | S20 | M16 | admin | usuarios de prueba | igual | igual |
+| P27 | Clientes | `/admin/clients` | `module/clients` | S21 | M16 | admin | `cliente@test.local` | igual | igual |
 | P28 | Etiquetas y etapas | `/admin/labels`, `/admin/stages` | `catalog/labels`, `catalog/stages` | S22 | M16 | admin | — | par | par |
-| P29 | Estados de tarea | `/admin/task-statuses` | `catalog/statuses` | S23 | M16 | admin | Pendiente / Terminado | par | par |
-| P30 | Recordatorios del sistema | `/admin/reminders` | `module/reminders` | S24 | M16 | admin | — | par | par |
-| P31a | Almacenamiento | `/admin/storage` | `module/storage`, `module/jobs` | S25 | M16 | admin | Nextcloud local | par | par |
+| P29 | Estados de tarea | `/admin/task-statuses` | `catalog/statuses` | S23 | M16 | admin | Pendiente / Terminado | igual | igual |
+| P30 | Recordatorios del sistema | `/admin/reminders` | `module/reminders` | S24 | M16 | admin | — | igual | igual |
+| P31a | Almacenamiento | `/admin/storage` | `module/storage`, `module/jobs` | S25 | M16 | admin | Nextcloud local | igual | igual |
 | P31b | Integración con GenStock | `/admin/genstock` | **falta en Android** | S25 | — | admin | sin configurar | web | web |
-| P32 | Errores | `/admin/errors`, `/admin/errors/[id]` | `module/errors`, `errors/:id` | S26 | M16 | admin | — | par | par |
+| P32 | Errores | `/admin/errors`, `/admin/errors/[id]` | `module/errors`, `errors/:id` | S26 | M16 | admin | — | igual | igual |
 | P33 | Portal | `/portal` | `/portal` | S27 | M18 | cliente | proyecto visible para `cliente` | par | par |
 | P34 | Proyecto en portal | `/portal/works/[id]` | `/portal/works/:id`, `/document` | S27 | M18 | cliente | ídem | par | par |
 | P35 | TV | `/tv` | `/tv` (`BoardScreen` de solo lectura) | S28 | M19 | lector | QA produccion | par | par |

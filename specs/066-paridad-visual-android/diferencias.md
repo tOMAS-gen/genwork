@@ -241,45 +241,45 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P26-01 | 3 | Títulos "Usuarios y roles" y "Control de acceso"; Android "Usuarios" y "Acceso". | P | abierta |
-| P26-02 | 3 | Texto de introducción del rol Lector; insignia "super-admin". | P | abierta |
-| P26-03 | 8 | Rol con desplegable y grupos con checkbox en el lugar; Android botones que abren dialogs. | P | abierta |
-| P26-04 | 8 | Control de acceso: radios y "Correos autorizados" con campo + Autorizar en la misma pantalla. | P | abierta |
+| P26-01 | 3 | Títulos "Usuarios y roles" y "Control de acceso"; Android "Usuarios" y "Acceso". | P | corregida |
+| P26-02 | 3 | Texto de introducción del rol Lector; insignia "super-admin". | P | corregida en parte (texto del rol Lector; falta la insignia "super-admin") |
+| P26-03 | 8 | Rol con desplegable y grupos con checkbox en el lugar; Android botones que abren dialogs. | P | aceptada (en el teléfono el alta y la edición se hacen en un diálogo, con los mismos campos; un formulario largo en línea queda debajo del teclado) |
+| P26-04 | 8 | Control de acceso: radios y "Correos autorizados" con campo + Autorizar en la misma pantalla. | P | aceptada (en el teléfono el alta y la edición se hacen en un diálogo, con los mismos campos; un formulario largo en línea queda debajo del teclado) |
 
 ## P27 Clientes
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P27-01 | 3 | Título "Clientes" e introducción; Android "Clientes externos" sin introducción. | P | abierta |
-| P27-02 | 8 | Alta en el lugar (Correo, Nombre, "Dar de alta"); cliente con insignia "Invitado", 🗑 y "Proyectos: …". | P | abierta |
+| P27-01 | 3 | Título "Clientes" e introducción; Android "Clientes externos" sin introducción. | P | corregida |
+| P27-02 | 8 | Alta en el lugar (Correo, Nombre, "Dar de alta"); cliente con insignia "Invitado", 🗑 y "Proyectos: …". | P | aceptada (en el teléfono el alta y la edición se hacen en un diálogo, con los mismos campos; un formulario largo en línea queda debajo del teclado) |
 
 ## P28 Etiquetas y etapas
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P28-01 | 3 | Título "Etiquetas"; Android "Etiquetas y colores". | P | abierta |
+| P28-01 | 3 | Título "Etiquetas"; Android "Etiquetas y colores". | P | corregida |
 | P28-02 | 9 | Vacío como caja punteada "+ Nueva clave"; Android desplegable de ámbito + "Agregar" + "No hay elementos en este ámbito.". | P | abierta |
 
 ## P29 Estados de tarea
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P29-01 | 3 | Introducción "Conjunto general de estados…" y rótulo "Ámbito" arriba del desplegable. | P | abierta |
-| P29-02 | 8 | Alta en línea: nombre + [En curso \| Final] + "+" en caja punteada. | P | abierta |
+| P29-01 | 3 | Introducción "Conjunto general de estados…" y rótulo "Ámbito" arriba del desplegable. | P | corregida |
+| P29-02 | 8 | Alta en línea: nombre + [En curso \| Final] + "+" en caja punteada. | P | aceptada (en el teléfono el alta y la edición se hacen en un diálogo, con los mismos campos; un formulario largo en línea queda debajo del teclado) |
 
 ## P30 Recordatorios del sistema
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P30-01 | 3 | Título "Recordatorios"; Android "Recordatorios del sistema". | P | abierta |
-| P30-02 | 1 | Dos cards: "Zona horaria del sistema" (texto, campo, Guardar) y "Email (Gmail)" (texto, Conectar Gmail). | P | abierta |
+| P30-01 | 3 | Título "Recordatorios"; Android "Recordatorios del sistema". | P | corregida |
+| P30-02 | 1 | Dos cards: "Zona horaria del sistema" (texto, campo, Guardar) y "Email (Gmail)" (texto, Conectar Gmail). | P | corregida |
 
 ## P31a Almacenamiento
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P31a-01 | 3 | Título "Almacenamiento"; Android "Almacenamiento del sistema". | P | abierta |
-| P31a-02 | 1 | Formulario en el lugar (Proveedor, URL, usuario, app password, Guardar, Probar conexión) y card "Aprovisionamiento pendiente". | P | abierta |
+| P31a-01 | 3 | Título "Almacenamiento"; Android "Almacenamiento del sistema". | P | corregida |
+| P31a-02 | 1 | Formulario en el lugar (Proveedor, URL, usuario, app password, Guardar, Probar conexión) y card "Aprovisionamiento pendiente". | P | aceptada (en el teléfono el alta y la edición se hacen en un diálogo, con los mismos campos; un formulario largo en línea queda debajo del teclado) |
 
 ## P31b Integración con GenStock — falta en Android (tarea 20)
 
@@ -287,7 +287,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P32-01 | 3 | Título "Errores" y vacío "No hay errores registrados." en texto simple; Android "Registro de errores", filtro de estado y card. | P | abierta |
+| P32-01 | 3 | Título "Errores" y vacío "No hay errores registrados." en texto simple; Android "Registro de errores", filtro de estado y card. | P | corregida |
 
 ## P33 Portal
 
