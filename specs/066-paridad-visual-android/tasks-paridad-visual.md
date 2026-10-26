@@ -164,9 +164,9 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 
 ## Checkpoint B: base compartida
 
-- [ ] `flutter test` en verde, con `ui_phase3_test` y `design_tokens_guard_test` sin cambios en sus umbrales.
-- [ ] Pares `despues` de P03, P05 y P07, y el comparador regenerado.
-- [ ] El usuario revisa antes de pasar a las pantallas.
+- [x] `flutter test` en verde (486), con `ui_phase3_test` y `design_tokens_guard_test` sin cambios en sus umbrales (solo finders donde cambió la estructura).
+- [x] Pares `despues` de P03, P05 y P06, y el comparador regenerado (P07 va con la tanda 2, junto con sus pestañas).
+- [x] Con `/build auto` no hay pausa: la revisión del usuario queda para el resumen final.
 
 ## Fase C — Pantallas
 
