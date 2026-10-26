@@ -10,6 +10,7 @@ import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/data/models/json.dart';
 import 'package:genwork_mobile/data/models/task.dart';
+import 'package:genwork_mobile/features/tasks/task_assign_dialog.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -305,6 +306,151 @@ void main() {
             .onSelected,
         isNull,
       );
+    });
+  });
+
+  group('Tarea 3: asignada a', () {
+    Object? suggestions(RequestOptions r) {
+      if (r.path == '/api/tags/suggest') {
+        final q = (r.queryParameters['q'] as String? ?? '').toLowerCase();
+        return [
+              {
+                'id': 's1',
+                'name': 'Impresión',
+                'type': 'sector',
+                'insertText': 'Impresión',
+              },
+              {
+                'id': 'u1',
+                'name': 'Ana Pérez',
+                'type': 'user',
+                'insertText': 'Ana-Pérez',
+              },
+            ]
+            .where((s) => (s['name'] as String).toLowerCase().startsWith(q))
+            .toList();
+      }
+      if (r.method == 'PATCH') return <String, Object?>{};
+      return null;
+    }
+
+    testWidgets('los chips de la tarea van en el bloque Asignada a', (
+      tester,
+    ) async {
+      final task = taskJson();
+      await mountDetail(tester, detailApi(task), task);
+      final block = find.byKey(const ValueKey('task_assigned'));
+      expect(
+        find.descendant(of: block, matching: find.text('ASIGNADA A')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: block,
+          matching: find.byKey(const ValueKey('task_origin_work')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: block,
+          matching: find.byKey(const ValueKey('task_assign')),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('elegir un sector agrega #sector al texto y guarda', (
+      tester,
+    ) async {
+      final task = taskJson();
+      final api = detailApi(task, extra: suggestions);
+      await mountDetail(tester, api, task);
+      await tester.tap(find.byKey(const ValueKey('task_assign')));
+      await tester.pumpAndSettle();
+      expect(find.text('SECTORES'), findsOneWidget);
+      expect(find.text('PERSONAS'), findsOneWidget);
+      expect(
+        api.requests
+            .lastWhere((r) => r.path == '/api/tags/suggest')
+            .queryParameters['symbol'],
+        '@',
+      );
+      await tester.tap(find.byKey(const ValueKey('task_assign_sector_s1')));
+      await tester.pumpAndSettle();
+      expect(api.requests.where((r) => r.method == 'PATCH').single.data, {
+        'rawText': 'Preparar los originales #Impresión',
+        'editContext': 'work',
+      });
+    });
+
+    testWidgets('elegir una persona agrega @persona; el buscador filtra', (
+      tester,
+    ) async {
+      final task = taskJson();
+      final api = detailApi(task, extra: suggestions);
+      await mountDetail(tester, api, task);
+      await tester.tap(find.byKey(const ValueKey('task_assign')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('task_assign_search')),
+        'an',
+      );
+      // Espera el debounce del buscador y la respuesta de la API.
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('task_assign_sector_s1')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('task_assign_user_u1')));
+      await tester.pumpAndSettle();
+      expect(
+        api.requests.where((r) => r.method == 'PATCH').single.data['rawText'],
+        'Preparar los originales @Ana-Pérez',
+      );
+    });
+
+    testWidgets('sin permiso de editar el texto no hay + Asignar', (
+      tester,
+    ) async {
+      final task = taskJson(canToggle: false);
+      await mountDetail(tester, detailApi(task), task, canEdit: false);
+      expect(find.byKey(const ValueKey('task_assign')), findsNothing);
+    });
+
+    testWidgets('en contexto de sector el selector no ofrece sectores', (
+      tester,
+    ) async {
+      final api = detailApi(taskJson(), extra: suggestions);
+      final container = ProviderContainer(
+        retry: (_, _) => null,
+        overrides: [apiClientProvider.overrideWithValue(api.api)],
+      );
+      addTearDown(container.dispose);
+      String? picked;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async => picked = await showTaskAssignDialog(
+                  context,
+                  sectorId: 's9',
+                  allowSectors: false,
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+      expect(find.text('SECTORES'), findsNothing);
+      expect(find.byKey(const ValueKey('task_assign_sector_s1')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('task_assign_user_u1')));
+      await tester.pumpAndSettle();
+      expect(picked, '@Ana-Pérez');
     });
   });
 }

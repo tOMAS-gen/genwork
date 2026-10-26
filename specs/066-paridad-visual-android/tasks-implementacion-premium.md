@@ -47,13 +47,13 @@ Cada tarea cierra con `dart analyze` sin issues y `flutter test` en verde (desde
 **Descripción:** Un bloque "ASIGNADA A" con los chips que hoy aparecen sueltos (proyecto, sector, personas, objetivo, vencimiento y etiquetas) y un chip punteado "+ Asignar" que abre un diálogo con buscador y dos grupos, Sectores y Personas, cargados con `suggest`. Al elegir, agrega `#sector` o `@persona` al final del texto y guarda.
 
 **Criterios de aceptación:**
-- [ ] Elegir un sector guarda `texto #Sector`; elegir una persona guarda `texto @persona`.
-- [ ] En una tarea de sector no aparece el grupo Sectores.
-- [ ] Sin permiso de editar el texto, "+ Asignar" no aparece.
-- [ ] Errores de carga o de guardado se muestran con el aviso de error de la app.
+- [x] Elegir un sector guarda `texto #Sector`; elegir una persona guarda `texto @persona`.
+- [x] En una tarea de sector no aparece el grupo Sectores.
+- [x] Sin permiso de editar el texto, "+ Asignar" no aparece.
+- [x] Errores de carga o de guardado se muestran con el aviso de error de la app.
 
 **Verificación:**
-- [ ] Tests nuevos con el arnés de API: lista, búsqueda, guardado del texto, permisos y contexto de sector.
+- [x] Tests nuevos con el arnés de API: lista, búsqueda, guardado del texto, permisos y contexto de sector.
 
 **Depende de:** 1 · **Archivos:** `task_detail_sheet.dart`, `lib/features/tasks/task_assign_dialog.dart` (nuevo), tests · **Tamaño:** M
 

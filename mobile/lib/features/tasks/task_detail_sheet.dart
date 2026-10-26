@@ -19,12 +19,16 @@ import '../../core/providers.dart';
 import '../../core/util/format.dart';
 import '../../data/models/task.dart';
 import '../../shared/widgets/app_button_styles.dart';
+import '../../shared/widgets/app_work_box.dart';
 import '../../shared/widgets/app_work_section.dart';
+import '../../shared/widgets/dashed_border.dart';
+import '../../core/theme/app_geometry.dart';
 import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/task_composer.dart';
 import 'task_actions.dart';
+import 'task_assign_dialog.dart';
 import 'task_detail_provider.dart';
 
 /// Abre el detalle de una tarea en pantalla completa.
@@ -163,6 +167,21 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       case _MoreAction.delete:
         await _confirmDelete();
     }
+  }
+
+  /// "+ Asignar": agrega `#sector` o `@persona` al texto y lo guarda.
+  Future<void> _assign() async {
+    final inSector = widget.fromSector && widget.sectorId != null;
+    final tag = await showTaskAssignDialog(
+      context,
+      workId: _task.workId ?? widget.workId,
+      sectorId: inSector ? widget.sectorId : null,
+      allowSectors: !inSector,
+    );
+    if (tag == null || !mounted) return;
+    final text = '${_textController.text.trim()} $tag';
+    _textController.text = text;
+    await _run((a) => a.updateText(_task, text, fromSector: widget.fromSector));
   }
 
   Future<void> _confirmDelete() async {
@@ -370,89 +389,112 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               ],
             ),
             const SizedBox(height: AppSpace.md),
-            Wrap(
-              spacing: AppSpace.sm,
-              runSpacing: AppSpace.xs,
-              children: [
-                // Con los colores de las etiquetas de la web: /proyecto en
-                // `tag-work`, #sector en `tag-exec`, @persona en `tag-user`.
-                if (_task.work != null)
-                  ActionChip(
-                    key: const ValueKey('task_origin_work'),
-                    backgroundColor: c.tagWorkFill,
-                    side: BorderSide.none,
-                    labelStyle: AppTextStyles.chip.copyWith(
+            // Asignación: proyecto, sector, personas, objetivo, vencimiento y
+            // etiquetas, con "+ Asignar" (decisión del usuario, P09).
+            _DetailCard(
+              key: const ValueKey('task_assigned'),
+              label: 'Asignada a',
+              child: Wrap(
+                spacing: AppSpace.sm,
+                runSpacing: AppSpace.xs,
+                children: [
+                  // Con los colores de las etiquetas de la web: /proyecto en
+                  // `tag-work`, #sector en `tag-exec`, @persona en `tag-user`.
+                  if (_task.work != null)
+                    ActionChip(
+                      key: const ValueKey('task_origin_work'),
+                      backgroundColor: c.tagWorkFill,
+                      side: BorderSide.none,
+                      labelStyle: AppTextStyles.chip.copyWith(
+                        color: c.tagWorkText,
+                      ),
+                      label: Text('/${_task.work!.name}'),
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        Navigator.pop(context);
+                        router.push(Routes.work(_task.work!.id));
+                      },
+                    ),
+                  if (_task.homeSector != null)
+                    ActionChip(
+                      key: const ValueKey('task_origin_sector'),
+                      backgroundColor: c.tagExecFill,
+                      side: BorderSide.none,
+                      labelStyle: AppTextStyles.chip.copyWith(
+                        color: c.tagExecText,
+                      ),
+                      label: Text('#${_task.homeSector!.name}'),
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        Navigator.pop(context);
+                        router.push(Routes.sector(_task.homeSector!.id));
+                      },
+                    ),
+                  if (_task.objectiveTitle != null)
+                    StatusChip(
+                      label: _task.objectiveTitle!,
                       color: c.tagWorkText,
+                      fill: c.tagWorkFill,
                     ),
-                    label: Text('/${_task.work!.name}'),
-                    onPressed: () {
-                      final router = GoRouter.of(context);
-                      Navigator.pop(context);
-                      router.push(Routes.work(_task.work!.id));
-                    },
-                  ),
-                if (_task.homeSector != null)
-                  ActionChip(
-                    key: const ValueKey('task_origin_sector'),
-                    backgroundColor: c.tagExecFill,
-                    side: BorderSide.none,
-                    labelStyle: AppTextStyles.chip.copyWith(
-                      color: c.tagExecText,
+                  if (_task.effectiveDueDate != null)
+                    StatusChip(
+                      label:
+                          'Vence ${formatDay(_task.effectiveDueDate!)}${_task.dueDate == null ? ' · subtareas' : ''}',
+                      color: c.dueText,
+                      fill: c.dueFill,
+                      mono: true,
                     ),
-                    label: Text('#${_task.homeSector!.name}'),
-                    onPressed: () {
-                      final router = GoRouter.of(context);
-                      Navigator.pop(context);
-                      router.push(Routes.sector(_task.homeSector!.id));
-                    },
-                  ),
-                if (_task.objectiveTitle != null)
-                  StatusChip(
-                    label: _task.objectiveTitle!,
-                    color: c.tagWorkText,
-                    fill: c.tagWorkFill,
-                  ),
-                if (_task.effectiveDueDate != null)
-                  StatusChip(
-                    label:
-                        'Vence ${formatDay(_task.effectiveDueDate!)}${_task.dueDate == null ? ' · subtareas' : ''}',
-                    color: c.dueText,
-                    fill: c.dueFill,
-                    mono: true,
-                  ),
-                for (final link in _task.links)
-                  ActionChip(
-                    key: ValueKey('task_link_${link.targetId}'),
-                    backgroundColor: link.kind == LinkKind.exec
-                        ? c.tagExecFill
-                        : link.isUser
-                        ? c.tagUserFill
-                        : c.tagRefFill,
-                    side: BorderSide.none,
-                    labelStyle: AppTextStyles.chip.copyWith(
-                      color: link.kind == LinkKind.exec
-                          ? c.tagExecText
+                  for (final link in _task.links)
+                    ActionChip(
+                      key: ValueKey('task_link_${link.targetId}'),
+                      backgroundColor: link.kind == LinkKind.exec
+                          ? c.tagExecFill
                           : link.isUser
-                          ? c.tagUserText
-                          : c.tagRefText,
+                          ? c.tagUserFill
+                          : c.tagRefFill,
+                      side: BorderSide.none,
+                      labelStyle: AppTextStyles.chip.copyWith(
+                        color: link.kind == LinkKind.exec
+                            ? c.tagExecText
+                            : link.isUser
+                            ? c.tagUserText
+                            : c.tagRefText,
+                      ),
+                      label: Text(
+                        '${link.kind == LinkKind.exec ? '#' : '@'}${link.name}',
+                      ),
+                      onPressed: link.isUser || link.targetId == null
+                          ? null
+                          : () {
+                              final router = GoRouter.of(context);
+                              Navigator.pop(context);
+                              router.push(Routes.sector(link.targetId!));
+                            },
                     ),
-                    label: Text(
-                      '${link.kind == LinkKind.exec ? '#' : '@'}${link.name}',
+                  for (final label in _task.labels)
+                    ColorPill(
+                      label: '${label.keyName}: ${label.valueName}',
+                      hex: label.color,
                     ),
-                    onPressed: link.isUser || link.targetId == null
-                        ? null
-                        : () {
-                            final router = GoRouter.of(context);
-                            Navigator.pop(context);
-                            router.push(Routes.sector(link.targetId!));
-                          },
-                  ),
-                for (final label in _task.labels)
-                  ColorPill(
-                    label: '${label.keyName}: ${label.valueName}',
-                    hex: label.color,
-                  ),
-              ],
+                  if (canEditText)
+                    DashedBorder(
+                      color: c.border,
+                      radius: AppGeometry.chip,
+                      child: ActionChip(
+                        key: const ValueKey('task_assign'),
+                        avatar: const Icon(
+                          AppIcons.add,
+                          size: AppIconSizes.notice,
+                        ),
+                        label: const Text('Asignar'),
+                        backgroundColor: c.surface,
+                        side: BorderSide.none,
+                        tooltip: 'Asignar a un sector o una persona',
+                        onPressed: _assign,
+                      ),
+                    ),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpace.md),
             AppWorkSection(
@@ -573,6 +615,41 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
             ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Card de un bloque del detalle: rótulo 11/700 en mayúsculas y contenido
+/// (D7 de la dirección premium).
+class _DetailCard extends StatelessWidget {
+  const _DetailCard({super.key, required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AppWorkBox(
+      backgroundColor: c.surface,
+      padding: const EdgeInsets.all(AppSpace.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label.toUpperCase(),
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.md),
+          child,
+        ],
       ),
     );
   }
