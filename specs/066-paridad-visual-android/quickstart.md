@@ -14,6 +14,7 @@ AUTH_SECRET="$(cat $f)" bash scripts/mobile-dev.sh web     # en segundo plano
 
 ANDROID_DEVICE=emulator-5554 bash scripts/mobile-dev.sh android   # en segundo plano
 scripts/paridad-android.sh demo           # barra de estado fija
+scripts/paridad-android.sh adb shell cmd alarm set-timezone America/Argentina/Buenos_Aires   # misma zona que la web
 ```
 
 - **Cámara:** la cámara del emulador es la webcam real. Antes de abrir `/setup`, revocá el permiso (`adb shell pm revoke ar.genwork.mobile android.permission.CAMERA`) y tocá "No permitir" si lo vuelve a pedir. Ninguna captura puede mostrar la cámara.

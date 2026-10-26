@@ -56,20 +56,20 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Leer `dueDate` de proyectos, tareas y portal con `parseDay` en lugar de `parseDate`. Primero el test que falla, con la zona del dispositivo en UTC-3.
 
 **Criterios de aceptación:**
-- [ ] `models_test.dart` cubre los tres casos de la tarea 2 en `Work`, `Task` y los modelos del portal. Con `TZ=America/Argentina/Buenos_Aires` falla antes del cambio y pasa después.
-- [ ] La urgencia de Android (si la calcula) usa el mismo día que muestra.
+- [x] `due_date_test.dart` (nuevo, junto a `models_test.dart`) cubre los tres casos de la tarea 2 en `Work`, `Task` y los modelos del portal, y el envío del día elegido como medianoche UTC. Con `TZ=America/Argentina/Buenos_Aires` falla antes del cambio y pasa después.
+- [x] La urgencia de Android (si la calcula) usa el mismo día que muestra.
 
 **Verificación:**
-- [ ] `TZ=America/Argentina/Buenos_Aires flutter test test/data/models_test.dart`
-- [ ] Manual: P05 y P07 en el emulador muestran el mismo día que la web.
+- [x] `TZ=America/Argentina/Buenos_Aires flutter test test/data/models_test.dart`
+- [x] Manual: P05 y P07 en el emulador muestran el mismo día que la web.
 
 **Depende de:** nada · **Archivos:** `mobile/lib/data/models/work.dart`, `mobile/lib/data/models/task.dart`, `mobile/lib/data/models/portal.dart`, `mobile/test/data/models_test.dart` · **Tamaño:** S
 
 ## Checkpoint A: fechas
 
-- [ ] La misma entrega muestra el mismo día en la lista web, el detalle web, el portal y Android.
-- [ ] Capturas `despues` de P05, P07, P33 y P34 en web y Android (las de la web se rehacen solo en este bloque).
-- [ ] El usuario revisa antes de seguir.
+- [x] La misma entrega muestra el mismo día en la lista web, el detalle web, el portal y Android (29/10 en todas; el emulador pasa a hora de Buenos Aires, donde Android también mostraba el 28).
+- [x] Capturas `despues` de P05 y P07 en web y Android, y de P33 y P34 en web. Las de Android de P33 y P34 van con la tanda 6, para cambiar de rol una sola vez.
+- [x] Con `/build auto` no hay pausa: el resultado se informa al final. Queda como diferencia de texto (P05/P07): Android muestra "29 oct" y la web "29/10/2026".
 
 ## Fase B — Base compartida
 
