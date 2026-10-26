@@ -390,7 +390,7 @@ void main() {
       );
       // Subtareas como sección; historial y borrar (en `danger`) en el menú ⋯.
       await tester.scrollUntilVisible(
-        find.text('Subtareas'),
+        find.text('SUBTAREAS'),
         200,
         scrollable: find
             .descendant(

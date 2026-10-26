@@ -62,13 +62,13 @@ Cada tarea cierra con `dart analyze` sin issues y `flutter test` en verde (desde
 **Descripción:** La descripción va en una card con rótulo "DESCRIPCIÓN", campo de 6 líneas, "Guardado ✓" si no hay cambios y botón tonal "Guardar" si los hay. Las subtareas, en una card con rótulo, contador "hechas/total", botón de ordenar, filas de 48 dp con divisor y "Nueva subtarea…" adentro de la card.
 
 **Criterios de aceptación:**
-- [ ] La descripción se guarda igual que hoy (vacía = sin descripción) y un borrador no se pierde al recargar.
-- [ ] El contador refleja las subtareas hechas.
-- [ ] Ordenar y crear subtareas funcionan igual que hoy.
+- [x] La descripción se guarda igual que hoy (vacía = sin descripción) y un borrador no se pierde al recargar.
+- [x] El contador refleja las subtareas hechas.
+- [x] Ordenar y crear subtareas funcionan igual que hoy.
 
 **Verificación:**
-- [ ] Tests nuevos: "Guardado ✓" y botón según cambios; contador.
-- [ ] `daily_parity_test` (borrador de descripción y subtarea nueva) sigue verde sin cambios de lógica.
+- [x] Tests nuevos: "Guardado ✓" y botón según cambios; contador.
+- [x] `daily_parity_test` (borrador de descripción y subtarea nueva) sigue verde sin cambios de lógica.
 
 **Depende de:** 1 · **Archivos:** `task_detail_sheet.dart`, tests · **Tamaño:** S
 

@@ -20,7 +20,6 @@ import '../../core/util/format.dart';
 import '../../data/models/task.dart';
 import '../../shared/widgets/app_button_styles.dart';
 import '../../shared/widgets/app_work_box.dart';
-import '../../shared/widgets/app_work_section.dart';
 import '../../shared/widgets/dashed_border.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../shared/widgets/color_dot.dart';
@@ -168,6 +167,9 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
         await _confirmDelete();
     }
   }
+
+  bool _descriptionDirty(String text) =>
+      text.trim() != (_task.description ?? '').trim();
 
   /// "+ Asignar": agrega `#sector` o `@persona` al texto y lo guarda.
   Future<void> _assign() async {
@@ -497,9 +499,34 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               ),
             ),
             const SizedBox(height: AppSpace.md),
-            AppWorkSection(
-              title: 'Descripción',
-              icon: AppIcons.document,
+            // La descripción es el bloque principal (decisión del usuario, P09).
+            _DetailCard(
+              key: const ValueKey('task_description'),
+              label: 'Descripción',
+              trailing: ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _descriptionController,
+                builder: (context, value, _) =>
+                    !canEdit || _descriptionDirty(value.text)
+                    ? const SizedBox.shrink()
+                    : Row(
+                        key: const ValueKey('task_description_saved'),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Guardado',
+                            style: AppTextStyles.supporting.copyWith(
+                              color: c.muted,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpace.xs),
+                          Icon(
+                            AppIcons.check,
+                            size: AppIconSizes.notice,
+                            color: c.muted,
+                          ),
+                        ],
+                      ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -507,46 +534,58 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     key: const ValueKey('task_description_field'),
                     controller: _descriptionController,
                     enabled: canEdit,
-                    minLines: 2,
-                    maxLines: 6,
+                    minLines: 5,
+                    maxLines: 12,
                     decoration: const InputDecoration(
-                      labelText: 'Descripción',
-                      alignLabelWithHint: true,
+                      hintText: 'Agregá detalles, medidas o instrucciones…',
                     ),
                   ),
-                  if (canEdit)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        key: const ValueKey('task_description_save'),
-                        onPressed: () {
-                          final text = _descriptionController.text.trim();
-                          _run(
-                            (a) => a.updateDescription(
-                              _task,
-                              text.isEmpty ? null : text,
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _descriptionController,
+                    builder: (context, value, _) =>
+                        canEdit && _descriptionDirty(value.text)
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: AppSpace.sm),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FilledButton.tonal(
+                                key: const ValueKey('task_description_save'),
+                                onPressed: () {
+                                  final text = value.text.trim();
+                                  _run(
+                                    (a) => a.updateDescription(
+                                      _task,
+                                      text.isEmpty ? null : text,
+                                    ),
+                                  );
+                                },
+                                child: const Text('Guardar'),
+                              ),
                             ),
-                          );
-                        },
-                        child: const Text('Guardar descripción'),
-                      ),
-                    ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
             if (_task.parentId == null) ...[
               const SizedBox(height: AppSpace.md),
-              AppWorkSection(
-                title: 'Subtareas',
-                icon: AppIcons.list,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              _DetailCard(
+                key: const ValueKey('task_subtasks'),
+                label: 'Subtareas',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (_task.subtasks.isNotEmpty)
+                      Text(
+                        '${_task.subtasks.where((s) => s.isDone).length}/${_task.subtasks.length}',
+                        style: AppTextStyles.technical.copyWith(color: c.muted),
+                      ),
                     if (canEdit && _task.subtasks.length > 1)
-                      TextButton.icon(
+                      IconButton(
                         key: const ValueKey('subtasks_reorder'),
+                        tooltip: 'Ordenar subtareas',
                         icon: const Icon(AppIcons.reorder),
-                        label: const Text('Ordenar subtareas'),
                         onPressed: () => showReorderDialog(
                           context,
                           title: 'Ordenar subtareas',
@@ -574,13 +613,27 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                               .reorderSubtasks(_task, ids),
                         ),
                       ),
-                    for (final sub in _task.subtasks)
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final (i, sub) in _task.subtasks.indexed) ...[
+                      if (i > 0) Divider(height: 1, color: c.border),
                       CheckboxListTile(
                         key: ValueKey('task_subtask_${sub.id}'),
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,
                         value: sub.isDone,
-                        title: Text(sub.displayText),
+                        title: Text(
+                          sub.displayText,
+                          style: sub.isDone
+                              ? AppTextStyles.body.copyWith(
+                                  color: c.muted,
+                                  decoration: TextDecoration.lineThrough,
+                                )
+                              : null,
+                        ),
                         onChanged:
                             canEdit &&
                                 sub.canToggle != false &&
@@ -588,6 +641,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                             ? (_) => _run((a) => a.toggleDone(sub))
                             : null,
                       ),
+                    ],
                     if (canEdit)
                       TaskComposer(
                         key: const ValueKey('subtask_composer'),
@@ -623,10 +677,16 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
 /// Card de un bloque del detalle: rótulo 11/700 en mayúsculas y contenido
 /// (D7 de la dirección premium).
 class _DetailCard extends StatelessWidget {
-  const _DetailCard({super.key, required this.label, required this.child});
+  const _DetailCard({
+    super.key,
+    required this.label,
+    required this.child,
+    this.trailing,
+  });
 
   final String label;
   final Widget child;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -645,6 +705,7 @@ class _DetailCard extends StatelessWidget {
                   style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
                 ),
               ),
+              ?trailing,
             ],
           ),
           const SizedBox(height: AppSpace.md),

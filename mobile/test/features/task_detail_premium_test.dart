@@ -453,4 +453,91 @@ void main() {
       expect(picked, '@Ana-Pérez');
     });
   });
+
+  group('Tarea 4: descripción y subtareas', () {
+    Json sub(String id, String text, {bool done = false}) => {
+      ...taskJson(id: id, text: text, parentId: 't'),
+      'status': done
+          ? {'id': 'done', 'name': 'Terminado', 'type': 'FINAL'}
+          : {'id': 'open', 'name': 'Pendiente', 'type': 'IN_PROGRESS'},
+    };
+
+    testWidgets('la descripción muestra Guardado o el botón según cambios', (
+      tester,
+    ) async {
+      final task = {...taskJson(), 'description': 'Medidas 2 x 1 m'};
+      final api = detailApi(
+        task,
+        extra: (r) => r.method == 'PATCH' ? <String, Object?>{} : null,
+      );
+      await mountDetail(tester, api, task);
+      final card = find.byKey(const ValueKey('task_description'));
+      expect(
+        find.descendant(of: card, matching: find.text('DESCRIPCIÓN')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('task_description_saved')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('task_description_save')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('task_description_field')),
+        'Medidas 3 x 1 m',
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('task_description_saved')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const ValueKey('task_description_save')));
+      await tester.pumpAndSettle();
+      expect(api.requests.where((r) => r.method == 'PATCH').single.data, {
+        'description': 'Medidas 3 x 1 m',
+      });
+    });
+
+    testWidgets('subtareas en su card, con contador y alta adentro', (
+      tester,
+    ) async {
+      final task = taskJson(
+        subtasks: [
+          sub('a', 'Revisar medidas y sangrado', done: true),
+          sub('b', 'Confirmar colores con el cliente'),
+        ],
+      );
+      await mountDetail(tester, detailApi(task), task);
+      final card = find.byKey(const ValueKey('task_subtasks'));
+      await tester.scrollUntilVisible(
+        card,
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const ValueKey('task_detail_list')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('SUBTAREAS')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('1/2')),
+        findsOneWidget,
+      );
+      for (final key in [
+        'task_subtask_a',
+        'task_subtask_b',
+        'subtasks_reorder',
+        'subtask_composer',
+      ]) {
+        expect(
+          find.descendant(of: card, matching: find.byKey(ValueKey(key))),
+          findsOneWidget,
+          reason: key,
+        );
+      }
+    });
+  });
 }
