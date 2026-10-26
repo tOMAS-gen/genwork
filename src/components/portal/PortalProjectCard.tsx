@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Calendar } from "@/components/ui/icons";
 import { progress } from "@/lib/domain/works/progress";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
 import type { PortalWorkSummary } from "./types";
 
@@ -13,12 +14,6 @@ import type { PortalWorkSummary } from "./types";
  * porque aquella trae botón de favorito, menú de acciones y enlace a la vista
  * interna: acá nada de eso existe.
  */
-
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
 
 export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
   const primary = work.labels.find((l) => l.isPrimary) ?? null;
@@ -83,7 +78,7 @@ export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
         <div className="pc-due">
           <span className="pc-due-date">
             <Calendar size={14} />
-            Entrega: {dueDateFormatter.format(due)}
+            Entrega: {formatDueDate(due)}
           </span>
           <span className={`pc-due-remaining due-${urgency.color}`} style={{ fontStyle: "italic" }}>
             {urgency.label}

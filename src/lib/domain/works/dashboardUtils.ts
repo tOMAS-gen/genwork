@@ -32,21 +32,21 @@ export interface DueDateUrgency {
  * - Entre 1 y 7 días restantes: naranja.
  * - Hoy o vencido (<= 0 días): rojo.
  *
- * Los días se calculan comparando solo la parte de fecha (año-mes-día),
- * ignorando la hora, para que "hoy" sea siempre 0 sin importar la hora del día.
+ * La entrega es un día de calendario guardado a medianoche UTC (ver
+ * `formatDueDate`): se toma su día en UTC y se compara con el día de hoy en la
+ * zona local, ignorando la hora, para que "hoy" sea siempre 0.
  */
 export function getDueDateUrgency(dueDate: Date | null): DueDateUrgency | null {
   if (!dueDate) {
     return null;
   }
 
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-  const today = startOfDay(new Date());
-  const due = startOfDay(dueDate);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const due = Date.UTC(dueDate.getUTCFullYear(), dueDate.getUTCMonth(), dueDate.getUTCDate());
 
   const msPerDay = 24 * 60 * 60 * 1000;
-  const daysRemaining = Math.round((due.getTime() - today.getTime()) / msPerDay);
+  const daysRemaining = Math.round((due - today) / msPerDay);
 
   let label: string;
   if (daysRemaining < 0) {

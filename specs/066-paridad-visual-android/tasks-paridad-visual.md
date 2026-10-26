@@ -42,12 +42,12 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Usar el helper en el portal y en las tareas. Pasar `getDueDateUrgency` a comparar días de calendario: el día UTC de la entrega contra el día de hoy en la zona del sistema.
 
 **Criterios de aceptación:**
-- [ ] `PortalProjectCard`, `portal/works/[id]/page.tsx`, `PortalTaskItem` y `TaskItem` usan el helper.
-- [ ] `getDueDateUrgency` da "Vence hoy" para una entrega del 29/10 cuando en Buenos Aires es 29/10 a las 22:00 (en UTC ya es 30). Hay un test en `dashboard-utils.test.ts`.
+- [x] `PortalProjectCard`, `portal/works/[id]/page.tsx`, `PortalTaskItem` y `TaskItem` usan el helper. También el detalle de grupo (`groups/[id]/page.tsx`), que tenía el mismo formatter.
+- [x] `getDueDateUrgency` da "Vence hoy" para una entrega del 29/10 cuando en Buenos Aires es 29/10 a las 22:00 (en UTC ya es 30). Hay un test en `dashboard-utils.test.ts`.
 
 **Verificación:**
-- [ ] `TZ=America/Argentina/Buenos_Aires npx vitest run tests/unit/dashboard-utils.test.ts tests/unit/due-date-format.test.ts`
-- [ ] Manual: en `/portal` como cliente, la fecha coincide con `/works/<id>` como admin.
+- [x] `TZ=America/Argentina/Buenos_Aires npx vitest run tests/unit/dashboard-utils.test.ts tests/unit/due-date-format.test.ts`
+- [x] Manual: en `/portal` como cliente, la fecha coincide con `/works/<id>` como admin.
 
 **Depende de:** 2 · **Archivos:** `src/components/portal/PortalProjectCard.tsx`, `src/app/portal/works/[id]/page.tsx`, `src/components/portal/PortalTaskItem.tsx`, `src/components/tasks/TaskItem.tsx`, `src/lib/domain/works/dashboardUtils.ts`, `tests/unit/dashboard-utils.test.ts` · **Tamaño:** S
 

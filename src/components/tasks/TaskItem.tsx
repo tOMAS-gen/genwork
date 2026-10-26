@@ -22,11 +22,9 @@ import {
   deleteConfirmMessage,
 } from "./SubtaskList";
 import { TaskMoveDialog } from "./TaskMoveDialog";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { ObjectiveChip } from "@/components/objectives/ObjectiveChip";
 import { MoveToObjectiveDialog } from "@/components/objectives/MoveToObjectiveDialog";
-
-/** 062-subtareas: fecha heredada de una hija — corto, sin año (mismo criterio que StatusBar/DueDateBadge). */
-const inheritedDueDateFormatter = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
 
 export interface TaskDto {
   id: string;
@@ -643,7 +641,7 @@ export function TaskItem({
             {effectiveDue?.inherited && (
               <span className="date-chip date-chip-inherited" title="Vence por una subtarea">
                 <Calendar size={12} />
-                {inheritedDueDateFormatter.format(effectiveDue.date)}
+                {formatDueDate(effectiveDue.date, "dayMonth")}
               </span>
             )}
           </>

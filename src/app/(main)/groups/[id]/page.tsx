@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/components/ui/useApi";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -332,7 +333,6 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           <div>
             {works.map((work) => {
               const parsedDue = work.dueDate ? new Date(work.dueDate) : null;
-              const fmt = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
               return (
                 <Link
                   key={work.id}
@@ -365,7 +365,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   </span>
                   {parsedDue && (
                     <span className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                      {fmt.format(parsedDue)}
+                      {formatDueDate(parsedDue, "dayMonth")}
                     </span>
                   )}
                 </Link>
