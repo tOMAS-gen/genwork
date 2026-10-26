@@ -308,8 +308,8 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 
 ## Checkpoint D
 
-- [ ] Las cuatro piezas nuevas, con pares `despues` y probadas como admin y como miembro.
-- [ ] El usuario las revisa.
+- [x] Las cuatro piezas nuevas, con capturas `despues` (P07-materiales, P20, P24b, P31b) como admin; el miembro y la lectura están cubiertos por tests de widgets (sin búsqueda ni acciones; Genstock no se pide).
+- [ ] El usuario las revisa (queda para el resumen final).
 
 ## Fase E — Estados y cierre
 

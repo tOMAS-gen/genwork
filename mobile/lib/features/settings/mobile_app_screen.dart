@@ -66,18 +66,11 @@ class MobileAppScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              borderRadius: AppGeometry.card,
-              border: Border.all(color: c.border),
-            ),
-            child: Text(
-              '1. Instalá la app de Genwork en el teléfono.\n'
-              '2. En el primer inicio, elegí «Escanear QR» y apuntá a este código.\n'
-              '3. Ingresá con tu cuenta de Google. Para sumar otro sistema, usá «Agregar servidor» en la app.',
-              style: muted,
-            ),
+          Text(
+            '1. Instalá la app de Genwork en el teléfono.\n'
+            '2. En el primer inicio, elegí «Escanear QR» y apuntá a este código.\n'
+            '3. Ingresá con tu cuenta de Google. Para sumar otro sistema, usá «Agregar servidor» en la app.',
+            style: muted,
           ),
         ],
       ),
