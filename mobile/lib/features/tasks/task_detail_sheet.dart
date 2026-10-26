@@ -130,6 +130,41 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
     }
   }
 
+  /// Contexto de la tarea para la barra: `proyecto › objetivo`, o `#sector`
+  /// si la tarea no es de un proyecto.
+  String? get _contextLabel {
+    final work = _task.work?.name;
+    if (work != null) return [work, ?_task.objectiveTitle].join(' › ');
+    if (_task.homeSector case final sector?) return '#${sector.name}';
+    return null;
+  }
+
+  Future<void> _onMore(_MoreAction action) async {
+    switch (action) {
+      case _MoreAction.moveToObjective || _MoreAction.moveUnder:
+        final moved = await showTaskMove(
+          context,
+          _task,
+          objective: action == _MoreAction.moveToObjective,
+        );
+        if (moved && mounted) Navigator.pop(context);
+      case _MoreAction.promote:
+        await _run((a) => a.setParent(_task, null), close: true);
+      case _MoreAction.history:
+        await showAppFormDialog<void>(
+          context,
+          builder: (context) => AppWorkDialog(
+            title: 'Historial de estados',
+            onClose: () => Navigator.pop(context),
+            actions: const [],
+            child: _StatusHistory(taskId: _task.id),
+          ),
+        );
+      case _MoreAction.delete:
+        await _confirmDelete();
+    }
+  }
+
   Future<void> _confirmDelete() async {
     final ok = await showAppFormDialog<bool>(
       context,
@@ -184,6 +219,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
         !unavailable &&
         (latest?.canManageMyDay ?? true);
 
+    final contextLabel = _contextLabel;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -192,11 +228,29 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(AppIcons.close),
         ),
-        title: Text(
-          _task.displayText,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        // La barra dice de dónde es la tarea; el título va en el cuerpo (D1).
+        title: contextLabel == null
+            ? null
+            : Text(
+                contextLabel,
+                key: const ValueKey('task_context'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.supporting.copyWith(color: c.muted),
+              ),
+        actions: [
+          _MoreMenu(
+            canMoveToObjective:
+                canEdit &&
+                _task.parentId == null &&
+                workContext?.canManageObjectives == true,
+            canMoveUnder: canEdit && !_task.isContainer,
+            canPromote: canEdit && _task.parentId != null,
+            showDelete: widget.canEdit,
+            canDelete: canEdit,
+            onSelected: (action) => _onMore(action),
+          ),
+        ],
       ),
       body: SafeArea(
         child: ListView(
@@ -219,41 +273,53 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               canEdit: canEditText,
               fromSector: widget.fromSector,
             ),
-            TaskTextField(
-              fieldKey: 'task_text_field',
-              workId: _task.workId ?? widget.workId,
-              sectorId: widget.fromSector ? widget.sectorId : null,
-              controller: _textController,
-              enabled: canEditText,
-              maxLines: null,
-              style: Theme.of(context).textTheme.titleMedium,
-              decoration: const InputDecoration(labelText: 'Tarea'),
-              onSubmitted: (value) => _run(
-                (a) => a.updateText(
-                  _task,
-                  value.trim(),
-                  fromSector: widget.fromSector,
+            // Título editable en el lugar, sin caja; el tilde lo guarda.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TaskTextField(
+                    fieldKey: 'task_text_field',
+                    workId: _task.workId ?? widget.workId,
+                    sectorId: widget.fromSector ? widget.sectorId : null,
+                    controller: _textController,
+                    enabled: canEditText,
+                    maxLines: null,
+                    style: AppTextStyles.entityTitle.copyWith(color: c.text),
+                    decoration: const InputDecoration(
+                      hintText: 'Tarea',
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onSubmitted: (value) => _run(
+                      (a) => a.updateText(
+                        _task,
+                        value.trim(),
+                        fromSector: widget.fromSector,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                if (canEditText)
+                  IconButton(
+                    key: const ValueKey('task_text_save'),
+                    tooltip: 'Guardar tarea',
+                    onPressed: () => _run(
+                      (a) => a.updateText(
+                        _task,
+                        _textController.text.trim(),
+                        fromSector: widget.fromSector,
+                      ),
+                    ),
+                    icon: Icon(AppIcons.check, color: c.brand),
+                  ),
+              ],
             ),
-            if (canEditText)
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  key: const ValueKey('task_text_save'),
-                  onPressed: canEditText
-                      ? () => _run(
-                          (a) => a.updateText(
-                            _task,
-                            _textController.text.trim(),
-                            fromSector: widget.fromSector,
-                          ),
-                        )
-                      : null,
-                  icon: const Icon(AppIcons.check),
-                  label: const Text('Guardar tarea'),
-                ),
-              ),
             const SizedBox(height: AppSpace.md),
             Wrap(
               spacing: AppSpace.sm,
@@ -429,46 +495,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 ],
               ),
             ),
-            if (canEdit)
-              Wrap(
-                spacing: AppSpace.sm,
-                children: [
-                  if (_task.parentId == null &&
-                      workContext?.canManageObjectives == true)
-                    TextButton(
-                      key: const ValueKey('task_move_objective'),
-                      onPressed: () async {
-                        final moved = await showTaskMove(
-                          context,
-                          _task,
-                          objective: true,
-                        );
-                        if (moved && context.mounted) Navigator.pop(context);
-                      },
-                      child: const Text('Mover a objetivo'),
-                    ),
-                  if (!_task.isContainer)
-                    TextButton(
-                      key: const ValueKey('task_move_parent'),
-                      onPressed: () async {
-                        final moved = await showTaskMove(
-                          context,
-                          _task,
-                          objective: false,
-                        );
-                        if (moved && context.mounted) Navigator.pop(context);
-                      },
-                      child: const Text('Mover bajo otra tarea'),
-                    ),
-                  if (_task.parentId != null)
-                    TextButton(
-                      key: const ValueKey('task_promote'),
-                      onPressed: () =>
-                          _run((a) => a.setParent(_task, null), close: true),
-                      child: const Text('Separar del padre'),
-                    ),
-                ],
-              ),
             if (_task.parentId == null) ...[
               const SizedBox(height: AppSpace.md),
               AppWorkSection(
@@ -548,27 +574,76 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 ),
               ),
             ],
-            const SizedBox(height: AppSpace.md),
-            AppWorkSection(
-              title: 'Historial',
-              icon: AppIcons.schedule,
-              child: _StatusHistory(taskId: _task.id),
-            ),
-            if (widget.canEdit) ...[
-              const SizedBox(height: AppSpace.lg),
-              OutlinedButton.icon(
-                key: const ValueKey('task_delete'),
-                onPressed: canEdit ? _confirmDelete : null,
-                style: AppButtonStyles.destructiveOutlined(context),
-                icon: const Icon(AppIcons.delete),
-                label: const Text('Borrar tarea'),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
+}
+
+enum _MoreAction { moveToObjective, moveUnder, promote, history, delete }
+
+/// Menú "⋯" de la barra: lo secundario de la tarea (mover, historial y borrar)
+/// sale del cuerpo, que queda para la descripción y las subtareas.
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({
+    required this.canMoveToObjective,
+    required this.canMoveUnder,
+    required this.canPromote,
+    required this.showDelete,
+    required this.canDelete,
+    required this.onSelected,
+  });
+
+  final bool canMoveToObjective, canMoveUnder, canPromote;
+  final bool showDelete, canDelete;
+  final ValueChanged<_MoreAction> onSelected;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<_MoreAction>(
+    key: const ValueKey('task_more'),
+    tooltip: 'Más acciones',
+    icon: const Icon(AppIcons.moreHorizontal),
+    onSelected: onSelected,
+    itemBuilder: (context) => [
+      if (canMoveToObjective)
+        const PopupMenuItem(
+          key: ValueKey('task_move_objective'),
+          value: _MoreAction.moveToObjective,
+          child: Text('Mover a objetivo'),
+        ),
+      if (canMoveUnder)
+        const PopupMenuItem(
+          key: ValueKey('task_move_parent'),
+          value: _MoreAction.moveUnder,
+          child: Text('Mover bajo otra tarea'),
+        ),
+      if (canPromote)
+        const PopupMenuItem(
+          key: ValueKey('task_promote'),
+          value: _MoreAction.promote,
+          child: Text('Separar del padre'),
+        ),
+      const PopupMenuItem(
+        key: ValueKey('task_history'),
+        value: _MoreAction.history,
+        child: Text('Historial de estados'),
+      ),
+      if (showDelete) ...[
+        // La acción peligrosa va en `danger`, separada de las demás.
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const ValueKey('task_delete'),
+          value: _MoreAction.delete,
+          enabled: canDelete,
+          child: Text(
+            'Borrar tarea',
+            style: AppTextStyles.body.copyWith(color: context.colors.danger),
+          ),
+        ),
+      ],
+    ],
+  );
 }
 
 class _StatusHistory extends ConsumerStatefulWidget {
@@ -581,51 +656,36 @@ class _StatusHistory extends ConsumerStatefulWidget {
 }
 
 class _StatusHistoryState extends ConsumerState<_StatusHistory> {
-  Future<List<StatusChange>>? _history;
+  late final Future<List<StatusChange>> _history = ref
+      .read(tasksRepositoryProvider)
+      .statusChanges(widget.taskId);
 
   @override
   Widget build(BuildContext context) {
-    return ExpansionTile(
-      key: const ValueKey('task_history'),
-      maintainState: true,
-      onExpansionChanged: (expanded) {
-        if (expanded && _history == null) {
-          setState(
-            () => _history = ref
-                .read(tasksRepositoryProvider)
-                .statusChanges(widget.taskId),
-          );
+    return FutureBuilder<List<StatusChange>>(
+      future: _history,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Text(errorMessage(snapshot.error!));
+        if (!snapshot.hasData) return const LinearProgressIndicator();
+        final changes = snapshot.data!;
+        if (changes.isEmpty) {
+          return const ListTile(title: Text('Sin cambios todavía'));
         }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final c in changes)
+              ListTile(
+                dense: true,
+                leading: ColorDot(hex: c.toColor),
+                title: Text('${c.fromName ?? '—'} → ${c.toName ?? '—'}'),
+                subtitle: Text(
+                  '${c.byName ?? 'Alguien'} · ${formatDay(c.changedAt)}',
+                ),
+              ),
+          ],
+        );
       },
-      tilePadding: EdgeInsets.zero,
-      title: const Text('Historial de estados'),
-      children: [
-        if (_history != null)
-          FutureBuilder<List<StatusChange>>(
-            future: _history,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) return Text(errorMessage(snapshot.error!));
-              if (!snapshot.hasData) return const LinearProgressIndicator();
-              final changes = snapshot.data!;
-              if (changes.isEmpty) {
-                return const ListTile(title: Text('Sin cambios todavía'));
-              }
-              return Column(
-                children: [
-                  for (final c in changes)
-                    ListTile(
-                      dense: true,
-                      leading: ColorDot(hex: c.toColor),
-                      title: Text('${c.fromName ?? '—'} → ${c.toName ?? '—'}'),
-                      subtitle: Text(
-                        '${c.byName ?? 'Alguien'} · ${formatDay(c.changedAt)}',
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-      ],
     );
   }
 }

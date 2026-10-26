@@ -51,7 +51,6 @@ import 'package:genwork_mobile/features/reminders/reminders_screen.dart';
 import 'package:genwork_mobile/features/reminders/reminder_form_screen.dart';
 import 'package:genwork_mobile/features/reminders/reminders_providers.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
-import 'package:genwork_mobile/shared/widgets/app_work_section.dart';
 import 'package:genwork_mobile/shared/widgets/task_tile.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
@@ -373,16 +372,25 @@ void main() {
             .height,
         48,
       );
+      // La barra dice de dónde es la tarea; el título va en el cuerpo
+      // (piloto premium P09).
       expect(
         find.descendant(
           of: find.byType(AppBar),
-          matching: find.text('Preparar originales para impresión'),
+          matching: find.text('Señalética · Local Mendoza'),
         ),
         findsOneWidget,
       );
-      // Secciones con AppWorkSection y borrar con estilo destructivo.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('task_text_field')))
+            .controller!
+            .text,
+        'Preparar originales para impresión',
+      );
+      // Subtareas como sección; historial y borrar (en `danger`) en el menú ⋯.
       await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('task_delete')),
+        find.text('Subtareas'),
         200,
         scrollable: find
             .descendant(
@@ -391,19 +399,24 @@ void main() {
             )
             .first,
       );
-      // Secciones: la lista es perezosa, el historial aparece al llegar al final.
+      await tester.tap(find.byKey(const ValueKey('task_more')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('task_history')), findsOneWidget);
+      final danger = (dark ? GenColors.dark : GenColors.light).danger;
       expect(
         tester
-            .widgetList<AppWorkSection>(find.byType(AppWorkSection))
-            .map((w) => w.title)
-            .toSet(),
-        containsAll(['Subtareas', 'Historial']),
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('task_delete')),
+                matching: find.text('Borrar tarea'),
+              ),
+            )
+            .style
+            ?.color,
+        danger,
       );
-      final delete = tester.widget<OutlinedButton>(
-        find.byKey(const ValueKey('task_delete')),
-      );
-      final danger = (dark ? GenColors.dark : GenColors.light).danger;
-      expect(delete.style!.foregroundColor!.resolve({}), danger);
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
       // El estado vigente se ve habilitado (no atenuado).
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('task_status_open')),

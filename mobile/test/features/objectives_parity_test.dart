@@ -252,6 +252,19 @@ Future<void> objectiveMenu(WidgetTester t) async {
 }
 
 Future<void> sheetTap(WidgetTester t, String key) async {
+  // Mover, separar, historial y borrar viven en el menú ⋯ de la barra
+  // (piloto premium P09, spec 066).
+  if (const {
+    'task_move_objective',
+    'task_move_parent',
+    'task_promote',
+    'task_history',
+    'task_delete',
+  }.contains(key)) {
+    await tap(t, 'task_more');
+    await tap(t, key);
+    return;
+  }
   final scroll = find
       .descendant(
         of: find.byKey(const ValueKey('task_detail_list')),

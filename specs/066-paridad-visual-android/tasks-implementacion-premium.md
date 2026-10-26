@@ -16,14 +16,14 @@ Cada tarea cierra con `dart analyze` sin issues y `flutter test` en verde (desde
 **Descripción:** La barra muestra el cierre, la miga del contexto y el menú "⋯" (Mover a objetivo, Mover bajo otra tarea, Separar del padre, Historial de estados, Borrar tarea). El título pasa al cuerpo en 20/700, editable sin caja, con un botón de tilde para guardar. La sección Historial y el botón Borrar salen del cuerpo; el historial se abre en un diálogo.
 
 **Criterios de aceptación:**
-- [ ] La barra muestra la miga (`Cartelería del local › Preparación y entrega`; `#Impresión` en una tarea de sector) y no el texto de la tarea.
-- [ ] "⋯" ofrece solo las acciones permitidas, con las mismas condiciones de hoy. Borrar va en rojo y sigue pidiendo confirmación.
-- [ ] El título se edita en el lugar y se guarda con el tilde (`task_text_save`) o con Enter.
-- [ ] Historial de estados abre un diálogo con la misma lista de hoy.
+- [x] La barra muestra la miga (`Cartelería del local › Preparación y entrega`; `#Impresión` en una tarea de sector) y no el texto de la tarea.
+- [x] "⋯" ofrece solo las acciones permitidas, con las mismas condiciones de hoy. Borrar va en rojo y sigue pidiendo confirmación.
+- [x] El título se edita en el lugar y se guarda con el tilde (`task_text_save`) o con Enter.
+- [x] Historial de estados abre un diálogo con la misma lista de hoy.
 
 **Verificación:**
-- [ ] Test nuevo en `task_detail_premium_test.dart`: miga, menú con sus ítems según permisos, historial en diálogo.
-- [ ] `ui_phase3_test` y `objectives_parity_test` adaptados (Borrar y mover desde el menú; título fuera de la barra), con las mismas verificaciones.
+- [x] Test nuevo en `task_detail_premium_test.dart`: miga, menú con sus ítems según permisos, historial en diálogo.
+- [x] `ui_phase3_test` y `objectives_parity_test` adaptados (Borrar y mover desde el menú; título fuera de la barra), con las mismas verificaciones.
 
 **Depende de:** nada · **Archivos:** `task_detail_sheet.dart`, `test/features/task_detail_premium_test.dart` (nuevo), `test/ui_phase3_test.dart`, `test/features/objectives_parity_test.dart` · **Tamaño:** M
 

@@ -15,6 +15,16 @@ abstract final class AppTextStyles {
     height: 1.3,
   );
 
+  /// Título de una entidad abierta (tarea): el 20/700 de la dirección premium
+  /// (D2, spec 066).
+  static const entityTitle = TextStyle(
+    fontFamily: 'Montserrat',
+    fontSize: 20,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0,
+    height: 1.3,
+  );
+
   /// Mapea a `titleLarge`.
   static const dialogTitle = TextStyle(
     fontFamily: 'Montserrat',
