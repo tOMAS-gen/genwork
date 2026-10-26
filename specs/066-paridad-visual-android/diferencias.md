@@ -133,33 +133,33 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P11-01 | 8 | Barra de herramientas como Proyectos: [Filtros] [Nombre · A–Z ▾] [grilla \| lista]; "3 sectores" y "Contraer todo" en la misma fila. Android: dos desplegables flotantes y "Contraer todo" aparte. | B-9 | abierta |
-| P11-02 | 1 | Grupo: barra de acento, flecha, punto de color, nombre en mayúsculas, "(1)" y contador; Android ícono de personas y "2 pendientes". | P | abierta |
-| P11-03 | 3 | Card de sector: pastilla, contador, progreso y "1/3 tareas"; Android suma flecha y "2 pendientes · 3 tareas". | P | abierta |
+| P11-01 | 8 | Barra de herramientas como Proyectos: [Filtros] [Nombre · A–Z ▾] [grilla \| lista]; "3 sectores" y "Contraer todo" en la misma fila. Android: dos desplegables flotantes y "Contraer todo" aparte. | B-9 | corregida en parte (ListToolbar con Filtros y orden; sin el cambio grilla/lista) |
+| P11-02 | 1 | Grupo: barra de acento, flecha, punto de color, nombre en mayúsculas, "(1)" y contador; Android ícono de personas y "2 pendientes". | P | corregida |
+| P11-03 | 3 | Card de sector: pastilla, contador, progreso y "1/3 tareas"; Android suma flecha y "2 pendientes · 3 tareas". | P | corregida |
 
 ## P12 Detalle de sector
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P12-01 | 3 | Subtítulo "Grupo QA produccion"; Android "QA produccion". | P | abierta |
-| P12-02 | 3 | Avance "33% · 1 de 3 completadas" contando subtareas; Android "0% · 0 de 2". | P | abierta |
-| P12-03 | 1 | "Estados del sector" está en el menú ⋮ en la web; Android lo muestra como enlace. | P | abierta |
-| P12-04 | 1 | Composer en línea "Escribí una tarea y Enter… (/proyecto" y agrupado por proyecto en una barra; Android composer fijo abajo y filtro Pendientes/Hechas/Todas. | P | abierta |
+| P12-01 | 3 | Subtítulo "Grupo QA produccion"; Android "QA produccion". | P | corregida |
+| P12-02 | 3 | Avance "33% · 1 de 3 completadas" contando subtareas; Android "0% · 0 de 2". | P | corregida |
+| P12-03 | 1 | "Estados del sector" está en el menú ⋮ en la web; Android lo muestra como enlace. | P | corregida |
+| P12-04 | 1 | Composer en línea "Escribí una tarea y Enter… (/proyecto" y agrupado por proyecto en una barra; Android composer fijo abajo y filtro Pendientes/Hechas/Todas. | P | aceptada (nativo: composer fijo abajo, como P07-05; el filtro Pendientes/Hechas/Todas es una ayuda del teléfono) |
 
 ## P13 Grupos
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P13-01 | 6 | Pastilla del nombre con texto en `--text`; Android en acento. | P | abierta |
+| P13-01 | 6 | Pastilla del nombre con texto en `--text`; Android en acento. | P | corregida |
 | P13-02 | 1 | La web no tiene buscador; Android sí. | P | aceptada (con muchos grupos el buscador es necesario en el teléfono; no cambia la estructura) |
-| P13-03 | 3 | "pública" como insignia; Android "Lectura para no miembros" en texto y suma "2 pendientes" y flecha. | P | abierta |
+| P13-03 | 3 | "pública" como insignia; Android "Lectura para no miembros" en texto y suma "2 pendientes" y flecha. | P | corregida |
 
 ## P14 Detalle de grupo
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
 | P14-01 | 1 | Miembros, clientes y etiquetas se editan en el lugar en la web; Android usa pantallas y dialogs. | nativo | aceptada (decisión 1) |
-| P14-02 | 3 | Rol como insignia ("admin principal", "admin"); Android en texto ("Administrador principal"). | P | abierta |
+| P14-02 | 3 | Rol como insignia ("admin principal", "admin"); Android en texto ("Administrador principal"). | P | corregida |
 | P14-03 | 8 | "Lectura para no miembros" como checkbox; Android card con candado y lápiz. | P | abierta |
 
 ## P15 Notas
@@ -167,22 +167,22 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
 | P15-01 | 1 | La web abre directamente la nota; Android muestra la lista. | nativo | aceptada (decisión 1: la lista es la pantalla de entrada en el teléfono) |
-| P15-02 | 4 | Card de nota: título, "hoy" y extracto en tres líneas; tipografía al rol de la web. | P | abierta |
+| P15-02 | 4 | Card de nota: título, "hoy" y extracto en tres líneas; tipografía al rol de la web. | P | igual |
 
 ## P16 Nota
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P16-01 | 1 | Migas "Mis notas / Notas de producción" con 🗑; Android encabezado "Nota". | P | abierta |
-| P16-02 | 4 | Título como encabezado grande editable; Android campo con fondo. | P | abierta |
+| P16-01 | 1 | Migas "Mis notas / Notas de producción" con 🗑; Android encabezado "Nota". | P | corregida |
+| P16-02 | 4 | Título como encabezado grande editable; Android campo con fondo. | P | corregida |
 | P16-03 | 8 | Barra de formato visible en Android. | nativo | aceptada (en táctil no hay menú de selección con atajos) |
 
 ## P17 Documento del proyecto
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P17-01 | 3 | Título "Documentación"; la pestaña se llama "Documentos". | P | abierta |
-| P17-02 | 1 | Acciones ✓ y ⋯ en la fila del título, a la derecha; Android las baja a otra fila. | B-7 | abierta |
+| P17-01 | 3 | Título "Documentación"; la pestaña se llama "Documentos". | P | corregida |
+| P17-02 | 1 | Acciones ✓ y ⋯ en la fila del título, a la derecha; Android las baja a otra fila. | B-7 | corregida |
 
 ## P18 Archivos del proyecto
 
@@ -194,10 +194,10 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P19-01 | 3 | Vacío "Todavía no hay acciones de un asistente de IA en este proyecto." en texto simple; Android con ícono y sin "de IA". Subtítulo de Android "Acciones realizadas mediante conexiones MCP." | P | abierta |
-| P19-02 | 6 | Ícono de pestaña reloj; Android "i". | P | abierta |
-| P19-03 | 3 | Texto de Acceso cliente distinto ("Los clientes con acceso ven este proyecto…"). | P | abierta |
-| P19-04 | 8 | Cliente con insignia "Invitado" gris y 🗑; Android texto "Invitado" e ícono de quitar persona. | P | abierta |
+| P19-01 | 3 | Vacío "Todavía no hay acciones de un asistente de IA en este proyecto." en texto simple; Android con ícono y sin "de IA". Subtítulo de Android "Acciones realizadas mediante conexiones MCP." | P | corregida |
+| P19-02 | 6 | Ícono de pestaña reloj; Android "i". | P | corregida |
+| P19-03 | 3 | Texto de Acceso cliente distinto ("Los clientes con acceso ven este proyecto…"). | P | corregida |
+| P19-04 | 8 | Cliente con insignia "Invitado" gris y 🗑; Android texto "Invitado" e ícono de quitar persona. | P | corregida |
 
 ## P20 Materiales — falta en Android (tarea 18)
 

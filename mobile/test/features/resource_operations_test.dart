@@ -479,7 +479,15 @@ void main() {
       await mount(t, f);
       expect(find.byKey(const ValueKey('work_actions')), findsNothing);
       await mount(t, Fixture(), path: '/sectors/s', role: 'MEMBER');
-      expect(find.byKey(const ValueKey('sector_actions')), findsNothing);
+      // Puede ver "Estados de tarea" (menú ⋮, como la web) pero no edita ni
+      // elimina el sector.
+      final actions = find.byKey(const ValueKey('sector_actions'));
+      if (actions.evaluate().isNotEmpty) {
+        await t.tap(actions);
+        await t.pumpAndSettle();
+        expect(find.text('Editar sector'), findsNothing);
+        expect(find.text('Eliminar sector'), findsNothing);
+      }
     },
   );
   testWidgets('etapas consultan ámbito, cambian y permiten quitar selección', (
@@ -538,6 +546,8 @@ void main() {
       await tap(t, 'sectors_clear');
       expect(find.byKey(const ValueKey('sector_s')), findsNothing);
       await tap(t, 'sectors_toggle_all');
+      // El ámbito está en el panel de Filtros, como en la web.
+      await tap(t, 'sectors_filters_toggle');
       await tap(t, 'sectors_scope_');
       await t.tap(find.text('Equipo').last);
       await t.pumpAndSettle();

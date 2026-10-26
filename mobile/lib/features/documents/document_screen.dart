@@ -21,6 +21,9 @@ import '../notes/notes_providers.dart';
 import 'document_draft.dart';
 import 'rich_document_editor.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../shared/widgets/breadcrumb.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 
 final richEditorBuilderProvider = Provider<Widget Function(RichDocumentEditor)>(
   (ref) =>
@@ -238,6 +241,53 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
     }
   }
 
+  /// ✓ (guardar) y ⋯ (opciones), como la barra del editor web.
+  List<Widget> _actions() => [
+    if (widget.editable)
+      IconButton(
+        key: ValueKey(widget.noteId != null ? 'note_save' : 'document_save'),
+        tooltip: 'Guardar ${widget.noteId != null ? 'nota' : 'documento'}',
+        onPressed: _draft.dirty && !_draft.saving ? _draft.save : null,
+        icon: const Icon(AppIcons.check),
+      ),
+    PopupMenuButton<String>(
+      key: const ValueKey('document_options'),
+      tooltip: 'Opciones del documento',
+      onSelected: (v) {
+        if (v == 'import') _import();
+        if (v == 'export') _editor.command('export');
+        if (v == 'image') _image();
+        if (v == 'delete') _delete();
+      },
+      itemBuilder: (_) => [
+        if (_editable)
+          PopupMenuItem(
+            value: 'import',
+            enabled: !_fileBusy,
+            child: const Text('Importar .md'),
+          ),
+        PopupMenuItem(
+          value: 'export',
+          enabled: !_unsupported,
+          child: const Text('Exportar .md'),
+        ),
+        if (_editable && widget.workId != null)
+          PopupMenuItem(
+            value: 'image',
+            enabled: !_fileBusy,
+            child: const Text('Adjuntar imagen'),
+          ),
+        if (widget.noteId != null)
+          PopupMenuItem(
+            key: const ValueKey('note_delete'),
+            value: 'delete',
+            enabled: !_draft.saving && !_fileBusy,
+            child: const Text('Borrar nota'),
+          ),
+      ],
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_draft.dirty && !_draft.saving && !_fileBusy,
@@ -257,75 +307,77 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
       appBar: AppBar(title: const BrandName(size: 16)),
       body: Column(
         children: [
-          GenSectionHeader(
-            title: widget.noteId != null ? 'Nota' : 'Documentación',
-            icon: widget.noteId != null ? AppIcons.notes : AppIcons.document,
-            actions: [
-              if (widget.editable)
-                IconButton(
-                  key: ValueKey(
-                    widget.noteId != null ? 'note_save' : 'document_save',
-                  ),
-                  tooltip:
-                      'Guardar ${widget.noteId != null ? 'nota' : 'documento'}',
-                  onPressed: _draft.dirty && !_draft.saving
-                      ? _draft.save
-                      : null,
-                  icon: const Icon(AppIcons.check),
-                ),
-              PopupMenuButton<String>(
-                key: const ValueKey('document_options'),
-                tooltip: 'Opciones del documento',
-                onSelected: (v) {
-                  if (v == 'import') _import();
-                  if (v == 'export') _editor.command('export');
-                  if (v == 'image') _image();
-                  if (v == 'delete') _delete();
-                },
-                itemBuilder: (_) => [
-                  if (_editable)
-                    PopupMenuItem(
-                      value: 'import',
-                      enabled: !_fileBusy,
-                      child: const Text('Importar .md'),
+          // ✓ y ⋯, como en la web.
+          if (widget.noteId == null)
+            GenSectionHeader(
+              title: 'Documentos',
+              icon: AppIcons.document,
+              actions: _actions(),
+            )
+          else ...[
+            // Nota como la web: migas con la papelera, el título como
+            // encabezado editable y debajo ✓ y ⋯.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.sm,
+                AppSpacing.sm,
+                AppSpacing.xxs,
+                0,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Breadcrumb(
+                      rootLabel: 'Mis notas',
+                      onRoot: () => Navigator.maybePop(context),
+                      current: _title.text.isEmpty ? 'Sin título' : _title.text,
                     ),
-                  PopupMenuItem(
-                    value: 'export',
-                    enabled: !_unsupported,
-                    child: const Text('Exportar .md'),
                   ),
-                  if (_editable && widget.workId != null)
-                    PopupMenuItem(
-                      value: 'image',
-                      enabled: !_fileBusy,
-                      child: const Text('Adjuntar imagen'),
-                    ),
-                  if (widget.noteId != null)
-                    PopupMenuItem(
-                      key: const ValueKey('note_delete'),
-                      value: 'delete',
-                      enabled: !_draft.saving && !_fileBusy,
-                      child: const Text('Borrar nota'),
+                  if (widget.editable)
+                    IconButton(
+                      key: const ValueKey('note_delete_icon'),
+                      tooltip: 'Borrar nota',
+                      onPressed: _draft.saving || _fileBusy ? null : _delete,
+                      icon: Icon(
+                        AppIcons.delete,
+                        size: AppIconSizes.action,
+                        color: context.colors.muted,
+                      ),
                     ),
                 ],
               ),
-            ],
-          ),
-          if (widget.noteId != null)
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: TextField(
                 key: const ValueKey('note_title'),
                 controller: _title,
                 readOnly: !widget.editable,
+                maxLines: null,
                 decoration: const InputDecoration(
                   hintText: 'Título',
                   counterText: '',
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
                 ),
-                style: Theme.of(context).textTheme.titleLarge,
+                style: AppTextStyles.screenTitle.copyWith(
+                  color: context.colors.text,
+                ),
                 onChanged: (v) => _draft.change(title: v),
               ),
             ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                key: const ValueKey('note_actions'),
+                mainAxisSize: MainAxisSize.min,
+                children: _actions(),
+              ),
+            ),
+          ],
           if (widget.editable)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),

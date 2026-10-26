@@ -89,12 +89,16 @@ class SectorBoard {
     required this.refs,
     required this.progress,
     this.color,
+    this.isGroupScope = false,
   });
 
   final String id;
   final String name;
   final String? color;
   final String scopeLabel;
+
+  /// Ámbito de grupo: la web lo muestra como "Grupo X".
+  final bool isGroupScope;
   final bool canOperate;
 
   /// Tareas sueltas del sector (sin proyecto).
@@ -112,6 +116,7 @@ class SectorBoard {
       name: sector['name'] as String? ?? '',
       color: sector['color'] as String?,
       scopeLabel: scopeLabelOf(asJson(sector['scope'])),
+      isGroupScope: asJson(sector['scope'])?['type'] == 'GROUP',
       canOperate: json['level'] == 'operate',
       loose: parseList(json['loose'], Task.fromJson),
       byWork: parseList(json['byWork'], SectorWorkGroup.fromJson),

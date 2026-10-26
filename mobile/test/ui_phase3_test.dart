@@ -747,7 +747,8 @@ void main() {
             )
             .first,
       );
-      expect(head.color, c.surface);
+      // Cabecera de ámbito sobre `field`, como en la web.
+      expect(head.color, c.field);
       expect(head.shape, isA<LeadingTickBorder>());
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('sector_s1')).hitTestable(),
@@ -760,7 +761,9 @@ void main() {
             .first,
       );
       expect(find.text('IMPRESIÓN Y TERMINACIONES'), findsOneWidget);
-      expect(find.text('8 pendientes · 12 tareas'), findsOneWidget);
+      // Como la web: los pendientes van en el contador de la card.
+      expect(find.text('8 pendientes · 12 tareas'), findsNothing);
+      expect(find.text('8'), findsWidgets);
       expect(find.text('33%'), findsOneWidget);
     });
   }

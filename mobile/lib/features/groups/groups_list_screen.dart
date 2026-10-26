@@ -20,6 +20,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
 import 'groups_providers.dart';
+import '../../shared/widgets/status_chip.dart';
 
 class GroupsListScreen extends ConsumerStatefulWidget {
   const GroupsListScreen({super.key});
@@ -122,23 +123,20 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
                                     ),
                                   ),
                                 ),
-                                Icon(
-                                  AppIcons.chevronRight,
-                                  size: AppIconSizes.action,
-                                  color: c.muted,
-                                ),
+                                // Como la web: la lectura pública va como
+                                // insignia "pública" en la esquina.
+                                if (group.publicRead)
+                                  StatusChip(
+                                    label: 'pública',
+                                    color: c.warningText,
+                                    fill: c.warningFill,
+                                  ),
                               ],
                             ),
                             const SizedBox(height: AppSpacing.xs),
                             Text(
                               '${countLabel(group.members.length, 'miembro', 'miembros')} · ${countLabel(group.workCount, 'proyecto', 'proyectos')}',
                               style: AppTextStyles.body.copyWith(
-                                color: c.muted,
-                              ),
-                            ),
-                            Text(
-                              '${countLabel(group.pendingCount, 'pendiente', 'pendientes')}${group.publicRead ? ' · Lectura para no miembros' : ''}',
-                              style: AppTextStyles.supporting.copyWith(
                                 color: c.muted,
                               ),
                             ),

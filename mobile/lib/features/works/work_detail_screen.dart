@@ -270,7 +270,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                   ),
                                   const GenTabItem(
                                     label: 'Actividad',
-                                    icon: AppIcons.info,
+                                    icon: AppIcons.schedule,
                                   ),
                                   if (work.canManageClients)
                                     const GenTabItem(

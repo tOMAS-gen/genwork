@@ -5,8 +5,9 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 
 /// Píldora con el nombre de un proyecto o sector (como `.pc-name-pill` de la
-/// web): en MAYÚSCULAS, 14/600, radio 4, del color del recurso (fondo 14 %
-/// sobre `surface`, texto 80 % con `text`) o, sin color, `hover` y `text`.
+/// web): en MAYÚSCULAS, 14/600, radio 4, con fondo del color del recurso (14 %
+/// sobre `surface`) o, sin color, `hover`. El texto va siempre en `text`, como
+/// la web (`color: var(--text)`).
 class NamePill extends StatelessWidget {
   const NamePill({super.key, required this.name, this.color});
 
@@ -29,9 +30,7 @@ class NamePill extends StatelessWidget {
         name.toUpperCase(),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: AppTextStyles.itemTitle.copyWith(
-          color: color == null ? c.text : c.chipText(color!),
-        ),
+        style: AppTextStyles.itemTitle.copyWith(color: c.text),
       ),
     );
   }

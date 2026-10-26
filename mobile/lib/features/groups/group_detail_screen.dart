@@ -24,6 +24,7 @@ import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
 import 'groups_providers.dart';
 import 'member_dialog.dart';
+import '../../shared/widgets/status_chip.dart';
 
 class GroupDetailScreen extends ConsumerWidget {
   const GroupDetailScreen({super.key, required this.groupId});
@@ -228,8 +229,31 @@ class GroupDetailScreen extends ConsumerWidget {
                                       ? member.email
                                       : member.name,
                                 ),
-                                subtitle: Text(
-                                  '${member.email}\n${member.id == group.ownerId ? 'Administrador principal' : member.roleLabel}',
+                                // Como la web: el correo y el rol como
+                                // insignia ("admin principal" o "admin").
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(member.email),
+                                    if (member.id == group.ownerId ||
+                                        member.role == 'ADMIN')
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: AppSpacing.xxs,
+                                        ),
+                                        child: member.id == group.ownerId
+                                            ? StatusChip(
+                                                label: 'admin principal',
+                                                color: c.tagWorkText,
+                                                fill: c.tagWorkFill,
+                                              )
+                                            : StatusChip(
+                                                label: 'admin',
+                                                color: c.tagExecText,
+                                                fill: c.tagExecFill,
+                                              ),
+                                      ),
+                                  ],
                                 ),
                                 trailing:
                                     !canManage || member.id == group.ownerId

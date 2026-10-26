@@ -697,8 +697,12 @@ void main() {
           find.text(dirty ? 'Borrador local' : 'Nuevo texto remoto'),
           findsOneWidget,
         );
+        // El título de la nota (también aparece en las migas, como la web).
         expect(
-          find.text(dirty ? 'Nota inicial' : 'Cambio desde web'),
+          find.descendant(
+            of: find.byKey(const ValueKey('note_title')),
+            matching: find.text(dirty ? 'Nota inicial' : 'Cambio desde web'),
+          ),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);

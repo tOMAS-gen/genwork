@@ -23,31 +23,47 @@ class SectorActionsMenu extends ConsumerWidget {
     required this.name,
     required this.onDeleted,
     this.color,
+    this.onStatuses,
   });
   final String id, name;
   final VoidCallback onDeleted;
   final String? color;
+
+  /// "Estados de tarea" del sector (como el menú de la web). Quien puede
+  /// configurarlos ve el menú aunque no administre el sector.
+  final VoidCallback? onStatuses;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(currentUserProvider)?.isSuperAdmin != true) {
-      return const SizedBox.shrink();
-    }
+    final admin = ref.watch(currentUserProvider)?.isSuperAdmin == true;
+    if (!admin && onStatuses == null) return const SizedBox.shrink();
     return PopupMenuButton<String>(
       key: const ValueKey('sector_actions'),
       tooltip: 'Acciones del sector',
       itemBuilder: (_) => [
-        const PopupMenuItem(value: 'edit', child: Text('Editar sector')),
-        // La acción peligrosa va en `danger`, separada de las demás.
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'delete',
-          child: Text(
-            'Eliminar sector',
-            style: AppTextStyles.body.copyWith(color: context.colors.danger),
+        if (onStatuses != null)
+          const PopupMenuItem(
+            key: ValueKey('sector_status_settings'),
+            value: 'statuses',
+            child: Text('Estados de tarea'),
           ),
-        ),
+        if (admin) ...[
+          const PopupMenuItem(value: 'edit', child: Text('Editar sector')),
+          // La acción peligrosa va en `danger`, separada de las demás.
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            value: 'delete',
+            child: Text(
+              'Eliminar sector',
+              style: AppTextStyles.body.copyWith(color: context.colors.danger),
+            ),
+          ),
+        ],
       ],
       onSelected: (value) async {
+        if (value == 'statuses') {
+          onStatuses?.call();
+          return;
+        }
         final repository = ref.read(sectorsRepositoryProvider);
         if (value == 'edit') {
           await showSectorForm(context, id: id, name: name, color: color);

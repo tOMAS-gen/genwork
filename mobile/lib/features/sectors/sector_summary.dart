@@ -8,6 +8,8 @@ import '../../core/util/format.dart';
 import '../../data/models/sector.dart';
 import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/workspace_panel.dart';
+import '../../data/models/common.dart';
+import '../works/works_dashboard.dart';
 
 /// Card de resumen del sector, como la de la web: símbolo del color del sector,
 /// nombre 20/700, ámbito, kebab, «Avance del sector» (20/600 + barra) y, sobre
@@ -26,7 +28,15 @@ class SectorSummaryPanel extends StatelessWidget {
       fontWeight: FontWeight.w500,
       color: c.muted,
     );
-    final progress = board.progress;
+    // Como la web: el avance cuenta las hojas (una tarea con subtareas aporta
+    // sus subtareas). Sin tareas a la vista, el de la API.
+    final leaves = leafProgress([
+      ...board.loose,
+      for (final group in board.byWork) ...group.tasks,
+    ]);
+    final progress = leaves.total == 0
+        ? board.progress
+        : Progress(done: leaves.done, total: leaves.total);
     final pct = progress.total == 0
         ? 0
         : (progress.done / progress.total * 100).round();
@@ -78,6 +88,8 @@ class SectorSummaryPanel extends StatelessWidget {
                             // personal.
                             board.scopeLabel == 'Personal'
                                 ? 'Espacio personal'
+                                : board.isGroupScope
+                                ? 'Grupo ${board.scopeLabel}'
                                 : board.scopeLabel,
                             style: AppTextStyles.body.copyWith(color: c.muted),
                           ),

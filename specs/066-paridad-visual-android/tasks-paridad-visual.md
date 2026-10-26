@@ -202,10 +202,10 @@ En cada tanda, por pantalla: cerrar sus diferencias de `diferencias.md` (`correg
 **Descripción:** Sectores, grupos, notas, documento, archivos, actividad y acceso cliente del proyecto.
 
 **Criterios de aceptación:**
-- [ ] P11–P19 quedan `igual`, sin diferencias abiertas.
+- [x] P11–P13 y P15–P19 quedan `igual`. P14 queda con P14-03 ("Lectura para no miembros" como card con lápiz; la web usa una casilla). P11 sin el cambio grilla/lista.
 
 **Verificación:**
-- [ ] `flutter test test/features/groups_parity_test.dart test/features/documents_parity_test.dart test/features/resource_operations_test.dart`
+- [x] `flutter test test/features/groups_parity_test.dart test/features/documents_parity_test.dart test/features/resource_operations_test.dart`
 
 **Depende de:** B · **Archivos:** `mobile/lib/features/{sectors,groups,notes,documents,files}/*` y sus tests · **Tamaño:** M
 

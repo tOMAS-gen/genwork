@@ -32,6 +32,8 @@ class ListToolbar<S> extends StatelessWidget {
     this.grid,
     this.onGrid,
     this.summaryTrailing,
+    this.clearKey,
+    this.countKey,
   });
 
   /// Prefijo de las `ValueKey`: `<prefix>_search`, `<prefix>_filters_toggle`,
@@ -64,6 +66,9 @@ class ListToolbar<S> extends StatelessWidget {
 
   /// Acción al pie, a la derecha (p. ej. "Contraer todo").
   final Widget? summaryTrailing;
+
+  /// Claves que la pantalla ya tenía antes de usar la barra (se conservan).
+  final Key? clearKey, countKey;
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +152,7 @@ class ListToolbar<S> extends StatelessWidget {
               children: [
                 Text(
                   count,
+                  key: countKey,
                   style: AppTextStyles.supporting.copyWith(
                     color: c.muted,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -156,7 +162,7 @@ class ListToolbar<S> extends StatelessWidget {
                   _ActiveFilterChip(filter: filter),
                 if (onClear != null)
                   TextButton(
-                    key: ValueKey('${keyPrefix}_filters_clear'),
+                    key: clearKey ?? ValueKey('${keyPrefix}_filters_clear'),
                     onPressed: onClear,
                     style: TextButton.styleFrom(
                       foregroundColor: c.muted,

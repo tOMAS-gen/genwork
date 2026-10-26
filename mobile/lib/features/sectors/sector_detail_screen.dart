@@ -145,6 +145,12 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
             id: b.id,
             name: b.name,
             color: b.color,
+            onStatuses:
+                b.canOperate && ref.watch(currentUserProvider)?.isWriter == true
+                ? () => context.push(
+                    '${Routes.catalog('statuses')}?scope=sector:${b.id}',
+                  )
+                : null,
             onDeleted: () {
               if (!mounted) return;
               refreshResources(ref);
@@ -173,19 +179,6 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                       ),
                       const SizedBox(height: AppSpace.md),
                       SectorSummaryPanel(board: b, menu: menu),
-                      if (b.canOperate &&
-                          ref.watch(currentUserProvider)?.isWriter == true)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            key: const ValueKey('sector_status_settings'),
-                            icon: const Icon(AppIcons.settings),
-                            label: const Text('Estados del sector'),
-                            onPressed: () => context.push(
-                              '${Routes.catalog('statuses')}?scope=sector:${b.id}',
-                            ),
-                          ),
-                        ),
                       const SizedBox(height: AppSpace.md),
                       WorkspacePanel(
                         child: Padding(

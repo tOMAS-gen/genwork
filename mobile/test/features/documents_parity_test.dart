@@ -318,15 +318,18 @@ void main() {
       await expectLater(repo.image(src), throwsFormatException);
     }
   });
-  testWidgets('DS-21 nota: encabezado de la web con ✓ y opciones', (t) async {
+  testWidgets('DS-21 nota: migas, título y ✓ y opciones como la web', (t) async {
     final f = Fixture();
     await mount(
       t,
       f,
       const DocumentScreen(noteId: 'n', title: 'Nota', content: rich),
     );
-    final header = find.byType(GenSectionHeader);
-    expect(header, findsOneWidget);
+    // Como la web: migas "Mis notas / …", el título editable y ✓ ⋯ debajo.
+    expect(find.byType(GenSectionHeader), findsNothing);
+    expect(find.text('Mis notas'), findsOneWidget);
+    expect(find.byKey(const ValueKey('note_delete_icon')), findsOneWidget);
+    final header = find.byKey(const ValueKey('note_actions'));
     expect(find.byType(BrandName), findsOneWidget); // AppBar con la marca
     for (final key in ['note_save', 'document_options']) {
       expect(

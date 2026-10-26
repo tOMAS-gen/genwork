@@ -31,15 +31,15 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P08 | Plantillas | `/?filter=templates` | `/templates` | S09 | M08 | admin | — | par | par |
 | P09 | Detalle de tarea | detalle en `/works/[id]` | pantalla de tarea (`task_detail_sheet`) | S10 | M07 | admin | tarea de "Preparación y entrega" | igual | igual |
 | P10 | Tablero | `/board` | `/board` | S11 | M10 | admin | — | igual | igual |
-| P11 | Sectores | `/sectors` | `/sectors` | S12 | M09 | admin | sectores "Impresión" | par | par |
-| P12 | Detalle de sector | `/sectors/[id]` | `/sectors/:id` | S12 | M09 | admin | "Impresión" (QA produccion) | par | par |
-| P13 | Grupos | `/groups` | `/groups` | S13 | M11 | admin | QA produccion/publico/privado | par | par |
+| P11 | Sectores | `/sectors` | `/sectors` | S12 | M09 | admin | sectores "Impresión" | igual | igual |
+| P12 | Detalle de sector | `/sectors/[id]` | `/sectors/:id` | S12 | M09 | admin | "Impresión" (QA produccion) | igual | igual |
+| P13 | Grupos | `/groups` | `/groups` | S13 | M11 | admin | QA produccion/publico/privado | igual | igual |
 | P14 | Detalle de grupo | `/groups/[id]` | `/groups/:id`, `/clients`, `/labels` | S13 | M11 | admin | QA produccion | par | par |
-| P15 | Notas | `/notes` | `/notes` | S14 | M12 | admin | "Notas de producción" | par | par |
-| P16 | Nota | `/notes/[id]` | `/notes/:id` | S14 | M12 | admin | "Notas de producción" | par | par |
-| P17 | Documento del proyecto | pestaña Documentos de `/works/[id]` | `/works/:id/document` | S14 | M12 | admin | "Cartelería del local" | par | par |
-| P18 | Archivos del proyecto | pestaña Archivos de `/works/[id]` | `/works/:id/files` | S15 | M13 | admin | "Cartelería del local" (Nextcloud local) | par | par |
-| P19 | Actividad y clientes del proyecto | pestañas de `/works/[id]` | `/works/:id/activity`, `/works/:id/clients` | S21 | M17 | admin | "Cartelería del local" | par | par |
+| P15 | Notas | `/notes` | `/notes` | S14 | M12 | admin | "Notas de producción" | igual | igual |
+| P16 | Nota | `/notes/[id]` | `/notes/:id` | S14 | M12 | admin | "Notas de producción" | igual | igual |
+| P17 | Documento del proyecto | pestaña Documentos de `/works/[id]` | `/works/:id/document` | S14 | M12 | admin | "Cartelería del local" | igual | igual |
+| P18 | Archivos del proyecto | pestaña Archivos de `/works/[id]` | `/works/:id/files` | S15 | M13 | admin | "Cartelería del local" (Nextcloud local) | igual | igual |
+| P19 | Actividad y clientes del proyecto | pestañas de `/works/[id]` | `/works/:id/activity`, `/works/:id/clients` | S21 | M17 | admin | "Cartelería del local" | igual | igual |
 | P20 | Materiales | `/materials` | **falta en Android** | S16 | — | admin | sin GenStock: estado vacío | web | web |
 | P21 | Recordatorios | `/reminders` | `/more/reminders`, `/new`, `/:id` | S17 | M14 | admin | "Revisar entregas" | par | par |
 | P22 | Notificaciones | campanita de la barra web | `/more/notifications`, `/more/notification-settings`, `/more/due-today` | S17 | — | admin | avisos semilla | par | par |

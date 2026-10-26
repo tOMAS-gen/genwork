@@ -13,6 +13,9 @@ import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import '../settings/settings_form_dialog.dart';
 import 'works_providers.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 
 final workActivityProvider = FutureProvider.autoDispose.family<Json, String>(
   (ref, id) => ref.watch(worksRepositoryProvider).activity(id),
@@ -28,9 +31,8 @@ class WorkActivityScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Actividad',
-    subtitle: 'Acciones realizadas mediante conexiones MCP.',
     showBack: true,
-    icon: AppIcons.info,
+    icon: AppIcons.schedule,
     onRefresh: () => ref.refresh(workActivityProvider(id).future),
     body: AsyncValueView(
       value: ref.watch(workActivityProvider(id)),
@@ -41,9 +43,12 @@ class WorkActivityScreen extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: entries.isEmpty ? 1 : entries.length,
           itemBuilder: (_, i) => entries.isEmpty
-              ? const EmptyView(
-                  message:
-                      'Todavía no hay acciones de un asistente en este proyecto.',
+              // Como la pestaña web: el aviso en texto, sin ícono.
+              ? Text(
+                  'Todavía no hay acciones de un asistente de IA en este proyecto.',
+                  style: AppTextStyles.body.copyWith(
+                    color: context.colors.muted,
+                  ),
                 )
               : ListTile(
                   title: Text(entries[i]['summary'] as String? ?? ''),
@@ -131,8 +136,10 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Los clientes consultan el avance, las tareas y el documento. No pueden modificar el proyecto.',
+            Text(
+              'Los clientes con acceso ven este proyecto, sus tareas y su avance en modo lectura. No pueden completar ni modificar nada.'
+              '${work.groupId != null ? ' Para darle varios proyectos a la vez, usá Clientes del grupo.' : ''}',
+              style: AppTextStyles.body.copyWith(color: context.colors.muted),
             ),
             if (work.groupId != null)
               TextButton(
@@ -170,20 +177,32 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
                               children: [
                                 ListTile(
                                   title: Text(clients[i]['name'] as String),
-                                  subtitle: Text(
-                                    '${clients[i]['email']}\n${clients[i]['firstLoginAt'] == null ? 'Invitado' : 'Activo'}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: IconButton(
-                                    key: ValueKey(
-                                      'work_clients_revoke_${clients[i]['userId']}',
-                                    ),
-                                    tooltip:
-                                        'Quitar acceso de ${clients[i]['name']}',
-                                    onPressed: _busy
-                                        ? null
-                                        : () => _revoke(clients[i]),
-                                    icon: const Icon(AppIcons.personRemove),
+                                  subtitle: Text('${clients[i]['email']}'),
+                                  // Estado como insignia y papelera, como
+                                  // la web.
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      StatusChip(
+                                        label:
+                                            clients[i]['firstLoginAt'] == null
+                                            ? 'Invitado'
+                                            : 'Activo',
+                                        color: context.colors.muted,
+                                        fill: context.colors.hover,
+                                      ),
+                                      IconButton(
+                                        key: ValueKey(
+                                          'work_clients_revoke_${clients[i]['userId']}',
+                                        ),
+                                        tooltip:
+                                            'Quitar acceso de ${clients[i]['name']}',
+                                        onPressed: _busy
+                                            ? null
+                                            : () => _revoke(clients[i]),
+                                        icon: const Icon(AppIcons.delete),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
