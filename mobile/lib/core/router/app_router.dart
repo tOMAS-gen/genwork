@@ -40,6 +40,7 @@ import '../providers.dart';
 import 'auth_redirect.dart';
 import 'routes.dart';
 import '../../features/materials/work_materials_screen.dart';
+import '../../features/materials/materials_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   String? identity(SessionState? session) => session is SignedIn
@@ -218,6 +219,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'notification-settings',
                     builder: (_, _) => const NotificationSettingsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'materials',
+                    builder: (_, _) => const MaterialsScreen(),
                   ),
                   GoRoute(
                     path: 'reminders',

@@ -327,6 +327,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                             onTap: () => _branch(6),
                           ),
                           top(
+                            id: 'nav_materials',
+                            icon: AppIcons.materials,
+                            label: 'Materiales',
+                            selected: path == Routes.materials,
+                            onTap: () => _route(Routes.materials),
+                          ),
+                          top(
                             id: 'nav_reminders',
                             icon: AppIcons.calendarToday,
                             label: 'Recordatorios',

@@ -9,6 +9,8 @@ import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/material.dart';
 import 'package:genwork_mobile/data/models/work.dart';
 import 'package:genwork_mobile/data/repositories/materials_repository.dart';
+import 'package:genwork_mobile/features/materials/materials_providers.dart';
+import 'package:genwork_mobile/features/materials/materials_screen.dart';
 import 'package:genwork_mobile/features/materials/work_materials_screen.dart';
 import 'package:genwork_mobile/features/works/works_providers.dart';
 
@@ -134,5 +136,52 @@ void main() {
     await t.tap(find.byKey(const ValueKey('materials_add')));
     await t.pumpAndSettle();
     expect(repo.added, ['p2:3.5']);
+  });
+
+  testWidgets('P20 totales: vacío, lista por proyecto y filtro', (t) async {
+    Future<void> pump(List<MaterialTotal> rows) async {
+      await t.pumpWidget(
+        ProviderScope(
+          // Un contenedor nuevo por caso: cambia lo que devuelve la API.
+          key: UniqueKey(),
+          retry: (_, _) => null,
+          overrides: [materialTotalsProvider.overrideWith((ref) async => rows)],
+          child: MaterialApp(
+            theme: AppTheme.light(),
+            locale: const Locale('es'),
+            supportedLocales: const [Locale('es')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: const MaterialsScreen(),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+    }
+
+    await pump(const []);
+    expect(find.text('No hay materiales cargados'), findsOneWidget);
+    await pump([
+      MaterialTotal.fromJson({
+        'genstockProductId': 'p1',
+        'productName': 'Vinilo blanco',
+        'productCode': 'VIN-001',
+        'humanCode': '',
+        'unitAbbreviation': 'm',
+        'totalQuantityRequired': '20',
+        'projects': [
+          {
+            'workId': 'w',
+            'workName': 'Cartelería',
+            'groupName': 'QA produccion',
+            'quantityRequired': '20',
+          },
+        ],
+      }),
+    ]);
+    expect(find.text('Vinilo blanco'), findsOneWidget);
+    expect(find.text('20 m'), findsWidgets);
+    await t.enterText(find.byKey(const ValueKey('materials_filter')), 'lona');
+    await t.pumpAndSettle();
+    expect(find.text('Sin materiales que coincidan.'), findsOneWidget);
   });
 }

@@ -272,11 +272,11 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 **Descripción:** Pantalla Materiales (`/materials` de la web), con su ítem en el menú para los roles que lo ven en la web, contra `GET /api/materials`. Reutiliza el modelo y el repositorio de la tarea 17.
 
 **Criterios de aceptación:**
-- [ ] La ruta y el ítem del menú existen solo para los roles que lo ven en la web.
-- [ ] P20 tiene par `despues` y queda `igual`.
+- [x] La ruta y el ítem del menú existen solo para los roles que lo ven en la web.
+- [x] P20 tiene par `despues` y queda `igual`.
 
 **Verificación:**
-- [ ] `flutter test test/features/materials_test.dart test/features/navigation_parity_test.dart`
+- [x] `flutter test test/features/materials_test.dart test/features/navigation_parity_test.dart`
 
 **Depende de:** 17 · **Archivos:** `mobile/lib/features/materials/*` (nuevo), `mobile/lib/core/router/routes.dart`, `mobile/lib/features/shell/*`, `mobile/test/features/materials_test.dart` · **Tamaño:** M
 
