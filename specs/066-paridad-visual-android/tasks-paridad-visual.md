@@ -78,14 +78,20 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Comparar los 34 pares de `antes/` con la lista de "igual" de la spec y anotar cada diferencia como `Pxx-NN`, con su ítem (1–9). Marcar con **B** las que vienen de un componente compartido (las que aparecen en tres o más pantallas) y con **nativo** las que no cuentan. Al final, confirmar o ajustar las tareas 6 a 10.
 
 **Criterios de aceptación:**
-- [ ] Las 34 pantallas `par` tienen su sección, aunque no tengan diferencias.
-- [ ] Cada diferencia tiene ID, ítem, descripción medible (por ejemplo, "título 24 px en Android, 20 px en la web") y destino (B, pantalla o nativo).
-- [ ] Al final hay un resumen por componente compartido, con las pantallas afectadas.
+- [x] Las 34 pantallas `par` tienen su sección, aunque no tengan diferencias.
+- [x] Cada diferencia tiene ID, ítem, descripción medible (por ejemplo, "título 24 px en Android, 20 px en la web") y destino (B, pantalla o nativo).
+- [x] Al final hay un resumen por componente compartido, con las pantallas afectadas.
 
 **Verificación:**
-- [ ] Manual: revisar el resumen contra el comparador `antes/index.html`.
+- [x] Manual: revisar el resumen contra el comparador `antes/index.html`.
 
 **Depende de:** 1 · **Archivos:** `specs/066-paridad-visual-android/diferencias.md` (nuevo) · **Tamaño:** M
+
+**Resultado (confirma las tareas 6 a 10, con estos ajustes):**
+- **Tarea 6:** la escala tipográfica ya coincide (títulos de 24, cuerpo de 13 por "el más chico", rótulos de 11). Quedan dos tokens: el alto de la barra superior (48 dp, como la web) y el color de la urgencia de entrega (`warningText`/`dangerText`/`successText`, como `.due-*` de la web).
+- **Tarea 7:** además del menú, el encabezado de página pasa a desplazarse con el contenido y la acción queda a la derecha del título (P04, P05, P08, P17).
+- **Tarea 9:** suma los campos de formulario con rótulo arriba (P06, P11, P28, P29, P32) y el chip de estado con contorno del tablero (P10, P35).
+- Los cambios de datos que aparecieron (progreso de objetivo y de sector contando subtareas, P07-06 y P12-02) van en sus tandas.
 
 ## Tarea 6: Escala tipográfica y tokens
 
