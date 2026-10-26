@@ -79,7 +79,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | P05-03 | 8 | Buscador "Buscar proyectos…" + [Filtros] [Más recientes ▾] [grilla \| lista]; Android tiene chips Todos/Mis proyectos/Favoritos, Activos/Archivados, ícono de filtro y "Filtros y orden". | B-9 | abierta |
 | P05-04 | 2 | Card con menú "⋯" (archivar, etc.) además de la estrella. | B-8 | abierta |
 | P05-05 | 3 | Fecha "Entrega: 29/10/2026"; Android "Entrega: 29 oct". | B-8 | abierta |
-| P05-06 | 6 | Urgencia en `--color-warning-text` (marrón en claro); Android en ámbar. | B-8 | abierta |
+| P05-06 | 6 | Urgencia en `--color-warning-text` (marrón en claro); Android en ámbar. | B-6 | corregida (`dueToneColor`, token `dangerText` nuevo) |
 
 ## P06 Crear proyecto
 

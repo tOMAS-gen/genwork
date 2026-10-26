@@ -25,6 +25,7 @@ class GenColors extends ThemeExtension<GenColors> {
     required this.brandFill,
     required this.danger,
     required this.dangerFill,
+    required this.dangerText,
     required this.ok,
     required this.success,
     required this.successFill,
@@ -91,6 +92,9 @@ class GenColors extends ThemeExtension<GenColors> {
 
   /// Fondo de error.
   final Color dangerFill;
+
+  /// Texto de error sobre fondo neutro (`--color-danger-text`).
+  final Color dangerText;
 
   /// Relleno de progreso en cards.
   final Color ok;
@@ -176,6 +180,7 @@ class GenColors extends ThemeExtension<GenColors> {
     brandFill: Color(0xFFEEF1FF),
     danger: Color(0xFFB91C1C),
     dangerFill: Color(0xFFFEF2F2),
+    dangerText: Color(0xFF991B1B),
     ok: Color(0xFF15803D),
     success: Color(0xFF22C55E),
     successFill: Color(0xFFF0FDF4),
@@ -216,6 +221,7 @@ class GenColors extends ThemeExtension<GenColors> {
     brandFill: Color(0xFF171C2E),
     danger: Color(0xFFF87171),
     dangerFill: Color(0xFF3A1518),
+    dangerText: Color(0xFFFCA5A5),
     ok: Color(0xFF3ECF8E),
     success: Color(0xFF4ADE80),
     successFill: Color(0x1A22C55E),
@@ -275,6 +281,7 @@ class GenColors extends ThemeExtension<GenColors> {
     Color? brandFill,
     Color? danger,
     Color? dangerFill,
+    Color? dangerText,
     Color? ok,
     Color? success,
     Color? successFill,
@@ -314,6 +321,7 @@ class GenColors extends ThemeExtension<GenColors> {
       brandFill: brandFill ?? this.brandFill,
       danger: danger ?? this.danger,
       dangerFill: dangerFill ?? this.dangerFill,
+      dangerText: dangerText ?? this.dangerText,
       ok: ok ?? this.ok,
       success: success ?? this.success,
       successFill: successFill ?? this.successFill,
@@ -358,6 +366,7 @@ class GenColors extends ThemeExtension<GenColors> {
       brandFill: Color.lerp(brandFill, other.brandFill, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
       dangerFill: Color.lerp(dangerFill, other.dangerFill, t)!,
+      dangerText: Color.lerp(dangerText, other.dangerText, t)!,
       ok: Color.lerp(ok, other.ok, t)!,
       success: Color.lerp(success, other.success, t)!,
       successFill: Color.lerp(successFill, other.successFill, t)!,

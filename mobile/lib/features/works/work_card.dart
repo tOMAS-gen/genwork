@@ -39,12 +39,7 @@ class WorkCard extends StatelessWidget {
     final due = work.dueDate == null
         ? null
         : dueUrgency(work.dueDate!, now ?? DateTime.now());
-    final dueColor = switch (due?.tone) {
-      DueTone.green => c.ok,
-      DueTone.orange => c.warning,
-      DueTone.red => c.danger,
-      null => c.muted,
-    };
+    final dueColor = due == null ? c.muted : dueToneColor(c, due.tone);
     final labels = work.labels.where((l) => l.isPrimary).toList();
 
     return Card(

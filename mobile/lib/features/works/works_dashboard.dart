@@ -1,3 +1,6 @@
+import 'package:flutter/painting.dart';
+
+import '../../core/theme/gen_colors.dart';
 import '../../core/util/name_order.dart';
 import '../../data/models/common.dart';
 import '../../data/models/work.dart';
@@ -69,6 +72,13 @@ enum DueTone { green, orange, red }
       : DueTone.red;
   return (label: label, tone: tone);
 }
+
+/// Color del texto de urgencia, como `.due-green/.due-orange/.due-red` de la web.
+Color dueToneColor(GenColors c, DueTone tone) => switch (tone) {
+  DueTone.green => c.successText,
+  DueTone.orange => c.warningText,
+  DueTone.red => c.dangerText,
+};
 
 /// Color del proyecto a partir de sus etiquetas (igual que `WorkSummary.color`):
 /// la etiqueta principal o, si no hay, la primera por nombre de clave.

@@ -98,11 +98,11 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Ajustar `AppTextStyles` y los tokens de color, espaciado y radio a lo que relevó la tarea 5, con la regla "el más chico" y un piso de 11 px.
 
 **Criterios de aceptación:**
-- [ ] Cada rol tipográfico tiene el tamaño y el peso del rol web, o el más chico si difieren. Ninguno queda por debajo de 11 px.
-- [ ] `theme_tokens_test` refleja los valores nuevos. `ui_phase3_test` y `design_tokens_guard_test` pasan sin tocar sus umbrales.
+- [x] Cada rol tipográfico tiene el tamaño y el peso del rol web, o el más chico si difieren. Ninguno queda por debajo de 11 px.
+- [x] `theme_tokens_test` refleja los valores nuevos. `ui_phase3_test` y `design_tokens_guard_test` pasan sin tocar sus umbrales.
 
 **Verificación:**
-- [ ] `flutter test test/core/theme_tokens_test.dart test/ui_phase3_test.dart test/design_tokens_guard_test.dart`
+- [x] `flutter test test/core/theme_tokens_test.dart test/ui_phase3_test.dart test/design_tokens_guard_test.dart`
 
 **Depende de:** 5 · **Archivos:** `mobile/lib/core/theme/app_text_styles.dart`, `mobile/lib/core/theme/app_theme.dart`, `mobile/lib/core/theme/gen_colors.dart`, `mobile/lib/core/theme/app_geometry.dart`, `mobile/test/core/theme_tokens_test.dart` · **Tamaño:** S
 

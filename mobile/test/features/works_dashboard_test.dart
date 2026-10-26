@@ -65,6 +65,16 @@ void main() {
     expect(dueUrgency(DateTime(2026, 10, 9), now).label, 'Vencido');
   });
 
+  test('dueToneColor usa los colores de texto de .due-* de la web', () {
+    for (final c in [GenColors.light, GenColors.dark]) {
+      expect(dueToneColor(c, DueTone.green), c.successText);
+      expect(dueToneColor(c, DueTone.orange), c.warningText);
+      expect(dueToneColor(c, DueTone.red), c.dangerText);
+    }
+    expect(GenColors.light.dangerText, const Color(0xFF991B1B));
+    expect(GenColors.dark.dangerText, const Color(0xFFFCA5A5));
+  });
+
   for (final dark in [false, true]) {
     testWidgets('WorkCard: píldora, grupo, avance y conteo (dark=$dark)', (
       t,
@@ -103,7 +113,7 @@ void main() {
       expect(find.text('3/4 tareas'), findsOneWidget);
       expect(find.textContaining('Entrega:'), findsOneWidget);
       final remaining = t.widget<Text>(find.text('2 días restantes'));
-      expect(remaining.style!.color, c.warning);
+      expect(remaining.style!.color, c.warningText);
       expect(remaining.style!.fontStyle, FontStyle.italic);
       final bar = t.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
