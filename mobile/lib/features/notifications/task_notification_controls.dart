@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/task.dart';
+import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../shared/widgets/state_views.dart';
 import '../reminders/reminder_form_screen.dart';
 import '../tasks/task_actions.dart';
 import 'notifications_providers.dart';
 
+/// Chips "Urgente" y "Recordatorio" de la fila del detalle de tarea (piloto
+/// premium P09). A quién avisa la urgencia se lee en el tooltip del chip y en
+/// el aviso al activarla.
 class TaskNotificationControls extends ConsumerStatefulWidget {
   const TaskNotificationControls({
     super.key,
@@ -20,36 +24,43 @@ class TaskNotificationControls extends ConsumerStatefulWidget {
   ConsumerState<TaskNotificationControls> createState() => _State();
 }
 
+String recipientsMessage(int count) => count == 0
+    ? 'Sin destinatarios. Agregá una mención o un sector ejecutor.'
+    : 'Avisa a $count ${count == 1 ? 'persona' : 'personas'} al activar.';
+
 class _State extends ConsumerState<TaskNotificationControls> {
   bool _busy = false;
   @override
   Widget build(BuildContext context) {
     final info = ref.watch(taskNotificationInfoProvider(widget.task.id));
     return info.when(
-      loading: () => const LinearProgressIndicator(),
-      error: (e, _) => ErrorView(
-        error: e,
-        onRetry: () =>
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => ActionChip(
+        key: const ValueKey('task_notifications_retry'),
+        avatar: const Icon(AppIcons.retry, size: AppIconSizes.notice),
+        label: const Text('Reintentar avisos'),
+        tooltip: errorMessage(e),
+        onPressed: () =>
             ref.invalidate(taskNotificationInfoProvider(widget.task.id)),
       ),
       data: (data) {
         final enabled = widget.canEdit && data.task.canToggle == true && !_busy;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        return Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
           children: [
-            SwitchListTile(
+            FilterChip(
               key: const ValueKey('task_urgent'),
-              title: const Text('Urgente'),
-              value: data.task.isUrgent,
-              subtitle: Text(
-                data.recipientCount == 0
-                    ? 'Sin destinatarios. Agregá una mención o un sector ejecutor.'
-                    : 'Avisar a ${data.recipientCount} ${data.recipientCount == 1 ? 'persona' : 'personas'} al activar.',
-              ),
-              onChanged: !enabled
+              avatar: const Icon(AppIcons.urgent, size: AppIconSizes.notice),
+              showCheckmark: false,
+              label: const Text('Urgente'),
+              tooltip: recipientsMessage(data.recipientCount),
+              selected: data.task.isUrgent,
+              onSelected: !enabled
                   ? null
                   : (value) async {
                       setState(() => _busy = true);
+                      final messenger = ScaffoldMessenger.of(context);
                       try {
                         await ref
                             .read(taskActionsProvider)
@@ -58,6 +69,17 @@ class _State extends ConsumerState<TaskNotificationControls> {
                               value,
                               fromSector: widget.fromSector,
                             );
+                        if (value) {
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                data.recipientCount == 0
+                                    ? recipientsMessage(0)
+                                    : 'Se avisó a ${data.recipientCount} ${data.recipientCount == 1 ? 'persona' : 'personas'}.',
+                              ),
+                            ),
+                          );
+                        }
                       } catch (e) {
                         if (context.mounted) showErrorSnack(context, e);
                       } finally {
@@ -65,10 +87,11 @@ class _State extends ConsumerState<TaskNotificationControls> {
                       }
                     },
             ),
-            TextButton.icon(
+            ActionChip(
               key: const ValueKey('task_reminder'),
-              icon: const Icon(AppIcons.reminders),
-              label: const Text('Crear recordatorio'),
+              avatar: const Icon(AppIcons.reminders, size: AppIconSizes.notice),
+              label: const Text('Recordatorio'),
+              tooltip: 'Crear recordatorio',
               onPressed: !enabled
                   ? null
                   : () => Navigator.of(context).push<void>(

@@ -28,6 +28,9 @@ abstract final class AppIconSizes {
 
 abstract final class AppIcons {
   static const priority = Icons.priority_high_outlined;
+
+  /// Chip "Urgente" del detalle de tarea (bandera, como el boceto premium).
+  static const urgent = Icons.flag_outlined;
   static const qrScanner = Icons.qr_code_scanner_outlined;
   static const keyboard = Icons.keyboard_outlined;
 
@@ -62,10 +65,13 @@ abstract final class AppIcons {
 
   /// Reordenar
   static const reorder = Icons.swap_vert_outlined;
+
   /// "← Mis proyectos" del portal (`ArrowLeft` de la web).
   static const back = Icons.arrow_back;
+
   /// Materiales (`Package` de la web).
   static const materials = Icons.inventory_2_outlined;
+
   /// Integración con Genstock (`Globe` de la web).
   static const integration = Icons.public;
   static const sortAsc = Icons.arrow_upward_outlined;

@@ -911,7 +911,7 @@ void main() {
             .enabled,
         false,
       );
-      expect(find.byKey(const ValueKey('task_my_day_switch')), findsNothing);
+      expect(find.byKey(const ValueKey('task_my_day')), findsNothing);
     },
   );
   testWidgets(

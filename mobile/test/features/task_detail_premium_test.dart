@@ -240,4 +240,71 @@ void main() {
       expect(find.byKey(const ValueKey('task_move_parent')), findsNothing);
     });
   });
+
+  group('Tarea 2: fila de chips', () {
+    Object? mutations(RequestOptions r) =>
+        r.method == 'GET' ? null : <String, Object?>{};
+
+    testWidgets('estado, Mi día, Urgente y Recordatorio en una fila de chips', (
+      tester,
+    ) async {
+      final task = taskJson();
+      await mountDetail(tester, detailApi(task), task);
+      // Ninguna fila con interruptor.
+      expect(find.byType(SwitchListTile), findsNothing);
+      expect(find.byType(Switch), findsNothing);
+      final row = find.byKey(const ValueKey('task_chip_row'));
+      for (final key in [
+        'task_status_open',
+        'task_status_done',
+        'task_my_day',
+        'task_urgent',
+        'task_reminder',
+      ]) {
+        expect(
+          find.descendant(of: row, matching: find.byKey(ValueKey(key))),
+          findsOneWidget,
+          reason: key,
+        );
+      }
+      expect(
+        tester
+            .widget<FilterChip>(find.byKey(const ValueKey('task_my_day')))
+            .selected,
+        isFalse,
+      );
+    });
+
+    testWidgets('Mi día y Urgente llaman a su acción', (tester) async {
+      final task = taskJson();
+      final api = detailApi(task, extra: mutations);
+      await mountDetail(tester, api, task);
+      await tester.tap(find.byKey(const ValueKey('task_my_day')));
+      await tester.pumpAndSettle();
+      expect(
+        api.requests.where((r) => r.method == 'POST').map((r) => r.path),
+        contains('/api/tasks/t/my-day'),
+      );
+      await tester.tap(find.byKey(const ValueKey('task_urgent')));
+      await tester.pumpAndSettle();
+      expect(api.requests.where((r) => r.method == 'PATCH').single.data, {
+        'isUrgent': true,
+        'editContext': 'work',
+      });
+      // Lo que decía la fila de Urgente pasa al aviso al activarla.
+      expect(find.text('Se avisó a 2 personas.'), findsOneWidget);
+    });
+
+    testWidgets('sin permiso de Mi día el chip no aparece', (tester) async {
+      final task = taskJson(canToggle: false);
+      await mountDetail(tester, detailApi(task), task, canEdit: false);
+      expect(find.byKey(const ValueKey('task_my_day')), findsNothing);
+      expect(
+        tester
+            .widget<FilterChip>(find.byKey(const ValueKey('task_urgent')))
+            .onSelected,
+        isNull,
+      );
+    });
+  });
 }

@@ -32,13 +32,13 @@ Cada tarea cierra con `dart analyze` sin issues y `flutter test` en verde (desde
 **Descripción:** Debajo del título, una fila de chips de 32 dp: los estados (como hoy), Mi día (`FilterChip`, `task_my_day`), Urgente (`FilterChip`, `task_urgent`) y Recordatorio (`ActionChip`, `task_reminder`). `TaskNotificationControls` pasa a dar los dos chips. La cantidad de destinatarios de Urgente va en la descripción accesible del chip y en un aviso al activarlo; sin destinatarios, el chip explica por qué no avisa.
 
 **Criterios de aceptación:**
-- [ ] Los cuatro controles hacen lo mismo que hoy, con los mismos permisos.
-- [ ] Sin permiso para Mi día, el chip no aparece (hoy el interruptor no aparece).
-- [ ] Ninguna fila con interruptor queda en la pantalla.
+- [x] Los cuatro controles hacen lo mismo que hoy, con los mismos permisos.
+- [x] Sin permiso para Mi día, el chip no aparece (hoy el interruptor no aparece).
+- [x] Ninguna fila con interruptor queda en la pantalla.
 
 **Verificación:**
-- [ ] Tests nuevos: tocar cada chip llama a la acción correcta; aviso de destinatarios.
-- [ ] `notifications_test`, `daily_parity_test` y `ui_phase3_test` adaptados (`FilterChip.selected` en lugar de `SwitchListTile.value`; `task_my_day`).
+- [x] Tests nuevos: tocar cada chip llama a la acción correcta; aviso de destinatarios.
+- [x] `notifications_test`, `daily_parity_test` y `ui_phase3_test` adaptados (`FilterChip.selected` en lugar de `SwitchListTile.value`; `task_my_day`).
 
 **Depende de:** 1 · **Archivos:** `task_detail_sheet.dart`, `lib/features/notifications/task_notification_controls.dart`, tests · **Tamaño:** M
 

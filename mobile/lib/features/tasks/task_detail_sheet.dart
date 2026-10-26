@@ -268,11 +268,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               ),
             if (detail.hasValue && latest?.task == null)
               const Text('La tarea ya no está disponible en esta vista.'),
-            TaskNotificationControls(
-              task: _task,
-              canEdit: canEditText,
-              fromSector: widget.fromSector,
-            ),
             // Título editable en el lugar, sin caja; el tilde lo guarda.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,6 +313,60 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     ),
                     icon: Icon(AppIcons.check, color: c.brand),
                   ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            // Estado, Mi día, Urgente y Recordatorio como chips chicos en una
+            // fila, en lugar de filas con interruptor (decisión del usuario, P09).
+            Wrap(
+              key: const ValueKey('task_chip_row'),
+              spacing: AppSpace.sm,
+              runSpacing: AppSpace.sm,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final option
+                    in _task.statusOptions.isEmpty
+                        ? [_task.status]
+                        : _task.statusOptions)
+                  ChoiceChip(
+                    key: ValueKey('task_status_${option.id}'),
+                    avatar: ColorDot(hex: option.color),
+                    label: Text(option.name),
+                    selected: option.id == _task.status.id,
+                    onSelected: !canEdit || _task.isContainer
+                        ? null
+                        : option.id == _task.status.id
+                        // El estado vigente no se vuelve a elegir, pero tampoco
+                        // se pinta como deshabilitado.
+                        ? (_) {}
+                        : (_) => _run(
+                            (a) => a.setStatus(_task, option.id),
+                            close: true,
+                          ),
+                  ),
+                if (canManageMyDay)
+                  FilterChip(
+                    key: const ValueKey('task_my_day'),
+                    avatar: Icon(
+                      _task.isInMyDay ? AppIcons.myDayFilled : AppIcons.myDay,
+                      size: AppIconSizes.notice,
+                    ),
+                    showCheckmark: false,
+                    label: const Text('Mi día'),
+                    tooltip: 'Tenela a mano para hoy',
+                    selected: _task.isInMyDay,
+                    onSelected: _busy
+                        ? null
+                        : (value) => _run((a) async {
+                            await a.setMyDay(_task, value);
+                            _task = _task.withMyDay(value);
+                          }),
+                  ),
+                TaskNotificationControls(
+                  task: _task,
+                  canEdit: canEditText,
+                  fromSector: widget.fromSector,
+                ),
               ],
             ),
             const SizedBox(height: AppSpace.md),
@@ -404,58 +453,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     hex: label.color,
                   ),
               ],
-            ),
-            const SizedBox(height: AppSpace.lg),
-            AppWorkSection(
-              title: 'Estado',
-              icon: AppIcons.check,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Wrap(
-                    spacing: AppSpace.sm,
-                    children: [
-                      for (final option
-                          in _task.statusOptions.isEmpty
-                              ? [_task.status]
-                              : _task.statusOptions)
-                        ChoiceChip(
-                          key: ValueKey('task_status_${option.id}'),
-                          avatar: ColorDot(hex: option.color),
-                          label: Text(option.name),
-                          selected: option.id == _task.status.id,
-                          onSelected: !canEdit || _task.isContainer
-                              ? null
-                              : option.id == _task.status.id
-                              // El estado vigente no se vuelve a elegir, pero tampoco
-                              // se pinta como deshabilitado.
-                              ? (_) {}
-                              : (_) => _run(
-                                  (a) => a.setStatus(_task, option.id),
-                                  close: true,
-                                ),
-                        ),
-                    ],
-                  ),
-                  if (canManageMyDay) ...[
-                    const SizedBox(height: AppSpace.sm),
-                    SwitchListTile(
-                      key: const ValueKey('task_my_day_switch'),
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('En Mi día'),
-                      subtitle: const Text('Tenela a mano para hoy'),
-                      secondary: const Icon(AppIcons.myDay),
-                      value: _task.isInMyDay,
-                      onChanged: _busy
-                          ? null
-                          : (value) => _run((a) async {
-                              await a.setMyDay(_task, value);
-                              _task = _task.withMyDay(value);
-                            }),
-                    ),
-                  ],
-                ],
-              ),
             ),
             const SizedBox(height: AppSpace.md),
             AppWorkSection(
