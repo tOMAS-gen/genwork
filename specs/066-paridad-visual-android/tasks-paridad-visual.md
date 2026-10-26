@@ -242,10 +242,10 @@ En cada tanda, por pantalla: cerrar sus diferencias de `diferencias.md` (`correg
 **Descripción:** Portal como cliente y TV como lector. El cambio de rol se hace una sola vez, siguiendo el quickstart.
 
 **Criterios de aceptación:**
-- [ ] P33–P35 quedan `igual`, sin diferencias abiertas.
+- [x] P33–P35 quedan `igual`, sin diferencias abiertas.
 
 **Verificación:**
-- [ ] `flutter test test/features/qa10_roles_a11y_test.dart` y los tests del portal y el tablero.
+- [x] `flutter test test/features/qa10_roles_a11y_test.dart` y los tests del portal y el tablero.
 
 **Depende de:** C1 · **Archivos:** `mobile/lib/features/portal/*`, `mobile/lib/features/board/*` · **Tamaño:** S
 

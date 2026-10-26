@@ -55,9 +55,9 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P31a | Almacenamiento | `/admin/storage` | `module/storage`, `module/jobs` | S25 | M16 | admin | Nextcloud local | igual | igual |
 | P31b | Integración con GenStock | `/admin/genstock` | **falta en Android** | S25 | — | admin | sin configurar | web | web |
 | P32 | Errores | `/admin/errors`, `/admin/errors/[id]` | `module/errors`, `errors/:id` | S26 | M16 | admin | — | igual | igual |
-| P33 | Portal | `/portal` | `/portal` | S27 | M18 | cliente | proyecto visible para `cliente` | par | par |
-| P34 | Proyecto en portal | `/portal/works/[id]` | `/portal/works/:id`, `/document` | S27 | M18 | cliente | ídem | par | par |
-| P35 | TV | `/tv` | `/tv` (`BoardScreen` de solo lectura) | S28 | M19 | lector | QA produccion | par | par |
+| P33 | Portal | `/portal` | `/portal` | S27 | M18 | cliente | proyecto visible para `cliente` | igual | igual |
+| P34 | Proyecto en portal | `/portal/works/[id]` | `/portal/works/:id`, `/document` | S27 | M18 | cliente | ídem | igual | igual |
+| P35 | TV | `/tv` | `/tv` (`BoardScreen` de solo lectura) | S28 | M19 | lector | QA produccion | igual | igual |
 
 ## Exclusiones
 

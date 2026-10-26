@@ -293,20 +293,20 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P33-01 | 1 | Barra: logo + "Vista de cliente · solo lectura", nombre del cliente, tema y "Salir"; Android menú + selector de tema de tres íconos. | P | abierta |
-| P33-02 | 1 | Card como la de proyecto: pastilla del nombre, progreso con %, "1/3 tareas", entrega con urgencia; Android título, "1 de 3 tareas completadas", flecha. | P | abierta |
-| P33-03 | 3 | Subtítulo "Seguimiento del avance y las entregas de tus proyectos."; Android "Consultá el avance de tus trabajos.". | P | abierta |
+| P33-01 | 1 | Barra: logo + "Vista de cliente · solo lectura", nombre del cliente, tema y "Salir"; Android menú + selector de tema de tres íconos. | P | aceptada (nativo: la barra de la app con el menú, que lleva a Cerrar sesión, y el selector de tema) |
+| P33-02 | 1 | Card como la de proyecto: pastilla del nombre, progreso con %, "1/3 tareas", entrega con urgencia; Android título, "1 de 3 tareas completadas", flecha. | P | corregida |
+| P33-03 | 3 | Subtítulo "Seguimiento del avance y las entregas de tus proyectos."; Android "Consultá el avance de tus trabajos.". | P | corregida |
 
 ## P34 Proyecto en portal
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P34-01 | 1 | "← Mis proyectos", encabezado con el nombre, descripción, entrega en caja, progreso, pestañas Tareas/Documentos/Actividad; Android encabezado "Proyecto" y secciones plegables. | P | abierta |
-| P34-02 | 1 | Tareas agrupadas por objetivo en cards, subtareas en card anidada; Android sin cards y con el sector como pastilla. | P | abierta |
+| P34-01 | 1 | "← Mis proyectos", encabezado con el nombre, descripción, entrega en caja, progreso, pestañas Tareas/Documentos/Actividad; Android encabezado "Proyecto" y secciones plegables. | P | corregida |
+| P34-02 | 1 | Tareas agrupadas por objetivo en cards, subtareas en card anidada; Android sin cards y con el sector como pastilla. | P | corregida |
 
 ## P35 TV
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P35-01 | 1 | Sin barra superior ni menú; encabezado sin subtítulo. | P | abierta |
-| P35-02 | — | El resto, como P10 (comparte el tablero). | P | abierta |
+| P35-01 | 1 | Sin barra superior ni menú; encabezado sin subtítulo. | P | corregida en parte (sin bajada; la barra superior se mantiene porque es la salida para cerrar sesión) |
+| P35-02 | — | El resto, como P10 (comparte el tablero). | P | corregida |

@@ -292,6 +292,11 @@ void main() {
   testWidgets('portal pagina actividad y refresca por SSE', (t) async {
     final f = Fixture();
     await mount(t, f, path: Routes.portalWork('w'));
+    // La actividad está en su pestaña, como en la web.
+    await t.ensureVisible(find.text('Actividad'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Actividad'));
+    await t.pumpAndSettle();
     final more = find.byKey(const ValueKey('portal_activity_more'));
     await t.ensureVisible(more);
     await t.tap(more);

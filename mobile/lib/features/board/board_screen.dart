@@ -31,7 +31,8 @@ class BoardScreen extends ConsumerWidget {
     final muted = AppTextStyles.body.copyWith(color: c.muted);
     return GenPageScaffold(
       title: 'Vista de tareas',
-      subtitle: 'Avance y pendientes de cada sector.',
+      // La TV de la web no lleva bajada.
+      subtitle: readOnly ? null : 'Avance y pendientes de cada sector.',
       icon: AppIcons.dashboard,
       onRefresh: () async {
         ref.invalidate(boardProvider);

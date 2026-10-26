@@ -10,17 +10,24 @@ import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
-import '../../shared/widgets/workspace_panel.dart';
 import '../documents/document_screen.dart';
 import 'portal_providers.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/card_progress.dart';
+import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/gen_tab_bar.dart';
+import '../works/works_dashboard.dart';
 
+/// Portal del cliente, como `/portal` de la web: una card por proyecto con el
+/// nombre, el avance, las tareas y la entrega.
 class PortalScreen extends ConsumerWidget {
   const PortalScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Mis proyectos',
     icon: AppIcons.projects,
-    subtitle: 'Consultá el avance de tus trabajos.',
+    subtitle: 'Seguimiento del avance y las entregas de tus proyectos.',
     showThemeToggle: true,
     onRefresh: () => ref.refresh(portalWorksProvider.future),
     body: AsyncValueView(
@@ -35,85 +42,395 @@ class PortalScreen extends ConsumerWidget {
               )
             : Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: WorkspaceListPanel(
-                  children: [
-                    ListTile(
-                      key: ValueKey('portal_work_${works[i].id}'),
-                      title: Text(works[i].name),
-                      subtitle: Text(
-                        '${works[i].progress.done} de ${works[i].progress.total} tareas completadas',
-                      ),
-                      trailing: const Icon(AppIcons.chevronRight),
-                      onTap: () => context.push(Routes.portalWork(works[i].id)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: _Summary(work: works[i]),
-                    ),
-                  ],
-                ),
+                child: _PortalWorkCard(work: works[i]),
               ),
       ),
     ),
   );
 }
 
-class PortalWorkScreen extends ConsumerWidget {
+/// Card de proyecto del portal, como `PortalProjectCard` de la web.
+class _PortalWorkCard extends StatelessWidget {
+  const _PortalWorkCard({required this.work});
+  final PortalWork work;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final primary = work.labels.where((l) => l.isPrimary).firstOrNull;
+    final due = work.dueDate == null
+        ? null
+        : dueUrgency(work.dueDate!, DateTime.now());
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: ValueKey('portal_work_${work.id}'),
+        onTap: () => context.push(Routes.portalWork(work.id)),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: NamePill(
+                  name: work.name,
+                  color: primary == null ? null : colorFromHex(primary.color),
+                ),
+              ),
+              if (work.stage != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Etapa: ${work.stage!['name'] ?? ''}',
+                  style: AppTextStyles.body.copyWith(color: c.muted),
+                ),
+              ],
+              if (work.labels.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (final l in work.labels)
+                      ColorPill(label: l.valueName, hex: l.color),
+                  ],
+                ),
+              ],
+              if (work.progress.total > 0) ...[
+                const SizedBox(height: AppSpacing.sm),
+                CardProgress(
+                  done: work.progress.done,
+                  total: work.progress.total,
+                ),
+              ],
+              if (due != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Entrega: ${formatDueDate(work.dueDate!)}',
+                      style: AppTextStyles.body.copyWith(color: c.muted),
+                    ),
+                    Text(
+                      due.label,
+                      style: AppTextStyles.body.copyWith(
+                        color: dueToneColor(c, due.tone),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Proyecto en el portal, como `/portal/works/[id]` de la web: volver a "Mis
+/// proyectos", nombre, descripción, entrega, avance y las pestañas Tareas,
+/// Documentos y Actividad. El documento se abre en su pantalla (decisión 1).
+class PortalWorkScreen extends ConsumerStatefulWidget {
   const PortalWorkScreen({super.key, required this.id});
   final String id;
   @override
-  Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
-    title: 'Proyecto',
-    icon: AppIcons.projects,
-    showBack: true,
-    onRefresh: () async {
-      ref.invalidate(portalActivityProvider);
-      ref.invalidate(portalWorkProvider(id));
-      await ref.read(portalWorkProvider(id).future);
-    },
-    body: AsyncValueView(
-      value: ref.watch(portalWorkProvider(id)),
-      onRetry: () => ref.invalidate(portalWorkProvider(id)),
-      data: (work) => ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          Text(work.name, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: AppSpacing.sm),
-          _Summary(work: work),
-          if (work.description?.isNotEmpty == true)
-            ExpansionTile(
-              key: const ValueKey('portal_description'),
-              title: const Text('Descripción'),
+  ConsumerState<PortalWorkScreen> createState() => _PortalWorkScreenState();
+}
+
+class _PortalWorkScreenState extends ConsumerState<PortalWorkScreen> {
+  int _tab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = widget.id;
+    final value = ref.watch(portalWorkProvider(id));
+    final c = context.colors;
+    return GenPageScaffold(
+      title: value.value?.name ?? 'Proyecto',
+      icon: AppIcons.projects,
+      showBack: true,
+      top: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xxs,
+          AppSpacing.sm,
+          AppSpacing.sm,
+          0,
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('portal_back'),
+            style: TextButton.styleFrom(foregroundColor: c.text),
+            onPressed: () => context.pop(),
+            icon: const Icon(AppIcons.back, size: AppIconSizes.notice),
+            label: const Text('Mis proyectos'),
+          ),
+        ),
+      ),
+      onRefresh: () async {
+        ref.invalidate(portalActivityProvider);
+        ref.invalidate(portalWorkProvider(id));
+        await ref.read(portalWorkProvider(id).future);
+      },
+      body: AsyncValueView(
+        value: value,
+        onRetry: () => ref.invalidate(portalWorkProvider(id)),
+        data: (work) {
+          final pct = work.progress.total == 0
+              ? 0
+              : (work.progress.done * 100 / work.progress.total).round();
+          // Contenido acotado: se arma entero (las tareas siempre en el árbol).
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: Text(work.description!),
+                if (work.description?.isNotEmpty == true) ...[
+                  Text(
+                    work.description!,
+                    key: const ValueKey('portal_description'),
+                    style: AppTextStyles.body.copyWith(color: c.muted),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                if (work.dueDate != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      border: Border.all(color: c.border),
+                      borderRadius: AppGeometry.card,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          AppIcons.calendarToday,
+                          size: AppIconSizes.compact,
+                          color: c.muted,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'Entrega: ${formatDueDate(work.dueDate!)}',
+                          style: AppTextStyles.body.copyWith(color: c.muted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                _ProgressRow(
+                  done: work.progress.done,
+                  total: work.progress.total,
+                  pct: pct,
                 ),
+                const SizedBox(height: AppSpacing.sm),
+                GenTabBar(
+                  showIcons: true,
+                  activeIndex: _tab,
+                  tabs: const [
+                    GenTabItem(label: 'Tareas', icon: AppIcons.check),
+                    GenTabItem(label: 'Documentos', icon: AppIcons.document),
+                    GenTabItem(label: 'Actividad', icon: AppIcons.schedule),
+                  ],
+                  onSelect: (i) {
+                    if (i == 1) {
+                      if (work.document != null) {
+                        context.push('${Routes.portalWork(id)}/document');
+                      }
+                      return;
+                    }
+                    setState(() => _tab = i);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (_tab == 0) ...[
+                  if (work.tasks.isNotEmpty)
+                    _Section(
+                      title: 'Tareas generales',
+                      done: work.tasks.where(_isDone).length,
+                      total: work.tasks.length,
+                      tasks: work.tasks,
+                    ),
+                  for (final objective in work.objectives)
+                    _Section(
+                      title: objective.title,
+                      description: objective.description,
+                      done: objective.progress.done,
+                      total: objective.progress.total,
+                      tasks: objective.tasks,
+                    ),
+                ] else
+                  PortalActivityView(
+                    key: ValueKey('portal_activity_$id'),
+                    id: id,
+                  ),
               ],
             ),
-          if (work.document != null)
-            ListTile(
-              key: const ValueKey('portal_document'),
-              title: const Text('Documento'),
-              leading: const Icon(AppIcons.document),
-              trailing: const Icon(AppIcons.chevronRight),
-              onTap: () => context.push('${Routes.portalWork(id)}/document'),
+          );
+        },
+      ),
+    );
+  }
+}
+
+bool _isDone(PortalTask task) => task.status['type'] == 'FINAL';
+
+class _ProgressRow extends StatelessWidget {
+  const _ProgressRow({
+    required this.done,
+    required this.total,
+    required this.pct,
+  });
+  final int done, total, pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Semantics(
+      label: '$done de $total tareas completadas',
+      excludeSemantics: true,
+      child: Row(
+        children: [
+          Expanded(
+            child: LinearProgressIndicator(
+              value: total == 0 ? 0 : done / total,
+              minHeight: 6,
+              color: c.brand,
+              backgroundColor: c.outline,
+              borderRadius: AppGeometry.pill,
             ),
-          if (work.tasks.isNotEmpty)
-            _Tasks(title: 'Tareas generales', tasks: work.tasks),
-          for (final objective in work.objectives)
-            _Tasks(
-              title:
-                  '${objective.title} · ${objective.progress.done}/${objective.progress.total}',
-              description: objective.description,
-              tasks: objective.tasks,
-            ),
-          const SizedBox(height: AppSpacing.md),
-          PortalActivityView(key: ValueKey('portal_activity_$id'), id: id),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            '$done/$total · $pct%',
+            style: AppTextStyles.supporting.copyWith(color: c.muted),
+          ),
         ],
       ),
-    ),
-  );
+    );
+  }
+}
+
+/// Un objetivo (o las tareas generales): título 16/600, su avance y las
+/// tareas en una card, como la web.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.title,
+    required this.done,
+    required this.total,
+    required this.tasks,
+    this.description,
+  });
+  final String title;
+  final String? description;
+  final int done, total;
+  final List<PortalTask> tasks;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: AppTextStyles.dialogTitle.copyWith(color: c.text)),
+          const SizedBox(height: AppSpacing.xxs),
+          _ProgressRow(
+            done: done,
+            total: total,
+            pct: total == 0 ? 0 : (done * 100 / total).round(),
+          ),
+          if (description?.isNotEmpty == true) ...[
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              description!,
+              style: AppTextStyles.body.copyWith(color: c.muted),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          for (final task in tasks)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: _TaskCard(task: task),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tarea del portal en una card; sus subtareas, en una card anidada.
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.task, this.nested = false});
+  final PortalTask task;
+  final bool nested;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final done = _isDone(task);
+    return Container(
+      key: ValueKey('portal_task_${task.id}'),
+      padding: const EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: c.surface,
+        border: Border.all(color: c.border),
+        borderRadius: AppGeometry.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                task.text,
+                style: AppTextStyles.body.copyWith(
+                  color: done ? c.muted : c.text,
+                  decoration: done ? TextDecoration.lineThrough : null,
+                ),
+              ),
+              ColorPill(
+                label: task.status['name'] as String? ?? '',
+                hex: task.status['color'] as String?,
+              ),
+              for (final l in task.labels)
+                ColorPill(label: l.valueName, hex: l.color),
+            ],
+          ),
+          if (task.description?.isNotEmpty == true) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              task.description!,
+              style: AppTextStyles.body.copyWith(color: c.muted),
+            ),
+          ],
+          if (task.dueDate != null) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              'Entrega: ${formatDueDate(task.dueDate!)}',
+              style: AppTextStyles.supporting.copyWith(color: c.muted),
+            ),
+          ],
+          if (task.subtasks.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            for (final child in task.subtasks)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                child: _TaskCard(task: child, nested: true),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class PortalDocumentScreen extends ConsumerWidget {
@@ -127,96 +444,6 @@ class PortalDocumentScreen extends ConsumerWidget {
       title: work.name,
       content: work.document,
       editable: false,
-    ),
-  );
-}
-
-class _Summary extends StatelessWidget {
-  const _Summary({required this.work});
-  final PortalWork work;
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Semantics(
-        label:
-            '${work.progress.done} de ${work.progress.total} tareas completadas',
-        excludeSemantics: true,
-        child: LinearProgressIndicator(value: work.progress.ratio),
-      ),
-      const SizedBox(height: AppSpacing.sm),
-      Wrap(
-        spacing: AppSpacing.xs,
-        runSpacing: AppSpacing.xs,
-        children: [
-          if (work.stage != null)
-            ColorPill(
-              label: work.stage!['name'] as String? ?? '',
-              hex: work.stage!['color'] as String?,
-            ),
-          for (final label in work.labels)
-            ColorPill(label: label.valueName, hex: label.color),
-          if (work.dueDate != null)
-            Text('Entrega: ${formatDay(work.dueDate!)}'),
-        ],
-      ),
-    ],
-  );
-}
-
-class _Tasks extends StatelessWidget {
-  const _Tasks({required this.title, required this.tasks, this.description});
-  final String title;
-  final String? description;
-  final List<PortalTask> tasks;
-  @override
-  Widget build(BuildContext context) => ExpansionTile(
-    title: Text(title),
-    initiallyExpanded: true,
-    children: [
-      if (description?.isNotEmpty == true)
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Text(description!),
-        ),
-      for (final task in tasks) _Task(task: task),
-    ],
-  );
-}
-
-class _Task extends StatelessWidget {
-  const _Task({required this.task});
-  final PortalTask task;
-  @override
-  Widget build(BuildContext context) => Padding(
-    key: ValueKey('portal_task_${task.id}'),
-    padding: const EdgeInsets.all(AppSpacing.sm),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(task.text, style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: AppSpacing.xs),
-        Wrap(
-          spacing: AppSpacing.xs,
-          runSpacing: AppSpacing.xs,
-          children: [
-            ColorPill(
-              label: task.status['name'] as String? ?? '',
-              hex: task.status['color'] as String?,
-            ),
-            for (final l in task.labels)
-              ColorPill(label: l.valueName, hex: l.color),
-            for (final l in task.links)
-              ColorPill(
-                label: l['name'] as String? ?? '',
-                hex: l['color'] as String?,
-              ),
-          ],
-        ),
-        if (task.description?.isNotEmpty == true) Text(task.description!),
-        if (task.dueDate != null) Text('Vence: ${formatDay(task.dueDate!)}'),
-        for (final child in task.subtasks) _Task(task: child),
-      ],
     ),
   );
 }
