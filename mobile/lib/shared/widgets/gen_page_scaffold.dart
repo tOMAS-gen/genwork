@@ -8,8 +8,11 @@ import 'gen_section_header.dart';
 import 'theme_toggle.dart';
 
 /// Marco de una pantalla de genwork móvil: AppBar de 48 con el botón del
-/// drawer (o `BackButton`) y la marca, [GenSectionHeader] fijo arriba y el
-/// [body] debajo con padding de 16.
+/// drawer (o `BackButton`) y la marca, [GenSectionHeader] y el [body] debajo
+/// con el margen de la web móvil (16 arriba y abajo, 12 a los costados). Como
+/// en la web, el encabezado se desplaza con el contenido: si el [body] es un
+/// scrollable sin controller propio, comparte el desplazamiento con el
+/// encabezado (`NestedScrollView`).
 ///
 /// [onRefresh] envuelve el [body] en un `RefreshIndicator`: en ese caso el
 /// [body] debe ser un scrollable (p. ej. un `ListView`), que siempre permite
@@ -28,7 +31,10 @@ class GenPageScaffold extends StatelessWidget {
     this.onRefresh,
     this.fab,
     this.headerBottom,
-    this.bodyPadding = const EdgeInsets.all(AppSpacing.md),
+    this.bodyPadding = const EdgeInsets.symmetric(
+      horizontal: AppSpacing.sm,
+      vertical: AppSpacing.md,
+    ),
   });
 
   final String title;
@@ -60,22 +66,21 @@ class GenPageScaffold extends StatelessWidget {
         actions: [...appBarActions, if (showThemeToggle) const ThemeToggle()],
       ),
       floatingActionButton: fab,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GenSectionHeader(
-            title: title,
-            subtitle: subtitle,
-            icon: icon,
-            actions: actions,
-            bottom: headerBottom,
-          ),
-          Expanded(
-            child: onRefresh == null
-                ? content
-                : RefreshIndicator(onRefresh: onRefresh!, child: content),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
+          SliverToBoxAdapter(
+            child: GenSectionHeader(
+              title: title,
+              subtitle: subtitle,
+              icon: icon,
+              actions: actions,
+              bottom: headerBottom,
+            ),
           ),
         ],
+        body: onRefresh == null
+            ? content
+            : RefreshIndicator(onRefresh: onRefresh!, child: content),
       ),
     );
   }

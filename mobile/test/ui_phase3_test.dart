@@ -559,9 +559,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('drawer_open')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      // "Proyectos" es un rótulo de sección (como la web): el ítem
+      // seleccionado es "Todos los proyectos".
       expect(
         tester
-            .widget<ListTile>(find.byKey(const ValueKey('nav_works')))
+            .widget<ListTile>(find.byKey(const ValueKey('nav_works_all')))
             .selected,
         true,
       );

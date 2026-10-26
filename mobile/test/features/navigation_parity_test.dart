@@ -531,8 +531,10 @@ void main() {
       await _drawerTap(tester, 'nav_sectors_item_sg');
       expect(app.router.routeInformationProvider.value.uri.path, '/sectors/sg');
       await _open(tester);
-      await _drawerTap(tester, 'nav_sectors_all');
-      expect(app.router.routeInformationProvider.value.uri.path, '/sectors');
+      // Sin acceso "Todos los sectores" (la web no lo tiene): "ver todos"
+      // vuelve a la sección y conserva el detalle abierto.
+      await _drawerTap(tester, 'nav_sectors');
+      expect(app.router.routeInformationProvider.value.uri.path, '/sectors/sg');
       expect(tester.takeException(), isNull);
     },
   );
@@ -617,11 +619,12 @@ void main() {
       expect(avatar.radius, 16);
       expect(avatar.backgroundColor, c.brand);
       expect(avatar.foregroundColor, c.onBrand);
-      expect(find.text('A'), findsOneWidget);
+      expect(find.text('AP'), findsOneWidget);
       expect(find.text('ESPACIO DE TRABAJO'), findsOneWidget);
-      // Activo: brandFill, ícono/texto brand y lengüeta de 3 px.
+      // Activo: brandFill, ícono/texto brand y lengüeta de 3 px. "Proyectos"
+      // pasó a rótulo de sección: el activo es "Todos los proyectos".
       final active = tester.widget<ListTile>(
-        find.byKey(const ValueKey('nav_works')),
+        find.byKey(const ValueKey('nav_works_all')),
       );
       expect(active.selected, isTrue);
       expect(active.selectedTileColor, c.brandFill);
@@ -629,7 +632,7 @@ void main() {
       final shape = active.shape! as LeadingTickBorder;
       expect(shape.tickWidth, kActiveTickWidth);
       expect(shape.tickColor, c.brand);
-      expect((active.leading! as Icon).size, 16);
+      expect((active.leading! as Icon).size, 14);
       expect((active.leading! as Icon).color, c.brand);
       // Inactivo: ícono 16 `muted` y forma redondeada de control.
       final idle = tester.widget<ListTile>(
@@ -645,24 +648,125 @@ void main() {
     });
   }
 
-  testWidgets('drawer: cabecera con la marca ›genwork y sin ícono', (
+  testWidgets('drawer como la web: cabecera, perfil, secciones y pie (P03)', (
+    tester,
+  ) async {
+    await _mount(tester, _Fixture(), path: Routes.works);
+    await _open(tester);
+    final drawer = find.byType(Drawer);
+    // Cabecera: rótulo de sección y cierre; la marca ya está en la barra.
+    expect(
+      find.descendant(of: drawer, matching: find.text('ESPACIO DE TRABAJO')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: drawer, matching: find.byType(BrandName)),
+      findsNothing,
+    );
+    // Avatar con dos iniciales, como `getInitials` de la web.
+    expect(
+      find.descendant(of: drawer, matching: find.text('AP')),
+      findsOneWidget,
+    );
+    // Proyectos es un rótulo de sección que despliega, con "ver todos".
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('nav_works_toggle')),
+        matching: find.text('PROYECTOS'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('nav_works')),
+        matching: find.text('ver todos'),
+      ),
+      findsOneWidget,
+    );
+    // Orden de accesos: Todos, Mis proyectos, Favoritos, Plantillas, Archivados.
+    final tops = [
+      for (final key in [
+        'nav_works_all',
+        'nav_works_mine',
+        'nav_works_favorites',
+        'nav_templates',
+        'nav_works_archived',
+      ])
+        tester.getTopLeft(find.byKey(ValueKey(key))).dy,
+    ];
+    expect(tops, [...tops]..sort());
+    // Pie fijo, visible sin desplazar: Vence hoy, servidor y Salir.
+    for (final key in ['nav_due_today', 'drawer_switch_server', 'nav_logout']) {
+      expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+    }
+    expect(
+      find.descendant(of: drawer, matching: find.text('Salir')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('nav_sectors_all')), findsNothing);
+  });
+
+  testWidgets('drawer: atrás con el menú abierto lo cierra (hallazgo 4)', (
+    tester,
+  ) async {
+    // En Android 14+ el sistema solo le pasa el atrás a la app si Flutter
+    // avisa que lo maneja; si no, cierra la app aunque el menú esté abierto.
+    final handlesBack = <bool>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'SystemNavigator.setFrameworkHandlesBack') {
+          handlesBack.add(call.arguments as bool);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    // WidgetsApp solo avisa con la app en primer plano.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final app = await _mount(tester, _Fixture(), path: Routes.works);
+    await _open(tester);
+    final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+    expect(scaffold.isDrawerOpen, isTrue);
+    expect(handlesBack, isNotEmpty);
+    expect(
+      handlesBack.last,
+      isTrue,
+      reason: 'con el menú abierto, atrás es de la app',
+    );
+    final handled = await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(handled, isTrue, reason: 'la app maneja el atrás, no se cierra');
+    expect(scaffold.isDrawerOpen, isFalse);
+    expect(app.router.state.uri.path, Routes.works);
+  });
+
+  testWidgets('drawer: cabecera con el rótulo de la web, sin marca ni ícono', (
     tester,
   ) async {
     await _mount(tester, _Fixture(), path: Routes.notes);
     await _open(tester);
-    final brand = find.descendant(
-      of: find.byType(Drawer),
-      matching: find.byType(BrandName),
+    // La marca ya está en la barra superior; la cabecera del drawer de la
+    // web lleva el rótulo "Espacio de trabajo".
+    expect(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.byType(BrandName),
+      ),
+      findsNothing,
     );
-    expect(brand, findsOneWidget);
-    final span =
-        tester
-                .widget<RichText>(
-                  find.descendant(of: brand, matching: find.byType(RichText)),
-                )
-                .text
-            as TextSpan;
-    expect(span.children!.map((c) => (c as TextSpan).text).join(), '›genwork');
+    expect(
+      find.descendant(
+        of: find.byType(Drawer),
+        matching: find.text('ESPACIO DE TRABAJO'),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.descendant(of: find.byType(Drawer), matching: find.byType(Image)),
       findsNothing,

@@ -1,17 +1,20 @@
 // Portado de genstock: frontend/lib/shared/widgets/gen_tab_section.dart
 // (solo el encabezado `GenSectionHeader`, aplanado al estilo de genwork web).
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 
-/// Encabezado de página: caja de ícono (38, `brandFill`), título 24/700,
-/// subtítulo 13 `muted` y acciones a la derecha, con un borde inferior de 1 px
-/// `border`. Es plano: no es una card, apoya sobre el fondo de la página.
+/// Encabezado de página, como `.page-header` de la web: caja de ícono (38,
+/// `brandFill`), título 24/700 con el subtítulo 13 `muted` debajo, en la misma
+/// columna, y las acciones a la derecha en el mismo renglón. Abajo, un borde de
+/// 1 px `border` con el margen de la página (no llega a los costados). Es plano:
+/// no es una card, apoya sobre el fondo de la página.
 ///
-/// Las acciones comparten renglón con el título si caben; si no, pasan a la
-/// línea de abajo. [bottom] es un área opcional (tabs, filtros) bajo el borde.
+/// [bottom] es un área opcional (tabs, filtros) bajo el borde.
 class GenSectionHeader extends StatelessWidget {
   const GenSectionHeader({
     super.key,
@@ -33,12 +36,7 @@ class GenSectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final titleStyle = AppTextStyles.screenTitle.copyWith(color: c.text);
-    final double leadingWidth =
-        (showBackButton ? kMinInteractiveDimension : 0) +
-        (icon == null ? 0 : WorkspaceMetrics.headerIconExtent + AppSpacing.sm);
-
-    final titleRow = Row(
+    final heading = Row(
       children: [
         if (showBackButton) const BackButton(),
         if (icon != null) ...[
@@ -58,78 +56,77 @@ class GenSectionHeader extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
         ],
         Expanded(
-          child: Semantics(header: true, child: Text(title, style: titleStyle)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: AppTextStyles.screenTitle.copyWith(color: c.text),
+                ),
+              ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xxs),
+                  child: Text(
+                    subtitle!,
+                    style: AppTextStyles.body.copyWith(color: c.muted),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );
 
-    final head = LayoutBuilder(
-      builder: (context, constraints) {
-        if (actions.isEmpty) return titleRow;
-        final titlePainter = TextPainter(
-          text: TextSpan(text: title, style: titleStyle),
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-        )..layout();
-        // Un margen de 4 px: el renglón real puede medir un pelo más que el
-        // `TextPainter` y el título se partiría en dos líneas.
-        final titleWidth =
-            titlePainter.width.ceilToDouble() + leadingWidth + AppSpacing.xxs;
-        titlePainter.dispose();
-        return Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            SizedBox(
-              width: titleWidth.clamp(0.0, constraints.maxWidth),
-              child: titleRow,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          // Margen de página de la web móvil: `.main { padding: 16px 12px }`.
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.sm,
+            0,
+          ),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: c.border)),
             ),
-            Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: actions,
-            ),
-          ],
-        );
-      },
-    );
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: c.border)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                head,
-                if (subtitle != null)
-                  Padding(
-                    padding: EdgeInsetsDirectional.only(
-                      top: AppSpacing.xxs,
-                      start: leadingWidth,
-                    ),
-                    child: Text(
-                      subtitle!,
-                      style: AppTextStyles.body.copyWith(color: c.muted),
-                    ),
-                  ),
-              ],
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: LayoutBuilder(
+                builder: (context, constraints) => Row(
+                  children: [
+                    Expanded(child: heading),
+                    if (actions.isNotEmpty) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      // El título conserva al menos 160 px; si las acciones no
+                      // entran en el resto, pasan a otra línea entre ellas.
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: math.max(0, constraints.maxWidth - 160),
+                        ),
+                        child: Wrap(
+                          spacing: AppSpacing.xs,
+                          runSpacing: AppSpacing.xs,
+                          alignment: WrapAlignment.end,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: actions,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-          ?bottom,
-        ],
-      ),
+        ),
+        ?bottom,
+      ],
     );
   }
 }

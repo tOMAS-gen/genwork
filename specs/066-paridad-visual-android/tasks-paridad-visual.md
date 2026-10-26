@@ -111,13 +111,13 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Igualar el encabezado (`GenPageScaffold`, `PageIntro`, `GenSectionHeader`) y el menú lateral al de la web: orden de secciones, ítems, íconos, marca y pie. Con el menú abierto, el botón atrás lo cierra en lugar de cerrar la app (hallazgo 4).
 
 **Criterios de aceptación:**
-- [ ] El menú tiene las mismas secciones e ítems, en el mismo orden que la web para el mismo rol.
-- [ ] Hay un test de widget: con el menú abierto, el atrás del sistema lo cierra y la ruta sigue igual.
-- [ ] Hay par `despues` de P03 y del encabezado de P05.
+- [x] El menú tiene las mismas secciones e ítems, en el mismo orden que la web para el mismo rol.
+- [x] Hay un test de widget: con el menú abierto, el atrás del sistema lo cierra y la ruta sigue igual.
+- [x] Hay par `despues` de P03 y del encabezado de P05.
 
 **Verificación:**
-- [ ] `flutter test test/features/navigation_parity_test.dart test/shared/surfaces_test.dart`
-- [ ] Manual: en el emulador, abrir el menú y tocar atrás.
+- [x] `flutter test test/features/navigation_parity_test.dart test/shared/surfaces_test.dart`
+- [x] Manual: en el emulador, abrir el menú y tocar atrás.
 
 **Depende de:** 5 · **Archivos:** `mobile/lib/features/shell/*`, `mobile/lib/shared/widgets/gen_page_scaffold.dart`, `mobile/lib/shared/widgets/page_intro.dart`, `mobile/lib/shared/widgets/app_drawer_scope.dart`, `mobile/test/features/navigation_parity_test.dart` · **Tamaño:** M
 

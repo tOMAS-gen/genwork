@@ -35,7 +35,7 @@ Cada pantalla se cierra con esta lista, comparando el par `antes`/`despues` con 
 2. **Acción principal:** el mismo control, en la misma posición relativa. Por ejemplo, el "+" de Proyectos va a la derecha del título, como en la web.
 3. **Texto:** el mismo copy. Mismos títulos, rótulos, placeholders, contadores y formato de fecha.
 4. **Tipografía:** mismo peso y mismo rol. Si el tamaño difiere, **gana el más chico**, con un piso de 11 px. El cuerpo de Android queda en 13 px.
-5. **Espaciado y densidad:** márgenes de página de 16 px, el mismo padding de card y la misma separación entre bloques, medidos sobre las capturas.
+5. **Espaciado y densidad:** el margen de página de la web móvil (`.main { padding: 16px 12px }`: 12 px a los costados, 16 arriba y abajo), el mismo padding de card y la misma separación entre bloques, medidos sobre las capturas.
 6. **Color y superficies:** los mismos tokens de fondo, panel, borde y acento, en claro y oscuro. Las etiquetas y estados conservan su color.
 7. **Forma:** los radios del rol que corresponde (chip 4, control 6, card 8, overlay 12). Íconos de la misma familia y del mismo tamaño.
 8. **Componentes:** la misma pieza para la misma función. Por ejemplo, si la web usa un selector de orden y un cambio grilla/lista, Android no usa chips.

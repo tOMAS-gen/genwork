@@ -50,14 +50,14 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P03-01 | 1 | Cabecera: la web abre con el rótulo "ESPACIO DE TRABAJO" y ✕; Android con la marca "›genwork" y ✕, y repite el rótulo debajo del usuario. | B-7 | abierta |
-| P03-02 | 3 | Avatar con dos iniciales ("AD") en la web; una ("A") en Android. | B-7 | abierta |
-| P03-03 | 4 | Ítems principales a 14 regular en la web; 16 semibold en Android. | B-7 | abierta |
-| P03-04 | 1 | "Proyectos" y "Sectores" son rótulos de sección en mayúsculas con contador y "ver todos"; en Android son ítems destacados con contador y flecha. | B-7 | abierta |
-| P03-05 | 1 | Orden de subítems: Todos · Mis proyectos · Favoritos · Plantillas · Archivados (Android pone Plantillas primero). | B-7 | abierta |
-| P03-06 | 3 | Proyectos en una línea "QA produccion — Cartelería…" con ícono de documento; Android usa dos líneas con ícono de carpeta. | B-7 | abierta |
-| P03-07 | 1 | "Vence hoy" y "Salir" al pie del menú. | B-7 | abierta |
-| P03-08 | — | Con el menú abierto, atrás cierra la app (hallazgo 4). | B-7 | abierta |
+| P03-01 | 1 | Cabecera: la web abre con el rótulo "ESPACIO DE TRABAJO" y ✕; Android con la marca "›genwork" y ✕, y repite el rótulo debajo del usuario. | B-7 | corregida |
+| P03-02 | 3 | Avatar con dos iniciales ("AD") en la web; una ("A") en Android. | B-7 | corregida |
+| P03-03 | 4 | Ítems principales a 14 regular en la web; 16 semibold en Android. | B-7 | corregida |
+| P03-04 | 1 | "Proyectos" y "Sectores" son rótulos de sección en mayúsculas con contador y "ver todos"; en Android son ítems destacados con contador y flecha. | B-7 | corregida |
+| P03-05 | 1 | Orden de subítems: Todos · Mis proyectos · Favoritos · Plantillas · Archivados (Android pone Plantillas primero). | B-7 | corregida |
+| P03-06 | 3 | Proyectos en una línea "QA produccion — Cartelería…" con ícono de documento; Android usa dos líneas con ícono de carpeta. | B-7 | corregida |
+| P03-07 | 1 | "Vence hoy" y "Salir" al pie del menú. | B-7 | corregida |
+| P03-08 | — | Con el menú abierto, atrás cierra la app (hallazgo 4). | B-7 | corregida (PopScope; probado con el atrás del emulador) |
 | P03-09 | 2 | La barra superior de la web tiene el cambio de tema; Android, la campanita de notificaciones (las notificaciones existen solo en Android, decisión 2; el tema está en Configuración). | nativo | aceptada (decisión 2) |
 
 ## P04 Mi día
@@ -65,7 +65,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
 | P04-01 | 1 | Android muestra la fecha del día ("domingo 25 de octubre") en mono; la web no. | P | abierta |
-| P04-02 | 1 | Encabezado fijo en Android; en la web se desplaza. | B-7 | abierta |
+| P04-02 | 1 | Encabezado fijo en Android; en la web se desplaza. | B-7 | corregida |
 | P04-03 | 1 | Tarea con subtareas: la web muestra flecha para plegar y la insignia "1/2"; Android un checkbox y "1/2 subtareas" debajo. | P | abierta |
 | P04-04 | 8 | Acciones de la fila: la web tiene ☀, + y ✕; Android solo ☀ (agregar subtarea y quitar de Mi día están en el detalle y en el gesto). | P | abierta |
 | P04-05 | 5 | Filas más altas en Android (56–75 dp contra 48–64). | P | abierta |
@@ -74,7 +74,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P05-01 | 2 | El "+" va a la derecha del título; en Android cae debajo. | B-7 | abierta |
+| P05-01 | 2 | El "+" va a la derecha del título; en Android cae debajo. | B-7 | corregida |
 | P05-02 | 1 | KPI en 4 cards de 2 × 2; Android, una card de 4 columnas. | B-8 | abierta |
 | P05-03 | 8 | Buscador "Buscar proyectos…" + [Filtros] [Más recientes ▾] [grilla \| lista]; Android tiene chips Todos/Mis proyectos/Favoritos, Activos/Archivados, ícono de filtro y "Filtros y orden". | B-9 | abierta |
 | P05-04 | 2 | Card con menú "⋯" (archivar, etc.) además de la estrella. | B-8 | abierta |

@@ -10,8 +10,19 @@ import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/state_views.dart';
 
 class LogoutTile extends ConsumerStatefulWidget {
-  const LogoutTile({super.key, required this.actionKey});
+  const LogoutTile({
+    super.key,
+    required this.actionKey,
+    this.label = 'Cerrar sesión',
+    this.plain = false,
+  });
   final String actionKey;
+
+  /// "Salir" en el drawer, como la web.
+  final String label;
+
+  /// Como un ítem más del drawer: ícono `muted` y texto regular.
+  final bool plain;
   @override
   ConsumerState<LogoutTile> createState() => _LogoutTileState();
 }
@@ -30,11 +41,14 @@ class _LogoutTileState extends ConsumerState<LogoutTile> {
     leading: Icon(
       AppIcons.logout,
       size: AppIconSizes.drawer,
-      color: context.colors.danger,
+      color: widget.plain ? context.colors.muted : context.colors.danger,
     ),
     title: Text(
-      _busy ? 'Cerrando sesión…' : 'Cerrar sesión',
-      style: AppTextStyles.itemTitle.copyWith(color: context.colors.text),
+      _busy ? 'Cerrando sesión…' : widget.label,
+      style: AppTextStyles.itemTitle.copyWith(
+        color: context.colors.text,
+        fontWeight: widget.plain ? FontWeight.w400 : null,
+      ),
     ),
     onTap: _busy
         ? null

@@ -269,4 +269,65 @@ void main() {
       reason: 'una sola línea (24 × 1.3 ≈ 31)',
     );
   });
+
+  testWidgets('GenSectionHeader: la acción queda a la derecha del título a 390 (P05)', (
+    t,
+  ) async {
+    await t.runAsync(() async {
+      final loader = FontLoader('Montserrat')
+        ..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'));
+      await loader.load();
+    });
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: GenSectionHeader(
+            title: 'Todos los Proyectos',
+            subtitle: 'Un subtítulo',
+            icon: AppIcons.projects,
+            actions: [
+              IconButton.filled(
+                key: const ValueKey('accion'),
+                onPressed: () {},
+                icon: const Icon(AppIcons.add),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final action = t.getRect(find.byKey(const ValueKey('accion')));
+    final title = t.getRect(find.text('Todos los Proyectos'));
+    expect(action.left, greaterThan(title.right), reason: 'misma fila, a la derecha');
+    expect(action.top, lessThan(title.bottom), reason: 'no baja a otra línea');
+    final subtitle = t.getRect(find.text('Un subtítulo'));
+    expect(subtitle.left, title.left, reason: 'el subtítulo va en la columna del título');
+  });
+
+  testWidgets('GenPageScaffold: el encabezado se desplaza con el contenido', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      GenPageScaffold(
+        title: 'Lista larga',
+        body: ListView(
+          children: [for (var i = 0; i < 60; i++) Text('Fila $i')],
+        ),
+      ),
+    );
+    final before = t.getRect(find.text('Lista larga')).top;
+    await t.drag(find.text('Fila 5'), const Offset(0, -200));
+    await t.pumpAndSettle();
+    final title = find.text('Lista larga');
+    expect(
+      title.evaluate().isEmpty || t.getRect(title).top < before,
+      isTrue,
+      reason: 'como la web, el encabezado no queda fijo',
+    );
+  });
 }
