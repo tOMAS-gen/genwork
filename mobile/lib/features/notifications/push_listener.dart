@@ -10,6 +10,14 @@ import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
 import 'notifications_providers.dart';
 
+// With an action, Flutter keeps a SnackBar until dismissed; a notice must not
+// outlive a logout or a server switch.
+SnackBar newNoticeSnackBar(String serverName, VoidCallback onView) => SnackBar(
+  content: Text('Nuevo aviso · $serverName'),
+  action: SnackBarAction(label: 'Ver', onPressed: onView),
+  persist: false,
+);
+
 class PushListener extends ConsumerStatefulWidget {
   const PushListener({super.key, required this.child});
   final Widget child;
@@ -75,18 +83,15 @@ class _State extends ConsumerState<PushListener> {
     if (_seen.length > 200) _seen.remove(_seen.first);
     _refresh();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Nuevo aviso · ${profile.name}'),
-        action: SnackBarAction(
-          label: 'Ver',
-          onPressed: () => _event(
-            PushEvent(
-              event.serverId,
-              event.userId,
-              event.notificationId,
-              event.eventId,
-              true,
-            ),
+      newNoticeSnackBar(
+        profile.name,
+        () => _event(
+          PushEvent(
+            event.serverId,
+            event.userId,
+            event.notificationId,
+            event.eventId,
+            true,
           ),
         ),
       ),

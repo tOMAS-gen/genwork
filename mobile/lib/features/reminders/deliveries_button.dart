@@ -21,10 +21,16 @@ class DeliveriesButton extends ConsumerWidget {
         ref.invalidate(notificationsProvider);
         context.push(Routes.notifications);
       },
+      // The badge alone would be announced as a bare number ("19").
       icon: Badge(
         isLabelVisible: count > 0,
-        label: Text('$count'),
-        child: const Icon(AppIcons.bell),
+        label: ExcludeSemantics(child: Text('$count')),
+        child: Icon(
+          AppIcons.bell,
+          semanticLabel: count > 0
+              ? 'Notificaciones, $count sin leer'
+              : 'Notificaciones',
+        ),
       ),
     );
   }

@@ -18,14 +18,21 @@ export function invalidToken(code: string) {
   ].includes(code);
 }
 
+/** FCM rejected the request itself (HTTP 400): retrying cannot succeed. */
+export function permanentFailure(code: string) {
+  return invalidToken(code) || code === "messaging/invalid-argument";
+}
+
 export async function dispatchPush() {
   await materializeReminderNotifications();
   const configured = pushConfigured();
   const now = new Date();
   // Claim queue creation and jobs in the database, also safe with multiple replicas.
+  // Compare against the app clock: dueAt is stamped by Node, and the database clock
+  // may lag it by a few milliseconds, which skipped fresh notices until the next tick.
   const ready = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM "MobileNotification" WHERE "dismissedAt" IS NULL
-      AND "dueAt" <= NOW() AND "queuedVersion" < "pushVersion"
+      AND "dueAt" <= ${now} AND "queuedVersion" < "pushVersion"
     ORDER BY "dueAt" ASC LIMIT 100`;
   for (const { id } of ready)
     await prisma.$transaction(async (tx) => {
@@ -163,7 +170,7 @@ export async function dispatchPush() {
       await prisma.mobilePushJob.updateMany({
         where: { id: job.id, claimId, status: "SENDING" },
         data: {
-          status: invalidToken(code) || job.attempts >= 7 ? "FAILED" : "PENDING",
+          status: permanentFailure(code) || job.attempts >= 7 ? "FAILED" : "PENDING",
           lastError: code,
           leaseUntil: null,
           nextAttemptAt: new Date(Date.now() + retryDelay(job.attempts)),

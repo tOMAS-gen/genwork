@@ -517,3 +517,7 @@ Cierre (2026-10-25): genwork es privado, con un único proyecto Firebase compart
 por los servidores propios. Spec, plan y tareas de la validación Android en
 [`../specs/065-notificaciones-moviles/`](../specs/065-notificaciones-moviles/spec.md).
 iOS diferido hasta tener Apple Developer.
+
+Validación real Android (2026-10-25): los 9 escenarios de push pasan en moto e40 y
+emulador; latencia máx. 31 s con la app cerrada. Se corrigieron 3 defectos. Evidencia en
+[`../specs/065-notificaciones-moviles/evidencias/`](../specs/065-notificaciones-moviles/evidencias/README.md).
