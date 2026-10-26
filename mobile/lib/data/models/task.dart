@@ -65,6 +65,7 @@ class Task {
   const Task({
     required this.id,
     required this.rawText,
+    this.isUrgent = false,
     required this.displayText,
     required this.status,
     this.statusOptions = const [],
@@ -92,6 +93,7 @@ class Task {
 
   final String id;
   final String rawText;
+  final bool isUrgent;
   final String displayText;
   final TaskStatusOption status;
   final List<TaskStatusOption> statusOptions;
@@ -153,6 +155,7 @@ class Task {
   Task _copy({bool? inMyDay, List<Task>? subtasks}) => Task(
     id: id,
     rawText: rawText,
+    isUrgent: isUrgent,
     displayText: displayText,
     status: status,
     statusOptions: statusOptions,
@@ -186,6 +189,7 @@ class Task {
     final objective = asJson(json['objective']);
     return Task(
       id: json['id'] as String,
+      isUrgent: json['isUrgent'] == true,
       rawText: json['rawText'] as String? ?? '',
       displayText: (json['displayText'] ?? json['text'] ?? '') as String,
       status: TaskStatusOption.fromJson(

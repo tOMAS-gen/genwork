@@ -433,3 +433,9 @@ La app informa configuración ausente; no simula una conexión exitosa.
 - Estados de sector: GET/POST /api/task-statuses?sectorId=; edición/borrado con
   asSectorId. inherited/canWrite se interpretan según la respuesta del servidor.
 - No hay cambios de schema ni migraciones para habilitar estos roles.
+
+## Notificaciones móviles y urgencia
+
+Bandeja, dispositivos, preferencias, destinatarios y ampliación de tareas:
+[`../../docs/mobile-notifications.md`](../../docs/mobile-notifications.md).
+Los avisos push son opcionales; el servidor conserva las entregas sin Firebase.

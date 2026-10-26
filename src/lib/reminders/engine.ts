@@ -1,3 +1,5 @@
+import { taskRecipients } from "@/server/notifications/recipients";
+import { dispatchPush } from "@/server/notifications/push";
 /**
  * engine.ts — motor de disparo de recordatorios (research R1/R2/R8).
  *
@@ -29,6 +31,7 @@ export async function tick(): Promise<void> {
   processing = true;
   try {
     await fanOut();
+    await dispatchPush().catch(err => console.error("[push] dispatch failed", err instanceof Error ? err.name : "unknown"));
     await dispatchEmails();
   } catch (err) {
     console.error("[reminders] tick error:", err);
@@ -41,6 +44,7 @@ export async function tick(): Promise<void> {
 async function fanOut(): Promise<void> {
   const now = new Date();
   const tz = await getSystemTimezone();
+  const cutoff = (await prisma.notificationConfig.upsert({ where: { id: 1 }, create: { id: 1 }, update: {} })).activatedAt;
 
   const reminders = await prisma.reminder.findMany({ include: { leads: true } });
   if (reminders.length === 0) return;
@@ -55,6 +59,7 @@ async function fanOut(): Promise<void> {
     userId: string;
     occurrenceDate: Date;
     firedAt: Date;
+    notificationEligible: boolean;
   }[] = [];
 
   for (const r of reminders) {
@@ -87,15 +92,30 @@ async function fanOut(): Promise<void> {
     } else {
       continue;
     }
-    if (recipients.length === 0) continue;
+    let taskUsers: string[] | null = null;
+    if (r.linkType === "TASK" && r.linkId) {
+      try { taskUsers = await taskRecipients(r.linkId); } catch (err) {
+        if ((err as { status?: number }).status !== 404) throw err;
+        taskUsers = [];
+      }
+    }
 
     for (const occ of occurrences) {
       for (const lead of r.leads) {
         const fire = fireInstant(occ, lead, tz);
         if (fire > now) continue; // aún no vence
         if (fire.getTime() < now.getTime() - CATCHUP_DAYS * DAY_MS) continue; // demasiado viejo
+        if (fire >= cutoff && taskUsers !== null) {
+          await prisma.$transaction(async tx => {
+            const claim = await tx.reminderNotificationDispatch.createMany({ data: [{ leadId: lead.id, occurrenceDate: occ }], skipDuplicates: true });
+            if (claim.count) await tx.reminderDelivery.createMany({ data: taskUsers!.map(userId => ({
+              reminderId: r.id, leadId: lead.id, userId, occurrenceDate: occ, firedAt: fire, notificationEligible: true,
+            })), skipDuplicates: true });
+          });
+          continue;
+        }
         for (const userId of recipients) {
-          rows.push({ reminderId: r.id, leadId: lead.id, userId, occurrenceDate: occ, firedAt: fire });
+          rows.push({ reminderId: r.id, leadId: lead.id, userId, occurrenceDate: occ, firedAt: fire, notificationEligible: fire >= cutoff });
         }
       }
     }

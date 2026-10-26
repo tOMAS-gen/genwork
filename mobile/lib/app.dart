@@ -1,3 +1,4 @@
+import 'features/notifications/push_listener.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,8 +20,9 @@ class GenworkApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: ref.watch(themePreferenceProvider),
       routerConfig: ref.watch(routerProvider),
-      builder: (context, child) =>
-          ConnectLinkListener(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => PushListener(
+        child: ConnectLinkListener(child: child ?? const SizedBox.shrink()),
+      ),
       locale: const Locale('es', 'AR'),
       supportedLocales: const [Locale('es', 'AR'), Locale('es')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,

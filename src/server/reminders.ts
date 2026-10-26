@@ -1,3 +1,4 @@
+import { assertTaskReminder } from "@/server/notifications/service";
 /**
  * server/reminders.ts — acceso a datos + reglas de permiso de recordatorios (R7).
  * Reusa el patrón de ámbito ownerId/groupId y los guards existentes.
@@ -83,6 +84,7 @@ async function assertCanCreate(
   ctx: UserContext,
   input: ReminderInputParsed,
 ): Promise<void> {
+  if (input.linkType === "TASK" && input.linkId) await assertTaskReminder(ctx.id, input.linkId);
   if (input.scope === "GLOBAL") {
     if (ctx.globalRole !== "SUPERADMIN") throw forbidden("Solo el administrador crea recordatorios globales");
     return;

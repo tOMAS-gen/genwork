@@ -1,3 +1,4 @@
+import '../notifications/notifications_providers.dart';
 import 'dart:async';
 import '../reminders/reminders_providers.dart';
 import '../account/logout_tile.dart';
@@ -59,6 +60,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           ref.read(sessionProvider).value is SignedIn &&
           !ref.read(deliveriesProvider).isLoading) {
         ref.invalidate(deliveriesProvider);
+        ref.invalidate(notificationsProvider);
         refreshUser();
       }
     });
@@ -118,6 +120,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         .watch(groupsProvider)
         .whenData((items) => items.map(DrawerItem.group).toList());
     final deliveries = ref.watch(deliveriesProvider);
+    final unread =
+        ref.watch(notificationsProvider(null)).value?.unreadCount ?? 0;
     final currentBranch = widget.navigationShell.currentIndex;
 
     Widget destination({
@@ -370,6 +374,20 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                     label: 'Vista de tareas',
                     selected: currentBranch == 6,
                     onTap: () => _branch(6),
+                  ),
+                  destination(
+                    id: 'nav_notifications',
+                    icon: AppIcons.reminders,
+                    label: 'Notificaciones',
+                    selected: path == Routes.notifications,
+                    trailing: unread > 0
+                        ? CountBadge(
+                            count: unread,
+                            singular: 'aviso sin leer',
+                            plural: 'avisos sin leer',
+                          )
+                        : null,
+                    onTap: () => _route(Routes.notifications),
                   ),
                   destination(
                     id: 'nav_reminders',

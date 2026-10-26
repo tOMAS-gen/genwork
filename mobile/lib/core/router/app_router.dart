@@ -1,3 +1,5 @@
+import '../../features/notifications/notifications_screen.dart';
+import '../../features/notifications/notification_settings_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/settings/catalog_settings_screen.dart';
 import '../../data/repositories/settings_repository.dart';
@@ -199,6 +201,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: Routes.more,
                 builder: (_, _) => const MoreScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'notifications',
+                    builder: (_, s) => NotificationsScreen(
+                      key: ValueKey(s.uri.toString()),
+                      openId: s.uri.queryParameters['open'],
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'notification-settings',
+                    builder: (_, _) => const NotificationSettingsScreen(),
+                  ),
                   GoRoute(
                     path: 'reminders',
                     builder: (_, _) => const RemindersScreen(),

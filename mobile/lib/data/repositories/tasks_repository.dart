@@ -43,6 +43,15 @@ class TasksRepository {
   Future<void> updateDescription(String id, String? description) =>
       _api.patch<Object?>('/api/tasks/$id', body: {'description': description});
 
+  Future<void> setUrgent(String id, bool urgent, {required bool fromSector}) =>
+      _api.patch<Object?>(
+        '/api/tasks/$id',
+        body: {
+          'isUrgent': urgent,
+          'editContext': fromSector ? 'sector' : 'work',
+        },
+      );
+
   Future<void> setStatus(String id, String statusId) =>
       _api.post<Object?>('/api/tasks/$id/status', body: {'statusId': statusId});
 

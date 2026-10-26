@@ -1,3 +1,4 @@
+import { setUrgent } from "@/server/notifications/service";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/client";
@@ -12,6 +13,7 @@ import { emit } from "@/server/events";
 import { setTaskObjective } from "@/server/objectives";
 
 const patchSchema = z.union([
+  z.object({ isUrgent: z.boolean(), editContext: z.enum(["work", "sector"]) }),
   z.object({
     parentId: z.string().uuid().nullable(),
   }),
@@ -46,6 +48,10 @@ export const PATCH = withApi<{ params: Promise<{ id: string }> }>(async (req, { 
   if (!canToggle(ctx, await toTaskRef(task))) throw forbidden();
 
   const body = patchSchema.parse(await req.json());
+
+  if ("isUrgent" in body) {
+    return NextResponse.json(await setUrgent(session.user.id, id, body.isUrgent, body.editContext));
+  }
 
   if ("parentId" in body) {
     const previousParentId = task.parentId;

@@ -4,21 +4,22 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/router/routes.dart';
 import '../../core/theme/app_icons.dart';
-import 'reminders_providers.dart';
+import '../notifications/notifications_providers.dart';
 
-/// Campanita con la cantidad de notificaciones pendientes; lleva a Recordatorios.
+/// Campana de avisos sin leer; abre la bandeja unificada.
 class DeliveriesButton extends ConsumerWidget {
   const DeliveriesButton({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final count = ref.watch(deliveriesProvider).value?.length ?? 0;
+    final count =
+        ref.watch(notificationsProvider(null)).value?.unreadCount ?? 0;
     return IconButton(
       key: const ValueKey('deliveries_button'),
       tooltip: 'Notificaciones',
       onPressed: () {
-        ref.invalidate(deliveriesProvider);
-        context.push(Routes.dueToday);
+        ref.invalidate(notificationsProvider);
+        context.push(Routes.notifications);
       },
       icon: Badge(
         isLabelVisible: count > 0,

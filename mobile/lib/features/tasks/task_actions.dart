@@ -1,3 +1,4 @@
+import '../notifications/notifications_providers.dart';
 import '../objectives/objectives_providers.dart';
 import '../board/board_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,6 +45,17 @@ class TaskActions {
 
   Future<void> setStatus(Task task, String statusId) async {
     await _ref.read(tasksRepositoryProvider).setStatus(task.id, statusId);
+    refreshAll();
+  }
+
+  Future<void> setUrgent(
+    Task task,
+    bool urgent, {
+    required bool fromSector,
+  }) async {
+    await _ref
+        .read(tasksRepositoryProvider)
+        .setUrgent(task.id, urgent, fromSector: fromSector);
     refreshAll();
   }
 
@@ -102,6 +114,8 @@ class TaskActions {
   }
 
   void refreshAll() {
+    _ref.invalidate(taskNotificationInfoProvider);
+    _ref.invalidate(notificationsProvider);
     _ref.invalidate(myDayProvider);
     _ref.invalidate(openReferencesProvider);
     _ref.invalidate(workDetailProvider);

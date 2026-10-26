@@ -27,6 +27,7 @@ abstract final class AppIconSizes {
 }
 
 abstract final class AppIcons {
+  static const priority = Icons.priority_high_outlined;
   static const qrScanner = Icons.qr_code_scanner_outlined;
   static const keyboard = Icons.keyboard_outlined;
 
