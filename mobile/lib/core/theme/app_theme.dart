@@ -312,9 +312,10 @@ abstract final class AppTheme {
                 ? c.brandFill
                 : Colors.transparent,
           ),
+          // `.segmented-btn` de la web: el no elegido va en `muted`.
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) =>
-                states.contains(WidgetState.selected) ? c.brand : c.text,
+                states.contains(WidgetState.selected) ? c.brand : c.muted,
           ),
         ),
       ),

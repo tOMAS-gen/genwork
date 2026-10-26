@@ -3,6 +3,7 @@ import 'package:flutter/painting.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/util/name_order.dart';
 import '../../data/models/common.dart';
+import '../../data/models/task.dart';
 import '../../data/models/work.dart';
 
 /// Estado de un proyecto según sus tareas, igual que `getProjectStatus` de la
@@ -89,4 +90,20 @@ String? projectColor(List<LabelChip> labels) {
   final sorted = [...labels]
     ..sort((a, b) => compareNamesEs(a.keyName, b.keyName));
   return sorted.first.color;
+}
+
+/// Avance de un grupo de tareas contando hojas, como la web: una tarea con
+/// subtareas aporta sus subtareas, no ella misma.
+({int done, int total}) leafProgress(List<Task> tasks) {
+  var done = 0, total = 0;
+  for (final t in tasks) {
+    if (t.subtaskCount > 0) {
+      done += t.subtaskDone;
+      total += t.subtaskCount;
+    } else {
+      total += 1;
+      if (t.isDone) done += 1;
+    }
+  }
+  return (done: done, total: total);
 }

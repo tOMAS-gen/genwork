@@ -95,38 +95,38 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P07-01 | 1 | Fecha límite debajo de Avance, con selector punteado "29/10/2026", ✕ y urgencia; Android la pone al costado, sin urgencia, con "29 oct". | P | abierta |
+| P07-01 | 1 | Fecha límite debajo de Avance, con selector punteado "29/10/2026", ✕ y urgencia; Android la pone al costado, sin urgencia, con "29 oct". | P | corregida |
 | P07-02 | 1 | Descripción completa en la web; Android la corta en 3 líneas con "Ver descripción completa". | nativo | aceptada (en el teléfono el corte evita que una descripción larga empuje las pestañas fuera de la pantalla; el texto completo queda a un toque) |
-| P07-03 | 2 | "Etiquetas" con ícono de etiqueta para editarlas. | P | abierta |
-| P07-04 | 1 | Pestañas dentro de una card, con 6 pestañas. | B-9 / 17 | abierta |
-| P07-05 | 1 | Pestaña Tareas: título "Tareas" + "2 pendientes", "+ Nuevo objetivo" con contorno, Lista/Tablero; composer en línea por sección ("Escribí una tarea y Enter…", "+ Agregar tarea a «…»"); Android usa un composer fijo abajo con selector de sección. | P | abierta |
-| P07-06 | 3 | Objetivo: progreso "1/3 · 33%" contando subtareas y contador "2"; Android "0/2 · 0%". | P | abierta |
-| P07-07 | 3 | Sin tareas generales: caja punteada "Sin tareas generales."; Android "Sin tareas". | P | abierta |
+| P07-03 | 2 | "Etiquetas" con ícono de etiqueta para editarlas. | P | corregida |
+| P07-04 | 1 | Pestañas dentro de una card, con 6 pestañas. | B-9 / 17 | abierta (falta la pestaña Materiales: tarea 17) |
+| P07-05 | 1 | Pestaña Tareas: título "Tareas" + "2 pendientes", "+ Nuevo objetivo" con contorno, Lista/Tablero; composer en línea por sección ("Escribí una tarea y Enter…", "+ Agregar tarea a «…»"); Android usa un composer fijo abajo con selector de sección. | P | aceptada (nativo: el composer fijo abajo queda visible con el teclado abierto; con un campo por sección habría que desplazar con el teclado encima. Se igualan el resto de las piezas) |
+| P07-06 | 3 | Objetivo: progreso "1/3 · 33%" contando subtareas y contador "2"; Android "0/2 · 0%". | P | corregida |
+| P07-07 | 3 | Sin tareas generales: caja punteada "Sin tareas generales."; Android "Sin tareas". | P | corregida |
 | P07-08 | 8 | Reordenar con manija en la web; Android con "Ordenar tareas". | nativo | aceptada (arrastrar con manija dentro de una lista desplazable es incómodo en táctil) |
 
 ## P08 Plantillas
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P08-01 | 2 | Acción "Nueva plantilla" con texto, a la derecha del título; Android un "+" debajo. | B-7 | abierta |
-| P08-02 | 1 | KPI y barra de herramientas como en Proyectos. | B-8 / B-9 | abierta |
-| P08-03 | 9 | Vacío: carpeta + "Sin plantillas de objetivo todavía" + texto + "Nueva plantilla"; Android bandeja + "No hay plantillas para mostrar.". | B-10 | abierta |
+| P08-01 | 2 | Acción "Nueva plantilla" con texto, a la derecha del título; Android un "+" debajo. | B-7 | corregida |
+| P08-02 | 1 | KPI y barra de herramientas como en Proyectos. | B-8 / B-9 | corregida en parte (estadísticas y barra; sin Filtros ni grilla/lista: las plantillas se listan como filas, no como cards) |
+| P08-03 | 9 | Vacío: carpeta + "Sin plantillas de objetivo todavía" + texto + "Nueva plantilla"; Android bandeja + "No hay plantillas para mostrar.". | B-10 | corregida |
 
 ## P09 Detalle de tarea
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
 | P09-01 | 1 | La web edita en el lugar; Android tiene pantalla propia. | nativo | aceptada (decisión 1) |
-| P09-02 | 6 | Proyecto, objetivo y sector como pastillas con los colores de etiqueta de la web (`--tag-work`, `--tag-exec`, `--tag-label`). | P | abierta |
+| P09-02 | 6 | Proyecto, objetivo y sector como pastillas con los colores de etiqueta de la web (`--tag-work`, `--tag-exec`, `--tag-label`). | P | corregida |
 
 ## P10 Tablero
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P10-01 | 6 | Barra de progreso en acento con "33%" a la derecha; Android verde y sin porcentaje. | P | abierta |
-| P10-02 | 8 | Chip de estado con contorno gris; Android relleno con el acento. | B-9 | abierta |
-| P10-03 | 1 | Fila de tarea: punto de acento, título, carpeta + ruta, subtareas, chip; Android: sin punto, chip arriba de la ruta y punto gris en la ruta. | P | abierta |
-| P10-04 | 6 | Cuerpo de la card en `--surface` (blanco); Android en `--bg`. | P | abierta |
+| P10-01 | 6 | Barra de progreso en acento con "33%" a la derecha; Android verde y sin porcentaje. | P | corregida |
+| P10-02 | 8 | Chip de estado con contorno gris; Android relleno con el acento. | B-9 | corregida |
+| P10-03 | 1 | Fila de tarea: punto de acento, título, carpeta + ruta, subtareas, chip; Android: sin punto, chip arriba de la ruta y punto gris en la ruta. | P | corregida |
+| P10-04 | 6 | Cuerpo de la card en `--surface` (blanco); Android en `--bg`. | P | corregida |
 | P10-05 | 2 | Cabecera de sector sin flecha en la web; Android la usa para abrir el sector. | nativo | aceptada (en la web se abre con clic en el nombre; Android necesita un destino táctil visible) |
 
 ## P11 Sectores

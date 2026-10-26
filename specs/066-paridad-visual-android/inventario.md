@@ -25,12 +25,12 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P02 | Servidores (solo Android) | patrón `/login` | `/servers`, `/servers/add` | S02 | M03 | admin | servidor `localhost:3010` | igual | igual |
 | P03 | Navegación | sidebar/drawer de `(main)` | drawer de `HomeShell` | S04 | M03 | admin | — | igual | igual |
 | P04 | Mi día | `/references` | `/my-day` | S05 | M04 | admin | tareas semilla | par | par |
-| P05 | Proyectos | `/` | `/works` | S06 | M05 | admin | proyectos de QA produccion/publico/privado | par | par |
-| P06 | Crear/editar proyecto | dialog en `/` | dialog en `/works` | S07 | M05 | admin | — | par | par |
+| P05 | Proyectos | `/` | `/works` | S06 | M05 | admin | proyectos de QA produccion/publico/privado | igual | igual |
+| P06 | Crear/editar proyecto | dialog en `/` | dialog en `/works` | S07 | M05 | admin | — | igual | igual |
 | P07 | Detalle de proyecto | `/works/[id]` | `/works/:id` | S08 | M06 | admin | "Cartelería del local" | par | par |
 | P08 | Plantillas | `/?filter=templates` | `/templates` | S09 | M08 | admin | — | par | par |
-| P09 | Detalle de tarea | detalle en `/works/[id]` | pantalla de tarea (`task_detail_sheet`) | S10 | M07 | admin | tarea de "Preparación y entrega" | par | par |
-| P10 | Tablero | `/board` | `/board` | S11 | M10 | admin | — | par | par |
+| P09 | Detalle de tarea | detalle en `/works/[id]` | pantalla de tarea (`task_detail_sheet`) | S10 | M07 | admin | tarea de "Preparación y entrega" | igual | igual |
+| P10 | Tablero | `/board` | `/board` | S11 | M10 | admin | — | igual | igual |
 | P11 | Sectores | `/sectors` | `/sectors` | S12 | M09 | admin | sectores "Impresión" | par | par |
 | P12 | Detalle de sector | `/sectors/[id]` | `/sectors/:id` | S12 | M09 | admin | "Impresión" (QA produccion) | par | par |
 | P13 | Grupos | `/groups` | `/groups` | S13 | M11 | admin | QA produccion/publico/privado | par | par |

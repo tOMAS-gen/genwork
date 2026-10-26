@@ -11,6 +11,7 @@ import 'task_move_dialog.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -258,10 +259,17 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               spacing: AppSpace.sm,
               runSpacing: AppSpace.xs,
               children: [
+                // Con los colores de las etiquetas de la web: /proyecto en
+                // `tag-work`, #sector en `tag-exec`, @persona en `tag-user`.
                 if (_task.work != null)
                   ActionChip(
                     key: const ValueKey('task_origin_work'),
-                    label: Text(_task.work!.name),
+                    backgroundColor: c.tagWorkFill,
+                    side: BorderSide.none,
+                    labelStyle: AppTextStyles.chip.copyWith(
+                      color: c.tagWorkText,
+                    ),
+                    label: Text('/${_task.work!.name}'),
                     onPressed: () {
                       final router = GoRouter.of(context);
                       Navigator.pop(context);
@@ -271,6 +279,11 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 if (_task.homeSector != null)
                   ActionChip(
                     key: const ValueKey('task_origin_sector'),
+                    backgroundColor: c.tagExecFill,
+                    side: BorderSide.none,
+                    labelStyle: AppTextStyles.chip.copyWith(
+                      color: c.tagExecText,
+                    ),
                     label: Text('#${_task.homeSector!.name}'),
                     onPressed: () {
                       final router = GoRouter.of(context);
@@ -295,6 +308,19 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 for (final link in _task.links)
                   ActionChip(
                     key: ValueKey('task_link_${link.targetId}'),
+                    backgroundColor: link.kind == LinkKind.exec
+                        ? c.tagExecFill
+                        : link.isUser
+                        ? c.tagUserFill
+                        : c.tagRefFill,
+                    side: BorderSide.none,
+                    labelStyle: AppTextStyles.chip.copyWith(
+                      color: link.kind == LinkKind.exec
+                          ? c.tagExecText
+                          : link.isUser
+                          ? c.tagUserText
+                          : c.tagRefText,
+                    ),
                     label: Text(
                       '${link.kind == LinkKind.exec ? '#' : '@'}${link.name}',
                     ),

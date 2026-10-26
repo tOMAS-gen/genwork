@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
+import 'package:genwork_mobile/data/models/task.dart';
 import 'package:genwork_mobile/data/models/work.dart';
 import 'package:genwork_mobile/features/works/work_card.dart';
 import 'package:genwork_mobile/features/works/works_dashboard.dart';
@@ -170,5 +171,23 @@ void main() {
     await t.tap(find.text('Abrir proyecto'));
     await t.pumpAndSettle();
     expect(opened, 1);
+  });
+
+  test('leafProgress cuenta hojas, como el avance de objetivo web (P07)', () {
+    Task task(String id, {bool done = false, int subs = 0, int subsDone = 0}) =>
+        Task.fromJson({
+          'id': id,
+          'displayText': id,
+          'status': {'id': 's', 'type': done ? 'FINAL' : 'IN_PROGRESS'},
+          'subtaskCount': subs,
+          'subtaskDone': subsDone,
+        });
+    // "Preparar" con 1 de 2 subtareas hechas + "Imprimir" pendiente = 1/3.
+    expect(
+      leafProgress([task('preparar', subs: 2, subsDone: 1), task('imprimir')]),
+      (done: 1, total: 3),
+    );
+    expect(leafProgress([task('a', done: true)]), (done: 1, total: 1));
+    expect(leafProgress(const []), (done: 0, total: 0));
   });
 }

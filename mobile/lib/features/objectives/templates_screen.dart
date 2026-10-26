@@ -5,9 +5,14 @@ import '../../core/router/routes.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import '../../core/util/format.dart';
+import '../../core/util/name_order.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
+import '../../shared/widgets/list_toolbar.dart';
+import '../../shared/widgets/stat_cards.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import '../works/create_work_dialog.dart';
@@ -21,6 +26,7 @@ class TemplatesScreen extends ConsumerStatefulWidget {
 
 class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
   String _query = '';
+  bool _byName = false;
   Future<void> _create({String? templateId, bool template = false}) async {
     final id = await showCreateWorkDialog(
       context,
@@ -36,15 +42,13 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     final c = context.colors;
     return GenPageScaffold(
       title: 'Plantillas de objetivo',
-      subtitle:
-          'Cada plantilla representa un objetivo. Al usarla se copian sus tareas pendientes.',
-      icon: AppIcons.templates,
+      // Como la web: la misma página que Proyectos, con "Nueva plantilla".
+      icon: AppIcons.projects,
       actions: [
-        IconButton.filled(
+        FilledButton(
           key: const ValueKey('template_create'),
-          tooltip: 'Nueva plantilla',
-          icon: const Icon(AppIcons.add),
           onPressed: () => _create(template: true),
+          child: const Text('Nueva plantilla'),
         ),
       ],
       onRefresh: () => ref.refresh(templatesProvider.future),
@@ -60,23 +64,53 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                     .contains(_query),
               )
               .toList();
+          // "Más recientes" conserva el orden de la API.
+          if (_byName) visible.sort((a, b) => compareNamesEs(a.name, b.name));
+          // Una plantilla no avanza: todas cuentan como pendientes, como en
+          // el tablero de la web.
+          final total = items.length;
           return ListView(
             key: const ValueKey('templates_list'),
             physics: const AlwaysScrollableScrollPhysics(),
             padding: AppSpace.page,
             children: [
-              TextField(
-                key: const ValueKey('templates_search'),
-                decoration: const InputDecoration(
-                  hintText: 'Buscar plantillas…',
-                  prefixIcon: Icon(AppIcons.search),
-                ),
-                onChanged: (s) =>
-                    setState(() => _query = s.trim().toLowerCase()),
+              StatCards(
+                items: [
+                  (label: 'Total', value: total, pct: total > 0 ? 100 : 0),
+                  (label: 'En progreso', value: 0, pct: 0),
+                  (label: 'Completados', value: 0, pct: 0),
+                  (label: 'Pendientes', value: total, pct: total > 0 ? 100 : 0),
+                ],
               ),
               const SizedBox(height: AppSpace.md),
-              if (visible.isEmpty)
-                const EmptyView(message: 'No hay plantillas para mostrar.'),
+              ListToolbar<bool>(
+                keyPrefix: 'templates',
+                searchHint: 'Buscar proyectos…',
+                onSearch: (s) =>
+                    setState(() => _query = s.trim().toLowerCase()),
+                sort: _byName,
+                sortOptions: const {
+                  false: 'Más recientes',
+                  true: 'Nombre · A–Z',
+                },
+                onSort: (v) => setState(() => _byName = v),
+                count: countLabel(visible.length, 'proyecto', 'proyectos'),
+              ),
+              const SizedBox(height: AppSpace.md),
+              if (items.isEmpty)
+                EmptyView(
+                  icon: AppIcons.projectOpen,
+                  title: 'Sin plantillas de objetivo todavía',
+                  message:
+                      'Una plantilla es un objetivo reutilizable: sus tareas se copian en cada proyecto donde la insertes. Creá una acá o guardá un objetivo como plantilla desde su menú ⋮.',
+                  actionLabel: 'Nueva plantilla',
+                  onAction: () => _create(template: true),
+                )
+              else if (visible.isEmpty)
+                Text(
+                  'Sin proyectos que coincidan con el filtro.',
+                  style: AppTextStyles.body.copyWith(color: c.muted),
+                ),
               if (visible.isNotEmpty)
                 WorkspaceListPanel(
                   children: [

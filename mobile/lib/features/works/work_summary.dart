@@ -8,6 +8,7 @@ import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/color_dot.dart';
+import '../../shared/widgets/dashed_border.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import 'works_dashboard.dart';
 
@@ -16,10 +17,31 @@ import 'works_dashboard.dart';
 /// (20/600 + barra de 5 px `brand`), fecha límite y, sobre `field`, etiquetas y
 /// «Código / carpeta» con su botón Copiar. [menu] es el kebab de acciones.
 class WorkSummaryPanel extends StatefulWidget {
-  const WorkSummaryPanel({super.key, required this.work, this.menu});
+  const WorkSummaryPanel({
+    super.key,
+    required this.work,
+    this.menu,
+    this.onPickDue,
+    this.onClearDue,
+    this.onEditLabels,
+    this.now,
+  });
 
   final WorkDetail work;
   final Widget? menu;
+
+  /// Selector de la fecha límite (`DatePicker` de la web); sin callback, la
+  /// fecha se muestra de solo lectura.
+  final VoidCallback? onPickDue;
+
+  /// "×" junto a la fecha: la quita.
+  final VoidCallback? onClearDue;
+
+  /// Ícono de etiqueta junto a "Etiquetas": las edita.
+  final VoidCallback? onEditLabels;
+
+  /// Reloj para la urgencia (los tests lo fijan).
+  final DateTime? now;
 
   @override
   State<WorkSummaryPanel> createState() => _WorkSummaryPanelState();
@@ -43,6 +65,9 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
     final pct = progress.total == 0
         ? 0
         : (progress.done / progress.total * 100).round();
+    final due = work.dueDate == null
+        ? null
+        : dueUrgency(work.dueDate!, widget.now ?? DateTime.now());
     final state = work.isTemplate
         ? 'Plantilla de objetivo'
         : work.isArchived
@@ -162,69 +187,63 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
                     ),
                 ],
                 const SizedBox(height: AppSpacing.md),
+                Text('Avance', style: label),
+                const SizedBox(height: AppSpacing.xxs),
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Avance', style: label),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                '$pct%',
-                                style: AppTextStyles.screenTitle.copyWith(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w600,
-                                  color: c.text,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Expanded(
-                                child: Text(
-                                  '${progress.done} de ${progress.total} completadas',
-                                  textAlign: TextAlign.end,
-                                  style: label.copyWith(
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          Semantics(
-                            label:
-                                '${progress.done} de ${progress.total} tareas completadas',
-                            excludeSemantics: true,
-                            child: LinearProgressIndicator(
-                              value: progress.ratio,
-                              minHeight: 5,
-                              color: c.brand,
-                              backgroundColor: c.outline,
-                              borderRadius: AppGeometry.chip,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      '$pct%',
+                      style: AppTextStyles.screenTitle.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: c.text,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.md),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Fecha límite', style: label),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Container(
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        '${progress.done} de ${progress.total} completadas',
+                        textAlign: TextAlign.end,
+                        style: label.copyWith(fontWeight: FontWeight.w400),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Semantics(
+                  label:
+                      '${progress.done} de ${progress.total} tareas completadas',
+                  excludeSemantics: true,
+                  child: LinearProgressIndicator(
+                    value: progress.ratio,
+                    minHeight: 5,
+                    color: c.brand,
+                    backgroundColor: c.outline,
+                    borderRadius: AppGeometry.chip,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                // Fecha límite debajo del avance, como `.work-due-summary`:
+                // selector punteado, "×" para quitarla y la urgencia.
+                Text('Fecha límite', style: label),
+                const SizedBox(height: AppSpacing.xxs),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xxs,
+                  children: [
+                    DashedBorder(
+                      color: c.outline,
+                      child: InkWell(
+                        key: const ValueKey('work_due_pick'),
+                        onTap: widget.onPickDue,
+                        borderRadius: AppGeometry.control,
+                        child: Padding(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.xs,
-                            vertical: AppSpacing.xs,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: c.border),
-                            borderRadius: AppGeometry.control,
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.sm,
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -238,7 +257,7 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
                               Text(
                                 work.dueDate == null
                                     ? 'Sin fecha'
-                                    : formatDay(work.dueDate!),
+                                    : formatDueDate(work.dueDate!),
                                 style: AppTextStyles.body.copyWith(
                                   color: c.text,
                                 ),
@@ -246,8 +265,26 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
+                    if (work.dueDate != null && widget.onClearDue != null)
+                      IconButton(
+                        key: const ValueKey('work_due_clear'),
+                        tooltip: 'Quitar fecha límite',
+                        onPressed: widget.onClearDue,
+                        icon: Icon(
+                          AppIcons.close,
+                          size: AppIconSizes.compact,
+                          color: c.muted,
+                        ),
+                      ),
+                    if (due != null)
+                      Text(
+                        due.label,
+                        style: AppTextStyles.body.copyWith(
+                          color: dueToneColor(c, due.tone),
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -265,6 +302,17 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
                   runSpacing: AppSpacing.xs,
                   children: [
                     Text('Etiquetas', style: label),
+                    if (widget.onEditLabels != null)
+                      IconButton(
+                        key: const ValueKey('work_labels_edit'),
+                        tooltip: 'Editar etiquetas',
+                        onPressed: widget.onEditLabels,
+                        icon: Icon(
+                          AppIcons.label,
+                          size: AppIconSizes.field,
+                          color: c.muted,
+                        ),
+                      ),
                     if (work.stageName != null)
                       ColorPill(label: work.stageName!, hex: work.stageColor),
                     for (final l in work.labels)

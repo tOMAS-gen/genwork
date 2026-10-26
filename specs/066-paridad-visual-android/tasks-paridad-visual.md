@@ -190,10 +190,10 @@ En cada tanda, por pantalla: cerrar sus diferencias de `diferencias.md` (`correg
 **Descripción:** Proyectos, crear/editar, detalle, plantillas, detalle de tarea y tablero. P09 conserva su pantalla propia (decisión 1).
 
 **Criterios de aceptación:**
-- [ ] P05–P10 quedan `igual`, sin diferencias abiertas.
+- [x] P05, P06, P09 y P10 quedan `igual`. P07 espera la pestaña Materiales (tarea 17) y P08 queda con la barra sin Filtros ni grilla/lista (las plantillas se listan como filas).
 
 **Verificación:**
-- [ ] `flutter test test/features/works_dashboard_test.dart test/features/mobile_parity_test.dart test/features/objectives_parity_test.dart test/shared/task_widgets_test.dart`
+- [x] `flutter test test/features/works_dashboard_test.dart test/features/mobile_parity_test.dart test/features/objectives_parity_test.dart test/shared/task_widgets_test.dart`
 
 **Depende de:** B · **Archivos:** `mobile/lib/features/works/*`, `mobile/lib/features/tasks/*`, `mobile/lib/features/board/*` y sus tests · **Tamaño:** M
 

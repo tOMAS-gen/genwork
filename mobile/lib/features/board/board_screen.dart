@@ -11,7 +11,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/board.dart';
-import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
 import 'board_providers.dart';
@@ -105,94 +104,114 @@ class _SectorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            InkWell(
-              key: ValueKey('board_open_sector_${column.sector.id}'),
-              onTap: readOnly
-                  ? null
-                  : () => context.push(Routes.sector(column.sector.id)),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: kActiveTickWidth,
-                          height: AppSpacing.md,
-                          decoration: BoxDecoration(
-                            color: accent,
-                            borderRadius: AppGeometry.pill,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            column.sector.name,
-                            style: AppTextStyles.itemTitle.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: c.text,
+            Material(
+              color: c.field,
+              child: InkWell(
+                key: ValueKey('board_open_sector_${column.sector.id}'),
+                onTap: readOnly
+                    ? null
+                    : () => context.push(Routes.sector(column.sector.id)),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: kActiveTickWidth,
+                            height: AppSpacing.md,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              borderRadius: AppGeometry.pill,
                             ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.xs,
-                            vertical: AppSpacing.hairline,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: c.outline),
-                            borderRadius: AppGeometry.chip,
-                          ),
-                          child: Semantics(
-                            label:
-                                '${progress.pending} ${progress.pending == 1 ? 'pendiente' : 'pendientes'}',
-                            excludeSemantics: true,
+                          const SizedBox(width: AppSpacing.xs),
+                          Expanded(
                             child: Text(
-                              '${progress.pending}',
+                              column.sector.name,
+                              style: AppTextStyles.itemTitle.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: c.text,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                              vertical: AppSpacing.hairline,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: c.outline),
+                              borderRadius: AppGeometry.chip,
+                            ),
+                            child: Semantics(
+                              label:
+                                  '${progress.pending} ${progress.pending == 1 ? 'pendiente' : 'pendientes'}',
+                              excludeSemantics: true,
+                              child: Text(
+                                '${progress.pending}',
+                                style: AppTextStyles.supporting.copyWith(
+                                  color: c.muted,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xs),
+                          if (!readOnly)
+                            Icon(
+                              AppIcons.chevronRight,
+                              size: AppIconSizes.field,
+                              color: c.muted,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              progress.total > 0
+                                  ? '${progress.done} de ${progress.total} finalizadas'
+                                  : column.tasks.isEmpty
+                                  ? 'Sin tareas asignadas'
+                                  : 'Avance en las subtareas',
                               style: AppTextStyles.supporting.copyWith(
                                 color: c.muted,
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        if (!readOnly)
-                          Icon(
-                            AppIcons.chevronRight,
-                            size: AppIconSizes.field,
-                            color: c.muted,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      progress.total > 0
-                          ? '${progress.done} de ${progress.total} finalizadas'
-                          : column.tasks.isEmpty
-                          ? 'Sin tareas asignadas'
-                          : 'Avance en las subtareas',
-                      style: AppTextStyles.supporting.copyWith(color: c.muted),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Semantics(
-                      label:
-                          '${progress.done} de ${progress.total} finalizadas',
-                      excludeSemantics: true,
-                      child: LinearProgressIndicator(
-                        value: progress.ratio,
-                        minHeight: 4,
-                        color: c.ok,
-                        backgroundColor: c.outline,
-                        borderRadius: AppGeometry.pill,
+                          if (progress.total > 0)
+                            Text(
+                              '${(progress.ratio * 100).round()}%',
+                              style: AppTextStyles.supporting.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: c.text,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: AppSpacing.xxs),
+                      Semantics(
+                        label:
+                            '${progress.done} de ${progress.total} finalizadas',
+                        excludeSemantics: true,
+                        child: LinearProgressIndicator(
+                          value: progress.ratio,
+                          minHeight: 4,
+                          color: c.brand,
+                          backgroundColor: c.outline,
+                          borderRadius: AppGeometry.pill,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
+            Divider(height: 1, color: c.border),
             ColoredBox(
-              color: c.field,
+              color: c.surface,
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 child: Column(
@@ -224,6 +243,9 @@ class _SectorCard extends StatelessWidget {
   }
 }
 
+/// Tarea del tablero, como la de la web: punto de acento, la marca de
+/// subtarea, el texto, la carpeta con proyecto y objetivo, el avance de las
+/// subtareas y el estado como pastilla de contorno neutro.
 class _TaskRow extends StatelessWidget {
   const _TaskRow({required this.column, required this.task});
   final BoardColumn column;
@@ -232,48 +254,79 @@ class _TaskRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final supporting = AppTextStyles.supporting.copyWith(color: c.muted);
     return Padding(
       key: ValueKey('board_task_${column.sector.id}_${task.id}'),
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (task.parentId != null)
-            Text(
-              'Subtarea de: ${task.parentText ?? 'Tarea principal'}',
-              style: AppTextStyles.supporting.copyWith(color: c.muted),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xs),
+            child: Container(
+              width: AppSpace.dot,
+              height: AppSpace.dot,
+              decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
             ),
-          Text(task.text, style: AppTextStyles.body.copyWith(color: c.text)),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ColorPill(
-                label: task.isContainer ? 'En curso' : task.status.name,
-                hex: task.status.color,
-              ),
-              if (task.isContainer)
-                Text(
-                  '${task.subtaskDone}/${task.subtaskCount} subtareas',
-                  style: AppTextStyles.supporting.copyWith(color: c.muted),
-                ),
-            ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ColorDot(hex: task.workColor),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  task.contextLabel,
-                  style: AppTextStyles.supporting.copyWith(color: c.muted),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (task.parentId != null)
+                  Container(
+                    padding: const EdgeInsets.only(left: AppSpacing.xs),
+                    decoration: BoxDecoration(
+                      border: Border(left: BorderSide(color: c.border)),
+                    ),
+                    child: Text(
+                      'Subtarea de: ${task.parentText ?? 'Tarea principal'}',
+                      style: supporting,
+                    ),
+                  ),
+                Text(
+                  task.text,
+                  style: AppTextStyles.body.copyWith(color: c.text),
                 ),
-              ),
-            ],
+                const SizedBox(height: AppSpacing.xxs),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      AppIcons.projects,
+                      size: AppIconSizes.compact,
+                      color: c.muted,
+                    ),
+                    const SizedBox(width: AppSpacing.xxs),
+                    Expanded(child: Text(task.contextLabel, style: supporting)),
+                  ],
+                ),
+                if (task.isContainer) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    '${task.subtaskDone}/${task.subtaskCount} subtareas',
+                    style: supporting,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xs,
+                    vertical: AppSpacing.hairline,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.field,
+                    border: Border.all(color: c.outline),
+                    borderRadius: AppGeometry.chip,
+                  ),
+                  child: Text(
+                    task.isContainer ? 'En curso' : task.status.name,
+                    style: supporting.copyWith(fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -362,7 +362,10 @@ void main() {
     f.failTemplates = false;
     await label(t, 'Reintentar');
     await enter(t, 'templates_search', 'no existe');
-    expect(find.text('No hay plantillas para mostrar.'), findsOneWidget);
+    expect(
+      find.text('Sin proyectos que coincidan con el filtro.'),
+      findsOneWidget,
+    );
     await enter(t, 'templates_search', '');
     await tap(t, 'template_use_tpl');
     await enter(t, 'create_work_name', 'Nueva entrega');

@@ -30,6 +30,10 @@ import 'work_actions_menu.dart';
 import 'work_summary.dart';
 import 'works_providers.dart';
 import '../tasks/task_row_actions.dart';
+import '../../shared/widgets/dashed_border.dart';
+import '../../shared/widgets/count_badge.dart';
+import 'work_metadata_dialog.dart';
+import 'works_dashboard.dart';
 
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
 /// alta rápida de tareas en la sección elegida.
@@ -79,6 +83,29 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   Future<void> _toggle(Task task) async {
     try {
       await ref.read(taskActionsProvider).toggleDone(task);
+    } catch (e) {
+      if (mounted) showErrorSnack(context, e);
+    }
+  }
+
+  /// Selector de la fecha límite, como el `DatePicker` del detalle web.
+  Future<void> _pickDue(WorkDetail work) async {
+    final initial = work.dueDate ?? DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(initial.year < 2000 ? initial.year : 2000),
+      lastDate: DateTime(initial.year > 2100 ? initial.year : 2100, 12, 31),
+    );
+    if (date != null && mounted) await _saveDue(work, date);
+  }
+
+  Future<void> _saveDue(WorkDetail work, DateTime? date) async {
+    try {
+      await ref
+          .read(worksRepositoryProvider)
+          .update(work.id, dueDate: date, clearDueDate: date == null);
+      refreshResources(ref);
     } catch (e) {
       if (mounted) showErrorSnack(context, e);
     }
@@ -204,7 +231,20 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                         current: work.name,
                       ),
                       const SizedBox(height: AppSpace.md),
-                      WorkSummaryPanel(work: work, menu: menu),
+                      WorkSummaryPanel(
+                        work: work,
+                        menu: menu,
+                        onPickDue: work.canOperate && !work.isArchived
+                            ? () => _pickDue(work)
+                            : null,
+                        onClearDue: work.canOperate && !work.isArchived
+                            ? () => _saveDue(work, null)
+                            : null,
+                        onEditLabels: work.canOperate && !work.isArchived
+                            ? () =>
+                                  showWorkMetadata(context, work, labels: true)
+                            : null,
+                      ),
                       const SizedBox(height: AppSpace.md),
                       WorkspacePanel(
                         child: Column(
@@ -437,8 +477,10 @@ class _WorkSectionView extends ConsumerWidget {
     final c = context.colors;
     final objective = section.objective;
     final tasks = section.tasks;
-    final done = tasks.where((t) => t.isDone).length;
-    final complete = tasks.isNotEmpty && done == tasks.length;
+    // Como la web: el avance cuenta las hojas (una tarea con subtareas aporta
+    // sus subtareas, no ella misma).
+    final (:done, :total) = leafProgress(tasks);
+    final complete = total > 0 && done == total;
     final accent = complete ? c.ok : c.brand;
 
     final body = <Widget>[
@@ -478,9 +520,15 @@ class _WorkSectionView extends ConsumerWidget {
       if (tasks.isEmpty)
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-          child: Text(
-            'Sin tareas',
-            style: AppTextStyles.body.copyWith(color: c.muted),
+          child: DashedBorder(
+            color: c.outline,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Text(
+                objective == null ? 'Sin tareas generales.' : 'Sin tareas.',
+                style: AppTextStyles.body.copyWith(color: c.muted),
+              ),
+            ),
           ),
         ),
       if (board)
@@ -527,7 +575,9 @@ class _WorkSectionView extends ConsumerWidget {
           controller: controller,
           key: PageStorageKey('work_section_${objective.id}'),
           initiallyExpanded: true,
-          tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          // La flecha a la izquierda, como el encabezado de objetivo web.
+          controlAffinity: ListTileControlAffinity.leading,
+          tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           childrenPadding: const EdgeInsets.only(left: AppSpacing.xs),
           title: Row(
             children: [
@@ -538,6 +588,12 @@ class _WorkSectionView extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.itemTitle.copyWith(color: c.text),
                 ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              CountBadge(
+                count: tasks.length,
+                singular: 'tarea',
+                plural: 'tareas',
               ),
               if (complete) ...[
                 const SizedBox(width: AppSpacing.xs),
@@ -578,7 +634,7 @@ class _WorkSectionView extends ConsumerWidget {
               children: [
                 Expanded(
                   child: LinearProgressIndicator(
-                    value: tasks.isEmpty ? 0 : done / tasks.length,
+                    value: total == 0 ? 0 : done / total,
                     minHeight: 4,
                     color: accent,
                     backgroundColor: c.outline,
@@ -587,9 +643,9 @@ class _WorkSectionView extends ConsumerWidget {
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(
-                  tasks.isEmpty
+                  total == 0
                       ? '0 tareas'
-                      : '$done/${tasks.length} · ${(done / tasks.length * 100).round()}%',
+                      : '$done/$total · ${(done / total * 100).round()}%',
                   style: AppTextStyles.supporting.copyWith(color: c.muted),
                 ),
               ],
