@@ -1,6 +1,7 @@
 // Capturas web de la comparativa (spec 066): mismo viewport que el emulador, por rol y tema.
 // Uso: node scripts/paridad-web.mjs <Pxx-slug> <ruta> [rol=admin] [--click=nombre,...] [--scroll=px,...] [--sin-sesion]
-// --click toca, en orden, botones o enlaces por su nombre accesible (abrir el menú, un dialog, una pestaña).
+// --click toca, en orden, botones, enlaces, pestañas o textos por su nombre (abrir el menú, un dialog, una pestaña);
+// con el prefijo sel: usa un selector de Playwright.
 // Playwright no es dependencia del repo: se toma de PLAYWRIGHT_DIR (node_modules que lo contenga).
 import { chmod, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -45,7 +46,13 @@ try {
     // El indicador de Next en desarrollo no es parte de la interfaz.
     await page.addStyleTag({ content: 'nextjs-portal{display:none!important}' });
     for (const name of clicks) {
-      await page.getByRole('button', { name }).or(page.getByRole('link', { name })).or(page.getByRole('tab', { name })).first().click();
+      if (name.startsWith('sel:')) {
+        await page.locator(name.slice(4)).first().click();
+        await page.waitForTimeout(400);
+        continue;
+      }
+      await page.getByRole('button', { name }).or(page.getByRole('link', { name })).or(page.getByRole('tab', { name })).or(page.getByRole('menuitem', { name }))
+        .or(page.getByText(name, { exact: true })).first().click();
       await page.waitForTimeout(400);
     }
     await page.evaluate(() => document.fonts.ready);

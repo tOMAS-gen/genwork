@@ -29,8 +29,12 @@ export PLAYWRIGHT_DIR=$(dirname "$(find ~/.npm/_npx -maxdepth 3 -type d -name pl
 node scripts/paridad-web.mjs P05-proyectos / admin
 node scripts/paridad-web.mjs P03-navegacion / admin --click="Abrir menú"
 node scripts/paridad-web.mjs P01-acceso /login sinsesion --sin-sesion
-node scripts/paridad-web.mjs P07-detalle /works/<id> admin --scroll=800,1600
+node scripts/paridad-web.mjs P07-detalle /works/<id> admin --scroll=700,1400
+node scripts/paridad-web.mjs P06-crear-proyecto / admin --click="Crear un proyecto,Nuevo proyecto"
+node scripts/paridad-web.mjs P09-detalle-tarea /works/<id> admin "--click=sel:.task-text:has-text('Preparar los originales')" --scroll=1150
 ```
+
+`--click` busca botones, enlaces, pestañas, ítems de menú o texto exacto. Con `sel:` usa un selector de Playwright, por ejemplo para un botón sin nombre único. Si la página web no pasa de 844 px de alto, no hace falta `--scroll`.
 
 Cada llamada genera el par claro y oscuro. La sesión por rol queda en `.context/paridad-visual/auth-<rol>.json` (0600). Si el login cambia, borrá ese archivo.
 
@@ -38,22 +42,35 @@ Cada llamada genera el par claro y oscuro. La sesión por rol queda en `.context
 
 ```sh
 scripts/paridad-android.sh ui "Proyectos"   # buscar elementos: texto @ x y (dp)
-scripts/paridad-android.sh tap 28 76        # abrir el menú
-scripts/paridad-android.sh cap P05-proyectos-admin   # claro y oscuro de lo que hay en pantalla
+scripts/paridad-android.sh nav "Todos los proyectos"   # vuelve atrás si hace falta, abre el menú y toca el ítem
+scripts/paridad-android.sh tap 28 76        # tocar en dp
+scripts/paridad-android.sh cap P05-proyectos-admin       # claro y oscuro de lo que hay en pantalla
+scripts/paridad-android.sh scroll 700       # desplaza 700 dp (en tramos, desde la mitad de la pantalla)
+scripts/paridad-android.sh cap P05-proyectos-admin -s2   # desplazada
 scripts/paridad-android.sh vista            # captura reducida para mirar
 ```
 
+- Para tocar por texto desde zsh: `xy=$(scripts/paridad-android.sh ui | grep -E "^Texto" | head -1 | grep -oE '[0-9]+ [0-9]+$'); scripts/paridad-android.sh tap ${=xy}`.
+- `cap` oculta el teclado si quedó abierto: la web no lo muestra.
+- En Configuración, `ui` encuentra dos "Sistema": el chip de tema y la sección. Para la sección, usá la segunda coordenada.
 - La app sigue el tema del sistema y `cap` alterna el modo oscuro del emulador.
-- Cambiar el tema recrea la pantalla y cierra los menús abiertos. `cap` vuelve a abrir la misma pantalla; revisá que la captura oscura muestre lo mismo que la clara.
+- Cambiar el tema no cierra menús ni dialogs, pero revisá igual que la captura oscura muestre lo mismo que la clara.
 - Si el menú lateral está abierto, el botón atrás puede cerrar la app. Para cerrar el menú, tocá su ✕.
 
-## 4. Reglas del par
+## 4. Cambio de rol en Android
+
+1. En el menú lateral, tocá "Cerrar sesión".
+2. Cerrá también la sesión de Chrome en el emulador: `scripts/paridad-android.sh adb shell am start -a android.intent.action.VIEW -d http://localhost:3010/api/auth/signout com.android.chrome` y tocá "Sign out".
+3. Volvé a la app (`adb shell monkey -p ar.genwork.mobile 1`), tocá el servidor y elegí "Entrar como …" con el rol que corresponda.
+4. Para P01 (`/setup` sin servidores): cerrá la sesión, quitá el servidor en Servidores, capturá y volvé a cargar `http://localhost:3010`. Si Chrome todavía tiene la sesión de admin, el ingreso vuelve directo como admin.
+
+## 5. Reglas del par
 
 - La web y Android tienen que estar en la **misma ruta y el mismo estado**: misma sección activa, mismo recurso, mismo desplazamiento.
 - Nombre: `Pxx-<slug>-<rol>-<tema>-390[-sN]-{web|android}.png`, en `.context/paridad-visual/antes/`.
 - La barra de estado de Android (24 dp) no se compara.
 
-## 5. Comparador
+## 6. Comparador
 
 ```sh
 node scripts/mobile-evidence.mjs .context/paridad-visual/antes

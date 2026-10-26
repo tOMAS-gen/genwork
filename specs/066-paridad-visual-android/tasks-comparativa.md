@@ -58,18 +58,18 @@ Plan: [plan-comparativa.md](plan-comparativa.md) · Spec: [SPEC-comparativa.md](
 **Depende de:** 1, 2, 3 · **Archivos:** `quickstart.md` · **Tamaño:** S
 
 ## Checkpoint A: revisión del piloto
-- [ ] El usuario aprueba el encuadre, el ancho y la calidad del par P05, o pide ajustes al procedimiento.
+- [x] El usuario aprueba el encuadre, el ancho y la calidad del par P05, o pide ajustes al procedimiento.
 
 ## Tarea 5: Tanda 1 — P01–P12
 
 **Descripción:** Capturar en claro y oscuro: acceso, servidores, navegación, Mi día, proyectos, crear/editar proyecto, detalle de proyecto, plantillas, detalle de tarea, tablero, sectores y detalle de sector.
 
 **Criterios de aceptación:**
-- [ ] Cada P con equivalente tiene pares completos, más los desplazados necesarios.
-- [ ] El estado de esas filas está actualizado en `inventario.md`.
+- [x] Cada P con equivalente tiene pares completos, más los desplazados necesarios.
+- [x] El estado de esas filas está actualizado en `inventario.md`.
 
 **Verificación:**
-- [ ] El comparador muestra los pares sin huérfanas de esta tanda.
+- [x] El comparador muestra los pares sin huérfanas de esta tanda.
 
 **Depende de:** Checkpoint A · **Archivos:** `inventario.md` · **Tamaño:** M
 
@@ -82,7 +82,7 @@ Plan: [plan-comparativa.md](plan-comparativa.md) · Spec: [SPEC-comparativa.md](
 **Depende de:** Checkpoint A · **Archivos:** `inventario.md` · **Tamaño:** M
 
 ## Checkpoint B: revisión intermedia
-- [ ] El usuario mira el comparador de las tandas 1 y 2. Los ajustes de procedimiento se aplican antes de seguir.
+- [x] Se omitió: el usuario pidió seguir con todas las tandas después de aprobar el piloto. La revisión queda para el checkpoint final.
 
 ## Tarea 7: Tanda 3 — P25–P32 administración
 
@@ -97,11 +97,11 @@ Plan: [plan-comparativa.md](plan-comparativa.md) · Spec: [SPEC-comparativa.md](
 **Descripción:** Cerrar sesión de admin en la app y en el navegador del emulador. Capturar P33–P34 como `cliente` y P35 como `lector`. Al final, volver a la sesión de admin.
 
 **Criterios de aceptación:**
-- [ ] Pares en claro y oscuro de P33, P34 y P35, nombrados con su rol.
-- [ ] Se revocaron las sesiones temporales y se restauró la de admin.
+- [x] Pares en claro y oscuro de P33, P34 y P35, nombrados con su rol.
+- [x] Se revocaron las sesiones temporales y se restauró la de admin.
 
 **Verificación:**
-- [ ] Comparador sin huérfanas de esta tanda.
+- [x] Comparador sin huérfanas de esta tanda.
 
 **Depende de:** Checkpoint B · **Archivos:** `inventario.md` · **Tamaño:** S
 
@@ -110,11 +110,11 @@ Plan: [plan-comparativa.md](plan-comparativa.md) · Spec: [SPEC-comparativa.md](
 **Descripción:** Regenerar el comparador completo, verificar los criterios de éxito de la spec y commitear los documentos y el script, sin capturas.
 
 **Criterios de aceptación:**
-- [ ] Los cinco criterios de éxito de `SPEC-comparativa.md` se cumplen.
-- [ ] El commit incluye `MAP.md`, `SPEC-comparativa.md`, el plan, las tareas, `inventario.md`, `quickstart.md` y `mobile-evidence.mjs`, y nada de `.context/`.
+- [x] Los cinco criterios de éxito de `SPEC-comparativa.md` se cumplen.
+- [x] El commit incluye `MAP.md`, `SPEC-comparativa.md`, el plan, las tareas, `inventario.md`, `quickstart.md` y `mobile-evidence.mjs`, y nada de `.context/`.
 
 **Verificación:**
-- [ ] `git status` limpio fuera de lo esperado y `git show --stat` sin imágenes.
+- [x] `git status` limpio fuera de lo esperado y `git show --stat` sin imágenes.
 
 **Depende de:** 7, 8 · **Archivos:** los de la lista · **Tamaño:** XS
 

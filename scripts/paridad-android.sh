@@ -6,8 +6,11 @@
 #   text "..."       escribe en el campo con foco
 #   key CODIGO       keyevent (4 atrás, 66 enter)
 #   theme light|dark modo oscuro del sistema (la app sigue al sistema)
-#   cap Pxx-slug-rol captura la pantalla actual en claro y oscuro en .context/paridad-visual/antes
+#   cap Pxx-slug-rol [-sN]  captura la pantalla actual en claro y oscuro en .context/paridad-visual/antes
+#   scroll DP        desplaza el contenido DP hacia abajo (gesto lento, sin inercia)
 #   demo             barra de estado fija (9:30, batería llena, sin notificaciones)
+#   nav "Texto"      abre el menú lateral y toca el ítem con ese texto
+#   adb ...          adb contra el mismo dispositivo
 #   vista            captura reducida a .context/paridad-visual/vista.png para mirar
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -31,10 +34,21 @@ case "${1:-}" in
     mkdir -p "$out"
     for t in light dark; do
       "$0" theme "$t"
-      "${adb[@]}" exec-out screencap -p > "$out/$2-$t-390-android.png"
-      echo "$out/$2-$t-390-android.png"
+      # El teclado no es parte de la pantalla web: si quedó abierto, se oculta.
+      if "${adb[@]}" shell dumpsys input_method | grep -q 'mInputShown=true'; then
+        "${adb[@]}" shell input keyevent 4; sleep 0.8
+      fi
+      "${adb[@]}" exec-out screencap -p > "$out/$2-$t-390${3:-}-android.png"
+      echo "$out/$2-$t-390${3:-}-android.png"
     done
     "$0" theme light ;;
+  scroll) # en tramos de hasta 500 dp desde la mitad de la pantalla (abajo suele haber barras fijas)
+    left=$2
+    while [ "$left" -gt 0 ]; do
+      step=$(( left > 500 ? 500 : left ))
+      "${adb[@]}" shell input swipe 585 1650 585 $(( 1650 - step * 3 )) 1500
+      left=$(( left - step ))
+    done ;;
   demo)
     "${adb[@]}" shell settings put global sysui_demo_allowed 1
     demo enter
@@ -46,5 +60,19 @@ case "${1:-}" in
     "${adb[@]}" exec-out screencap -p > .context/paridad-visual/vista-full.png
     sips -Z 1000 .context/paridad-visual/vista-full.png --out .context/paridad-visual/vista.png >/dev/null
     echo .context/paridad-visual/vista.png ;;
-  *) echo 'Uso: scripts/paridad-android.sh ui|tap|text|key|theme|cap|demo|vista' >&2; exit 2 ;;
+  nav) # nav "Texto": abre el menú lateral y toca el ítem que empieza con ese texto
+    find_item() { "$0" ui | grep -E "^$1(&#10;| @)" | head -1 | grep -oE '[0-9]+ [0-9]+$' || true; }
+    for _ in 1 2 3; do   # desde una pantalla de detalle, volver hasta la que tiene menú
+      [ -n "$(find_item 'Abrir menú')" ] && break
+      "${adb[@]}" shell input keyevent 4; sleep 1.5
+    done
+    if [ -n "$(find_item 'Abrir menú')" ]; then "$0" tap 28 76; sleep 1; fi
+    for _ in 1 2 3; do
+      xy=$(find_item "$2")
+      if [ -n "$xy" ]; then "$0" tap $xy; sleep 2.5; exit 0; fi
+      "${adb[@]}" shell input swipe 400 2000 400 900 800; sleep 1
+    done
+    echo "No encontré \"$2\" en el menú" >&2; exit 1 ;;
+  adb) shift; "${adb[@]}" "$@" ;;
+  *) echo 'Uso: scripts/paridad-android.sh ui|tap|text|key|theme|cap|scroll|demo|vista|adb' >&2; exit 2 ;;
 esac
