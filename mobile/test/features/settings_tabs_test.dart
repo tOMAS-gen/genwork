@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/router/routes.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
+import 'package:genwork_mobile/features/settings/mobile_app_screen.dart';
 import 'package:genwork_mobile/features/settings/settings_tabs.dart';
 import 'package:go_router/go_router.dart';
 
@@ -22,6 +23,7 @@ Future<GoRouter> _mount(WidgetTester t, String role) async {
         builder: (_, _) => page('mcp'),
       ),
       GoRoute(path: Routes.settings, builder: (_, _) => page('home')),
+      GoRoute(path: Routes.mobileApp, builder: (_, _) => page('mobile')),
     ],
   );
   addTearDown(router.dispose);
@@ -60,5 +62,20 @@ void main() {
       router.routeInformationProvider.value.uri.path,
       Routes.setting('mcp'),
     );
+  });
+
+  testWidgets('P24b App móvil: dirección, aviso de dirección local y pasos', (
+    t,
+  ) async {
+    expect(MobileAppScreen.isLocal(Uri.parse('http://localhost:3010')), isTrue);
+    expect(
+      MobileAppScreen.isLocal(Uri.parse('https://work.empresa.com')),
+      isFalse,
+    );
+    final router = await _mount(t, 'MEMBER');
+    expect(find.text('App móvil'), findsOneWidget);
+    await t.tap(find.text('App móvil'));
+    await t.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.path, Routes.mobileApp);
   });
 }

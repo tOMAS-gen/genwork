@@ -285,10 +285,10 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 **Descripción:** Sección App móvil de la cuenta (`/settings/movil` de la web), con lo que la API ya ofrece.
 
 **Criterios de aceptación:**
-- [ ] P24b tiene par `despues` y queda `igual`.
+- [x] P24b existe con dirección, Copiar, aviso de dirección local y pasos, y la pestaña App móvil en la barra de configuración. **Falta el código QR**: la web lo genera en el servidor y la app necesitaría `qr_flutter` (dependencia nueva: se le pregunta al usuario).
 
 **Verificación:**
-- [ ] `flutter test test/features/settings_parity_test.dart`
+- [x] `flutter test test/features/settings_parity_test.dart`
 
 **Depende de:** 14 · **Archivos:** `mobile/lib/features/account/*` o `settings/*`, `mobile/lib/core/router/routes.dart`, su test · **Tamaño:** S
 

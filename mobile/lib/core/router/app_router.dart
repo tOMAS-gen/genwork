@@ -41,6 +41,7 @@ import 'auth_redirect.dart';
 import 'routes.dart';
 import '../../features/materials/work_materials_screen.dart';
 import '../../features/materials/materials_screen.dart';
+import '../../features/settings/mobile_app_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   String? identity(SessionState? session) => session is SignedIn
@@ -253,6 +254,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'settings',
                     builder: (_, _) => const SettingsHomeScreen(),
                     routes: [
+                      GoRoute(
+                        path: 'mobile',
+                        builder: (_, _) => const MobileAppScreen(),
+                      ),
                       GoRoute(
                         path: 'module/:section',
                         builder: (_, state) => SettingsScreen(

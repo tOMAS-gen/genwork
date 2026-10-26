@@ -23,6 +23,7 @@ class SettingsTabs extends ConsumerWidget {
       'Vincular con Claude',
       Routes.setting(SettingsSection.mcp.name),
     ),
+    ('mobile', 'App móvil', Routes.mobileApp),
     if (admin) ...[
       ('home', 'Resumen', Routes.settings),
       (
