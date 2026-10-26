@@ -47,8 +47,19 @@ Tiempo desde el `PATCH` hasta que el aviso aparece en el sistema, en 10 avisos s
 2. **Un token mal formado se reintentaba 7 veces durante horas.** FCM HTTP v1 responde `messaging/invalid-argument` (400), que la cola trataba como falla temporal. Ahora queda `FAILED` de inmediato y el dispositivo no se desactiva, porque ese código también puede deberse al mensaje. Test: `tests/unit/mobile-push-errors.test.ts` y un caso de integración.
 3. **Relojes mezclados en la cola.** `dispatchPush` comparaba `dueAt` (Node) con `NOW()` de PostgreSQL. Con la base 1–2 ms atrasada (medido en 99 de 100 muestras), un aviso recién creado esperaba al siguiente tick. Por eso la suite de integración fallaba en 3 de 4 corridas. Ahora usa el mismo `now`: 8 de 8 corridas en verde.
 
+4. **La campana con contador se anunciaba solo como "19".** TalkBack no decía qué era. Ahora anuncia "Notificaciones, 19 sin leer", verificado en el moto con uiautomator. Test: `mobile/test/features/deliveries_button_test.dart`.
+
+## Pruebas agregadas antes del merge
+
+Integración con PostgreSQL real, 8 pruebas nuevas (19 en total):
+- `PUT /api/mobile/push-device`: rechaza la sesión web sin Bearer móvil, el Bearer de otro usuario y una sesión revocada (FR-006). Una reinstalación mueve el dispositivo a la sesión nueva y libera el token reusado.
+- Urgencia rechazada para un usuario de solo lectura, sin crear avisos.
+- Preferencia "Urgentes" apagada: no se encola el push y el aviso queda en la bandeja. Si ya estaba encolado, se cancela antes de enviarse.
+- Bandeja: filtro por tipo y páginas de 30.
+
+Cada prueba se validó rompiendo a propósito el código que protege, con 7 mutaciones. Todas fallaron y el código se restauró.
+
 ## Observaciones fuera de alcance
 
-- Con contador, la campana del encabezado expone como etiqueta accesible solo el número ("19") en lugar de "Notificaciones". TalkBack no anuncia qué es.
 - Las capturas son de builds debug con `DEV_AUTH`. La firma de release y el login con Google quedan para la distribución.
 - iOS no se validó (spec: diferido).
