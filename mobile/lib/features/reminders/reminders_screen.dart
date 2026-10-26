@@ -29,7 +29,8 @@ class RemindersScreen extends ConsumerStatefulWidget {
 }
 
 class _RemindersScreenState extends ConsumerState<RemindersScreen> {
-  bool _calendar = false;
+  /// Como la web, abre en el calendario del mes.
+  bool _calendar = true;
   bool get deliveriesOnly => widget.deliveriesOnly;
   @override
   Widget build(BuildContext context) {
@@ -87,7 +88,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           IconButton.filled(
             key: const ValueKey('reminders_create'),
             tooltip: 'Crear recordatorio',
-            icon: const Icon(AppIcons.reminderAdd),
+            icon: const Icon(AppIcons.add),
             onPressed: () => context.push(Routes.newReminder),
           ),
       ],
@@ -109,43 +110,38 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         children: [
-          if (timezone?.hasValue == true)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: Text(
-                'Zona horaria del sistema: ${timezone!.requireValue.name}',
-                style: AppTextStyles.body.copyWith(color: c.muted),
+          if (deliveriesOnly) ...[
+            section(
+              deliveriesOnly ? 'Avisos pendientes' : 'Notificaciones',
+              'Avisos que necesitan tu atención.',
+              AppIcons.bell,
+            ),
+            if (deliveries.isLoading && !deliveries.hasValue)
+              const LoadingView(),
+            if (deliveries.hasError)
+              ErrorView(
+                error: deliveries.error!,
+                onRetry: () => ref.invalidate(deliveriesProvider),
               ),
-            ),
-          section(
-            deliveriesOnly ? 'Avisos pendientes' : 'Notificaciones',
-            'Avisos que necesitan tu atención.',
-            AppIcons.bell,
-          ),
-          if (deliveries.isLoading && !deliveries.hasValue) const LoadingView(),
-          if (deliveries.hasError)
-            ErrorView(
-              error: deliveries.error!,
-              onRetry: () => ref.invalidate(deliveriesProvider),
-            ),
-          if (deliveries.hasValue && deliveries.requireValue.isEmpty)
-            const WorkspacePanel(
-              child: ListTile(
-                title: Text('Estás al día'),
-                subtitle: Text('No tenés avisos pendientes.'),
+            if (deliveries.hasValue && deliveries.requireValue.isEmpty)
+              const WorkspacePanel(
+                child: ListTile(
+                  title: Text('Estás al día'),
+                  subtitle: Text('No tenés avisos pendientes.'),
+                ),
               ),
-            ),
-          if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
-            WorkspaceListPanel(
-              children: [
-                for (final d in deliveries.requireValue)
-                  DeliveryTile(
-                    key: ValueKey('delivery_row_${d.id}'),
-                    delivery: d,
-                    dayLabel: dayLabel(d.occurrenceDate),
-                  ),
-              ],
-            ),
+            if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
+              WorkspaceListPanel(
+                children: [
+                  for (final d in deliveries.requireValue)
+                    DeliveryTile(
+                      key: ValueKey('delivery_row_${d.id}'),
+                      delivery: d,
+                      dayLabel: dayLabel(d.occurrenceDate),
+                    ),
+                ],
+              ),
+          ],
           if (!deliveriesOnly) ...[
             const SizedBox(height: AppSpacing.md),
             SegmentedButton<bool>(
@@ -210,6 +206,49 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
               ),
             ],
           ],
+          // Solo en la app: los avisos van debajo del calendario.
+          if (!deliveriesOnly) ...[
+            section(
+              deliveriesOnly ? 'Avisos pendientes' : 'Notificaciones',
+              'Avisos que necesitan tu atención.',
+              AppIcons.bell,
+            ),
+            if (deliveries.isLoading && !deliveries.hasValue)
+              const LoadingView(),
+            if (deliveries.hasError)
+              ErrorView(
+                error: deliveries.error!,
+                onRetry: () => ref.invalidate(deliveriesProvider),
+              ),
+            if (deliveries.hasValue && deliveries.requireValue.isEmpty)
+              const WorkspacePanel(
+                child: ListTile(
+                  title: Text('Estás al día'),
+                  subtitle: Text('No tenés avisos pendientes.'),
+                ),
+              ),
+            if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
+              WorkspaceListPanel(
+                children: [
+                  for (final d in deliveries.requireValue)
+                    DeliveryTile(
+                      key: ValueKey('delivery_row_${d.id}'),
+                      delivery: d,
+                      dayLabel: dayLabel(d.occurrenceDate),
+                    ),
+                ],
+              ),
+          ],
+          // Como la web: la zona horaria al pie.
+          if (!deliveriesOnly && timezone?.hasValue == true)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: Text(
+                timezone!.requireValue.name.replaceAll('_', ' '),
+                key: const ValueKey('reminders_timezone'),
+                style: AppTextStyles.body.copyWith(color: c.muted),
+              ),
+            ),
           const SizedBox(height: AppSpace.bottomClearance),
         ],
       ),

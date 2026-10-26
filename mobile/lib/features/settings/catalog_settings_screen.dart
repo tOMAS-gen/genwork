@@ -15,6 +15,7 @@ import '../works/works_providers.dart';
 import '../sectors/sectors_providers.dart';
 import 'settings_form_dialog.dart';
 import 'settings_providers.dart';
+import 'settings_tabs.dart';
 
 class CatalogSettingsScreen extends ConsumerStatefulWidget {
   const CatalogSettingsScreen({
@@ -230,6 +231,7 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
     final inherited = json?['inherited'] == true;
     return GenPageScaffold(
       title: widget.kind.title,
+      top: SettingsTabs(current: widget.kind.name),
       icon: AppIcons.settings,
       showBack: true,
       bodyPadding: EdgeInsets.zero,

@@ -12,6 +12,8 @@ import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import 'logout_tile.dart';
+import '../../data/repositories/settings_repository.dart';
+import '../settings/settings_tabs.dart';
 
 /// Radio del avatar de la cuenta (48 px de diámetro).
 const double _avatarRadius = 24;
@@ -28,8 +30,9 @@ class AccountScreen extends ConsumerWidget {
 
     return GenPageScaffold(
       title: 'Mi cuenta',
-      subtitle: 'Perfil, servidor y sesión.',
-      icon: AppIcons.person,
+      subtitle: 'Almacenamiento vinculado, versión y estado del sistema.',
+      icon: AppIcons.settings,
+      top: user.isWriter ? const SettingsTabs(current: 'account') : null,
       showThemeToggle: user.isClient || user.isReader,
       bodyPadding: EdgeInsets.zero,
       body: ListView(
@@ -91,6 +94,35 @@ class AccountScreen extends ConsumerWidget {
               ),
             ],
           ),
+          // Como la web: Cuenta de almacenamiento y Sistema dentro de Mi cuenta.
+          if (user.isWriter) ...[
+            const SizedBox(height: AppSpacing.md),
+            WorkspaceListPanel(
+              children: [
+                for (final (section, description) in [
+                  (
+                    SettingsSection.storageLink,
+                    'Vinculá tu cuenta de Nextcloud para acceder a tus archivos con tus propios permisos.',
+                  ),
+                  (
+                    SettingsSection.system,
+                    'Versión, entorno y estado de la nube.',
+                  ),
+                ])
+                  ListTile(
+                    key: ValueKey('account_${section.name}'),
+                    title: Text(section.title),
+                    subtitle: Text(description),
+                    trailing: Icon(
+                      AppIcons.chevronRight,
+                      size: AppIconSizes.action,
+                      color: c.muted,
+                    ),
+                    onTap: () => context.push(Routes.setting(section.name)),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: AppSpacing.md),
           WorkspaceListPanel(
             children: [

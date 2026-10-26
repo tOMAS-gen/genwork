@@ -41,12 +41,12 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P18 | Archivos del proyecto | pestaña Archivos de `/works/[id]` | `/works/:id/files` | S15 | M13 | admin | "Cartelería del local" (Nextcloud local) | igual | igual |
 | P19 | Actividad y clientes del proyecto | pestañas de `/works/[id]` | `/works/:id/activity`, `/works/:id/clients` | S21 | M17 | admin | "Cartelería del local" | igual | igual |
 | P20 | Materiales | `/materials` | **falta en Android** | S16 | — | admin | sin GenStock: estado vacío | web | web |
-| P21 | Recordatorios | `/reminders` | `/more/reminders`, `/new`, `/:id` | S17 | M14 | admin | "Revisar entregas" | par | par |
-| P22 | Notificaciones | campanita de la barra web | `/more/notifications`, `/more/notification-settings`, `/more/due-today` | S17 | — | admin | avisos semilla | par | par |
+| P21 | Recordatorios | `/reminders` | `/more/reminders`, `/new`, `/:id` | S17 | M14 | admin | "Revisar entregas" | igual | igual |
+| P22 | Notificaciones | campanita de la barra web | `/more/notifications`, `/more/notification-settings`, `/more/due-today` | S17 | — | admin | avisos semilla | igual | igual |
 | P23 | Cuenta y más | `/settings` | `/more`, `/more/account`; secciones Sistema y Cuenta de almacenamiento | S18 | M15 | admin | — | par | par |
-| P24a | Vincular con Claude | `/settings/claude` | `/more/settings/module/mcp` y `module/activity` | S19 | M15 | admin | — | par | par |
+| P24a | Vincular con Claude | `/settings/claude` | `/more/settings/module/mcp` y `module/activity` | S19 | M15 | admin | — | igual | igual |
 | P24b | App móvil | `/settings/movil` | **falta en Android** | S19 | — | admin | — | web | web |
-| P25 | Administración | `/admin` | `/more/settings` | S20 | M16 | admin | — | par | par |
+| P25 | Administración | `/admin` | `/more/settings` | S20 | M16 | admin | — | igual | igual |
 | P26 | Usuarios y acceso | `/admin/users`, `/admin/access` | `module/users`, `module/access`, `module/emails` | S20 | M16 | admin | usuarios de prueba | par | par |
 | P27 | Clientes | `/admin/clients` | `module/clients` | S21 | M16 | admin | `cliente@test.local` | par | par |
 | P28 | Etiquetas y etapas | `/admin/labels`, `/admin/stages` | `catalog/labels`, `catalog/stages` | S22 | M16 | admin | — | par | par |

@@ -31,6 +31,7 @@ class GenPageScaffold extends StatelessWidget {
     this.onRefresh,
     this.fab,
     this.headerBottom,
+    this.top,
     this.bodyPadding = const EdgeInsets.symmetric(
       horizontal: AppSpacing.sm,
       vertical: AppSpacing.md,
@@ -54,6 +55,10 @@ class GenPageScaffold extends StatelessWidget {
 
   /// Área bajo el encabezado (tabs, filtros).
   final Widget? headerBottom;
+
+  /// Área sobre el encabezado (la barra de secciones de Configuración, que en
+  /// la web va arriba del título).
+  final Widget? top;
   final EdgeInsets bodyPadding;
 
   @override
@@ -68,6 +73,7 @@ class GenPageScaffold extends StatelessWidget {
       floatingActionButton: fab,
       body: NestedScrollView(
         headerSliverBuilder: (context, _) => [
+          if (top != null) SliverToBoxAdapter(child: top),
           SliverToBoxAdapter(
             child: GenSectionHeader(
               title: title,

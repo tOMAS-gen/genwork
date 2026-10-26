@@ -21,115 +21,181 @@ import '../../shared/widgets/theme_toggle.dart';
 import '../works/works_providers.dart';
 import 'settings_providers.dart';
 import 'settings_form_dialog.dart';
+import 'settings_tabs.dart';
 import 'storage_settings.dart';
 import '../../core/theme/app_geometry.dart';
+import '../../shared/widgets/panel_section.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../core/auth/session.dart';
 
+/// Portada de Configuración, como `/admin` de la web: una card por destino con
+/// ícono, título y descripción. Arriba van las preferencias propias de la app
+/// (tema y notificaciones, decisión 2 de la spec 066).
 class SettingsHomeScreen extends ConsumerWidget {
   const SettingsHomeScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final admin = ref.watch(currentUserProvider)?.isSuperAdmin == true;
     final c = context.colors;
-    Widget label(String text) => Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
-      child: Semantics(
-        header: true,
-        child: Text(
-          text.toUpperCase(),
-          style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+    Widget card(
+      String key,
+      IconData icon,
+      String title,
+      String description,
+      String route,
+    ) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          key: ValueKey('settings_$key'),
+          onTap: () => context.push(route),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Icon(icon, size: AppIconSizes.action, color: c.text),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.itemTitle.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: c.text,
+                        ),
+                      ),
+                      Text(
+                        description,
+                        style: AppTextStyles.body.copyWith(color: c.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
-    Widget links(List<Widget> children) =>
-        WorkspaceListPanel(children: children);
 
     return GenPageScaffold(
       title: 'Configuración',
-      subtitle: 'Tu cuenta, preferencias y catálogos.',
       icon: AppIcons.settings,
-      bodyPadding: EdgeInsets.zero,
+      top: const SettingsTabs(current: 'home'),
       body: ListView(
         key: const ValueKey('settings_home'),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          0,
-          AppSpacing.md,
-          AppSpacing.md,
-        ),
+        padding: EdgeInsets.zero,
         children: [
-          label('Tu cuenta y preferencias'),
-          links([
-            const ThemeToggleTile(key: ValueKey('settings_theme')),
-            _link(context, 'Notificaciones', Routes.notificationSettings, 'notifications'),
-            for (final section in [
-              SettingsSection.system,
-              SettingsSection.storageLink,
-              SettingsSection.mcp,
-            ])
-              _link(
-                context,
-                section.title,
-                Routes.setting(section.name),
-                section.name,
-              ),
-          ]),
-          label('Catálogos por ámbito'),
-          links([
-            _link(
-              context,
-              'Etiquetas y colores',
-              Routes.catalog('labels'),
-              'labels',
-            ),
-            _link(
-              context,
-              'Etapas de producción',
-              Routes.catalog('stages'),
-              'stages',
-            ),
-            _link(
-              context,
-              'Estados de tarea',
-              Routes.catalog('statuses'),
-              'statuses',
-            ),
-          ]),
-          if (admin) ...[
-            label('Administración del sistema'),
-            links([
-              for (final section in [
-                SettingsSection.access,
-                SettingsSection.users,
-                SettingsSection.clients,
-                SettingsSection.storage,
-                SettingsSection.reminders,
-                SettingsSection.errors,
-              ])
-                _link(
-                  context,
-                  section.title,
-                  Routes.setting(section.name),
-                  section.name,
+          // Solo en la app: tema y notificaciones push.
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: WorkspaceListPanel(
+              children: [
+                const ThemeToggleTile(key: ValueKey('settings_theme')),
+                ListTile(
+                  key: const ValueKey('settings_notifications'),
+                  leading: Icon(AppIcons.bell, color: c.text),
+                  title: const Text('Notificaciones'),
+                  subtitle: const Text('Avisos en este teléfono'),
+                  trailing: Icon(
+                    AppIcons.chevronRight,
+                    size: AppIconSizes.action,
+                    color: c.muted,
+                  ),
+                  onTap: () => context.push(Routes.notificationSettings),
                 ),
-            ]),
+              ],
+            ),
+          ),
+          card(
+            'account',
+            AppIcons.person,
+            'Mi cuenta',
+            'Almacenamiento vinculado, versión y estado del sistema',
+            Routes.account,
+          ),
+          if (admin) ...[
+            card(
+              SettingsSection.access.name,
+              AppIcons.lock,
+              'Control de acceso',
+              'Quién puede ingresar: dominio corporativo o lista de correos',
+              Routes.setting(SettingsSection.access.name),
+            ),
+            card(
+              SettingsSection.storage.name,
+              AppIcons.server,
+              'Almacenamiento (mini nube)',
+              'Conexión con Nextcloud y estado del aprovisionamiento',
+              Routes.setting(SettingsSection.storage.name),
+            ),
+            card(
+              SettingsSection.users.name,
+              AppIcons.groups,
+              'Usuarios y roles',
+              'Rol Lector para pantallas/TV y grupos habilitados',
+              Routes.setting(SettingsSection.users.name),
+            ),
+            card(
+              SettingsSection.clients.name,
+              AppIcons.view,
+              'Clientes',
+              'Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada',
+              Routes.setting(SettingsSection.clients.name),
+            ),
           ],
+          card(
+            'labels',
+            AppIcons.label,
+            'Etiquetas',
+            'Claves y valores de etiquetas para clasificar proyectos',
+            Routes.catalog('labels'),
+          ),
+          card(
+            'stages',
+            AppIcons.sectors,
+            'Estados de producción',
+            'Configurar las etapas de producción para los proyectos del grupo',
+            Routes.catalog('stages'),
+          ),
+          card(
+            'statuses',
+            AppIcons.check,
+            'Estados de tarea',
+            'Conjunto general de estados de tarea (en curso/final) por grupo o personal',
+            Routes.catalog('statuses'),
+          ),
+          if (admin) ...[
+            card(
+              SettingsSection.errors.name,
+              AppIcons.error,
+              'Errores',
+              'Errores capturados automáticamente, listos para revisar y corregir',
+              Routes.setting(SettingsSection.errors.name),
+            ),
+            card(
+              SettingsSection.reminders.name,
+              AppIcons.bell,
+              'Recordatorios',
+              'Calendario y avisos programados del grupo',
+              Routes.setting(SettingsSection.reminders.name),
+            ),
+          ],
+          card(
+            SettingsSection.mcp.name,
+            AppIcons.link,
+            'Vincular con Claude',
+            'Vinculación de asistentes de IA a la cuenta vía MCP',
+            Routes.setting(SettingsSection.mcp.name),
+          ),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
     );
   }
-
-  Widget _link(BuildContext context, String title, String route, String key) =>
-      ListTile(
-        key: ValueKey('settings_$key'),
-        title: Text(title),
-        trailing: Icon(
-          AppIcons.chevronRight,
-          size: AppIconSizes.action,
-          color: context.colors.muted,
-        ),
-        onTap: () => context.push(route),
-      );
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -231,12 +297,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // en un único panel.
     final cards =
         widget.section == SettingsSection.users ||
-        widget.section == SettingsSection.clients;
+        widget.section == SettingsSection.clients ||
+        widget.section == SettingsSection.mcp;
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
       title: widget.section.title,
       icon: AppIcons.settings,
       showBack: true,
+      top: SettingsTabs(current: widget.section.name),
       bodyPadding: EdgeInsets.zero,
       onRefresh: () async {
         ref.invalidate(settingsDataProvider(query));
@@ -443,43 +511,113 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ];
       case SettingsSection.mcp:
         final connections = (json['connections'] as List?) ?? [];
+        final session = ref.watch(sessionProvider).value;
+        final base = session is SignedIn
+            ? session.serverUrl.toString().replaceAll(RegExp(r'/$'), '')
+            : '';
+        final mcpUrl = '$base/api/mcp';
+        void copy(String value) {
+          Clipboard.setData(ClipboardData(text: value));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Copiado')));
+        }
+
+        // Las mismas secciones que la web (McpConnectionsPanel).
         return [
-          const Text(
-            'Cada conexión permite que un asistente opere con los permisos de tu cuenta.',
+          PanelSection(
+            title: 'Dirección del servidor',
+            description:
+                'Conectá Claude a Genwork para que pueda ver y gestionar tus proyectos y tareas, con exactamente tus mismos permisos.',
+            children: [
+              CopyField(
+                value: mcpUrl,
+                buttonKey: const ValueKey('settings_mcp_copy_url'),
+                onCopy: () => copy(mcpUrl),
+              ),
+            ],
           ),
-          button('add_mcp', 'Crear conexión', createMcp, icon: AppIcons.add),
-          tile(
-            'Actividad reciente',
-            'Operaciones de tus asistentes',
-            key: 'settings_mcp_activity',
-            trailing: const Icon(AppIcons.chevronRight),
-            onTap: () => context.push(Routes.setting('activity')),
+          PanelSection(
+            title: 'Tus tokens',
+            description:
+                'El token identifica a Claude como vos. Podés revocarlo cuando quieras; el acceso se corta en el momento.',
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton(
+                  key: const ValueKey('settings_add_mcp'),
+                  onPressed: _busy ? null : createMcp,
+                  child: const Text('Generar token'),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (connections.isEmpty)
+                const Text(
+                  'Todavía no tenés tokens. Generá uno para vincular Claude.',
+                ),
+              for (final c in connections)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${c['label']}'),
+                  subtitle: Text(
+                    c['lastUsedAt'] == null
+                        ? 'Sin uso todavía'
+                        : 'Último uso ${c['lastUsedAt']}',
+                  ),
+                  trailing: c['revokedAt'] != null
+                      ? StatusChip(
+                          label: 'Revocado',
+                          color: context.colors.muted,
+                          fill: context.colors.hover,
+                        )
+                      : OutlinedButton(
+                          key: ValueKey('settings_revoke_mcp_${c['id']}'),
+                          style: AppButtonStyles.destructiveOutlined(context),
+                          onPressed: _busy
+                              ? null
+                              : () async {
+                                  if (await settingsConfirm(
+                                    context,
+                                    '¿Revocar token?',
+                                    'El asistente perderá el acceso inmediatamente.',
+                                    action: 'Revocar',
+                                  )) {
+                                    await run(() => repo.revokeMcp(c['id']));
+                                  }
+                                },
+                          child: const Text('Revocar'),
+                        ),
+                ),
+            ],
           ),
-          if (connections.isEmpty) const Text('No tenés conexiones.'),
-          for (final c in connections)
-            tile(
-              '${c['label']}',
-              '${c['revokedAt'] != null ? 'Revocada' : 'Activa'} · Último uso: ${c['lastUsedAt'] ?? 'sin uso'}',
-              trailing: c['revokedAt'] != null
-                  ? null
-                  : IconButton(
-                      key: ValueKey('settings_revoke_mcp_${c['id']}'),
-                      tooltip: 'Revocar conexión',
-                      onPressed: _busy
-                          ? null
-                          : () async {
-                              if (await settingsConfirm(
-                                context,
-                                '¿Revocar conexión?',
-                                'El asistente perderá el acceso inmediatamente.',
-                                action: 'Revocar',
-                              )) {
-                                await run(() => repo.revokeMcp(c['id']));
-                              }
-                            },
-                      icon: const Icon(AppIcons.unlink),
-                    ),
-            ),
+          PanelSection(
+            title: 'Conectar en claude.ai',
+            children: [
+              const Text(
+                '1. En claude.ai abrí Configuración → Conectores y tocá Agregar conector personalizado.\n'
+                '2. Nombre: genwork. URL: la dirección del servidor.\n'
+                '3. En autenticación elegí Sin inicio de sesión.\n'
+                '4. Tocá Agregar encabezado. Nombre: authorization. Valor: Bearer, un espacio y tu token.\n'
+                '5. Tocá Agregar.\n'
+                '6. En un chat, activá genwork desde el menú +.',
+              ),
+            ],
+          ),
+          // Solo en la app: la actividad de los asistentes.
+          PanelSection(
+            title: 'Actividad reciente',
+            description: 'Operaciones de tus asistentes',
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(
+                  key: const ValueKey('settings_mcp_activity'),
+                  onPressed: () => context.push(Routes.setting('activity')),
+                  child: const Text('Ver actividad'),
+                ),
+              ),
+            ],
+          ),
         ];
       case SettingsSection.activity:
         final entries = (json['entries'] as List?) ?? [];

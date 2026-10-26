@@ -420,6 +420,9 @@ void main() {
     fail = false;
     await tester.tap(find.text('Reintentar'));
     await tester.pumpAndSettle();
+    // Abre en el calendario, como la web: la agenda está en "Próximos".
+    await tester.tap(find.text('Próximos'));
+    await tester.pumpAndSettle();
     expect(find.text('Sin recordatorios próximos'), findsOneWidget);
     expect(
       harness.requests.where((r) => r.path.endsWith('/timezone')).length,

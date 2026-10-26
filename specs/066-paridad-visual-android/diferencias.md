@@ -205,29 +205,29 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P21-01 | 1 | La web abre en el calendario del mes ("Octubre 2026", ‹ Hoy ›); Android abre en "Próximos" y suma Notificaciones arriba. | P | abierta |
-| P21-02 | 2 | Acción "+" (Android usa el ícono de alarma). | P | abierta |
-| P21-03 | 1 | Zona horaria al pie; Android arriba. | P | abierta |
+| P21-01 | 1 | La web abre en el calendario del mes ("Octubre 2026", ‹ Hoy ›); Android abre en "Próximos" y suma Notificaciones arriba. | P | corregida (abre en el calendario; Notificaciones, propia de la app, pasa abajo) |
+| P21-02 | 2 | Acción "+" (Android usa el ícono de alarma). | P | corregida |
+| P21-03 | 1 | Zona horaria al pie; Android arriba. | P | corregida |
 
 ## P22 Notificaciones y Vence hoy (solo Android)
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P22-01 | 1 | Pantallas propias (decisión 2); el vacío usa la forma de estado vacío de la web. | B-10 | abierta |
+| P22-01 | 1 | Pantallas propias (decisión 2); el vacío usa la forma de estado vacío de la web. | B-10 | corregida |
 
 ## P23 Cuenta
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P23-01 | 1 | La web muestra pestañas Mi cuenta · Vincular con Claude · App móvil y las cards Cuenta de almacenamiento, Sistema y Usuarios permitidos; Android muestra perfil, servidor y versión, y lleva Sistema y Almacenamiento a pantallas aparte. | P | abierta |
-| P23-02 | 3 | Subtítulo "Almacenamiento vinculado, versión y estado del sistema."; Android "Perfil, servidor y sesión.". | P | abierta |
+| P23-01 | 1 | La web muestra pestañas Mi cuenta · Vincular con Claude · App móvil y las cards Cuenta de almacenamiento, Sistema y Usuarios permitidos; Android muestra perfil, servidor y versión, y lleva Sistema y Almacenamiento a pantallas aparte. | P | corregida en parte (pestañas de configuración y enlaces a Cuenta de almacenamiento y Sistema; "Usuarios permitidos" sigue en Control de acceso) |
+| P23-02 | 3 | Subtítulo "Almacenamiento vinculado, versión y estado del sistema."; Android "Perfil, servidor y sesión.". | P | corregida |
 
 ## P24a Vincular con Claude
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P24a-01 | 3 | Título "Vincular con Claude" y subtítulo; Android "Conexiones MCP". | P | abierta |
-| P24a-02 | 1 | Cards "Dirección del servidor" (URL + Copiar), "Tus tokens" (nombre + Generar token) y "Conectar en claude.ai"; Android un texto, "Crear conexión" y la actividad. | P | abierta |
+| P24a-01 | 3 | Título "Vincular con Claude" y subtítulo; Android "Conexiones MCP". | P | corregida |
+| P24a-02 | 1 | Cards "Dirección del servidor" (URL + Copiar), "Tus tokens" (nombre + Generar token) y "Conectar en claude.ai"; Android un texto, "Crear conexión" y la actividad. | P | corregida en parte (Dirección del servidor, Tus tokens y Conectar en claude.ai; falta "Conectar en Claude Code") |
 
 ## P24b App móvil — falta en Android (tarea 19)
 
@@ -235,7 +235,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P25-01 | 1 | Lista de cards con ícono, título y descripción (Mi cuenta, Control de acceso, Almacenamiento, Usuarios y roles, Clientes, Integración con Genstock…); Android agrupa en secciones con otros nombres y sin descripción. | P | abierta |
+| P25-01 | 1 | Lista de cards con ícono, título y descripción (Mi cuenta, Control de acceso, Almacenamiento, Usuarios y roles, Clientes, Integración con Genstock…); Android agrupa en secciones con otros nombres y sin descripción. | P | corregida |
 
 ## P26 Usuarios y acceso
 

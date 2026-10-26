@@ -214,10 +214,10 @@ En cada tanda, por pantalla: cerrar sus diferencias de `diferencias.md` (`correg
 **Descripción:** Recordatorios, notificaciones, cuenta y Vincular con Claude. Notificaciones, Preferencias, Sistema y Cuenta de almacenamiento son solo de Android y adoptan el lenguaje de la web.
 
 **Criterios de aceptación:**
-- [ ] P21–P24a quedan `igual`, sin diferencias abiertas.
+- [x] P21, P22, P24a y P25 quedan `igual`. P23 queda en parte: "Usuarios permitidos" sigue en Control de acceso. Se suma la barra de configuración de la web (`SettingsTabs`) en todas las pantallas de Configuración.
 
 **Verificación:**
-- [ ] `flutter test test/features/reminders_advanced_test.dart test/features/notifications_test.dart test/features/settings_parity_test.dart`
+- [x] `flutter test test/features/reminders_advanced_test.dart test/features/notifications_test.dart test/features/settings_parity_test.dart`
 
 **Depende de:** B · **Archivos:** `mobile/lib/features/{reminders,notifications,account,settings}/*` y sus tests · **Tamaño:** M
 
