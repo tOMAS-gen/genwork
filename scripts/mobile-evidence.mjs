@@ -1,7 +1,7 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const root = path.resolve('.context/mobile-parity');
+const root = path.resolve(process.argv[2] ?? '.context/mobile-parity');
 await mkdir(root, { recursive: true });
 const escape = (s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const files = (await readdir(root)).filter((f) => /\.(png|jpe?g)$/.test(f));
