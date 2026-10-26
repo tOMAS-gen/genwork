@@ -27,7 +27,7 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P04 | Mi día | `/references` | `/my-day` | S05 | M04 | admin | tareas semilla | par | par |
 | P05 | Proyectos | `/` | `/works` | S06 | M05 | admin | proyectos de QA produccion/publico/privado | igual | igual |
 | P06 | Crear/editar proyecto | dialog en `/` | dialog en `/works` | S07 | M05 | admin | — | igual | igual |
-| P07 | Detalle de proyecto | `/works/[id]` | `/works/:id` | S08 | M06 | admin | "Cartelería del local" | par | par |
+| P07 | Detalle de proyecto | `/works/[id]` | `/works/:id`, `/materials` | S08 | M06 | admin | "Cartelería del local" | igual | igual |
 | P08 | Plantillas | `/?filter=templates` | `/templates` | S09 | M08 | admin | — | par | par |
 | P09 | Detalle de tarea | detalle en `/works/[id]` | pantalla de tarea (`task_detail_sheet`) | S10 | M07 | admin | tarea de "Preparación y entrega" | igual | igual |
 | P10 | Tablero | `/board` | `/board` | S11 | M10 | admin | — | igual | igual |
@@ -40,12 +40,12 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P17 | Documento del proyecto | pestaña Documentos de `/works/[id]` | `/works/:id/document` | S14 | M12 | admin | "Cartelería del local" | igual | igual |
 | P18 | Archivos del proyecto | pestaña Archivos de `/works/[id]` | `/works/:id/files` | S15 | M13 | admin | "Cartelería del local" (Nextcloud local) | igual | igual |
 | P19 | Actividad y clientes del proyecto | pestañas de `/works/[id]` | `/works/:id/activity`, `/works/:id/clients` | S21 | M17 | admin | "Cartelería del local" | igual | igual |
-| P20 | Materiales | `/materials` | **falta en Android** | S16 | — | admin | sin GenStock: estado vacío | web | web |
+| P20 | Materiales | `/materials` | `/more/materials` | S16 | — | admin | sin GenStock: estado vacío | igual | igual |
 | P21 | Recordatorios | `/reminders` | `/more/reminders`, `/new`, `/:id` | S17 | M14 | admin | "Revisar entregas" | igual | igual |
 | P22 | Notificaciones | campanita de la barra web | `/more/notifications`, `/more/notification-settings`, `/more/due-today` | S17 | — | admin | avisos semilla | igual | igual |
 | P23 | Cuenta y más | `/settings` | `/more`, `/more/account`; secciones Sistema y Cuenta de almacenamiento | S18 | M15 | admin | — | par | par |
 | P24a | Vincular con Claude | `/settings/claude` | `/more/settings/module/mcp` y `module/activity` | S19 | M15 | admin | — | igual | igual |
-| P24b | App móvil | `/settings/movil` | **falta en Android** | S19 | — | admin | — | web | web |
+| P24b | App móvil | `/settings/movil` | `/more/settings/mobile` (sin QR, P24b-01) | S19 | — | admin | — | par | par |
 | P25 | Administración | `/admin` | `/more/settings` | S20 | M16 | admin | — | igual | igual |
 | P26 | Usuarios y acceso | `/admin/users`, `/admin/access` | `module/users`, `module/access`, `module/emails` | S20 | M16 | admin | usuarios de prueba | igual | igual |
 | P27 | Clientes | `/admin/clients` | `module/clients` | S21 | M16 | admin | `cliente@test.local` | igual | igual |
@@ -53,7 +53,7 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P29 | Estados de tarea | `/admin/task-statuses` | `catalog/statuses` | S23 | M16 | admin | Pendiente / Terminado | igual | igual |
 | P30 | Recordatorios del sistema | `/admin/reminders` | `module/reminders` | S24 | M16 | admin | — | igual | igual |
 | P31a | Almacenamiento | `/admin/storage` | `module/storage`, `module/jobs` | S25 | M16 | admin | Nextcloud local | igual | igual |
-| P31b | Integración con GenStock | `/admin/genstock` | **falta en Android** | S25 | — | admin | sin configurar | web | web |
+| P31b | Integración con GenStock | `/admin/genstock` | `/more/settings/genstock` | S25 | — | admin | sin configurar | igual | igual |
 | P32 | Errores | `/admin/errors`, `/admin/errors/[id]` | `module/errors`, `errors/:id` | S26 | M16 | admin | — | igual | igual |
 | P33 | Portal | `/portal` | `/portal` | S27 | M18 | cliente | proyecto visible para `cliente` | igual | igual |
 | P34 | Proyecto en portal | `/portal/works/[id]` | `/portal/works/:id`, `/document` | S27 | M18 | cliente | ídem | igual | igual |

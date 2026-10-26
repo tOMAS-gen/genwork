@@ -98,7 +98,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | P07-01 | 1 | Fecha límite debajo de Avance, con selector punteado "29/10/2026", ✕ y urgencia; Android la pone al costado, sin urgencia, con "29 oct". | P | corregida |
 | P07-02 | 1 | Descripción completa en la web; Android la corta en 3 líneas con "Ver descripción completa". | nativo | aceptada (en el teléfono el corte evita que una descripción larga empuje las pestañas fuera de la pantalla; el texto completo queda a un toque) |
 | P07-03 | 2 | "Etiquetas" con ícono de etiqueta para editarlas. | P | corregida |
-| P07-04 | 1 | Pestañas dentro de una card, con 6 pestañas. | B-9 / 17 | abierta (falta la pestaña Materiales: tarea 17) |
+| P07-04 | 1 | Pestañas dentro de una card, con 6 pestañas. | B-9 / 17 | corregida (pestaña Materiales en el orden de la web) |
 | P07-05 | 1 | Pestaña Tareas: título "Tareas" + "2 pendientes", "+ Nuevo objetivo" con contorno, Lista/Tablero; composer en línea por sección ("Escribí una tarea y Enter…", "+ Agregar tarea a «…»"); Android usa un composer fijo abajo con selector de sección. | P | aceptada (nativo: el composer fijo abajo queda visible con el teclado abierto; con un campo por sección habría que desplazar con el teclado encima. Se igualan el resto de las piezas) |
 | P07-06 | 3 | Objetivo: progreso "1/3 · 33%" contando subtareas y contador "2"; Android "0/2 · 0%". | P | corregida |
 | P07-07 | 3 | Sin tareas generales: caja punteada "Sin tareas generales."; Android "Sin tareas". | P | corregida |
@@ -199,7 +199,12 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | P19-03 | 3 | Texto de Acceso cliente distinto ("Los clientes con acceso ven este proyecto…"). | P | corregida |
 | P19-04 | 8 | Cliente con insignia "Invitado" gris y 🗑; Android texto "Invitado" e ícono de quitar persona. | P | corregida |
 
-## P20 Materiales — falta en Android (tarea 18)
+## P20 Materiales — hecha en la tarea 18
+
+| Id | Prioridad | Diferencia | Bloque/tarea | Estado |
+|---|---|---|---|---|
+| P20-01 | 9 | La web muestra una tabla Material/Total/Proyectos; Android, una card por material con el detalle por proyecto. | 18 | aceptada (una tabla de 3 columnas no entra a 390 px) |
+| P20-02 | 9 | Ícono: `Package` de la web (caja 3D); Android `inventory_2` (Material no trae la caja 3D). | 18 | aceptada (sin dependencia de íconos nueva) |
 
 ## P21 Recordatorios
 
@@ -229,7 +234,11 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | P24a-01 | 3 | Título "Vincular con Claude" y subtítulo; Android "Conexiones MCP". | P | corregida |
 | P24a-02 | 1 | Cards "Dirección del servidor" (URL + Copiar), "Tus tokens" (nombre + Generar token) y "Conectar en claude.ai"; Android un texto, "Crear conexión" y la actividad. | P | corregida en parte (Dirección del servidor, Tus tokens y Conectar en claude.ai; falta "Conectar en Claude Code") |
 
-## P24b App móvil — falta en Android (tarea 19)
+## P24b App móvil — hecha en la tarea 19
+
+| Id | Prioridad | Diferencia | Bloque/tarea | Estado |
+|---|---|---|---|---|
+| P24b-01 | 1 | Falta el código QR: la web lo genera en el servidor; en la app pediría `qr_flutter`. | 19 | abierta (dependencia nueva: decide el usuario) |
 
 ## P25 Administración
 
@@ -281,7 +290,11 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | P31a-01 | 3 | Título "Almacenamiento"; Android "Almacenamiento del sistema". | P | corregida |
 | P31a-02 | 1 | Formulario en el lugar (Proveedor, URL, usuario, app password, Guardar, Probar conexión) y card "Aprovisionamiento pendiente". | P | aceptada (en el teléfono el alta y la edición se hacen en un diálogo, con los mismos campos; un formulario largo en línea queda debajo del teclado) |
 
-## P31b Integración con GenStock — falta en Android (tarea 20)
+## P31b Integración con GenStock — hecha en la tarea 20
+
+| Id | Prioridad | Diferencia | Bloque/tarea | Estado |
+|---|---|---|---|---|
+| P31b-01 | 9 | La card lleva el título «Servidor» (la web no tiene título). | 20 | aceptada (`PanelSection` lo pide; cambiarlo toca un widget compartido) |
 
 ## P32 Errores
 

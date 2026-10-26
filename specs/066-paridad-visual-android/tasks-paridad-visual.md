@@ -332,12 +332,12 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 **Descripción:** Revisar los criterios de éxito de la spec, regenerar el comparador `despues` y dejar `inventario.md` y `diferencias.md` completos.
 
 **Criterios de aceptación:**
-- [ ] Las 34 filas `par` están `igual`, y P20, P24b, P31b y la pestaña Materiales tienen par.
-- [ ] `node scripts/mobile-evidence.mjs .context/paridad-visual/despues` no muestra huérfanas fuera de las pantallas que solo existen en Android.
-- [ ] `dart analyze` limpio y `flutter test` en verde.
+- [ ] Las 34 filas `par` están `igual`, y P20, P24b, P31b y la pestaña Materiales tienen par. **En parte:** las cuatro piezas nuevas tienen par; siguen en `par` P04 (P04-01, decisión del usuario), P08 y P23 (corregidas en parte), P14 (P14-03), P24b (sin QR) y P28 (P28-02).
+- [x] `node scripts/mobile-evidence.mjs .context/paridad-visual/despues` sin huérfanas: 40 pantallas con par (P01 Acceso sin captura `despues`: pide cerrar sesión; quedó verificada en la tarea 7).
+- [x] `dart analyze` limpio y `flutter test` en verde (505); Vitest 1578.
 
 **Verificación:**
-- [ ] Recorrer los 6 criterios de éxito de la spec.
+- [x] Recorrer los 6 criterios de éxito de la spec: 1 cumplido; 2 en parte (ver arriba); 3 cumplido salvo el QR de P24b; 4 en parte (textos alineados y testeados, pares solo de los vacíos de la semilla); 5 cumplido (guardas sin cambios de umbral); 6 cumplido.
 
 **Depende de:** 21 · **Archivos:** `specs/066-paridad-visual-android/{inventario,diferencias}.md` · **Tamaño:** XS
 

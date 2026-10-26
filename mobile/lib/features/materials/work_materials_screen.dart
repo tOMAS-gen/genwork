@@ -140,25 +140,41 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           if (editable) ...[
-            TextField(
-              key: const ValueKey('materials_search'),
-              controller: _query,
-              onChanged: (_) => _search(),
-              decoration: const InputDecoration(
-                hintText: 'Buscar producto en Genstock',
-                prefixIcon: Icon(AppIcons.search, size: AppIconSizes.notice),
-              ),
+            // Como la web: buscador y "Solo insumos" en la misma fila.
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    key: const ValueKey('materials_search'),
+                    controller: _query,
+                    onChanged: (_) => _search(),
+                    decoration: const InputDecoration(
+                      hintText: 'Buscar producto en Genstock',
+                      prefixIcon: Icon(
+                        AppIcons.search,
+                        size: AppIconSizes.notice,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Switch(
+                  key: const ValueKey('materials_supply_only'),
+                  value: _supplyOnly,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onChanged: (v) {
+                    setState(() => _supplyOnly = v);
+                    _search();
+                  },
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Solo insumos',
+                  style: AppTextStyles.body.copyWith(color: c.text),
+                ),
+              ],
             ),
-            SwitchListTile(
-              key: const ValueKey('materials_supply_only'),
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Solo insumos'),
-              value: _supplyOnly,
-              onChanged: (v) {
-                setState(() => _supplyOnly = v);
-                _search();
-              },
-            ),
+            const SizedBox(height: AppSpacing.sm),
             if (_query.text.trim().length >= 2 && _selected == null)
               _Results(
                 searching: _searching,
