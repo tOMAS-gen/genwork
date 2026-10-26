@@ -210,4 +210,64 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     },
   );
+
+  Task parent() => Task.fromJson({
+    'id': 'p',
+    'displayText': 'Preparar los originales',
+    'status': {'id': 'open', 'name': 'En curso', 'type': 'IN_PROGRESS'},
+    'canToggle': true,
+    'canManageMyDay': true,
+    'subtaskCount': 2,
+    'subtaskDone': 1,
+    'subtasks': [
+      {
+        'id': 's1',
+        'displayText': 'Revisar medidas',
+        'status': {'id': 'done', 'name': 'Hecha', 'type': 'FINAL'},
+        'canToggle': true,
+      },
+      {
+        'id': 's2',
+        'displayText': 'Confirmar colores',
+        'status': {'id': 'open', 'name': 'En curso', 'type': 'IN_PROGRESS'},
+        'canToggle': true,
+      },
+    ],
+  });
+
+  testWidgets('TaskTile como la web: flecha, "1/2" y acciones + y × (P04)', (
+    t,
+  ) async {
+    var added = 0, deleted = 0;
+    await _mount(
+      t,
+      TaskTile(
+        task: parent(),
+        onTap: () {},
+        onToggleDone: () {},
+        onToggleMyDay: () {},
+        onAddSubtask: () => added++,
+        onDelete: () => deleted++,
+        onSubtaskToggle: (_) {},
+      ),
+    );
+    // Una tarea con subtareas no lleva casilla: su estado sale de las hijas.
+    expect(find.byKey(const ValueKey('task_toggle_p')), findsNothing);
+    expect(find.byKey(const ValueKey('task_expand_p')), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text('1/2 subtareas'), findsNothing);
+    await t.tap(find.byKey(const ValueKey('task_add_subtask_p')));
+    await t.tap(find.byKey(const ValueKey('task_delete_p')));
+    expect((added, deleted), (1, 1));
+    // La flecha pliega y despliega las subtareas.
+    expect(find.text('Confirmar colores'), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('task_expand_p')));
+    await t.pumpAndSettle();
+    expect(find.text('Confirmar colores'), findsNothing);
+    await t.tap(find.byKey(const ValueKey('task_expand_p')));
+    await t.pumpAndSettle();
+    expect(find.text('Confirmar colores'), findsOneWidget);
+    // Las subtareas no tienen "+" (no hay subtareas de subtareas).
+    expect(find.byKey(const ValueKey('task_add_subtask_s2')), findsNothing);
+  });
 }

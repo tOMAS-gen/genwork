@@ -224,12 +224,26 @@ Future<void> scrollTo(WidgetTester t, String key) async {
       .first;
   t.state<ScrollableState>(list).position.jumpTo(0);
   await t.pumpAndSettle();
-  await t.scrollUntilVisible(find.byKey(ValueKey(key)), 200, scrollable: list);
+  // Hasta que se pueda tocar: la barra fija del composer tapa el pie.
+  await t.scrollUntilVisible(
+    find.byKey(ValueKey(key)).hitTestable(),
+    100,
+    scrollable: list,
+  );
 }
 
 Future<void> openTask(WidgetTester t, String id) async {
   await scrollTo(t, 'task_$id');
-  await tap(t, 'task_$id');
+  // Sobre el texto: la fila lleva a la derecha ☀, + y × (como la web).
+  await t.tap(
+    find
+        .descendant(
+          of: find.byKey(ValueKey('task_$id')),
+          matching: find.byType(Text),
+        )
+        .first,
+  );
+  await t.pumpAndSettle();
 }
 
 Future<void> objectiveMenu(WidgetTester t) async {

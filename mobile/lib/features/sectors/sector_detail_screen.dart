@@ -24,6 +24,7 @@ import '../tasks/task_detail_sheet.dart';
 import 'sector_actions_menu.dart';
 import 'sector_summary.dart';
 import 'sectors_providers.dart';
+import '../tasks/task_row_actions.dart';
 
 /// Tablero de un sector: sueltas, por proyecto y menciones según permisos.
 class SectorDetailScreen extends ConsumerStatefulWidget {
@@ -115,6 +116,18 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
               sectorId: widget.sectorId,
             ),
             onSubtaskToggle: editable ? _toggle : null,
+            onAddSubtask: editable && !_board && t.parentId == null
+                ? () => promptSubtask(context, t)
+                : null,
+            onDelete: editable && !_board
+                ? () => confirmDeleteTask(context, ref, t)
+                : null,
+            onSubtaskMyDay: (s) {
+              if (s.canManageMyDay == true) _toggleDay(s);
+            },
+            onSubtaskDelete: editable && !_board
+                ? (s) => confirmDeleteTask(context, ref, s)
+                : null,
           );
           Widget rows(
             List<Task> tasks, {

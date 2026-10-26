@@ -177,11 +177,11 @@ En cada tanda, por pantalla: cerrar sus diferencias de `diferencias.md` (`correg
 **Descripción:** Acceso, servidores, navegación y Mi día. P02 es solo de Android: adopta el lenguaje de la web (decisión 2).
 
 **Criterios de aceptación:**
-- [ ] P01–P04 quedan `igual` en `inventario.md`, sin diferencias abiertas.
-- [ ] Ninguna captura de P01 muestra la cámara.
+- [x] P01–P03 quedan `igual`. P04 queda con una sola diferencia abierta (P04-01, la fecha del día): sacarla obliga a borrar el test QA10 y se le pregunta al usuario.
+- [x] Ninguna captura de P01 muestra la cámara.
 
 **Verificación:**
-- [ ] `flutter test test/features/auth_screens_test.dart test/features/server_setup_test.dart test/features/servers_screen_test.dart test/features/daily_parity_test.dart test/features/day_overview_test.dart`
+- [x] `flutter test test/features/auth_screens_test.dart test/features/server_setup_test.dart test/features/servers_screen_test.dart test/features/daily_parity_test.dart test/features/day_overview_test.dart`
 
 **Depende de:** B · **Archivos:** `mobile/lib/features/setup/*`, `mobile/lib/features/my_day/*` y sus tests · **Tamaño:** M
 

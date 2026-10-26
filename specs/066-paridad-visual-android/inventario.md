@@ -21,9 +21,9 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 
 | P | Pantalla | Web | Android | S | M | Rol | Recurso semilla | Claro | Oscuro |
 |---|---|---|---|---|---|---|---|---|---|
-| P01 | Acceso | `/login` | `/setup` (el login abre `/login` web en el navegador) | S01 | M03 | sin sesión | — | par | par |
-| P02 | Servidores (solo Android) | patrón `/login` | `/servers`, `/servers/add` | S02 | M03 | admin | servidor `localhost:3010` | par | par |
-| P03 | Navegación | sidebar/drawer de `(main)` | drawer de `HomeShell` | S04 | M03 | admin | — | par | par |
+| P01 | Acceso | `/login` | `/setup` (el login abre `/login` web en el navegador) | S01 | M03 | sin sesión | — | igual | igual |
+| P02 | Servidores (solo Android) | patrón `/login` | `/servers`, `/servers/add` | S02 | M03 | admin | servidor `localhost:3010` | igual | igual |
+| P03 | Navegación | sidebar/drawer de `(main)` | drawer de `HomeShell` | S04 | M03 | admin | — | igual | igual |
 | P04 | Mi día | `/references` | `/my-day` | S05 | M04 | admin | tareas semilla | par | par |
 | P05 | Proyectos | `/` | `/works` | S06 | M05 | admin | proyectos de QA produccion/publico/privado | par | par |
 | P06 | Crear/editar proyecto | dialog en `/` | dialog en `/works` | S07 | M05 | admin | — | par | par |

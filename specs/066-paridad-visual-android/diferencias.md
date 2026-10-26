@@ -38,7 +38,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
 | P01-01 | 1 | La web muestra el login con Google y el modo de prueba; Android, el alta del servidor por QR. Son pasos distintos del mismo flujo: el login de Android abre esta misma página web en el navegador. | nativo | aceptada (flujo propio de la app) |
-| P01-02 | 5 | La card de Android queda centrada en vertical; la web la pone arriba con 24 dp de margen. | P | abierta |
+| P01-02 | 5 | La card de Android queda centrada en vertical; la web la pone arriba con 24 dp de margen. | P | aceptada (la regla `.login-wrap` de la web centra la card, como Android; la captura web de prueba la muestra arriba: queda para la auditoría web) |
 
 ## P02 Servidores (solo Android)
 
@@ -64,11 +64,11 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P04-01 | 1 | Android muestra la fecha del día ("domingo 25 de octubre") en mono; la web no. | P | abierta |
+| P04-01 | 1 | Android muestra la fecha del día ("domingo 25 de octubre") en mono; la web no. | P | pendiente de decisión del usuario (sacarla implica borrar el test QA10 que verifica el día del sistema) |
 | P04-02 | 1 | Encabezado fijo en Android; en la web se desplaza. | B-7 | corregida |
-| P04-03 | 1 | Tarea con subtareas: la web muestra flecha para plegar y la insignia "1/2"; Android un checkbox y "1/2 subtareas" debajo. | P | abierta |
-| P04-04 | 8 | Acciones de la fila: la web tiene ☀, + y ✕; Android solo ☀ (agregar subtarea y quitar de Mi día están en el detalle y en el gesto). | P | abierta |
-| P04-05 | 5 | Filas más altas en Android (56–75 dp contra 48–64). | P | abierta |
+| P04-03 | 1 | Tarea con subtareas: la web muestra flecha para plegar y la insignia "1/2"; Android un checkbox y "1/2 subtareas" debajo. | P | corregida |
+| P04-04 | 8 | Acciones de la fila: la web tiene ☀, + y ✕; Android solo ☀ (agregar subtarea y quitar de Mi día están en el detalle y en el gesto). | P | corregida |
+| P04-05 | 5 | Filas más altas en Android (56–75 dp contra 48–64). | P | corregida |
 
 ## P05 Proyectos
 

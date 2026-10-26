@@ -22,6 +22,7 @@ import '../tasks/task_detail_sheet.dart';
 import 'merge_my_day_and_references.dart';
 import 'my_day_progress.dart';
 import 'my_day_providers.dart';
+import '../tasks/task_row_actions.dart';
 
 /// Mi día: tareas marcadas para hoy (pendientes y completadas hoy) y las
 /// menciones abiertas.
@@ -130,6 +131,16 @@ class MyDayScreen extends ConsumerWidget {
                   onSubtaskToggle: (s) {
                     if (s.canToggle == true) toggle(s);
                   },
+                  onAddSubtask: t.canToggle == true && t.parentId == null
+                      ? () => promptSubtask(context, t)
+                      : null,
+                  onDelete: t.canToggle == true
+                      ? () => confirmDeleteTask(context, ref, t)
+                      : null,
+                  onSubtaskMyDay: (s) {
+                    if (s.canManageMyDay == true) toggleDay(s);
+                  },
+                  onSubtaskDelete: (s) => confirmDeleteTask(context, ref, s),
                 ),
               ],
             );
@@ -141,9 +152,9 @@ class MyDayScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(
+                  AppSpace.md,
                   AppSpace.lg,
-                  AppSpace.lg,
-                  AppSpace.lg,
+                  AppSpace.md,
                   0,
                 ),
                 child: Text(
@@ -161,7 +172,7 @@ class MyDayScreen extends ConsumerWidget {
                 ),
               if (pending.isNotEmpty || refs.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
                   child: WorkspaceListPanel(
                     children: [...pending.map(tile), ...refs.map(tile)],
                   ),
@@ -180,7 +191,7 @@ class MyDayScreen extends ConsumerWidget {
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.lg,
+                        horizontal: AppSpace.md,
                       ),
                       child: WorkspaceListPanel(
                         children: done.map(tile).toList(),

@@ -29,6 +29,7 @@ import '../tasks/task_detail_sheet.dart';
 import 'work_actions_menu.dart';
 import 'work_summary.dart';
 import 'works_providers.dart';
+import '../tasks/task_row_actions.dart';
 
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
 /// alta rápida de tareas en la sección elegida.
@@ -155,6 +156,20 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
               workId: widget.workId,
             ),
             onSubtaskToggle: canEdit ? _toggle : null,
+            // Como la fila de la web: + para una subtarea y × para eliminar
+            // (en el tablero las acciones van en el detalle).
+            onAddSubtask: canEdit && !_board && task.parentId == null
+                ? () => promptSubtask(context, task)
+                : null,
+            onDelete: canEdit && !_board
+                ? () => confirmDeleteTask(context, ref, task)
+                : null,
+            onSubtaskMyDay: (s) {
+              if (s.canManageMyDay == true) toggleDay(s);
+            },
+            onSubtaskDelete: canEdit && !_board
+                ? (s) => confirmDeleteTask(context, ref, s)
+                : null,
           );
           final menu = WorkActionsMenu(
             work: work,
