@@ -108,7 +108,9 @@ class GroupDetailScreen extends ConsumerWidget {
         data: (group) {
           if (group == null) {
             return const EmptyView(
-              message: 'El grupo ya no está disponible o no tenés acceso.',
+              icon: AppIcons.groups,
+              title: 'Grupo no disponible',
+              message: 'No existe o no tenés acceso a este grupo.',
             );
           }
           return RefreshIndicator(

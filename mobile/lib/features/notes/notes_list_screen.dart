@@ -57,7 +57,9 @@ class NotesListScreen extends ConsumerWidget {
                 children: const [
                   EmptyView(
                     icon: AppIcons.notes,
-                    message: 'Todavía no tenés notas',
+                    title: 'No tenés notas todavía',
+                    message:
+                        'Creá tu primera nota para guardar apuntes y recordatorios con formato.',
                   ),
                 ],
               )

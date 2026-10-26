@@ -90,8 +90,9 @@ class MyDayScreen extends ConsumerWidget {
               children: const [
                 EmptyView(
                   icon: AppIcons.myDay,
+                  title: 'No tenés tareas para hoy ni referencias pendientes',
                   message:
-                      'No tenés tareas para hoy ni referencias pendientes.\nLas tareas que agreguen a Mi día y las que te mencionen con @ aparecerán juntas acá.',
+                      'Las tareas que agreguen a Mi día y las que te mencionen con @ aparecerán juntas acá.',
                 ),
               ],
             );

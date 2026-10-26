@@ -182,11 +182,15 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
               ),
               const SizedBox(height: AppSpace.md),
               if (sections.isEmpty)
-                EmptyView(
-                  message: list.isEmpty
-                      ? 'No hay sectores visibles'
-                      : 'No hay sectores que coincidan con el filtro.',
-                ),
+                list.isEmpty
+                    ? const EmptyView(
+                        title: 'Sin sectores todavía',
+                        message:
+                            'Creá tu primer sector para agrupar tareas y proyectos por área de trabajo.',
+                      )
+                    : const EmptyView(
+                        message: 'No hay sectores que coincidan con el filtro.',
+                      ),
               for (final section in sections) ...[
                 _SectionHeader(
                   section: section,

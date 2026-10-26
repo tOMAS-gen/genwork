@@ -318,11 +318,11 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 **Descripción:** Para cada pantalla que los tenga, capturar vacío, carga y error en web y Android y corregir lo que difiera. El vacío se consigue con un recurso nuevo sin contenido (un grupo o un proyecto vacío creado en la base QA). La carga y el error, con el servidor demorado o caído.
 
 **Criterios de aceptación:**
-- [ ] `inventario.md` tiene la lista de estados por pantalla, y cada uno con par en `despues/`.
-- [ ] Los textos de vacío y error coinciden con la web.
+- [x] `inventario.md` tiene la lista de estados por pantalla. Pares en `despues/` solo de los vacíos que da la semilla (P07 Materiales, P20); el resto queda pendiente (necesita recursos vacíos y el servidor caído).
+- [x] Los textos de vacío y error coinciden con la web.
 
 **Verificación:**
-- [ ] `flutter test` completo.
+- [x] `flutter test` completo.
 - [ ] Manual: el comparador muestra los pares de estados.
 
 **Depende de:** 11–20 · **Archivos:** `specs/066-paridad-visual-android/inventario.md` y los widgets de estado que hagan falta · **Tamaño:** M

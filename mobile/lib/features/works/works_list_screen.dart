@@ -254,6 +254,7 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
           AsyncValueView(
             value: works,
             onRetry: () => ref.invalidate(worksListProvider(_archived)),
+            errorTitle: 'No se pudieron cargar los proyectos',
             data: (all) {
               final visible = _visible(all, userId);
               if (visible.isEmpty) {

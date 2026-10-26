@@ -145,6 +145,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       body: AsyncValueView(
         value: detail,
         onRetry: () => ref.invalidate(workDetailProvider(widget.workId)),
+        errorTitle: 'No se pudo cargar el proyecto',
         data: (work) {
           final canEdit = work.canOperate && !work.isArchived;
           if (!_revealedObjective && widget.initialObjectiveId != null) {

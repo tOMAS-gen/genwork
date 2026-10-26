@@ -98,3 +98,30 @@ No son de diseño; quedan para `paridad-visual` o para la auditoría S01–S29.
 2. **Web: el panel "Vence hoy" queda detrás del menú lateral en el celular** (P22): se abre debajo del menú y casi no se ve.
 3. **Web: en el portal, el logo de la barra superior queda cortado a la izquierda** (P33–P34).
 4. **Android: si el menú lateral está abierto, el botón atrás puede cerrar la app** en lugar de cerrar el menú. Pasó dos veces y no está confirmado como regla.
+
+## Estados vacío, carga y error (tarea 21, 2026-10-26)
+
+Textos tomados del `EmptyState` de cada página web. La carga es el esqueleto común (`LoadingView`, como los `Skeleton` de la web). El error muestra el título de la web, el mensaje de la API y «Reintentar».
+
+| Pantalla | Vacío (título · texto) | Error (título) | Captura `despues` |
+|---|---|---|---|
+| P02 Proyectos | por vista («Todavía no tenés proyectos», «Sin favoritos»…) | No se pudieron cargar los proyectos | — |
+| P04 Mi día | No tenés tareas para hoy ni referencias pendientes · Las tareas que agreguen a Mi día… | genérico | — |
+| P07 Proyecto | — | No se pudo cargar el proyecto | — |
+| P07 Materiales | Sin materiales asignados · Agregá productos de Genstock… | genérico | P07-materiales (vacío) |
+| P07 Acceso cliente | Ningún cliente ve este proyecto · Agregá uno con su correo… | genérico | — |
+| P07 Archivos | Carpeta vacía · No hay archivos en esta carpeta. | genérico | — |
+| P11 Sectores | Sin sectores todavía · Creá tu primer sector… | genérico | — |
+| P12 Sector | Sin tareas todavía · (opera) Escribí la primera tarea abajo… / (lee) Todavía no hay tareas en este sector. | No se pudo cargar el sector | — |
+| P13 Grupos | Sin grupos todavía · Lo que crees fuera de un grupo es personal… | genérico | — |
+| P14 Grupo | Grupo no disponible · No existe o no tenés acceso a este grupo. | genérico | — |
+| P16 Notas | No tenés notas todavía · Creá tu primera nota… | genérico | — |
+| P18 Tablero | Todavía no hay sectores visibles · Las tareas aparecerán aquí… | genérico | — |
+| P20 Materiales | No hay materiales cargados · Los materiales que agregues… | genérico | P20-materiales (vacío) |
+| P33 Portal | Todavía no hay proyectos para ver · Cuando te den acceso… | genérico | — |
+| P34 Portal, Actividad | Todavía no hay movimientos · Acá vas a ver cada vez… | genérico | — |
+| Notificaciones (solo Android) | Estás al día · No tenés avisos pendientes. | genérico | — |
+
+Pendiente: los pares de captura de vacío y error del resto de las pantallas. Necesitan recursos vacíos nuevos en la base QA y el servidor caído; los textos están cubiertos por tests de widgets.
+
+Diferencias que quedan: P14 muestra «Proyectos activos» con «No hay proyectos activos» (la web: «Proyectos (n)» con el vacío «Sin proyectos»); el vacío de Sectores no repite el botón «Nuevo sector» (está en la barra); la card de Genstock lleva el título «Servidor» (la web no).

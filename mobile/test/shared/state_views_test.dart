@@ -153,4 +153,33 @@ void main() {
     await t.tap(find.text('Nuevo proyecto'));
     expect(tapped, 1);
   });
+
+  testWidgets('ErrorView muestra el título de la web sobre el mensaje', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      ErrorView(
+        error: Exception('x'),
+        title: 'No se pudo cargar el proyecto',
+        onRetry: () {},
+      ),
+    );
+    expect(find.text('No se pudo cargar el proyecto'), findsOneWidget);
+    expect(
+      find.text('Ocurrió un error inesperado. Probá de nuevo.'),
+      findsOneWidget,
+    );
+    expect(find.text('Reintentar'), findsOneWidget);
+    expect(
+      t.getTopLeft(find.text('No se pudo cargar el proyecto')).dy,
+      lessThan(
+        t
+            .getTopLeft(
+              find.text('Ocurrió un error inesperado. Probá de nuevo.'),
+            )
+            .dy,
+      ),
+    );
+  });
 }

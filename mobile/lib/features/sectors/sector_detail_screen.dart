@@ -80,6 +80,7 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
       body: AsyncValueView(
         value: board,
         onRetry: () => ref.invalidate(sectorBoardProvider(_query)),
+        errorTitle: 'No se pudo cargar el sector',
         data: (b) {
           final c = context.colors;
           final refsByOrigin = <String, List<Task>>{};
@@ -261,10 +262,13 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                                 if (b.loose.isEmpty &&
                                     b.byWork.isEmpty &&
                                     b.refs.isEmpty)
-                                  const EmptyView(
+                                  EmptyView(
                                     icon: AppIcons.check,
-                                    message:
-                                        'Sin tareas todavía.\nEscribí la primera tarea abajo para empezar a organizar el sector.',
+                                    title: 'Sin tareas todavía',
+                                    // La web dice "arriba": acá el campo está abajo.
+                                    message: b.canOperate
+                                        ? 'Escribí la primera tarea abajo para empezar a organizar el sector.'
+                                        : 'Todavía no hay tareas en este sector.',
                                   ),
                                 if (b.loose.isNotEmpty) ...[
                                   const _Header('Sueltas'),

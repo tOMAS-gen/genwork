@@ -401,7 +401,8 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                     return const Center(
                       child: EmptyView(
                         icon: AppIcons.projects,
-                        message: 'Esta carpeta está vacía',
+                        title: 'Carpeta vacía',
+                        message: 'No hay archivos en esta carpeta.',
                       ),
                     );
                   }

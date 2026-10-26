@@ -426,7 +426,7 @@ void main() {
     final f = Fixture();
     await mount(t, f, const FilesScreen(workId: 'w'));
     await tap(t, 'file_opaque-folder-id');
-    expect(find.text('Esta carpeta está vacía'), findsOneWidget);
+    expect(find.text('No hay archivos en esta carpeta.'), findsOneWidget);
     expect(f.calls.last.queryParameters['path'], 'opaque-folder-id');
     await tap(t, 'files_up');
     expect(find.text('Plan.md'), findsOneWidget);

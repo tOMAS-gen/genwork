@@ -13,6 +13,7 @@ class AppErrorWidget extends StatelessWidget {
     required this.error,
     this.onRetry,
     this.retryKey,
+    this.title,
   });
 
   final Object error;
@@ -20,6 +21,10 @@ class AppErrorWidget extends StatelessWidget {
 
   /// Key del botón "Reintentar".
   final Key? retryKey;
+
+  /// Título opcional, como el `EmptyState` de error de la web
+  /// ("No se pudo cargar el proyecto").
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +37,14 @@ class AppErrorWidget extends StatelessWidget {
           children: [
             Icon(AppIcons.error, size: AppIconSizes.state, color: c.danger),
             const SizedBox(height: AppSpacing.md),
+            if (title != null) ...[
+              Text(
+                title!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.dialogTitle.copyWith(color: c.text),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+            ],
             Semantics(
               liveRegion: true,
               child: Text(

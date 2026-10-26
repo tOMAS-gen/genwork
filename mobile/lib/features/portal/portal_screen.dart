@@ -38,7 +38,10 @@ class PortalScreen extends ConsumerWidget {
         itemCount: works.isEmpty ? 1 : works.length,
         itemBuilder: (context, i) => works.isEmpty
             ? const EmptyView(
-                message: 'Todavía no tenés proyectos compartidos.',
+                icon: AppIcons.projectOpen,
+                title: 'Todavía no hay proyectos para ver',
+                message:
+                    'Cuando te den acceso a un proyecto, va a aparecer acá con su avance.',
               )
             : Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -473,7 +476,12 @@ class _PortalActivityViewState extends ConsumerState<PortalActivityView> {
           data: (page) => Column(
             children: [
               if ((page['entries'] as List).isEmpty && cursor == null)
-                const Text('Todavía no hay cambios de estado.'),
+                const EmptyView(
+                  icon: AppIcons.schedule,
+                  title: 'Todavía no hay movimientos',
+                  message:
+                      'Acá vas a ver cada vez que una tarea cambie de estado.',
+                ),
               for (final entry in page['entries'] as List)
                 ListTile(
                   title: Text(entry['taskText'] as String),

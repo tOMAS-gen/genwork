@@ -95,7 +95,14 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
                     setState(() => _search = v.trim().toLowerCase()),
               ),
               const SizedBox(height: AppSpace.md),
-              if (filtered.isEmpty)
+              if (groups.isEmpty)
+                const EmptyView(
+                  icon: AppIcons.groups,
+                  title: 'Sin grupos todavía',
+                  message:
+                      'Lo que crees fuera de un grupo es personal: solo lo ves vos. Creá un grupo para compartir proyectos con tu equipo.',
+                )
+              else if (filtered.isEmpty)
                 const EmptyView(message: 'No hay grupos que coincidan'),
               for (final group in filtered)
                 Padding(

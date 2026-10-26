@@ -73,10 +73,11 @@ class LoadingView extends StatelessWidget {
 }
 
 class ErrorView extends StatelessWidget {
-  const ErrorView({super.key, required this.error, this.onRetry});
+  const ErrorView({super.key, required this.error, this.onRetry, this.title});
 
   final Object error;
   final VoidCallback? onRetry;
+  final String? title;
 
   @override
   Widget build(BuildContext context) => AppStateBlock(
@@ -84,6 +85,7 @@ class ErrorView extends StatelessWidget {
     child: AppErrorWidget(
       error: error,
       onRetry: onRetry,
+      title: title,
       retryKey: const ValueKey('error_retry'),
     ),
   );
@@ -147,7 +149,9 @@ class EmptyView extends StatelessWidget {
 
 /// Muestra un SnackBar (con el estilo del tema) con el error de una acción.
 void showErrorSnack(BuildContext context, Object error) {
-  ScaffoldMessenger.of(context).showSnackBar(errorSnackBar(context.colors, error));
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(errorSnackBar(context.colors, error));
 }
 
 /// El SnackBar de [showErrorSnack], para mostrarlo con un `ScaffoldMessenger`

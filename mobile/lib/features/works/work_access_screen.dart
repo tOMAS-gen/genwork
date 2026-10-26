@@ -167,7 +167,10 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
                     itemCount: clients.isEmpty ? 1 : clients.length,
                     itemBuilder: (_, i) => clients.isEmpty
                         ? const EmptyView(
-                            message: 'Ningún cliente ve este proyecto.',
+                            icon: AppIcons.view,
+                            title: 'Ningún cliente ve este proyecto',
+                            message:
+                                'Agregá uno con su correo para que pueda seguir el avance.',
                           )
                         : Padding(
                             padding: const EdgeInsets.only(

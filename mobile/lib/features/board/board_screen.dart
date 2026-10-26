@@ -54,8 +54,10 @@ class BoardScreen extends ConsumerWidget {
           if (columns == null && value.isLoading) const LoadingView(),
           if (columns != null && columns.isEmpty && !value.hasError)
             const EmptyView(
+              icon: AppIcons.dashboard,
+              title: 'Todavía no hay sectores visibles',
               message:
-                  'Todavía no hay sectores visibles.\nLas tareas aparecerán cuando se asignen a un sector al que tengas acceso.',
+                  'Las tareas aparecerán aquí cuando se asignen a un sector al que tengas acceso.',
             ),
           if (columns != null && columns.isNotEmpty) ...[
             Wrap(
