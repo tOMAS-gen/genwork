@@ -16,8 +16,10 @@ abstract final class AppSpace {
       dotLarge = 14;
   static const double xs = 4, sm = 8, md = 12, lg = 16, xl = 24, xxl = 32;
   static const double touch = 48, icon = 20, hero = 64, contentMax = 480;
-  static const page = EdgeInsets.all(lg);
-  static const list = EdgeInsets.fromLTRB(lg, sm, lg, 96);
+
+  /// Margen de página de la web móvil: `.main { padding: 16px 12px }`.
+  static const page = EdgeInsets.symmetric(horizontal: md, vertical: lg);
+  static const list = EdgeInsets.fromLTRB(md, sm, md, 96);
 }
 
 /// Fachada sobre [GenColors] y [AppGeometry] para el código que ya usaba

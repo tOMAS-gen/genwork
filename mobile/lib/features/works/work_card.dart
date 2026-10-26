@@ -20,12 +20,17 @@ class WorkCard extends StatelessWidget {
     required this.work,
     required this.onTap,
     required this.onFavorite,
+    this.onArchive,
     this.now,
   });
 
   final WorkSummary work;
   final VoidCallback onTap;
   final VoidCallback onFavorite;
+
+  /// Archivar o desarchivar desde el menú ⋯ (la web lo ofrece en la card).
+  /// Sin callback no hay menú.
+  final VoidCallback? onArchive;
 
   /// Reloj para el cálculo de urgencia (los tests lo fijan).
   final DateTime? now;
@@ -74,6 +79,30 @@ class WorkCard extends StatelessWidget {
                     ),
                     onPressed: onFavorite,
                   ),
+                  if (onArchive != null)
+                    PopupMenuButton<String>(
+                      key: ValueKey('work_menu_${work.id}'),
+                      tooltip: 'Acciones del proyecto',
+                      icon: Icon(
+                        AppIcons.moreHorizontal,
+                        size: AppIconSizes.action,
+                        color: c.muted,
+                      ),
+                      onSelected: (action) =>
+                          action == 'open' ? onTap() : onArchive!(),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'open',
+                          child: Text('Abrir proyecto'),
+                        ),
+                        PopupMenuItem(
+                          value: 'archive',
+                          child: Text(
+                            work.isArchived ? 'Desarchivar' : 'Archivar',
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -110,9 +139,11 @@ class WorkCard extends StatelessWidget {
                           color: c.muted,
                         ),
                         const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          'Entrega: ${formatDay(work.dueDate!)}',
-                          style: muted,
+                        Flexible(
+                          child: Text(
+                            'Entrega: ${formatDueDate(work.dueDate!)}',
+                            style: muted,
+                          ),
                         ),
                       ],
                     ),

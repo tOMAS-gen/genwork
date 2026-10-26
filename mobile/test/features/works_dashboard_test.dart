@@ -141,4 +141,34 @@ void main() {
     expect(find.text('Sin tareas todavía'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
+
+  testWidgets('WorkCard como la web: fecha completa y menú ⋯ (P05)', (t) async {
+    var archived = 0, opened = 0;
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: WorkCard(
+            work: _work('c', due: '2026-10-29T00:00:00.000Z'),
+            now: DateTime(2026, 10, 26),
+            onTap: () => opened++,
+            onFavorite: () {},
+            onArchive: () => archived++,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Entrega: 29/10/2026'), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('work_menu_c')));
+    await t.pumpAndSettle();
+    expect(find.text('Abrir proyecto'), findsOneWidget);
+    await t.tap(find.text('Archivar'));
+    await t.pumpAndSettle();
+    expect(archived, 1);
+    await t.tap(find.byKey(const ValueKey('work_menu_c')));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Abrir proyecto'));
+    await t.pumpAndSettle();
+    expect(opened, 1);
+  });
 }

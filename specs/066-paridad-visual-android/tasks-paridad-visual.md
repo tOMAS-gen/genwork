@@ -126,11 +126,11 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Igualar `KpiTile`, la card de proyecto (`AppWorkBox` y afines), `CardProgress` y `ProgressLine` a la web: estructura, padding, tipografía, color de etiquetas y fecha de entrega.
 
 **Criterios de aceptación:**
-- [ ] La card de "Cartelería del local" tiene los mismos bloques, en el mismo orden que la web.
-- [ ] Los tests de widget de estos componentes cubren el cambio de estructura.
+- [x] La card de "Cartelería del local" tiene los mismos bloques, en el mismo orden que la web.
+- [x] Los tests de widget de estos componentes cubren el cambio de estructura.
 
 **Verificación:**
-- [ ] `flutter test test/shared/count_progress_test.dart test/shared/surfaces_test.dart test/features/works_dashboard_test.dart`
+- [x] `flutter test test/shared/count_progress_test.dart test/shared/surfaces_test.dart test/features/works_dashboard_test.dart`
 
 **Depende de:** 6 · **Archivos:** `mobile/lib/shared/widgets/kpi_tile.dart`, `mobile/lib/shared/widgets/app_work_box.dart`, `mobile/lib/shared/widgets/card_progress.dart`, `mobile/lib/shared/widgets/progress_line.dart`, `mobile/test/shared/count_progress_test.dart` · **Tamaño:** M
 

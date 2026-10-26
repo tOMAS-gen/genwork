@@ -12,8 +12,10 @@ import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../data/models/sector.dart';
+import '../../shared/widgets/action_confirmation_dialog.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
+import '../../shared/widgets/stat_cards.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import 'create_work_dialog.dart';
@@ -23,6 +25,7 @@ import 'works_filter.dart';
 import 'works_providers.dart';
 import 'works_filters_dialog.dart';
 import '../sectors/sectors_providers.dart';
+import '../shell/resource_refresh.dart';
 
 /// Listado de proyectos: búsqueda local, activos/archivados, favoritos primero.
 class WorksListScreen extends ConsumerStatefulWidget {
@@ -83,6 +86,21 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
     }
   }
 
+  Future<void> _toggleArchived(WorkSummary work) async {
+    final changed = await confirmAction(
+      context,
+      title: work.isArchived ? 'Desarchivar proyecto' : 'Archivar proyecto',
+      message: work.isArchived
+          ? '«${work.name}» volverá a las vistas activas.'
+          : '«${work.name}» pasará a Archivados y dejará de verse en las vistas activas.',
+      confirmLabel: work.isArchived ? 'Desarchivar' : 'Archivar',
+      onConfirm: () => ref
+          .read(worksRepositoryProvider)
+          .setArchived(work.id, !work.isArchived),
+    );
+    if (changed && mounted) refreshResources(ref);
+  }
+
   @override
   Widget build(BuildContext context) {
     final works = ref.watch(worksListProvider(_archived));
@@ -122,7 +140,7 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           if (list != null)
-            _StatsGrid(
+            _Stats(
               key: const ValueKey('works_stats'),
               stats: WorksStats.of(list),
             ),
@@ -306,6 +324,7 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
                         onTap: () =>
                             context.push(Routes.work(work.id, view: _view)),
                         onFavorite: () => _toggleFavorite(work),
+                        onArchive: () => _toggleArchived(work),
                       ),
                     ),
                 ],
@@ -319,80 +338,32 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
   }
 }
 
-/// Barra de estadísticas del dashboard: Total, En progreso, Completados y
-/// Pendientes, en 2×2 (cifra en Mono 24/700 y «rótulo · %» en Mono 14 muted).
-class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({super.key, required this.stats});
+/// Barra de estadísticas del dashboard (`StatsBar.tsx`): Total, En progreso,
+/// Completados y Pendientes.
+class _Stats extends StatelessWidget {
+  const _Stats({super.key, required this.stats});
 
   final WorksStats stats;
 
   @override
-  Widget build(BuildContext context) {
-    final items = [
-      ('Total', stats.total, stats.total > 0 ? 100 : 0),
-      ('En progreso', stats.inProgress, stats.pct(stats.inProgress)),
-      ('Completados', stats.completed, stats.pct(stats.completed)),
-      ('Pendientes', stats.pending, stats.pct(stats.pending)),
-    ];
-    return WorkspacePanel(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final scale = MediaQuery.textScalerOf(context).scale(13) / 13;
-          final columns = constraints.maxWidth / scale >= 320 ? 4 : 2;
-          final width =
-              (constraints.maxWidth - AppSpacing.sm * (columns - 1)) / columns;
-          return Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: [
-              for (final item in items)
-                SizedBox(
-                  width: width,
-                  child: _StatTile(
-                    label: item.$1,
-                    value: item.$2,
-                    pct: item.$3,
-                  ),
-                ),
-            ],
-          );
-        },
+  Widget build(BuildContext context) => StatCards(
+    items: [
+      (label: 'Total', value: stats.total, pct: stats.total > 0 ? 100 : 0),
+      (
+        label: 'En progreso',
+        value: stats.inProgress,
+        pct: stats.pct(stats.inProgress),
       ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.label,
-    required this.value,
-    required this.pct,
-  });
-
-  final String label;
-  final int value, pct;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$value',
-          style: AppTextStyles.technical.copyWith(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: c.text,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xxs),
-        Text(
-          '$label\n$pct%',
-          style: AppTextStyles.technical.copyWith(fontSize: 11, color: c.muted),
-        ),
-      ],
-    );
-  }
+      (
+        label: 'Completados',
+        value: stats.completed,
+        pct: stats.pct(stats.completed),
+      ),
+      (
+        label: 'Pendientes',
+        value: stats.pending,
+        pct: stats.pct(stats.pending),
+      ),
+    ],
+  );
 }

@@ -23,6 +23,11 @@ String formatDay(DateTime date, {DateTime? now}) {
   return DateFormat(pattern, 'es').format(day);
 }
 
+/// Fecha de entrega como la web (`formatDueDate`): "29/10/2026", o "29/10" con
+/// [dayMonth]. La fecha ya es el día de calendario (`parseDay`).
+String formatDueDate(DateTime date, {bool dayMonth = false}) =>
+    DateFormat(dayMonth ? 'dd/MM' : 'dd/MM/yyyy', 'es').format(date);
+
 /// "1 proyecto", "3 proyectos".
 String countLabel(int n, String singular, String plural) =>
     '$n ${n == 1 ? singular : plural}';

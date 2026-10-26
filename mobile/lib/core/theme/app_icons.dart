@@ -48,6 +48,9 @@ abstract final class AppIcons {
   static const expandMore = Icons.expand_more_outlined;
   static const expandLess = Icons.expand_less_outlined;
   static const menu = Icons.menu_outlined;
+
+  /// Menú de acciones de una card (`MoreHorizontal` de la web).
+  static const moreHorizontal = Icons.more_horiz;
   static const edit = Icons.edit_outlined;
   static const delete = Icons.delete_outline;
   static const copy = Icons.copy_outlined;
