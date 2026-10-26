@@ -50,6 +50,7 @@ scripts/paridad-android.sh cap P05-proyectos-admin -s2   # desplazada
 scripts/paridad-android.sh vista            # captura reducida para mirar
 ```
 
+- **Marionette (debug):** la app arranca con el binding de Marionette. `mobile-dev.sh android` deja la URI del VM service en `.context/mobile-parity/vmservice.json` (cambia en cada arranque). Con esa URI, `mcp__marionette__connect` y después `get_interactive_elements`, `tap` por `ValueKey` (`drawer_open`, `deliveries_button`…), `scroll_to` y `hot_reload` para ver un cambio de Dart sin relanzar. La versión de `marionette_flutter` tiene que coincidir con la del MCP (0.7). Las capturas siguen saliendo con `cap`, que cambia el tema del sistema.
 - Para tocar por texto desde zsh: `xy=$(scripts/paridad-android.sh ui | grep -E "^Texto" | head -1 | grep -oE '[0-9]+ [0-9]+$'); scripts/paridad-android.sh tap ${=xy}`.
 - `cap` oculta el teclado si quedó abierto: la web no lo muestra.
 - En Configuración, `ui` encuentra dos "Sistema": el chip de tema y la sección. Para la sección, usá la segunda coordenada.

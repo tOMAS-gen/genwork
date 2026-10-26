@@ -11,13 +11,13 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Sumar `marionette_flutter` y usar `MarionetteBinding` en `main.dart` cuando `kDebugMode`, fuera de tests y de web, con el patrón de GenStock. Documentar en `quickstart.md` cómo sacar la URI del VM service del log de `flutter run` y conectarse.
 
 **Criterios de aceptación:**
-- [ ] En debug, `mcp__marionette__connect` conecta con la app del emulador y `get_interactive_elements` lista los controles de `/works`.
-- [ ] En release no se inicializa el binding: `flutter build apk --release` compila y `main.dart` lo condiciona con `kDebugMode`.
-- [ ] Los tests siguen usando el binding de `flutter_test`.
+- [x] En debug, `mcp__marionette__connect` conecta con la app del emulador y `get_interactive_elements` lista los controles de `/works`.
+- [x] En release no se inicializa el binding: `flutter build apk --release` compila y `main.dart` lo condiciona con `kDebugMode`.
+- [x] Los tests siguen usando el binding de `flutter_test`.
 
 **Verificación:**
-- [ ] `flutter test` en verde y `dart analyze` limpio.
-- [ ] Manual: conectar, tocar "Abrir menú" por Marionette y hacer un hot reload.
+- [x] `flutter test` en verde y `dart analyze` limpio.
+- [x] Manual: conectar, tocar "Abrir menú" por Marionette y hacer un hot reload.
 
 **Depende de:** nada · **Archivos:** `mobile/pubspec.yaml`, `mobile/pubspec.lock`, `mobile/lib/main.dart`, `specs/066-paridad-visual-android/quickstart.md` · **Tamaño:** S
 
