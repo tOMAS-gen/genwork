@@ -77,15 +77,15 @@ Cada tarea cierra con `dart analyze` sin issues y `flutter test` en verde (desde
 **Descripción:** Capturas de P09 en claro y oscuro, revisión contra el boceto, y actualización de `auditoria-premium.md` (hallazgos de P09 resueltos) y de `inventario.md`.
 
 **Criterios de aceptación:**
-- [ ] `despues/P09-detalle-tarea-admin-{light,dark}-390-android.png` nuevas, con el oscuro verificado.
-- [ ] Los hallazgos P09-M que resuelve el piloto quedan marcados.
+- [x] `despues/P09-detalle-tarea-admin-{light,dark}-390-android.png` nuevas, con el oscuro verificado.
+- [x] Los hallazgos P09-M que resuelve el piloto quedan marcados.
 
 **Verificación:**
-- [ ] `dart analyze` limpio, `flutter test` en verde, comparador regenerado.
+- [x] `dart analyze` limpio, `flutter test` en verde, comparador regenerado.
 
 **Depende de:** 1–4 · **Archivos:** specs y capturas · **Tamaño:** S
 
 ## Checkpoint: piloto
 
-- [ ] Todos los tests pasan y la pantalla sigue el boceto en claro y oscuro.
+- [x] Todos los tests pasan y la pantalla sigue el boceto en claro y oscuro.
 - [ ] El usuario revisa el piloto antes de planificar las fases siguientes (PS1–PS15).

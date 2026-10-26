@@ -389,6 +389,13 @@ Captura: `despues/P09-detalle-tarea-admin-light-390-android.png` (+ dark)
 | P09-M4 | P2 | D8 | Los chips de contexto están desalineados: "/Cartelería del local" mide 32 dp de alto y "Preparación y entrega" 22 dp, con líneas base ~8 dp desfasadas. "#Impresión" va en otra fila, 20 dp más abajo. | Fila de chips de 24 dp de alto, 12/600, radio 4, separación de 8 dp, con salto de línea natural y la misma línea base. |
 | P09-M5 | P3 | D2 | Los encabezados de card "✓ Estado" y "📄 Descripción" van en 16/600 con íconos de 24 dp, mientras otras pantallas usan rótulos 11/700. El check junto a "Estado" se confunde con un estado completado. | Rótulos ESTADO y DESCRIPCIÓN en 11/700, en mayúsculas y sin ícono. |
 
+**Piloto implementado (2026-10-26, `implementacion-premium`):**
+- **P09-M1 resuelto:** el estado vigente se ve elegido aunque salga de las subtareas, sin tilde encima del punto de color.
+- **P09-M2 resuelto** con la decisión del usuario: la barra muestra la ruta, el título va una sola vez en el cuerpo (20/700), y Urgente, Mi día y Recordatorio son chips en vez de filas.
+- **P09-M3 en parte:** la descripción tiene un "Guardar" tonal que aparece solo con cambios ("Guardado ✓" si no hay). El título se guarda con un tilde junto al campo.
+- **P09-M4 en parte:** los chips de "Asignada a" quedan centrados en su fila, pero el del objetivo sigue más bajo (22 dp contra 32).
+- **P09-M5 resuelto:** rótulos ASIGNADA A, DESCRIPCIÓN y SUBTAREAS en 11/700, sin ícono.
+
 **Oscuro:** el thumb del interruptor es negro `#0c0c0c` sobre el track `#5b7fff` (sistémico: interruptor) y el punto verde de "Terminado" (`#154b29`) casi no se ve sobre `#151515`.
 
 **Brief de boceto:**

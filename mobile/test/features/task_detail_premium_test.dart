@@ -540,4 +540,29 @@ void main() {
       }
     });
   });
+
+  group('Tarea 5: ajustes de la revisión visual', () {
+    testWidgets('con subtareas, el estado vigente se ve elegido, no apagado', (
+      tester,
+    ) async {
+      final task = taskJson(
+        subtasks: [taskJson(id: 'c', text: 'Hija', parentId: 't')],
+      );
+      await mountDetail(tester, detailApi(task), task);
+      // El estado de una tarea con subtareas sale de sus hijas: el vigente
+      // se ve elegido (sin efecto) y el resto queda deshabilitado (P09-M3).
+      expect(
+        tester
+            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_open')))
+            .onSelected,
+        isNotNull,
+      );
+      expect(
+        tester
+            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_done')))
+            .onSelected,
+        isNull,
+      );
+    });
+  });
 }

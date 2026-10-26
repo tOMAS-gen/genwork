@@ -17,7 +17,7 @@ Se mantiene el override del AVD (390 × 844 @3x) que ya estaba configurado. Es e
 
 ## Pantallas
 
-Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` solo web (falta en Android).
+Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` solo web (falta en Android) · `premium (piloto)` Android ya sigue el boceto premium y se separa de la web a propósito ([SPEC-implementacion-premium.md](SPEC-implementacion-premium.md)).
 
 | P | Pantalla | Web | Android | S | M | Rol | Recurso semilla | Claro | Oscuro |
 |---|---|---|---|---|---|---|---|---|---|
@@ -29,7 +29,7 @@ Estado de cada captura: `—` pendiente · `par` web y Android hechas · `web` s
 | P06 | Crear/editar proyecto | dialog en `/` | dialog en `/works` | S07 | M05 | admin | — | igual | igual |
 | P07 | Detalle de proyecto | `/works/[id]` | `/works/:id`, `/materials` | S08 | M06 | admin | "Cartelería del local" | igual | igual |
 | P08 | Plantillas | `/?filter=templates` | `/templates` | S09 | M08 | admin | — | par | par |
-| P09 | Detalle de tarea | detalle en `/works/[id]` | pantalla de tarea (`task_detail_sheet`) | S10 | M07 | admin | tarea de "Preparación y entrega" | igual | igual |
+| P09 | Detalle de tarea | detalle en `/works/[id]` | pantalla de tarea (`task_detail_sheet`) | S10 | M07 | admin | tarea de "Preparación y entrega" | premium (piloto) | premium (piloto) |
 | P10 | Tablero | `/board` | `/board` | S11 | M10 | admin | — | igual | igual |
 | P11 | Sectores | `/sectors` | `/sectors` | S12 | M09 | admin | sectores "Impresión" | igual | igual |
 | P12 | Detalle de sector | `/sectors/[id]` | `/sectors/:id` | S12 | M09 | admin | "Impresión" (QA produccion) | igual | igual |

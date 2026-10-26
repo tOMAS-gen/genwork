@@ -352,14 +352,18 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                   ChoiceChip(
                     key: ValueKey('task_status_${option.id}'),
                     avatar: ColorDot(hex: option.color),
+                    // El fondo de acento ya marca el elegido; el tilde taparía
+                    // el punto de color del estado.
+                    showCheckmark: false,
                     label: Text(option.name),
                     selected: option.id == _task.status.id,
-                    onSelected: !canEdit || _task.isContainer
-                        ? null
-                        : option.id == _task.status.id
+                    onSelected: option.id == _task.status.id
                         // El estado vigente no se vuelve a elegir, pero tampoco
-                        // se pinta como deshabilitado.
+                        // se pinta como deshabilitado (P09-M3), aunque salga
+                        // de las subtareas.
                         ? (_) {}
+                        : !canEdit || _task.isContainer
+                        ? null
                         : (_) => _run(
                             (a) => a.setStatus(_task, option.id),
                             close: true,
@@ -398,7 +402,8 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               label: 'Asignada a',
               child: Wrap(
                 spacing: AppSpace.sm,
-                runSpacing: AppSpace.xs,
+                runSpacing: AppSpace.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   // Con los colores de las etiquetas de la web: /proyecto en
                   // `tag-work`, #sector en `tag-exec`, @persona en `tag-user`.
@@ -627,12 +632,12 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                         value: sub.isDone,
                         title: Text(
                           sub.displayText,
-                          style: sub.isDone
-                              ? AppTextStyles.body.copyWith(
-                                  color: c.muted,
-                                  decoration: TextDecoration.lineThrough,
-                                )
-                              : null,
+                          style: AppTextStyles.body.copyWith(
+                            color: sub.isDone ? c.muted : c.text,
+                            decoration: sub.isDone
+                                ? TextDecoration.lineThrough
+                                : null,
+                          ),
                         ),
                         onChanged:
                             canEdit &&
