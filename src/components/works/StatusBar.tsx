@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
 import { progress } from "@/lib/domain/works/progress";
 import { DatePicker } from "@/components/works/DatePicker";
@@ -64,11 +65,7 @@ export function StatusBar({
           ) : (
             <span>
               {dueDate
-                ? new Intl.DateTimeFormat("es-AR", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                  }).format(new Date(dueDate))
+                ? formatDueDate(dueDate)
                 : "Sin fecha"}
             </span>
           )}

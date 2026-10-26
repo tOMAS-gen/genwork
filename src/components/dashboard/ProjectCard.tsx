@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 
@@ -41,12 +42,6 @@ export interface DashboardWork {
   }[];
   stage: { id: string; name: string; color: string | null } | null;
 }
-
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
 
 export function ProjectCard({
   project,
@@ -142,7 +137,7 @@ export function ProjectCard({
         <div className="pc-due">
           <span className="pc-due-date">
             <Calendar size={14} />
-            Entrega: {dueDateFormatter.format(parsedDue)}
+            Entrega: {formatDueDate(parsedDue)}
           </span>
           <span className={`pc-due-remaining due-${urgency.color}`} style={{ fontStyle: "italic" }}>
             {urgency.label}

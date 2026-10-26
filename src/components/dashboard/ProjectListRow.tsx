@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { MoreHorizontal, Archive, ArchiveRestore } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getProjectStatus, getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 import type { DashboardWork } from "./ProjectCard";
@@ -13,12 +14,6 @@ const STATUS_LABELS: Record<string, string> = {
   in_progress: "En progreso",
   completed: "Completado",
 };
-
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
 
 export function ProjectListRow({
   project,
@@ -59,7 +54,7 @@ export function ProjectListRow({
             <strong>{project.name}</strong>
             {parsedDue && (
               <div className="muted" style={{ fontSize: "var(--text-sm)" }}>
-                Entrega: {new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" }).format(parsedDue)}
+                Entrega: {formatDueDate(parsedDue, "dayMonth")}
               </div>
             )}
           </div>
@@ -93,7 +88,7 @@ export function ProjectListRow({
           </div>
         )}
       </td>
-      <td>{parsedDue ? dueDateFormatter.format(parsedDue) : ""}</td>
+      <td>{parsedDue ? formatDueDate(parsedDue) : ""}</td>
       <td>
         {urgency && (
           <span className={`due-${urgency.color}`}>{urgency.label}</span>

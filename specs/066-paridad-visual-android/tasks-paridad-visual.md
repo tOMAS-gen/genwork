@@ -28,12 +28,12 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Crear en `src/lib/domain/dates/` un helper que formatee una fecha de entrega como día de calendario (`timeZone: "UTC"`), en los formatos que hoy usa cada vista (`dd/mm`, `dd/mm/aaaa`, corto). Primero el test que falla. Después usarlo en las vistas de proyectos.
 
 **Criterios de aceptación:**
-- [ ] Un test que falla antes del cambio y pasa después, para: medianoche UTC (`2026-10-29T00:00:00.000Z` → 29/10), un valor con hora cerca del cambio de día (`2026-10-29T01:05:00.000Z` → 29/10) y un valor con hora tarde (`2026-10-29T23:30:00.000Z` → 29/10), corriendo con `TZ=America/Argentina/Buenos_Aires`.
-- [ ] `ProjectCard`, `ProjectListRow`, `DueDateBadge` y `StatusBar` usan el helper, y ninguna tiene su propio `Intl.DateTimeFormat` para la entrega.
+- [x] Un test que falla antes del cambio y pasa después, para: medianoche UTC (`2026-10-29T00:00:00.000Z` → 29/10), un valor con hora cerca del cambio de día (`2026-10-29T01:05:00.000Z` → 29/10) y un valor con hora tarde (`2026-10-29T23:30:00.000Z` → 29/10), corriendo con `TZ=America/Argentina/Buenos_Aires`.
+- [x] `ProjectCard`, `ProjectListRow`, `DueDateBadge` y `StatusBar` usan el helper, y ninguna tiene su propio `Intl.DateTimeFormat` para la entrega.
 
 **Verificación:**
-- [ ] `TZ=America/Argentina/Buenos_Aires npx vitest run tests/unit/due-date-format.test.ts`
-- [ ] Manual: en `/`, la card de "Cartelería del local" muestra el mismo día que el detalle `/works/<id>`.
+- [x] `TZ=America/Argentina/Buenos_Aires npx vitest run tests/unit/due-date-format.test.ts`
+- [x] Manual: en `/`, la card de "Cartelería del local" muestra el mismo día que el detalle `/works/<id>`.
 
 **Depende de:** nada · **Archivos:** `src/lib/domain/dates/dueDate.ts` (nuevo), `tests/unit/due-date-format.test.ts` (nuevo), `src/components/dashboard/ProjectCard.tsx`, `src/components/dashboard/ProjectListRow.tsx`, `src/components/dashboard/DueDateBadge.tsx`, `src/components/works/StatusBar.tsx` · **Tamaño:** S
 

@@ -1,12 +1,8 @@
 "use client";
 
 import { Calendar } from "@/components/ui/icons";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
-
-const shortDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "numeric",
-  month: "short",
-});
 
 /**
  * Badge de fecha de entrega de un proyecto (FR: vencimiento en dashboard).
@@ -23,7 +19,7 @@ export function DueDateBadge({ dueDate }: { dueDate: string | null }) {
   return (
     <span className={`due-badge due-${urgency.color}`}>
       <Calendar size={14} />
-      {shortDateFormatter.format(parsed)} · {urgency.label}
+      {formatDueDate(parsed, "short")} · {urgency.label}
     </span>
   );
 }
