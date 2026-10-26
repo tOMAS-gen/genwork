@@ -49,6 +49,7 @@ class SettingsTabs extends ConsumerWidget {
         'Almacenamiento',
         Routes.setting(SettingsSection.storage.name),
       ),
+      ('genstock', 'Genstock', Routes.genstock),
       (
         SettingsSection.reminders.name,
         'Recordatorios',

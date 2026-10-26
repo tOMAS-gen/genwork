@@ -66,6 +66,8 @@ abstract final class AppIcons {
   static const back = Icons.arrow_back;
   /// Materiales (`Package` de la web).
   static const materials = Icons.inventory_2_outlined;
+  /// Integración con Genstock (`Globe` de la web).
+  static const integration = Icons.public;
   static const sortAsc = Icons.arrow_upward_outlined;
   static const sortDesc = Icons.arrow_downward_outlined;
   static const tune = Icons.tune;

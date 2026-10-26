@@ -146,6 +146,13 @@ class SettingsHomeScreen extends ConsumerWidget {
               'Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada',
               Routes.setting(SettingsSection.clients.name),
             ),
+            card(
+              'genstock',
+              AppIcons.integration,
+              'Integración con Genstock',
+              'URL del server para buscar productos y materiales',
+              Routes.genstock,
+            ),
           ],
           card(
             'labels',

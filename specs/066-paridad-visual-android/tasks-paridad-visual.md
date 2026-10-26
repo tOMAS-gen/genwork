@@ -297,12 +297,12 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 **Descripción:** Módulo GenStock en Administración (`/admin/genstock` de la web), contra `GET`/`PUT /api/admin/genstock` y `POST /api/admin/genstock/test`. Solo admin.
 
 **Criterios de aceptación:**
-- [ ] Ver, guardar y probar la conexión funcionan contra la API, y un miembro no ve el módulo.
-- [ ] El token no se muestra ni se registra en logs.
-- [ ] P31b tiene par `despues` y queda `igual`.
+- [x] Ver, guardar y probar la conexión funcionan contra la API, y un miembro no ve el módulo.
+- [x] La API de GenStock no maneja tokens: solo guarda la URL del servidor (nada sensible que mostrar ni registrar).
+- [x] P31b tiene par `despues` y queda `igual`.
 
 **Verificación:**
-- [ ] `flutter test test/features/genstock_settings_test.dart`
+- [x] `flutter test test/features/genstock_settings_test.dart`
 
 **Depende de:** 15 · **Archivos:** `mobile/lib/data/repositories/genstock_repository.dart`, `mobile/lib/features/settings/…`, `mobile/test/features/genstock_settings_test.dart` · **Tamaño:** M
 

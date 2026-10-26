@@ -42,6 +42,7 @@ import 'routes.dart';
 import '../../features/materials/work_materials_screen.dart';
 import '../../features/materials/materials_screen.dart';
 import '../../features/settings/mobile_app_screen.dart';
+import '../../features/settings/genstock_settings_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   String? identity(SessionState? session) => session is SignedIn
@@ -257,6 +258,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: 'mobile',
                         builder: (_, _) => const MobileAppScreen(),
+                      ),
+                      GoRoute(
+                        path: 'genstock',
+                        builder: (_, _) => const GenstockSettingsScreen(),
                       ),
                       GoRoute(
                         path: 'module/:section',

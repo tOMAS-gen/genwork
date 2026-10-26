@@ -94,4 +94,10 @@ class SettingsRepository {
         '/api/auth/mobile/integrations/finish',
         body: {'flowId': flowId, 'codeVerifier': verifier},
       );
+
+  /// Integración con Genstock: solo la URL del servidor (sin credenciales).
+  Future<Json> genstock() => _api.get<Json>('/api/admin/genstock');
+  Future<Json> saveGenstock(String baseUrl) =>
+      _api.put<Json>('/api/admin/genstock', body: {'baseUrl': baseUrl});
+  Future<Json> testGenstock() => _api.post<Json>('/api/admin/genstock/test');
 }

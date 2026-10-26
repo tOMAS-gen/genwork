@@ -32,6 +32,7 @@ abstract final class Routes {
   static const settings = '/more/settings';
   static String setting(String section) => '$settings/module/$section';
   static const mobileApp = '$settings/mobile';
+  static const genstock = '$settings/genstock';
   static String catalog(String kind) => '$settings/catalog/$kind';
   static String settingsError(String id) => '$settings/errors/$id';
 
