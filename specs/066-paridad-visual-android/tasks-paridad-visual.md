@@ -258,12 +258,12 @@ En todas: leer la página web y su API antes de diseñar. Si la API no alcanza, 
 **Descripción:** Agregar Materiales al detalle de proyecto en Android, como la sexta pestaña de la web (`MaterialsPanel`), contra `GET /api/works/[id]/materials`.
 
 **Criterios de aceptación:**
-- [ ] El proyecto tiene las mismas 6 pestañas que la web, en el mismo orden.
-- [ ] Sin GenStock configurado se ve el mismo estado vacío que la web.
+- [x] El proyecto tiene las mismas 6 pestañas que la web, en el mismo orden.
+- [x] Sin GenStock configurado se ve el mismo estado vacío que la web.
 
 **Verificación:**
-- [ ] `flutter test test/features/materials_test.dart`
-- [ ] Manual: par `despues` de la pestaña.
+- [x] `flutter test test/features/materials_test.dart`
+- [x] Manual: par `despues` de la pestaña.
 
 **Depende de:** 12 · **Archivos:** `mobile/lib/data/models/material.dart`, `mobile/lib/data/repositories/materials_repository.dart`, `mobile/lib/features/works/…`, `mobile/test/features/materials_test.dart` · **Tamaño:** M
 

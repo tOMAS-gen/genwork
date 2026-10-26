@@ -260,6 +260,10 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                     label: 'Tareas',
                                     icon: AppIcons.check,
                                   ),
+                                  const GenTabItem(
+                                    label: 'Materiales',
+                                    icon: AppIcons.materials,
+                                  ),
                                   GenTabItem(
                                     label: 'Documentos',
                                     icon: AppIcons.document,
@@ -280,14 +284,17 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                 ],
                                 // Documentos y Archivos son pantallas propias.
                                 onSelect: (i) {
-                                  if (i == 1) {
-                                    context.push('/works/${work.id}/document');
-                                  } else if (i == 2) {
-                                    context.push('/works/${work.id}/files');
-                                  } else if (i == 3) {
-                                    context.push('/works/${work.id}/activity');
-                                  } else if (i == 4) {
-                                    context.push('/works/${work.id}/clients');
+                                  const pages = [
+                                    null,
+                                    'materials',
+                                    'document',
+                                    'files',
+                                    'activity',
+                                    'clients',
+                                  ];
+                                  final page = pages[i];
+                                  if (page != null) {
+                                    context.push('/works/${work.id}/$page');
                                   }
                                 },
                               ),

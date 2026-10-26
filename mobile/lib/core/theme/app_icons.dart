@@ -64,6 +64,8 @@ abstract final class AppIcons {
   static const reorder = Icons.swap_vert_outlined;
   /// "← Mis proyectos" del portal (`ArrowLeft` de la web).
   static const back = Icons.arrow_back;
+  /// Materiales (`Package` de la web).
+  static const materials = Icons.inventory_2_outlined;
   static const sortAsc = Icons.arrow_upward_outlined;
   static const sortDesc = Icons.arrow_downward_outlined;
   static const tune = Icons.tune;

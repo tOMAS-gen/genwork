@@ -39,6 +39,7 @@ import '../auth/session.dart';
 import '../providers.dart';
 import 'auth_redirect.dart';
 import 'routes.dart';
+import '../../features/materials/work_materials_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   String? identity(SessionState? session) => session is SignedIn
@@ -157,6 +158,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                         path: 'files',
                         builder: (_, state) =>
                             FilesScreen(workId: state.pathParameters['id']!),
+                      ),
+                      GoRoute(
+                        path: 'materials',
+                        builder: (_, state) => WorkMaterialsScreen(
+                          workId: state.pathParameters['id']!,
+                        ),
                       ),
                     ],
                   ),
