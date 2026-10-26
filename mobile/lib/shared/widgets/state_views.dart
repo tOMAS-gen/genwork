@@ -89,15 +89,23 @@ class ErrorView extends StatelessWidget {
   );
 }
 
+/// Estado vacío, como `EmptyState` de la web: ícono 48 `muted`, título 16/600
+/// opcional, texto `muted` y una acción opcional debajo.
 class EmptyView extends StatelessWidget {
   const EmptyView({
     super.key,
     required this.message,
     this.icon = AppIcons.inbox,
+    this.title,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String message;
   final IconData icon;
+  final String? title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -112,11 +120,23 @@ class EmptyView extends StatelessWidget {
             children: [
               Icon(icon, size: AppIconSizes.state, color: c.muted),
               const SizedBox(height: AppSpacing.md),
+              if (title != null) ...[
+                Text(
+                  title!,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.dialogTitle.copyWith(color: c.text),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+              ],
               Text(
                 message,
                 textAlign: TextAlign.center,
                 style: AppTextStyles.body.copyWith(color: c.muted),
               ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+              ],
             ],
           ),
         ),

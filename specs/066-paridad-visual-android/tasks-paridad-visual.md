@@ -154,11 +154,11 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Igualar `AppFormDialog`, `AdaptiveModal`, `ActionConfirmationDialog`, `StateViews`, `AppStateBlock` y `GenSkeleton` a la web: título, botones, orden de acciones, texto y forma del vacío, de la carga y del error.
 
 **Criterios de aceptación:**
-- [ ] El dialog de crear proyecto (P06) tiene los mismos campos, el mismo orden de botones y el mismo copy.
-- [ ] Vacío, carga y error usan el mismo texto y la misma forma que la web en P05.
+- [x] El dialog de crear proyecto (P06) tiene los mismos campos, el mismo orden de botones y el mismo copy.
+- [x] Vacío, carga y error usan el mismo texto y la misma forma que la web en P05.
 
 **Verificación:**
-- [ ] `flutter test test/shared/dialogs_test.dart test/shared/state_views_test.dart test/core/async_value_view_test.dart`
+- [x] `flutter test test/shared/dialogs_test.dart test/shared/state_views_test.dart test/core/async_value_view_test.dart`
 
 **Depende de:** 6 · **Archivos:** `mobile/lib/shared/widgets/app_form_dialog.dart`, `mobile/lib/shared/widgets/adaptive_modal.dart`, `mobile/lib/shared/widgets/state_views.dart`, `mobile/lib/shared/widgets/app_state_block.dart`, `mobile/test/shared/dialogs_test.dart` · **Tamaño:** M
 

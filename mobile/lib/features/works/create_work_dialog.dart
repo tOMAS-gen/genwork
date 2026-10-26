@@ -7,6 +7,9 @@ import '../../core/providers.dart';
 import '../../data/models/group.dart';
 import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/state_views.dart';
 import 'works_providers.dart';
 
@@ -101,40 +104,65 @@ class _CreateWorkDialogState extends ConsumerState<_CreateWorkDialog> {
         ],
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              key: const ValueKey('create_work_name'),
-              controller: _name,
-              enabled: !_saving,
-              maxLength: 120,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-            ),
-            const SizedBox(height: AppSpace.lg),
-            TextField(
-              key: const ValueKey('create_work_description'),
-              controller: _description,
-              enabled: !_saving,
-              maxLength: 2000,
-              decoration: const InputDecoration(
-                labelText: 'Descripción (opcional)',
+            LabeledField(
+              label: 'Ámbito',
+              child: DropdownButtonFormField<String?>(
+                key: const ValueKey('create_work_group'),
+                isExpanded: true,
+                initialValue: _groupId,
+                style: AppTextStyles.body.copyWith(color: context.colors.text),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('Para mí (personal)'),
+                  ),
+                  for (final g in groups.value ?? const <GroupSummary>[])
+                    if (g.canOperate(user))
+                      DropdownMenuItem(value: g.id, child: Text(g.name)),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() => _groupId = value),
               ),
             ),
-            const SizedBox(height: AppSpace.md),
-            DropdownButtonFormField<String?>(
-              key: const ValueKey('create_work_group'),
-              isExpanded: true,
-              initialValue: _groupId,
-              decoration: const InputDecoration(labelText: 'Grupo'),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Personal')),
-                for (final g in groups.value ?? const <GroupSummary>[])
-                  if (g.canOperate(user))
-                    DropdownMenuItem(value: g.id, child: Text(g.name)),
-              ],
-              onChanged: _saving
-                  ? null
-                  : (value) => setState(() => _groupId = value),
+            const SizedBox(height: AppSpace.lg),
+            LabeledField(
+              label: widget.isTemplate ? 'Título del objetivo' : 'Nombre',
+              child: TextField(
+                key: const ValueKey('create_work_name'),
+                controller: _name,
+                enabled: !_saving,
+                maxLength: 120,
+                buildCounter: noCharCounter,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: widget.isTemplate
+                      ? 'Ej.: Instalación eléctrica'
+                      : 'Ej.: Tina – Remodelación de paneles',
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpace.lg),
+            LabeledField(
+              label: widget.isTemplate
+                  ? 'Descripción'
+                  : 'Descripción (opcional)',
+              child: TextField(
+                key: const ValueKey('create_work_description'),
+                controller: _description,
+                enabled: !_saving,
+                maxLength: 2000,
+                minLines: 2,
+                maxLines: 5,
+                buildCounter: webCharCounter,
+                decoration: InputDecoration(
+                  hintText: widget.isTemplate
+                      ? 'Opcional: se copia al objetivo al insertarla'
+                      : 'De qué se trata el proyecto',
+                ),
+              ),
             ),
           ],
         ),

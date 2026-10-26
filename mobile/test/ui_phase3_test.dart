@@ -459,7 +459,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      find.text('No hay resultados. Probá otra búsqueda o grupo.'),
+      find.text('Sin proyectos que coincidan con el filtro.'),
       findsOneWidget,
     );
   });

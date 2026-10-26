@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_icons.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
@@ -55,6 +58,11 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  Future<void> _create() async {
+    final id = await showCreateWorkDialog(context);
+    if (id != null && mounted) context.push(Routes.work(id, view: _view));
   }
 
   void _clearFilters() => setState(() {
@@ -121,18 +129,24 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
     if (widget.view != oldWidget.view) _view = widget.view;
   }
 
-  List<WorkSummary> _visible(List<WorkSummary> works, String? userId) =>
-      filterWorks(
-        works,
-        view: _view,
-        userId: userId,
-        query: _query,
-        groupIds: _filters.groups,
-        sectorId: _filters.sector,
-        labelValueId: _filters.label,
-        status: _filters.status,
-        sort: _filters.sort,
-      );
+  /// Sin [filtered], solo la vista (todos, míos, favoritos, archivados).
+  List<WorkSummary> _visible(
+    List<WorkSummary> works,
+    String? userId, {
+    bool filtered = true,
+  }) => !filtered
+      ? filterWorks(works, view: _view, userId: userId)
+      : filterWorks(
+          works,
+          view: _view,
+          userId: userId,
+          query: _query,
+          groupIds: _filters.groups,
+          sectorId: _filters.sector,
+          labelValueId: _filters.label,
+          status: _filters.status,
+          sort: _filters.sort,
+        );
 
   Future<void> _toggleFavorite(WorkSummary work) async {
     try {
@@ -168,19 +182,19 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
     final list = all == null ? null : _visible(all, userId);
 
     return GenPageScaffold(
-      title: _view == WorksView.all ? 'Todos los Proyectos' : _view.label,
+      title: switch (_view) {
+        WorksView.all => 'Todos los Proyectos',
+        WorksView.mine => 'Mis Proyectos',
+        WorksView.favorites => 'Proyectos Favoritos',
+        WorksView.archived => 'Archivados',
+      },
       icon: AppIcons.projects,
       actions: [
         if (!_archived)
           IconButton.filled(
             key: const ValueKey('works_create'),
             tooltip: 'Crear proyecto',
-            onPressed: () async {
-              final id = await showCreateWorkDialog(context);
-              if (id != null && context.mounted) {
-                context.push(Routes.work(id, view: _view));
-              }
-            },
+            onPressed: _create,
             icon: const Icon(AppIcons.add),
           ),
       ],
@@ -243,17 +257,41 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
             data: (all) {
               final visible = _visible(all, userId);
               if (visible.isEmpty) {
-                return EmptyView(
-                  message: _query.isNotEmpty || _activeFilters > 0
-                      ? 'No hay resultados. Probá otra búsqueda o grupo.'
-                      : switch (_view) {
-                          WorksView.mine => 'Todavía no creaste proyectos.',
-                          WorksView.favorites =>
-                            'Todavía no tenés favoritos.\nMarcá un proyecto con la estrella.',
-                          WorksView.archived => 'No hay proyectos archivados.',
-                          WorksView.all =>
-                            'Todavía no hay proyectos.\nCreá el primero con el botón +.',
-                        },
+                // Sin proyectos en la vista: el EmptyState de la web. Con
+                // proyectos que no pasan el filtro: el aviso corto.
+                if (_visible(all, userId, filtered: false).isEmpty) {
+                  return EmptyView(
+                    icon: AppIcons.projectOpen,
+                    title: switch (_view) {
+                      WorksView.favorites => 'Sin favoritos',
+                      WorksView.mine => 'Sin proyectos propios',
+                      WorksView.archived => 'Sin proyectos archivados',
+                      WorksView.all => 'Todavía no tenés proyectos',
+                    },
+                    message: switch (_view) {
+                      WorksView.favorites =>
+                        'Marcá proyectos como favoritos para verlos acá.',
+                      WorksView.mine =>
+                        'Los proyectos que vos creaste aparecen acá.',
+                      WorksView.archived =>
+                        'Los proyectos archivados aparecen acá.',
+                      WorksView.all =>
+                        'Creá tu primer proyecto para empezar a organizar tareas y sectores.',
+                    },
+                    actionLabel: _view == WorksView.all
+                        ? 'Nuevo proyecto'
+                        : null,
+                    onAction: _view == WorksView.all ? _create : null,
+                  );
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                  child: Text(
+                    'Sin proyectos que coincidan con el filtro.',
+                    style: AppTextStyles.body.copyWith(
+                      color: context.colors.muted,
+                    ),
+                  ),
                 );
               }
               if (!_grid) {

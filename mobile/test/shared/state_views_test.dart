@@ -128,4 +128,29 @@ void main() {
     expect(find.text(errorMessage(Exception('x'))), findsOneWidget);
     expect(find.byIcon(AppIcons.error), findsOneWidget);
   });
+
+  testWidgets('EmptyView como EmptyState de la web: título, texto y acción', (
+    t,
+  ) async {
+    var tapped = 0;
+    await _mount(
+      t,
+      EmptyView(
+        icon: AppIcons.projectOpen,
+        title: 'Todavía no tenés proyectos',
+        message: 'Creá tu primer proyecto para empezar.',
+        actionLabel: 'Nuevo proyecto',
+        onAction: () => tapped++,
+      ),
+    );
+    final title = t.getRect(find.text('Todavía no tenés proyectos'));
+    final text = t.getRect(find.text('Creá tu primer proyecto para empezar.'));
+    expect(title.top, lessThan(text.top));
+    expect(
+      t.widget<Text>(find.text('Todavía no tenés proyectos')).style?.fontWeight,
+      FontWeight.w600,
+    );
+    await t.tap(find.text('Nuevo proyecto'));
+    expect(tapped, 1);
+  });
 }

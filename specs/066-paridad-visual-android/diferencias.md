@@ -85,11 +85,11 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 
 | ID | Ítem | Diferencia | Destino | Estado |
 |---|---|---|---|---|
-| P06-01 | 1 | Orden de campos: Ámbito, Nombre, Descripción; Android pone el grupo al final con el rótulo "Grupo". | P | abierta |
-| P06-02 | 8 | Rótulos arriba del campo; Android usa rótulo flotante. | B-9 | abierta |
-| P06-03 | 3 | Placeholders "Ej.: Tina – Remodelación de paneles" y "De qué se trata el proyecto"; contador "0 / 2.000" solo en la descripción. | P | abierta |
-| P06-04 | 8 | "Cancelar" con contorno; cabecera y pie sin banda ni divisor. | B-10 | abierta |
-| P06-05 | 3 | Valor del ámbito "Para mí (personal)"; Android "Personal". | P | abierta |
+| P06-01 | 1 | Orden de campos: Ámbito, Nombre, Descripción; Android pone el grupo al final con el rótulo "Grupo". | P | corregida |
+| P06-02 | 8 | Rótulos arriba del campo; Android usa rótulo flotante. | B-9 | corregida |
+| P06-03 | 3 | Placeholders "Ej.: Tina – Remodelación de paneles" y "De qué se trata el proyecto"; contador "0 / 2.000" solo en la descripción. | P | corregida |
+| P06-04 | 8 | "Cancelar" con contorno; cabecera y pie sin banda ni divisor. | B-10 | corregida |
+| P06-05 | 3 | Valor del ámbito "Para mí (personal)"; Android "Personal". | P | corregida |
 
 ## P07 Detalle de proyecto
 

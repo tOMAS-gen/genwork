@@ -462,9 +462,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('work_favorite_favorite')));
       await tester.pumpAndSettle();
       expect(
-        find.text(
-          'Todavía no tenés favoritos.\nMarcá un proyecto con la estrella.',
-        ),
+        find.text('Sin favoritos'),
         findsOneWidget,
       );
       await _open(tester);

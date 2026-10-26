@@ -67,15 +67,30 @@ void main() {
         expect(t.takeException(), isNull);
         expect(find.text('Guardar'), findsOneWidget);
         final c = dark ? GenColors.dark : GenColors.light;
-        final footer = t.widget<ColoredBox>(
-          find
-              .descendant(
-                of: find.byType(AppWorkFooter),
-                matching: find.byType(ColoredBox),
-              )
-              .first,
+        // Como `dialog.dialog` de la web: sin franjas ni divisores en la
+        // cabecera y el pie, y la acción secundaria con contorno (`.btn`).
+        final dialog = find.byType(AppWorkDialog);
+        expect(
+          find.descendant(of: dialog, matching: find.byType(Divider)),
+          findsNothing,
         );
-        expect(footer.color, c.field);
+        expect(
+          t
+              .widgetList<ColoredBox>(
+                find.descendant(of: dialog, matching: find.byType(ColoredBox)),
+              )
+              .where((box) => box.color == c.field),
+          isEmpty,
+        );
+        final cancel = t.element(find.text('Cancelar'));
+        final side = TextButtonTheme.of(
+          cancel,
+        ).style?.side?.resolve(<WidgetState>{});
+        expect(side?.color, c.outline);
+        final fg = TextButtonTheme.of(
+          cancel,
+        ).style?.foregroundColor?.resolve(<WidgetState>{});
+        expect(fg, c.text, reason: 'la acción secundaria no va en acento');
         final close = find.byTooltip('Cerrar');
         expect(
           t.getSize(close).shortestSide,
