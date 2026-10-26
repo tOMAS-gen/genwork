@@ -430,14 +430,27 @@ void main() {
   }
   testWidgets('búsqueda y grupo combinan filtros de proyectos', (tester) async {
     await _pump(tester, const WorksListScreen());
+    // El grupo se elige en el panel de Filtros, como en la web.
     await _scrollWorks(
       tester,
-      find.byKey(const ValueKey('works_group_filter')),
+      find.byKey(const ValueKey('works_filters_toggle')),
     );
-    await tester.tap(find.byKey(const ValueKey('works_group_filter')));
+    await tester.tap(find.byKey(const ValueKey('works_filters_toggle')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Diseño').last);
+    final group = find.descendant(
+      of: find.byKey(const ValueKey('works_toolbar')),
+      matching: find.text('Diseño'),
+    );
+    await _scrollWorks(tester, group);
+    await tester.tap(group);
     await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('works_toolbar')),
+        matching: find.text('Grupo: Diseño'),
+      ),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('work_w1')), findsNothing);
     expect(find.byKey(const ValueKey('work_w2')), findsOneWidget);
     await tester.enterText(

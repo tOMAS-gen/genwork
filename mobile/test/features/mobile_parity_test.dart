@@ -22,7 +22,8 @@ import 'package:genwork_mobile/features/board/board_providers.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/works/works_dashboard.dart';
 import 'package:genwork_mobile/features/works/works_filter.dart';
-import 'package:genwork_mobile/features/works/works_filters_dialog.dart';
+import 'package:genwork_mobile/core/theme/app_theme.dart';
+import 'package:genwork_mobile/features/works/works_filters_panel.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
 
 AppUser identity(String role) => AppUser.fromJson({
@@ -381,33 +382,43 @@ void main() {
         expect(t.takeException(), isNull);
       });
       testWidgets('filtros se aplican en $width dp, oscuro=$dark', (t) async {
-        final c = await mount(
-          t,
-          Fixture(),
-          dark: dark,
-          width: width,
-          scale: 1.5,
+        // El panel de filtros de Proyectos (en línea, como la web) aplica cada
+        // cambio en el acto.
+        t.view.physicalSize = Size(width, 800);
+        t.view.devicePixelRatio = 1;
+        addTearDown(t.view.reset);
+        WorkFilters? applied;
+        await t.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark() : AppTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.5)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: WorksFiltersPanel(
+                  works: [
+                    WorkSummary.fromJson({
+                      'id': 'w',
+                      'name': 'Proyecto',
+                      'groupId': 'g',
+                      'groupName': 'Producción',
+                    }),
+                  ],
+                  sectors: const {'s': 'Impresión'},
+                  filters: emptyWorkFilters,
+                  onChanged: (f) => applied = f,
+                ),
+              ),
+            ),
+          ),
         );
-        final context = t.element(find.byKey(const ValueKey('portal_work_w')));
-        final future = showWorksFilters(
-          context,
-          works: [
-            WorkSummary.fromJson({
-              'id': 'w',
-              'name': 'Proyecto',
-              'groupId': 'g',
-              'groupName': 'Producción',
-            }),
-          ],
-          sectors: {'s': 'Impresión'},
-          current: emptyWorkFilters,
-        );
-        await t.pumpAndSettle();
         await t.tap(find.byKey(const ValueKey('works_filter_group_g')));
-        await t.tap(find.byKey(const ValueKey('works_filters_apply')));
         await t.pumpAndSettle();
-        expect((await future)!.groups, {'g'});
-        expect(c.read(routerProvider), isNotNull);
+        expect(applied!.groups, {'g'});
         expect(t.takeException(), isNull);
       });
     }

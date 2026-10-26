@@ -4,26 +4,24 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
-import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
-import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../data/models/sector.dart';
 import '../../shared/widgets/action_confirmation_dialog.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
+import '../../shared/widgets/list_toolbar.dart';
 import '../../shared/widgets/stat_cards.dart';
 import '../../shared/widgets/state_views.dart';
-import '../../shared/widgets/workspace_panel.dart';
 import 'create_work_dialog.dart';
 import 'work_card.dart';
 import 'works_dashboard.dart';
 import 'works_filter.dart';
 import 'works_providers.dart';
-import 'works_filters_dialog.dart';
+import 'works_filters_panel.dart';
+import 'work_table.dart';
 import '../sectors/sectors_providers.dart';
 import '../shell/resource_refresh.dart';
 
@@ -41,24 +39,86 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
   late WorksView _view = widget.view;
   bool get _archived => _view == WorksView.archived;
   String _query = '';
-  String? _group;
+  final _search = TextEditingController();
   WorkFilters _filters = emptyWorkFilters;
+  bool _filtersOpen = false;
+
+  /// Grilla de cards (`true`) o tabla, como el cambio de vista de la web.
+  bool _grid = true;
   int get _activeFilters =>
-      (_group == null ? 0 : 1) +
-      (_filters.groups.isEmpty ? 0 : 1) +
+      _filters.groups.length +
       (_filters.sector == null ? 0 : 1) +
       (_filters.label == null ? 0 : 1) +
       (_filters.status == null ? 0 : 1);
 
   @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _clearFilters() => setState(() {
+    _search.clear();
+    _query = '';
+    _filters = (
+      groups: <String>{},
+      sector: null,
+      label: null,
+      status: null,
+      sort: _filters.sort,
+    );
+  });
+
+  /// Filtros activos con su texto, como `.toolbar-chips` de la web.
+  List<ActiveFilter> _activeFilterChips(List<WorkSummary> works) {
+    final sectors = {
+      for (final s in ref.read(sectorsProvider).value ?? <SectorSummary>[])
+        s.id: s.name,
+    };
+    final labels = worksLabels(works);
+    final groups = worksGroups(works);
+    WorkFilters without({
+      Set<String>? groups,
+      bool sector = false,
+      bool label = false,
+      bool status = false,
+    }) => (
+      groups: groups ?? _filters.groups,
+      sector: sector ? null : _filters.sector,
+      label: label ? null : _filters.label,
+      status: status ? null : _filters.status,
+      sort: _filters.sort,
+    );
+    return [
+      if (_filters.sector != null)
+        (
+          label: 'Sector: ${sectors[_filters.sector] ?? 'Seleccionado'}',
+          remove: () => setState(() => _filters = without(sector: true)),
+        ),
+      if (_filters.label != null)
+        (
+          label: labels[_filters.label] ?? 'Etiqueta seleccionada',
+          remove: () => setState(() => _filters = without(label: true)),
+        ),
+      if (_filters.status != null)
+        (
+          label: worksStatusLabels[_filters.status]!,
+          remove: () => setState(() => _filters = without(status: true)),
+        ),
+      for (final id in _filters.groups)
+        (
+          label: 'Grupo: ${groups[id] ?? 'Seleccionado'}',
+          remove: () => setState(
+            () => _filters = without(groups: {..._filters.groups}..remove(id)),
+          ),
+        ),
+    ];
+  }
+
+  @override
   void didUpdateWidget(covariant WorksListScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.view != oldWidget.view) _view = widget.view;
-  }
-
-  void _selectView(WorksView view) {
-    setState(() => _view = view);
-    GoRouter.maybeOf(context)?.go(Routes.worksList(view));
   }
 
   List<WorkSummary> _visible(List<WorkSummary> works, String? userId) =>
@@ -67,7 +127,6 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
         view: _view,
         userId: userId,
         query: _query,
-        groupId: _group,
         groupIds: _filters.groups,
         sectorId: _filters.sector,
         labelValueId: _filters.label,
@@ -105,13 +164,6 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
   Widget build(BuildContext context) {
     final works = ref.watch(worksListProvider(_archived));
     final userId = ref.watch(currentUserProvider)?.id;
-    final c = context.colors;
-    final groupLabels = <String, String>{
-      for (final work in works.value ?? <WorkSummary>[])
-        work.groupId ?? '': work.groupId == null
-            ? 'Sin grupo'
-            : work.groupName ?? 'Grupo',
-    };
     final all = works.value;
     final list = all == null ? null : _visible(all, userId);
 
@@ -145,153 +197,44 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
               stats: WorksStats.of(list),
             ),
           if (list != null) const SizedBox(height: AppSpace.md),
-          WorkspacePanel(
+          ListToolbar<WorksSort>(
             key: const ValueKey('works_toolbar'),
-            padding: const EdgeInsets.all(AppSpacing.xs),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  key: const ValueKey('works_search'),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(AppIcons.search),
-                    hintText: 'Buscar proyecto, descripción o grupo',
-                  ),
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-                const SizedBox(height: AppSpace.sm),
-                if (!_archived) ...[
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        for (final view in [
-                          WorksView.all,
-                          WorksView.mine,
-                          WorksView.favorites,
-                        ])
-                          Padding(
-                            padding: const EdgeInsets.only(right: AppSpace.sm),
-                            child: ChoiceChip(
-                              key: ValueKey('works_view_${view.name}'),
-                              label: Text(
-                                view == WorksView.all ? 'Todos' : view.label,
-                              ),
-                              selected: _view == view,
-                              onSelected: (_) => _selectView(view),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                ],
-                Row(
-                  children: [
-                    Expanded(
-                      child: SegmentedButton<bool>(
-                        key: const ValueKey('works_archived_toggle'),
-                        showSelectedIcon: false,
-                        segments: const [
-                          ButtonSegment(value: false, label: Text('Activos')),
-                          ButtonSegment(value: true, label: Text('Archivados')),
-                        ],
-                        selected: {_archived},
-                        onSelectionChanged: (s) => _selectView(
-                          s.first ? WorksView.archived : WorksView.all,
-                        ),
-                      ),
-                    ),
-                    PopupMenuButton<String>(
-                      key: const ValueKey('works_group_filter'),
-                      tooltip: 'Filtrar por grupo',
-                      icon: Icon(
-                        _group == null
-                            ? AppIcons.filter
-                            : AppIcons.filterActive,
-                        color: _group == null ? c.muted : c.brand,
-                      ),
-                      onSelected: (v) => setState(() {
-                        _group = v == '__all__' ? null : v;
-                        _filters = (
-                          groups: <String>{},
-                          sector: _filters.sector,
-                          label: _filters.label,
-                          status: _filters.status,
-                          sort: _filters.sort,
-                        );
-                      }),
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                          value: '__all__',
-                          child: Text('Todos los grupos'),
-                        ),
-                        for (final g
-                            in groupLabels.entries.toList()
-                              ..sort((a, b) => a.value.compareTo(b.value)))
-                          PopupMenuItem(value: g.key, child: Text(g.value)),
-                      ],
-                    ),
-                  ],
-                ),
-                TextButton.icon(
-                  key: const ValueKey('works_advanced_filters'),
-                  icon: const Icon(AppIcons.tune),
-                  label: Text(
-                    _activeFilters == 0
-                        ? 'Filtros y orden'
-                        : 'Filtros y orden ($_activeFilters)',
-                  ),
-                  onPressed: all == null
-                      ? null
-                      : () async {
-                          final sectors = await ref
-                              .read(sectorsProvider.future)
-                              .catchError((Object e) {
-                                if (context.mounted) showErrorSnack(context, e);
-                                return <SectorSummary>[];
-                              });
-                          if (!context.mounted) return;
-                          final result = await showWorksFilters(
-                            context,
-                            works: all,
-                            sectors: {for (final s in sectors) s.id: s.name},
-                            current: (
-                              groups: _group == null
-                                  ? _filters.groups
-                                  : {_group!},
-                              sector: _filters.sector,
-                              label: _filters.label,
-                              status: _filters.status,
-                              sort: _filters.sort,
-                            ),
-                          );
-                          if (result != null && mounted) {
-                            setState(() {
-                              _filters = result;
-                              _group = null;
-                            });
-                          }
-                        },
-                ),
-                if (list != null) ...[
-                  const Divider(height: AppSpace.lg),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xs,
-                    ),
-                    child: Text(
-                      [
-                        countLabel(list.length, 'proyecto', 'proyectos'),
-                        if (_group != null)
-                          'Grupo: ${groupLabels[_group] ?? 'Seleccionado'}',
-                      ].join(' · '),
-                      style: AppTextStyles.supporting.copyWith(color: c.muted),
-                    ),
-                  ),
-                ],
-              ],
+            keyPrefix: 'works',
+            searchHint: 'Buscar proyectos…',
+            searchController: _search,
+            onSearch: (v) => setState(() => _query = v),
+            filtersExpanded: _filtersOpen,
+            onToggleFilters: () => setState(() => _filtersOpen = !_filtersOpen),
+            filtersPanel: WorksFiltersPanel(
+              works: all ?? const [],
+              sectors: {
+                for (final s
+                    in ref.watch(sectorsProvider).value ?? <SectorSummary>[])
+                  s.id: s.name,
+              },
+              filters: _filters,
+              onChanged: (f) => setState(() => _filters = f),
             ),
+            activeFilters: _activeFilterChips(all ?? const []),
+            onClear: _query.isNotEmpty || _activeFilters > 0
+                ? _clearFilters
+                : null,
+            sort: _filters.sort,
+            sortOptions: worksSortOptions,
+            onSort: (sort) => setState(
+              () => _filters = (
+                groups: _filters.groups,
+                sector: _filters.sector,
+                label: _filters.label,
+                status: _filters.status,
+                sort: sort,
+              ),
+            ),
+            grid: _grid,
+            onGrid: (grid) => setState(() => _grid = grid),
+            count: list == null
+                ? 'Cargando proyectos…'
+                : countLabel(list.length, 'proyecto', 'proyectos'),
           ),
           const SizedBox(height: AppSpace.md),
           AsyncValueView(
@@ -301,8 +244,7 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
               final visible = _visible(all, userId);
               if (visible.isEmpty) {
                 return EmptyView(
-                  message:
-                      _query.isNotEmpty || _group != null || _activeFilters > 0
+                  message: _query.isNotEmpty || _activeFilters > 0
                       ? 'No hay resultados. Probá otra búsqueda o grupo.'
                       : switch (_view) {
                           WorksView.mine => 'Todavía no creaste proyectos.',
@@ -312,6 +254,14 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
                           WorksView.all =>
                             'Todavía no hay proyectos.\nCreá el primero con el botón +.',
                         },
+                );
+              }
+              if (!_grid) {
+                return WorkTable(
+                  works: visible,
+                  onOpen: (work) =>
+                      context.push(Routes.work(work.id, view: _view)),
+                  onArchive: _toggleArchived,
                 );
               }
               return Column(

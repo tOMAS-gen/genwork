@@ -27,7 +27,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 | KPI | Cuatro cards separadas en grilla de 2 × 2, con "Total · 100%" en una línea mono (Android: una card con cuatro columnas). | P05, P08 | 8 |
 | Card de proyecto | Menú "⋯" junto a la estrella; fecha "Entrega: 29/10/2026"; urgencia en `--color-warning-text` (Android usa el ámbar de `warning`). | P05, P33 | 8 |
 | Barra de herramientas de listado | Buscador + fila [Filtros] [orden ▾] [grilla \| lista] + contador en la misma card. Filtros abre un panel en línea (Sector, Etiqueta, Estado, Grupos). El alcance (Todos, Mis proyectos, Favoritos, Archivados) se elige en el menú lateral, no con chips. | P05, P08, P11 | 9 |
-| Campos de formulario | Rótulo arriba del campo, no flotante dentro del borde. Desplegables con el mismo aspecto de campo. | P06, P11, P14, P19, P28, P29, P32 | 9 |
+| Campos de formulario | Rótulo arriba del campo, no flotante dentro del borde. Desplegables con el mismo aspecto de campo y el valor en regular (Android lo pone en 600 porque `DropdownButton` toma `titleMedium`). | P06, P11, P14, P19, P28, P29, P32 | 10 |
 | Pestañas del proyecto | Seis pestañas (Tareas, Materiales, Documentos, Archivos, Actividad, Acceso cliente) con ícono y subrayado; Android tiene tres. | P07, P17–P19 | 9 (+17) |
 | Chip de estado en el tablero | Contorno gris neutro ("En curso", "Pendiente"); Android lo pinta relleno con el acento. | P10, P35 | 9 |
 | Dialog | Sin banda ni divisor en cabecera y pie; rótulos arriba; "Cancelar" con contorno; contador "0 / 2.000". | P06 y todos los dialogs de alta | 10 |
@@ -76,7 +76,7 @@ Se anotan para la auditoría S01–S29 (la web no cambia en este módulo):
 |---|---|---|---|---|
 | P05-01 | 2 | El "+" va a la derecha del título; en Android cae debajo. | B-7 | corregida |
 | P05-02 | 1 | KPI en 4 cards de 2 × 2; Android, una card de 4 columnas. | B-8 | corregida |
-| P05-03 | 8 | Buscador "Buscar proyectos…" + [Filtros] [Más recientes ▾] [grilla \| lista]; Android tiene chips Todos/Mis proyectos/Favoritos, Activos/Archivados, ícono de filtro y "Filtros y orden". | B-9 | abierta |
+| P05-03 | 8 | Buscador "Buscar proyectos…" + [Filtros] [Más recientes ▾] [grilla \| lista]; Android tiene chips Todos/Mis proyectos/Favoritos, Activos/Archivados, ícono de filtro y "Filtros y orden". | B-9 | corregida (ListToolbar; el alcance Todos/Mis/Favoritos/Archivados queda en el menú, como la web) |
 | P05-04 | 2 | Card con menú "⋯" (archivar, etc.) además de la estrella. | B-8 | corregida |
 | P05-05 | 3 | Fecha "Entrega: 29/10/2026"; Android "Entrega: 29 oct". | B-8 | corregida |
 | P05-06 | 6 | Urgencia en `--color-warning-text` (marrón en claro); Android en ámbar. | B-6 | corregida (`dueToneColor`, token `dangerText` nuevo) |

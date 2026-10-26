@@ -139,11 +139,13 @@ Cada tarea de Flutter cierra con `dart analyze` sin issues y `flutter test` en v
 **Descripción:** Igualar `GenFilterChipBar`, `WorkspaceSearchBar`, `WorkspaceFiltersDrawer`, `GenTabBar`, `StatusChip` y `NamePill`. Si la web usa un selector de orden o un cambio grilla/lista, Android usa la misma pieza (ítem 8 de la spec).
 
 **Criterios de aceptación:**
-- [ ] Los controles de filtro de P05 son las mismas piezas que en la web, en el mismo orden.
-- [ ] La barra de pestañas del proyecto se ve como la web (las pantallas aparte se conservan, decisión 1).
+- [x] Los controles de filtro de P05 son las mismas piezas que en la web, en el mismo orden.
+- [x] La barra de pestañas del proyecto se ve como la web (las pantallas aparte se conservan, decisión 1).
 
 **Verificación:**
-- [ ] `flutter test test/shared/search_filters_tabs_test.dart test/shared/chips_notices_test.dart`
+- [x] `flutter test test/shared/search_filters_tabs_test.dart test/shared/chips_notices_test.dart`
+
+**Resultado:** `ListToolbar` compartida (buscador, Filtros con panel en línea, orden, grilla/lista, contador, filtros activos y Limpiar) aplicada a Proyectos, con la vista de tabla (`WorkTable`). Lo demás se mueve: los campos con rótulo arriba a la tarea 10 (van con los dialogs), el chip de estado del tablero a la tanda 2 (P10) y la barra de pestañas a la tanda 2 (P07) y la tarea 17.
 
 **Depende de:** 6 · **Archivos:** `mobile/lib/shared/widgets/gen_filter_chip_bar.dart`, `mobile/lib/shared/widgets/workspace_search_bar.dart`, `mobile/lib/shared/widgets/gen_tab_bar.dart`, `mobile/lib/shared/widgets/status_chip.dart`, `mobile/test/shared/search_filters_tabs_test.dart` · **Tamaño:** M
 

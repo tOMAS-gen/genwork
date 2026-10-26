@@ -32,7 +32,10 @@ class StatCards extends StatelessWidget {
           runSpacing: AppSpacing.sm,
           children: [
             for (final item in items)
-              SizedBox(width: width, child: StatCard(item: item)),
+              SizedBox(
+                width: width,
+                child: StatCard(item: item),
+              ),
           ],
         );
       },
