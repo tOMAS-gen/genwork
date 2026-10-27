@@ -1,12 +1,19 @@
 # Spec: `implementacion-premium` — los bocetos, en código
 
-Estado: **piloto en curso** (2026-10-26). Módulo posterior de [MAP.md](MAP.md). Depende de [`auditoria-premium`](auditoria-premium.md) y de los bocetos aprobados por el usuario.
+Estado: **piloto hecho; fases 1–5 planificadas** (2026-10-26, [plan](plan-implementacion-premium.md)). Módulo posterior de [MAP.md](MAP.md). Depende de [`auditoria-premium`](auditoria-premium.md) y de los bocetos aprobados por el usuario.
 
 ## Objetivo
 
 Llevar a código la dirección premium "taller preciso" (D1–D10) pantalla por pantalla, en la web y en Android a la vez, para que no vuelvan a separarse.
 
 El módulo arranca con un **piloto**: el detalle de tarea de Android (P09). El usuario ya decidió cómo tiene que quedar y la pantalla es solo de Android, así que sirve para probar el método con una sola pantalla. Las fases que siguen (bases compartidas PS1–PS3, componentes PS4–PS15 y pantallas) se planifican después del piloto, con su revisión.
+
+### Decisiones del usuario para las fases 1–5 (2026-10-26)
+
+- **Aprueba todos los bocetos.**
+- **Android primero, web al final.** Las fases 1 a 4 son solo de Android. La fase 5 lleva a la web los cambios de sistema y vuelve a igualar las dos con el banco `comparativa`. Esto reemplaza el "a la vez" del objetivo.
+- **QR con `qr_flutter`** en App móvil (P24b): dependencia nueva aprobada.
+- **Crear proyecto (P06)** queda como diálogo centrado y no como hoja inferior, porque la guarda prohíbe `showModalBottomSheet`.
 
 ## Piloto: detalle de tarea (P09)
 
