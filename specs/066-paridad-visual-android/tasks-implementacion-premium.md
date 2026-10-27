@@ -200,12 +200,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Las acciones secundarias y destructivas de una fila van a un menú "⋯" de 20 dp gris, con la destructiva en rojo adentro (D6). Guardar es un botón relleno o tonal alineado a la derecha del grupo que guarda (D7), nunca un enlace suelto ni un contorneado a todo el ancho.
 
 **Criterios de aceptación:**
-- [ ] Usuarios (P26u-M1), Clientes (P27-M4) y Acceso cliente (P19-M4) llevan sus acciones en "⋯".
-- [ ] Ningún botón de guardar es un enlace de texto.
+- [x] Usuarios (P26u-M1), Clientes (P27-M4) y Acceso cliente (P19-M4) llevan sus acciones en "⋯".
+- [x] Ningún botón de guardar es un enlace de texto.
 
 **Verificación:**
-- [ ] Tests que tocaban esas acciones abren el menú primero (mismas claves).
-- [ ] Capturas de P26, P27 y P19.
+- [x] Tests que tocaban esas acciones abren el menú primero (mismas claves).
+- [x] Capturas de P26, P27 y P19. "Guardar" como TextButton queda prohibido por una regla nueva en design_tokens_guard_test.
 
 **Depende de:** 11 · **Archivos:** `shared/widgets/app_button_styles.dart`, `features/settings/settings_screen.dart`, `features/works/work_access_screen.dart`, tests · **Tamaño:** M
 

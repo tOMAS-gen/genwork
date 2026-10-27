@@ -7,6 +7,7 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/util/format.dart';
 import '../../data/models/json.dart';
+import '../../shared/widgets/row_actions_menu.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
@@ -182,8 +183,7 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
                                 ListTile(
                                   title: Text(clients[i]['name'] as String),
                                   subtitle: Text('${clients[i]['email']}'),
-                                  // Estado como insignia y papelera, como
-                                  // la web.
+                                  // Estado como insignia, como la web.
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -195,16 +195,25 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
                                         color: context.colors.muted,
                                         fill: context.colors.hover,
                                       ),
-                                      IconButton(
+                                      // Quitar acceso, adentro del "⋯"
+                                      // (P19-M4).
+                                      RowActionsMenu(
                                         key: ValueKey(
-                                          'work_clients_revoke_${clients[i]['userId']}',
+                                          'work_clients_menu_${clients[i]['userId']}',
                                         ),
                                         tooltip:
-                                            'Quitar acceso de ${clients[i]['name']}',
-                                        onPressed: _busy
-                                            ? null
-                                            : () => _revoke(clients[i]),
-                                        icon: const Icon(AppIcons.delete),
+                                            'Acciones de ${clients[i]['name']}',
+                                        enabled: !_busy,
+                                        actions: [
+                                          RowAction(
+                                            key:
+                                                'work_clients_revoke_${clients[i]['userId']}',
+                                            label: 'Quitar acceso',
+                                            destructive: true,
+                                            onSelected: () =>
+                                                _revoke(clients[i]),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),

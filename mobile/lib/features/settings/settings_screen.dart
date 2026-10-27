@@ -25,6 +25,7 @@ import 'settings_tabs.dart';
 import 'storage_settings.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../shared/widgets/panel_section.dart';
+import '../../shared/widgets/row_actions_menu.dart';
 import '../../shared/widgets/settings_rows.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../core/auth/session.dart';
@@ -474,7 +475,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           if (list.isEmpty) const Text('No hay usuarios internos.'),
-          for (final raw in list) userCard(Json.from(raw as Map)),
+          if (list.isNotEmpty)
+            SettingsGroup(
+              children: [
+                for (final raw in list) userRow(Json.from(raw as Map)),
+              ],
+            ),
         ];
       case SettingsSection.clients:
         return [
@@ -771,52 +777,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget userCard(Json u) {
+  /// Usuario en una fila de 56–64 dp; sus acciones van en el "⋯" (P26u-M1).
+  Widget userRow(Json u) {
     final editable =
         u['globalRole'] != 'SUPERADMIN' &&
         u['id'] != ref.watch(currentUserProvider)?.id;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: WorkspacePanel(
-        padding: const EdgeInsets.all(AppSpacing.sm),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            tile(
-              u['name'] ?? u['email'],
-              '${u['email']} · ${roleLabel(u['globalRole'])}',
+    final name = u['name'] ?? u['email'];
+    final actions = [
+      if (editable)
+        RowAction(
+          key: 'settings_role_${u['id']}',
+          label: 'Cambiar rol',
+          onSelected: () => edit('Rol de ${u['name']}', [
+            SettingsField(
+              'role',
+              'Rol',
+              initial: u['globalRole'],
+              options: const {'MEMBER': 'Miembro', 'READER': 'Lector'},
             ),
-            if (editable)
-              button(
-                'role_${u['id']}',
-                'Cambiar rol',
-                () => edit('Rol de ${u['name']}', [
-                  SettingsField(
-                    'role',
-                    'Rol',
-                    initial: u['globalRole'],
-                    options: const {'MEMBER': 'Miembro', 'READER': 'Lector'},
-                  ),
-                ], (v) => repo.setRole(u['id'], v['role'])),
-              ),
-            if (u['globalRole'] == 'READER')
-              button(
-                'grants_${u['id']}',
-                'Grupos con permiso de lectura',
-                () async {
-                  await showAppFormDialog<void>(
-                    context,
-                    builder: (_) => ReaderGrantsDialog(user: u),
-                  );
-                  if (mounted) refresh();
-                },
-              ),
-          ],
+          ], (v) => repo.setRole(u['id'], v['role'])),
         ),
-      ),
+      if (u['globalRole'] == 'READER')
+        RowAction(
+          key: 'settings_grants_${u['id']}',
+          label: 'Grupos con permiso de lectura',
+          onSelected: () async {
+            await showAppFormDialog<void>(
+              context,
+              builder: (_) => ReaderGrantsDialog(user: u),
+            );
+            if (mounted) refresh();
+          },
+        ),
+    ];
+    return SettingsRow(
+      key: ValueKey('settings_user_${u['id']}'),
+      icon: AppIcons.person,
+      title: name,
+      subtitle: '${u['email']} · ${roleLabel(u['globalRole'])}',
+      trailing: actions.isEmpty
+          ? null
+          : RowActionsMenu(
+              key: ValueKey('settings_user_menu_${u['id']}'),
+              tooltip: 'Acciones de $name',
+              enabled: !_busy,
+              actions: actions,
+            ),
     );
   }
 
+  /// Cliente con "Dar de baja" dentro del "⋯" de la card (P27-M4).
   Widget clientCard(Json c) => Padding(
     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
     child: WorkspacePanel(
@@ -827,25 +837,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           tile(
             c['name'] ?? '',
             '${c['email']}\n${c['firstLoginAt'] == null ? 'Todavía no ingresó' : 'Ya ingresó al portal'}',
+            trailing: RowActionsMenu(
+              key: ValueKey('settings_client_menu_${c['id']}'),
+              tooltip: 'Acciones de ${c['name'] ?? c['email']}',
+              enabled: !_busy,
+              actions: [
+                RowAction(
+                  key: 'settings_delete_client_${c['id']}',
+                  label: 'Dar de baja',
+                  destructive: true,
+                  onSelected: () async {
+                    if (await settingsConfirm(
+                      context,
+                      '¿Dar de baja al cliente?',
+                      'Se eliminará ${c['email']} y sus permisos de consulta en proyectos.',
+                      action: 'Dar de baja',
+                    )) {
+                      await run(() => repo.deleteClient(c['id']));
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
           for (final work in (c['works'] as List?) ?? [])
             Text('• ${work['name']}'),
-          button(
-            'delete_client_${c['id']}',
-            'Dar de baja',
-            () async {
-              if (await settingsConfirm(
-                context,
-                '¿Dar de baja al cliente?',
-                'Se eliminará ${c['email']} y sus permisos de consulta en proyectos.',
-                action: 'Dar de baja',
-              )) {
-                await run(() => repo.deleteClient(c['id']));
-              }
-            },
-            icon: AppIcons.personRemove,
-            destructive: true,
-          ),
         ],
       ),
     ),

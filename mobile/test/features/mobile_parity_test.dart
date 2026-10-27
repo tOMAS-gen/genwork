@@ -83,6 +83,7 @@ class Fixture {
   final events = StreamController<LiveEvent>.broadcast();
   int? failure;
   bool allowed = true;
+  List<Object> grants = const [];
   late final api = _api();
   ApiClient _api() {
     final dio = Dio(BaseOptions(baseUrl: 'https://test.invalid'));
@@ -142,7 +143,7 @@ class Fixture {
               'tasks': [],
               'objectives': [],
             },
-            '/api/works/w/client-grants' => [],
+            '/api/works/w/client-grants' => grants,
             _ => <Object>[],
           };
           h.resolve(Response(requestOptions: r, statusCode: 200, data: data));
@@ -362,6 +363,35 @@ void main() {
       expect(f.requests.any((r) => r.path.endsWith('/client-grants')), isFalse);
     },
   );
+  testWidgets('quitar acceso de un cliente va dentro de su "⋯" (P19-M4)', (
+    t,
+  ) async {
+    final f = Fixture()
+      ..grants = [
+        {
+          'userId': 'u2',
+          'name': 'Cliente',
+          'email': 'cliente@test.local',
+          'firstLoginAt': null,
+        },
+      ];
+    await mount(t, f, role: 'MEMBER', path: '/works/w/clients');
+    expect(find.text('Invitado'), findsOneWidget);
+    expect(find.byKey(const ValueKey('work_clients_revoke_u2')), findsNothing);
+    await t.tap(find.byKey(const ValueKey('work_clients_menu_u2')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('work_clients_revoke_u2')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('settings_confirm_accept')));
+    await t.pumpAndSettle();
+    expect(
+      f.requests.any(
+        (r) =>
+            r.method == 'DELETE' && r.path == '/api/works/w/client-grants/u2',
+      ),
+      isTrue,
+    );
+  });
   testWidgets('tablero retira sectores anteriores después de un 403', (
     t,
   ) async {

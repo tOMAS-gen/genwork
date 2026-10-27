@@ -38,6 +38,13 @@ final _rules = <_Rule>[
     RegExp(r'showModalBottomSheet'),
   ),
   _Rule('Icons.* (usar AppIcons)', RegExp(r'\bIcons\.')),
+  // D7: guardar es un botón relleno o tonal, nunca un enlace de texto.
+  _Rule(
+    'Guardar como TextButton (usar FilledButton o FilledButton.tonal)',
+    RegExp(
+      r"TextButton(?:\.icon)?\((?:(?!(?:Text|Filled|Outlined)Button)[\s\S]){0,400}?Text\(\s*'Guardar",
+    ),
+  ),
   _Rule('AlertDialog (usar AppWorkDialog)', RegExp(r'\bAlertDialog\(')),
   _Rule(
     'showDialog directo (usar showAppFormDialog)',

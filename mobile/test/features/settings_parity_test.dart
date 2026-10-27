@@ -439,7 +439,12 @@ void main() {
     (t) async {
       final f = Fixture();
       await mount(t, f, const SettingsScreen(section: SettingsSection.users));
-      expect(find.byKey(const ValueKey('settings_role_me')), findsNothing);
+      // PS5: las acciones de cada usuario van en su "⋯", sin botones
+      // contorneados a todo el ancho.
+      expect(find.byKey(const ValueKey('settings_user_menu_me')), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+      await tap(t, 'settings_user_menu_u');
+      expect(find.byKey(const ValueKey('settings_role_u')), findsOneWidget);
       await tap(t, 'settings_grants_u');
       await tap(t, 'settings_reader_g2');
       expect(f.writes.single.data, {
@@ -449,6 +454,22 @@ void main() {
       });
     },
   );
+  testWidgets('ADM-02 dar de baja un cliente desde su "⋯"', (t) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.clients));
+    // La única acción a la vista es "Agregar cliente" (P27-M4).
+    expect(
+      find.byKey(const ValueKey('settings_delete_client_c')),
+      findsNothing,
+    );
+    await tap(t, 'settings_client_menu_c');
+    await tap(t, 'settings_delete_client_c');
+    await tap(t, 'settings_confirm_accept');
+    expect(
+      f.requests.where((r) => r.method == 'DELETE').single.path,
+      contains('/clients/c'),
+    );
+  });
   testWidgets('ADM-02 alta cliente envía proyectos elegidos', (t) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.clients));
