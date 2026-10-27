@@ -42,12 +42,14 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     final c = context.colors;
     return GenPageScaffold(
       title: 'Plantillas de objetivo',
-      // Como la web: la misma página que Proyectos, con "Nueva plantilla".
+      // El mismo "+" que Proyectos: el título entra en una línea y el botón
+      // con texto queda solo en el vacío (P08-M2).
       actions: [
-        FilledButton(
+        IconButton.filled(
           key: const ValueKey('template_create'),
+          tooltip: 'Nueva plantilla',
           onPressed: () => _create(template: true),
-          child: const Text('Nueva plantilla'),
+          icon: const Icon(AppIcons.add),
         ),
       ],
       onRefresh: () => ref.refresh(templatesProvider.future),
@@ -85,23 +87,27 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                 ),
                 const SizedBox(height: AppSpace.md),
               ],
-              ListToolbar<bool>(
-                keyPrefix: 'templates',
-                searchHint: 'Buscar proyectos…',
-                onSearch: (s) =>
-                    setState(() => _query = s.trim().toLowerCase()),
-                sort: _byName,
-                sortOptions: const {
-                  false: 'Más recientes',
-                  true: 'Nombre · A–Z',
-                },
-                onSort: (v) => setState(() => _byName = v),
-                count: countLabel(visible.length, 'proyecto', 'proyectos'),
-              ),
-              const SizedBox(height: AppSpace.md),
+              // Sin plantillas, sin barra: el vacío queda arriba (P08-M1).
+              if (items.isNotEmpty) ...[
+                ListToolbar<bool>(
+                  keyPrefix: 'templates',
+                  searchHint: 'Buscar plantillas…',
+                  onSearch: (s) =>
+                      setState(() => _query = s.trim().toLowerCase()),
+                  sort: _byName,
+                  sortOptions: const {
+                    false: 'Más recientes',
+                    true: 'Nombre · A–Z',
+                  },
+                  onSort: (v) => setState(() => _byName = v),
+                  count: countLabel(visible.length, 'plantilla', 'plantillas'),
+                ),
+                const SizedBox(height: AppSpace.md),
+              ],
               if (items.isEmpty)
                 EmptyView(
-                  icon: AppIcons.projectOpen,
+                  // El mismo ícono que Plantillas en el menú (P08-M4).
+                  icon: AppIcons.templates,
                   title: 'Sin plantillas de objetivo todavía',
                   message:
                       'Una plantilla es un objetivo reutilizable: sus tareas se copian en cada proyecto donde la insertes. Creá una acá o guardá un objetivo como plantilla desde su menú ⋮.',
@@ -110,7 +116,7 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
                 )
               else if (visible.isEmpty)
                 Text(
-                  'Sin proyectos que coincidan con el filtro.',
+                  'Sin plantillas que coincidan con el filtro.',
                   style: AppTextStyles.body.copyWith(color: c.muted),
                 ),
               if (visible.isNotEmpty)

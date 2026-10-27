@@ -361,9 +361,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 24: Proyectos, Crear proyecto y Plantillas (P05, P06, P08)
 
 **Criterios de aceptación:**
-- [ ] P05: controles de 40 dp con relleno; "3 PROYECTOS" como rótulo de la lista; meta "29 oct · 3 días".
-- [ ] P06: diálogo centrado en los dos temas, velo al 60 %, contador alineado al campo y "Cancelar" como botón de texto.
-- [ ] P08: "+" de 40 dp en la cabecera y vacío con el ícono de plantillas.
+- [x] P05: controles de 40 dp con relleno; "3 PROYECTOS" como rótulo de la lista; meta "29 oct · 3 días".
+- [x] P06: diálogo centrado en los dos temas, velo al 60 %, contador alineado al campo y "Cancelar" como botón de texto.
+- [x] P08: "+" de 40 dp en la cabecera y vacío con el ícono de plantillas.
 
 **Verificación:** `works_dashboard_test` y `create_work_dialog_test`. Capturas. · **Tamaño:** M
 

@@ -5,8 +5,8 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import 'progress_bar.dart';
 
-/// Avance de una card (proyecto, sector): la [ProgressBar] común con su
-/// porcentaje, y debajo «d/t tareas» (o «Sin tareas todavía»).
+/// Avance de una card (proyecto, sector): la [ProgressBar] común y, en la
+/// misma fila, «1/3 · 33%» en mono 12 (P05-M3). Sin tareas, solo el texto.
 class CardProgress extends StatelessWidget {
   const CardProgress({super.key, required this.done, required this.total});
 
@@ -15,35 +15,40 @@ class CardProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final pct = total == 0 ? 0 : (done / total * 100).round();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (total > 0) ...[
-          Semantics(
-            label: '$done de $total tareas completadas',
-            excludeSemantics: true,
-            child: Row(
+    if (total == 0) {
+      return Text(
+        'Sin tareas todavía',
+        style: AppTextStyles.supporting.copyWith(color: c.muted),
+      );
+    }
+    final pct = (done / total * 100).round();
+    return Semantics(
+      label: '$done de $total tareas completadas',
+      excludeSemantics: true,
+      child: Row(
+        children: [
+          Expanded(child: ProgressBar(value: done / total)),
+          const SizedBox(width: AppSpacing.sm),
+          // Cifras en mono; el separador no, que el espacio mono separa de
+          // más.
+          Text.rich(
+            TextSpan(
+              style: AppTextStyles.technical.copyWith(
+                color: c.muted,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
               children: [
-                Expanded(child: ProgressBar(value: done / total)),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '$pct%',
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: c.muted,
-                  ),
+                TextSpan(text: '$done/$total'),
+                TextSpan(
+                  text: ' · ',
+                  style: AppTextStyles.supporting.copyWith(color: c.muted),
                 ),
+                TextSpan(text: '$pct%'),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
         ],
-        Text(
-          total > 0 ? '$done/$total tareas' : 'Sin tareas todavía',
-          style: AppTextStyles.supporting.copyWith(color: c.muted),
-        ),
-      ],
+      ),
     );
   }
 }

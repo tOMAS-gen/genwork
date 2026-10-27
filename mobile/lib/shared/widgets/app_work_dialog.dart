@@ -77,9 +77,10 @@ class AppWorkDialog extends StatelessWidget {
 }
 
 /// Pie de una ventana de trabajo, como `.dialog-actions`: acciones a la
-/// derecha con 8 de separación, sin franja. Los `TextButton` toman el contorno
-/// de `.btn` (la acción secundaria de la web). [leading] queda a la izquierda
-/// —el lugar de la acción destructiva en un detalle—, lejos de la principal.
+/// derecha con 8 de separación, sin franja. Los `TextButton` (Cancelar) van
+/// como texto gris 13/600 sin borde: la principal es el único botón con forma
+/// (P06-M4). [leading] queda a la izquierda —el lugar de la acción destructiva
+/// en un detalle—, lejos de la principal.
 class AppWorkFooter extends StatelessWidget {
   const AppWorkFooter({super.key, required this.actions, this.leading});
 
@@ -96,11 +97,10 @@ class AppWorkFooter extends StatelessWidget {
       overflowSpacing: AppSpacing.xs,
       children: actions,
     );
-    // El estilo de `.btn` gana sobre el del tema; lo demás (tipografía,
-    // tamaño mínimo) sale del tema.
+    // Gana sobre el del tema; lo demás (tipografía, tamaño mínimo) sale del
+    // tema.
     final secondary = TextButton.styleFrom(
-      foregroundColor: c.text,
-      side: BorderSide(color: c.control),
+      foregroundColor: c.muted,
       shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
     ).merge(Theme.of(context).textButtonTheme.style);

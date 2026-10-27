@@ -1,6 +1,7 @@
 // "Nuevo proyecto" como CreateProjectDialog.tsx de la web (P06).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart' hide group;
+import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/data/models/group.dart';
 import 'package:genwork_mobile/features/works/create_work_dialog.dart';
@@ -85,5 +86,41 @@ void main() {
     );
     await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
     handle.dispose();
+  });
+
+  // P06: «Cancelar» de texto gris (sin borde), velo al 60 % y contador
+  // alineado al borde del campo.
+  testWidgets('alta: Cancelar de texto, velo al 60 % y contador alineado', (
+    t,
+  ) async {
+    await qa10.pump(
+      t,
+      Builder(
+        builder: (context) => TextButton(
+          onPressed: () => showCreateWorkDialog(context),
+          child: const Text('abrir'),
+        ),
+      ),
+      overrides: [
+        currentUserProvider.overrideWithValue(user('MEMBER')),
+        groupsProvider.overrideWith((ref) async => []),
+      ],
+    );
+    await t.tap(find.text('abrir'));
+    await t.pumpAndSettle();
+    final cancel = t.element(find.text('Cancelar'));
+    final style = TextButtonTheme.of(cancel).style!;
+    expect(style.side?.resolve({}), anyOf(isNull, BorderSide.none));
+    expect(
+      style.foregroundColor?.resolve({}),
+      Theme.of(cancel).extension<GenColors>()!.muted,
+    );
+    final barrier = t.widget<ModalBarrier>(find.byType(ModalBarrier).last);
+    expect(barrier.color?.a, closeTo(.6, .01));
+    final field = t.getRect(
+      find.byKey(const ValueKey('create_work_description')),
+    );
+    final counter = t.getRect(find.text('0 / 2.000'));
+    expect(counter.right, closeTo(field.right, 1));
   });
 }

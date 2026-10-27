@@ -123,35 +123,28 @@ class WorkCard extends StatelessWidget {
                   ],
                 ),
               ],
+              // «29 oct · 3 días», con el plazo en su color (P05-M3).
               if (work.dueDate != null && due != null) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xxs,
+                Row(
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          AppIcons.calendarToday,
-                          size: AppIconSizes.compact,
-                          color: c.muted,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Flexible(
-                          child: Text(
-                            'Entrega: ${formatDueDate(work.dueDate!)}',
-                            style: muted,
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      AppIcons.calendarToday,
+                      size: AppIconSizes.compact,
+                      color: c.muted,
                     ),
+                    const SizedBox(width: AppSpacing.xs),
                     Text(
-                      due.label,
-                      style: AppTextStyles.body.copyWith(
-                        color: dueColor,
-                        fontWeight: FontWeight.w500,
+                      '${formatDay(work.dueDate!, now: now)} · ',
+                      style: muted,
+                    ),
+                    Flexible(
+                      child: Text(
+                        due.short,
+                        style: AppTextStyles.body.copyWith(
+                          color: dueColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],

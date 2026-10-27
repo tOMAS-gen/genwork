@@ -748,7 +748,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('sectors_search')), findsOneWidget);
-      expect(find.text('1 sector'), findsOneWidget);
+      // El contador es el rótulo de la lista (P05-M4).
+      expect(find.text('1 SECTOR'), findsOneWidget);
       // Encabezado de ámbito en `sectionLabel` mayúsculas con su conteo.
       expect(find.text('PERSONAL'), findsOneWidget);
       expect(find.text('(1)'), findsOneWidget);
@@ -777,7 +778,7 @@ void main() {
       // Como la web: los pendientes van en el contador de la card.
       expect(find.text('8 pendientes · 12 tareas'), findsNothing);
       expect(find.text('8'), findsWidgets);
-      expect(find.text('33%'), findsOneWidget);
+      expect(find.textContaining('· 33%'), findsOneWidget);
     });
   }
   testWidgets('DS-18 detalle de sector como la web: migas, resumen y tareas', (

@@ -55,7 +55,10 @@ enum DueTone { neutral, warning, danger }
 
 /// Urgencia de una fecha límite (D5): con más de 3 días, neutro; de hoy a 3
 /// días, ámbar; vencido, rojo. Solo cuenta la fecha.
-({String label, DueTone tone}) dueUrgency(DateTime due, DateTime now) {
+({String label, String short, DueTone tone}) dueUrgency(
+  DateTime due,
+  DateTime now,
+) {
   final days = DateTime(
     due.year,
     due.month,
@@ -66,12 +69,20 @@ enum DueTone { neutral, warning, danger }
       : days == 0
       ? 'Vence hoy'
       : '$days días restantes';
+  // Para una línea de meta («29 oct · 3 días», P05-M3).
+  final short = days < 0
+      ? 'Vencido'
+      : days == 0
+      ? 'Hoy'
+      : days == 1
+      ? '1 día'
+      : '$days días';
   final tone = days > 3
       ? DueTone.neutral
       : days >= 0
       ? DueTone.warning
       : DueTone.danger;
-  return (label: label, tone: tone);
+  return (label: label, short: short, tone: tone);
 }
 
 /// Color del texto de urgencia: gris, ámbar o rojo.

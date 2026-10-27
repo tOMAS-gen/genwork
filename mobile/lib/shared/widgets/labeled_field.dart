@@ -49,9 +49,20 @@ Widget? webCharCounter(
 }) {
   if (maxLength == null) return null;
   final format = NumberFormat.decimalPattern('es');
-  return Text(
-    '${format.format(currentLength)} / ${format.format(maxLength)}',
-    style: AppTextStyles.supporting.copyWith(color: context.colors.muted),
+  // El decorador deja el relleno del campo a la derecha del contador; se
+  // corre para quedar alineado con el borde (P06-M3).
+  return Transform.translate(
+    offset: const Offset(AppSpacing.md, 0),
+    child: Text(
+      '${format.format(currentLength)} / ${format.format(maxLength)}',
+      // Cifras tabulares sin mono: el espacio mono separaba de más.
+      style: AppTextStyles.supporting.copyWith(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        color: context.colors.muted,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    ),
   );
 }
 

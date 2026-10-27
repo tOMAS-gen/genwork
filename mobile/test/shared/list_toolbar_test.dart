@@ -50,9 +50,7 @@ void main() {
             filtersExpanded: expanded,
             onToggleFilters: () => setState(() => expanded = !expanded),
             filtersPanel: const Text('panel'),
-            activeFilters: [
-              (label: 'Grupo: Diseño', remove: () => removed++),
-            ],
+            activeFilters: [(label: 'Grupo: Diseño', remove: () => removed++)],
             onClear: () => cleared++,
             sort: sort,
             sortOptions: const {
@@ -69,7 +67,19 @@ void main() {
     );
     expect(find.text('Buscar proyectos…'), findsOneWidget);
     expect(find.text('Más recientes'), findsOneWidget);
-    expect(find.text('3 proyectos'), findsOneWidget);
+    // P05-M4: el contador es el rótulo de la lista, fuera de la card.
+    expect(find.text('3 PROYECTOS'), findsOneWidget);
+    final toolbarCard = find.byKey(const ValueKey('x_toolbar_card'));
+    expect(
+      find.descendant(of: toolbarCard, matching: find.text('3 PROYECTOS')),
+      findsNothing,
+    );
+    // Controles con relleno de campo, todos del mismo alto.
+    final sortBox = t.widget<Container>(
+      find.byKey(const ValueKey('x_sort_box')),
+    );
+    expect((sortBox.decoration! as BoxDecoration).color, isNotNull);
+    expect(t.getSize(find.byKey(const ValueKey('x_sort_box'))).height, 44);
     expect(find.text('panel'), findsNothing);
     // El contador del botón muestra cuántos filtros hay activos.
     expect(

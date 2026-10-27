@@ -364,6 +364,9 @@ abstract final class AppTheme {
       ),
       dividerTheme: DividerThemeData(color: c.border, space: 1),
       dialogTheme: DialogThemeData(
+        // Velo negro al 60 % en los dos temas: en oscuro, uno del color de la
+        // página no tapaba lo de atrás (P06-M1).
+        barrierColor: Colors.black.withValues(alpha: .6),
         backgroundColor: c.floating,
         surfaceTintColor: Colors.transparent,
         shadowColor: floatingShadowColor,

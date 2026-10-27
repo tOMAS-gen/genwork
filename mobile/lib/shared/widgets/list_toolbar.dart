@@ -7,6 +7,9 @@ import '../../core/theme/gen_colors.dart';
 import 'labeled_field.dart';
 import 'app_dropdown_decoration.dart';
 
+/// Alto de los controles de la barra (P05-M4).
+const double _controlHeight = 44;
+
 /// Un filtro activo, con la acción que lo quita (`.toolbar-chips`).
 typedef ActiveFilter = ({String label, VoidCallback remove});
 
@@ -76,7 +79,10 @@ class ListToolbar<S> extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final divider = BorderSide(color: c.border);
-    return DecoratedBox(
+    final hasFooter =
+        activeFilters.isNotEmpty || onClear != null || summaryTrailing != null;
+    final card = DecoratedBox(
+      key: ValueKey('${keyPrefix}_toolbar_card'),
       decoration: BoxDecoration(
         color: c.surface,
         border: Border.all(color: c.border),
@@ -113,6 +119,7 @@ class ListToolbar<S> extends StatelessWidget {
                     Expanded(
                       child: _SortSelect<S>(
                         selectKey: ValueKey('${keyPrefix}_sort'),
+                        boxKey: ValueKey('${keyPrefix}_sort_box'),
                         value: sort,
                         options: sortOptions,
                         onChanged: onSort,
@@ -142,46 +149,55 @@ class ListToolbar<S> extends StatelessWidget {
               ),
               child: filtersPanel,
             ),
-          Container(
-            constraints: const BoxConstraints(minHeight: 40),
-            padding: const EdgeInsets.all(AppSpacing.xs),
-            decoration: BoxDecoration(border: Border(top: divider)),
-            child: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              alignment: WrapAlignment.spaceBetween,
-              children: [
-                Text(
-                  count,
-                  key: countKey,
-                  style: AppTextStyles.supporting.copyWith(
-                    color: c.muted,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                for (final filter in activeFilters)
-                  _ActiveFilterChip(filter: filter),
-                if (onClear != null)
-                  TextButton(
-                    key: clearKey ?? ValueKey('${keyPrefix}_filters_clear'),
-                    onPressed: onClear,
-                    style: TextButton.styleFrom(
-                      foregroundColor: c.muted,
-                      textStyle: AppTextStyles.supporting,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xxs,
+          if (hasFooter)
+            Container(
+              constraints: const BoxConstraints(minHeight: 40),
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              decoration: BoxDecoration(border: Border(top: divider)),
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                alignment: WrapAlignment.spaceBetween,
+                children: [
+                  for (final filter in activeFilters)
+                    _ActiveFilterChip(filter: filter),
+                  if (onClear != null)
+                    TextButton(
+                      key: clearKey ?? ValueKey('${keyPrefix}_filters_clear'),
+                      onPressed: onClear,
+                      style: TextButton.styleFrom(
+                        foregroundColor: c.muted,
+                        textStyle: AppTextStyles.supporting,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xxs,
+                        ),
+                        minimumSize: const Size(0, 36),
                       ),
-                      minimumSize: const Size(0, 36),
+                      child: const Text('Limpiar filtros'),
                     ),
-                    child: const Text('Limpiar filtros'),
-                  ),
-                ?summaryTrailing,
-              ],
+                  ?summaryTrailing,
+                ],
+              ),
             ),
-          ),
         ],
       ),
+    );
+    // El contador es el rótulo de la lista, fuera de la card (P05-M4).
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        card,
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          count.toUpperCase(),
+          key: countKey,
+          style: AppTextStyles.sectionLabel.copyWith(
+            color: c.muted,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -236,10 +252,11 @@ class _FiltersButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, 44),
+          minimumSize: const Size(0, _controlHeight),
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           foregroundColor: fg,
-          backgroundColor: expanded ? c.brandFill : Colors.transparent,
+          // Relleno de campo como los demás controles (P05-M4).
+          backgroundColor: expanded ? c.brandFill : c.field,
           side: BorderSide(color: expanded ? c.brand : c.control),
           shape: const RoundedRectangleBorder(
             borderRadius: AppGeometry.control,
@@ -281,12 +298,13 @@ class _FiltersButton extends StatelessWidget {
 class _SortSelect<S> extends StatelessWidget {
   const _SortSelect({
     required this.selectKey,
+    required this.boxKey,
     required this.value,
     required this.options,
     required this.onChanged,
   });
 
-  final Key selectKey;
+  final Key selectKey, boxKey;
   final S value;
   final Map<S, String> options;
   final ValueChanged<S> onChanged;
@@ -294,30 +312,40 @@ class _SortSelect<S> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Semantics(
-      label: 'Ordenar',
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<S>(
-          icon: const AppDropdownIcon(),
-          key: selectKey,
-          value: value,
-          isExpanded: true,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
-          borderRadius: AppGeometry.menu,
-          style: AppTextStyles.body.copyWith(
-            color: c.text,
-            fontWeight: FontWeight.w500,
+    // Caja de campo de 44 dp, como el buscador y "Filtros" (P05-M4).
+    return Container(
+      key: boxKey,
+      height: _controlHeight,
+      decoration: BoxDecoration(
+        color: c.field,
+        border: Border.all(color: c.control),
+        borderRadius: AppGeometry.control,
+      ),
+      child: Semantics(
+        label: 'Ordenar',
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<S>(
+            icon: const AppDropdownIcon(),
+            key: selectKey,
+            value: value,
+            isExpanded: true,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            borderRadius: AppGeometry.menu,
+            style: AppTextStyles.body.copyWith(
+              color: c.text,
+              fontWeight: FontWeight.w500,
+            ),
+            items: [
+              for (final o in options.entries)
+                DropdownMenuItem(
+                  value: o.key,
+                  child: Text(o.value, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
           ),
-          items: [
-            for (final o in options.entries)
-              DropdownMenuItem(
-                value: o.key,
-                child: Text(o.value, overflow: TextOverflow.ellipsis),
-              ),
-          ],
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
         ),
       ),
     );
@@ -365,6 +393,7 @@ class _ViewSwitch extends StatelessWidget {
         border: Border.all(color: c.control),
         borderRadius: AppGeometry.control,
       ),
+      constraints: const BoxConstraints(minHeight: _controlHeight),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

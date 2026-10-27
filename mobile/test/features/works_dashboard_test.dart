@@ -114,10 +114,14 @@ void main() {
       // D4: el nombre es el título, en su caja original.
       expect(find.text('Proyecto a'), findsOneWidget);
       expect(find.text('Grupo Diseño'), findsOneWidget);
-      expect(find.text('75%'), findsOneWidget);
-      expect(find.text('3/4 tareas'), findsOneWidget);
-      expect(find.textContaining('Entrega:'), findsOneWidget);
-      final remaining = t.widget<Text>(find.text('2 días restantes'));
+      // P05-M3: «3/4 · 75%» en mono junto a la barra y «12 oct · 2 días».
+      expect(find.text('3/4 · 75%'), findsOneWidget);
+      expect(
+        t.widget<Text>(find.text('3/4 · 75%')).textSpan!.style!.fontFamily,
+        'RobotoMono',
+      );
+      expect(find.textContaining('12 oct'), findsOneWidget);
+      final remaining = t.widget<Text>(find.text('2 días'));
       expect(remaining.style!.color, c.warningText);
       // D5: el plazo nunca va en itálica; el progreso, azul de 4 dp.
       expect(remaining.style!.fontStyle, isNot(FontStyle.italic));
@@ -148,7 +152,7 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
-  testWidgets('WorkCard como la web: fecha completa y menú ⋯ (P05)', (t) async {
+  testWidgets('WorkCard: fecha corta con los días y menú ⋯ (P05)', (t) async {
     var archived = 0, opened = 0;
     await t.pumpWidget(
       MaterialApp(
@@ -164,7 +168,9 @@ void main() {
         ),
       ),
     );
-    expect(find.text('Entrega: 29/10/2026'), findsOneWidget);
+    // P05-M3: «29 oct · 3 días» con el plazo en su color.
+    expect(find.text('29 oct · '), findsOneWidget);
+    expect(find.text('3 días'), findsOneWidget);
     await t.tap(find.byKey(const ValueKey('work_menu_c')));
     await t.pumpAndSettle();
     expect(find.text('Abrir proyecto'), findsOneWidget);

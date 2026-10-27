@@ -376,7 +376,8 @@ void main() {
     await label(t, 'Reintentar');
     await enter(t, 'templates_search', 'no existe');
     expect(
-      find.text('Sin proyectos que coincidan con el filtro.'),
+      // En Plantillas el texto dice "plantillas" (P08-M3).
+      find.text('Sin plantillas que coincidan con el filtro.'),
       findsOneWidget,
     );
     await enter(t, 'templates_search', '');
