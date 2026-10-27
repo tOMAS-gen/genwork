@@ -518,7 +518,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case SettingsSection.errors:
         return [
           if (list.isEmpty)
+            // Dentro de la card de la sección: sin marco propio.
             EmptyView(
+              framed: false,
               icon: AppIcons.check,
               message: _filter == null
                   ? 'No hay errores registrados.'
@@ -578,6 +580,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: AppSpacing.sm),
               if (connections.isEmpty)
                 const EmptyView(
+                  framed: false,
                   icon: AppIcons.link,
                   message:
                       'Todavía no tenés tokens. Generá uno para vincular Claude.',

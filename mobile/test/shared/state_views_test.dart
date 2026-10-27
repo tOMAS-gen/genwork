@@ -210,4 +210,10 @@ void main() {
       ),
     );
   });
+
+  testWidgets('EmptyView sin marco dentro de una card', (t) async {
+    await _mount(t, const EmptyView(message: 'Nada', framed: false));
+    final card = t.widget<Container>(find.byKey(const ValueKey('empty_card')));
+    expect(card.decoration, isNull);
+  });
 }

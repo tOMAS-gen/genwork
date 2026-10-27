@@ -103,6 +103,7 @@ class EmptyView extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.actionKey,
+    this.framed = true,
   });
 
   final String message;
@@ -111,6 +112,9 @@ class EmptyView extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final Key? actionKey;
+
+  /// Sin borde ni fondo propios, para un vacío dentro de una card.
+  final bool framed;
 
   @override
   Widget build(BuildContext context) {
@@ -124,11 +128,13 @@ class EmptyView extends StatelessWidget {
         key: const ValueKey('empty_card'),
         width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: c.surface,
-          border: Border.all(color: c.border),
-          borderRadius: AppGeometry.card,
-        ),
+        decoration: framed
+            ? BoxDecoration(
+                color: c.surface,
+                border: Border.all(color: c.border),
+                borderRadius: AppGeometry.card,
+              )
+            : null,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: _kEmptyMaxWidth),
