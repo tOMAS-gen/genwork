@@ -327,7 +327,7 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 
 - [x] `dart analyze` limpio y `flutter test` en verde (574 tests).
 - [x] Capturas de todas las pantallas que cambiaron, en claro y oscuro, con el comparador regenerado (2026-10-27): P04, P05, P06, P07, P08, P10–P13, P18–P35 (portal con el rol Cliente y TV con el rol Lector). Vence hoy (P22) muestra un aviso de los datos semilla, así que su captura no tiene el vacío.
-- [ ] El usuario revisa P05, P07, P23 y P28.
+- [x] El usuario revisa P05, P07, P23 y P28 (2026-10-27: "dale").
 
 ## Fase 3 — Pantallas
 
@@ -336,8 +336,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 21: Acceso y Servidores (P01, P02)
 
 **Criterios de aceptación:**
-- [ ] P01: visor QR cuadrado de 240 dp con esquinas de encuadre y el error adentro; "Escaneá el QR de tu sistema" como título; "Escribir dirección a mano" como botón tonal (relleno si falla la cámara); pasos numerados en círculos.
-- [ ] P02: fila de 72 dp con la sesión como punto verde y texto; lengüeta de 3 px en el activo y "⋯" en lugar del tacho.
+- [x] P01: visor QR cuadrado de 240 dp con esquinas de encuadre y el error adentro; "Escaneá el QR de tu sistema" como título; "Escribir dirección a mano" como botón tonal (relleno si falla la cámara); pasos numerados en círculos.
+- [x] P02: fila de 72 dp con la sesión como punto verde y texto; lengüeta de 3 px en el activo y "⋯" en lugar del tacho.
 
 **Verificación:** `server_setup_test` y `servers_screen_test`. Capturas sin cámara real: el permiso sigue revocado y el visor muestra el error. · **Tamaño:** M
 

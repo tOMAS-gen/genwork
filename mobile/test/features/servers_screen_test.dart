@@ -11,7 +11,6 @@ import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/router/app_router.dart';
 import 'package:genwork_mobile/core/router/routes.dart';
 import 'package:genwork_mobile/core/servers/server_profile.dart';
-import 'package:genwork_mobile/core/theme/app_icons.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
 import 'package:genwork_mobile/data/repositories/auth_repository.dart';
 import 'package:genwork_mobile/features/setup/qr_scanner_view.dart';
@@ -108,8 +107,9 @@ void main() {
     expect(find.text('Taller A'), findsOneWidget);
     expect(find.text('Taller B'), findsOneWidget);
     expect(find.text('https://a.test'), findsOneWidget);
-    expect(_inTile(_a, find.byIcon(AppIcons.success)), findsOneWidget);
-    expect(_inTile(_b, find.byIcon(AppIcons.success)), findsNothing);
+    // El activo se marca con la lengüeta de 3 px (P02-M4).
+    expect(find.byKey(ValueKey('server_active_${_a.id}')), findsOneWidget);
+    expect(find.byKey(ValueKey('server_active_${_b.id}')), findsNothing);
     expect(_inTile(_a, find.text('Sin sesión')), findsOneWidget);
     expect(_inTile(_b, find.text('Sin sesión')), findsOneWidget);
     expect(find.byKey(const ValueKey('servers_add')), findsOneWidget);
@@ -122,6 +122,8 @@ void main() {
     await _pump(tester, tokens: {_a.id: _session('ana'), _b.id: _session('beto')});
     expect(_inTile(_a, find.text('Sesión iniciada · ana@test')), findsOneWidget);
     expect(_inTile(_b, find.text('Sesión iniciada · beto@test')), findsOneWidget);
+    // Con sesión, un punto verde antes del texto (P02-M1).
+    expect(find.byKey(ValueKey('server_dot_${_a.id}')), findsOneWidget);
     expect(find.text('Sin sesión'), findsNothing);
     await _unmount(tester);
   });
@@ -196,6 +198,9 @@ void main() {
 
   testWidgets('quitar pide confirmación y deja el otro servidor', (tester) async {
     await _pump(tester);
+    // "Quitar" va dentro del "⋯" de la fila (P02-M3).
+    await tester.tap(find.byKey(ValueKey('server_menu_${_b.id}')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(ValueKey('server_remove_${_b.id}')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Quitar').last);
@@ -207,6 +212,8 @@ void main() {
   testWidgets('quitar todos vuelve al primer inicio', (tester) async {
     await _pump(tester);
     for (final p in [_b, _a]) {
+      await tester.tap(find.byKey(ValueKey('server_menu_${p.id}')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('server_remove_${p.id}')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Quitar').last);

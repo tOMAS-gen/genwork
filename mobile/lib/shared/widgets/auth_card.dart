@@ -44,7 +44,8 @@ class AuthCard extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: AppTextStyles.body.copyWith(color: c.muted),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    // 24 dp entre la marca y el título de la card (P01-M2).
+                    const SizedBox(height: AppSpacing.lg),
                     ...children,
                   ],
                 ),

@@ -10,13 +10,15 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/app_button_styles.dart';
 import '../../shared/widgets/app_inline_notice.dart';
 import '../../shared/widgets/auth_card.dart';
 import '../../shared/widgets/state_views.dart';
 import 'qr_scanner_view.dart';
 import '../../shared/widgets/labeled_field.dart';
 
-/// Cómo mostrar el QR en la web. Se ve debajo del visor de cámara.
+/// Cómo mostrar el QR en la web, debajo del visor (P01-M4): divisor, rótulo
+/// y cada paso con su número en un círculo de 20 dp.
 class _QrInstructions extends StatelessWidget {
   const _QrInstructions();
 
@@ -33,20 +35,44 @@ class _QrInstructions extends StatelessWidget {
       key: const ValueKey('setup_qr_instructions'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Divider(height: 1, thickness: 1, color: c.border),
+        const SizedBox(height: AppSpacing.md),
         Text(
-          'Cómo conseguir el código',
-          style: AppTextStyles.supporting.copyWith(
-            color: c.text,
-            fontWeight: FontWeight.w600,
-          ),
+          'CÓMO CONSEGUIR EL CÓDIGO',
+          style: AppTextStyles.sectionLabel.copyWith(color: c.text),
         ),
-        const SizedBox(height: AppSpacing.xxs),
         for (var i = 0; i < _steps.length; i++)
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xxs),
-            child: Text(
-              '${i + 1}. ${_steps[i]}',
-              style: AppTextStyles.supporting.copyWith(color: c.muted),
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  key: ValueKey('setup_step_${i + 1}'),
+                  width: AppSpacing.ml,
+                  height: AppSpacing.ml,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: c.hover,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    '${i + 1}',
+                    style: AppTextStyles.technical.copyWith(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: c.text,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    _steps[i],
+                    style: AppTextStyles.body.copyWith(color: c.muted),
+                  ),
+                ),
+              ],
             ),
           ),
       ],
@@ -76,6 +102,10 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
   String? _error;
   String? _connectingTo;
   bool _openingBrowser = false;
+
+  /// La cámara no está disponible: escribir a mano pasa a ser la acción
+  /// principal (P01-M3).
+  bool _cameraFailed = false;
 
   @override
   void dispose() {
@@ -158,26 +188,48 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // Con el escáner va justo debajo del visor; escribiendo, debajo del botón.
-    final modeToggle = TextButton.icon(
-      key: ValueKey(_manual ? 'setup_scan_toggle' : 'setup_manual_toggle'),
-      onPressed: _checking
-          ? null
-          : () => setState(() {
-              _manual = !_manual;
-              _error = null;
-            }),
-      icon: Icon(_manual ? AppIcons.qrScanner : AppIcons.keyboard),
-      label: Text(_manual ? 'Escanear QR' : 'Escribir dirección a mano'),
+    void toggle() => setState(() {
+      _manual = !_manual;
+      _error = null;
+    });
+    // Con el escáner, "Escribir dirección a mano" va a lo ancho debajo del
+    // visor: tonal, o relleno si la cámara no funciona.
+    final manualButton = FilledButton.icon(
+      key: const ValueKey('setup_manual_toggle'),
+      style:
+          (_cameraFailed
+                  ? FilledButton.styleFrom(
+                      backgroundColor: c.brand,
+                      foregroundColor: c.onBrand,
+                    )
+                  : AppButtonStyles.tonal(context))
+              .copyWith(
+                minimumSize: const WidgetStatePropertyAll(
+                  Size.fromHeight(AppSpacing.xxxl),
+                ),
+              ),
+      onPressed: _checking ? null : toggle,
+      icon: const Icon(AppIcons.keyboard),
+      label: const Text('Escribir dirección a mano'),
+    );
+    final scanToggle = TextButton.icon(
+      key: const ValueKey('setup_scan_toggle'),
+      onPressed: _checking ? null : toggle,
+      icon: const Icon(AppIcons.qrScanner),
+      label: const Text('Escanear QR'),
     );
     return AuthCard(
       children: [
-        Text(
-          _manual
-              ? 'Ingresá la dirección de tu sistema'
-              : 'Escaneá el QR de tu sistema',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.body.copyWith(color: c.text),
+        // La instrucción es el título de la card (P01-M2).
+        Semantics(
+          header: true,
+          child: Text(
+            _manual
+                ? 'Ingresá la dirección de tu sistema'
+                : 'Escaneá el QR de tu sistema',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.screenTitle.copyWith(color: c.text),
+          ),
         ),
         if (_manual) ...[
           const SizedBox(height: AppSpacing.xs),
@@ -204,10 +256,16 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
             ),
           ),
         ] else ...[
-          ref.watch(qrScannerBuilderProvider)(context, _onCode),
-          const SizedBox(height: AppSpacing.xs),
-          modeToggle,
-          const SizedBox(height: AppSpacing.xs),
+          NotificationListener<QrCameraUnavailable>(
+            onNotification: (_) {
+              if (!_cameraFailed) setState(() => _cameraFailed = true);
+              return true;
+            },
+            child: ref.watch(qrScannerBuilderProvider)(context, _onCode),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          manualButton,
+          const SizedBox(height: AppSpacing.md),
           const _QrInstructions(),
         ],
         if (_checking && _connectingTo != null) ...[
@@ -237,7 +295,7 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
                 ? const Text('Verificando conexión…')
                 : const Text('Continuar'),
           ),
-        if (_manual) modeToggle,
+        if (_manual) scanToggle,
         if (widget.canGoBack)
           TextButton(
             key: const ValueKey('setup_back'),
