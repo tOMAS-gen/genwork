@@ -29,6 +29,7 @@ import 'package:genwork_mobile/features/works/work_actions_menu.dart';
 import 'daily_parity_test.dart' show taskJson;
 import 'resource_operations_test.dart' show user, tap, Json;
 import 'package:genwork_mobile/shared/widgets/stat_cards.dart';
+import 'package:genwork_mobile/features/board/board_screen.dart';
 
 Json boardTask(
   String id, {
@@ -399,7 +400,12 @@ void main() {
       expect(_stat('Sectores'), '2');
       expect(find.byKey(const ValueKey('board_task_s_parent')), findsOneWidget);
       expect(find.byKey(const ValueKey('board_task_s_b')), findsNothing);
-      expect(find.text('1/2 subtareas'), findsOneWidget);
+      // Una sola línea de metadatos: avance de subtareas y estado (P10-M2).
+      expect(find.text('1/2 subtareas · En curso'), findsOneWidget);
+      // La ruta va una vez por sector, como encabezado del grupo.
+      expect(find.text('PROYECTO EJEMPLO · ENTREGA'), findsNWidgets(2));
+      // Un anillo por tarea pendiente (dos por sector).
+      expect(find.byType(StatusRing), findsNWidgets(4));
       expect(find.text('Subtarea de: Tarea principal'), findsOneWidget);
       expect(find.byType(Checkbox), findsNothing);
       expect(find.byType(TextField), findsNothing);
@@ -443,7 +449,14 @@ void main() {
       // Resumen como franja de 3 valores (P35-M4), sin barra global.
       expect(find.byKey(const ValueKey('board_summary')), findsOneWidget);
       expect(_stat('Finalizadas'), '1/3');
-      expect(find.textContaining('finalizadas'), findsWidgets);
+      // La barra dice cuántas se finalizaron; arriba, el contador y el %.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('board_sector_s')),
+          matching: find.byType(CountBadge),
+        ),
+        findsOneWidget,
+      );
       // Card por sector con acento, conteo y avance.
       final card = find.byKey(const ValueKey('board_sector_s'));
       expect(card, findsOneWidget);
@@ -537,7 +550,7 @@ void main() {
     (t) async {
       final f = Fixture();
       final app = await mount(t, f, path: Routes.myDay);
-      expect(find.text('Mi día: 1 de 3 completadas hoy'), findsOneWidget);
+      expect(find.textContaining(' · 1 de 3 completadas'), findsOneWidget);
       expect(find.byKey(const ValueKey('task_a')), findsOneWidget);
       expect(
         t
@@ -554,7 +567,7 @@ void main() {
           .first;
       t.state<ScrollableState>(scroll).position.jumpTo(0);
       await t.pumpAndSettle();
-      expect(find.text('Mi día: 2 de 3 completadas hoy'), findsOneWidget);
+      expect(find.textContaining(' · 2 de 3 completadas'), findsOneWidget);
       await tap(t, 'my_day_source_root');
       expect(find.text('Proyecto ejemplo'), findsWidgets);
       app.router.pop();

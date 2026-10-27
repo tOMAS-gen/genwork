@@ -353,8 +353,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 23: Mi día y Tablero (P04, P10)
 
 **Criterios de aceptación:**
-- [ ] P04: "Lunes 26 de octubre · 3 de 9 completadas" en una línea con barra de 4 dp. El grupo dice proyecto › objetivo, sin "☀ Mi día". El origen de la tarea tiene 48 dp táctiles (T4).
-- [ ] P10: tareas agrupadas por proyecto dentro de la columna, anillo de estado de 16 dp y `CountBadge`.
+- [x] P04: "Lunes 26 de octubre · 3 de 9 completadas" en una línea con barra de 4 dp. El grupo dice proyecto › objetivo, sin "☀ Mi día". El origen de la tarea tiene 48 dp táctiles (T4).
+- [x] P10: tareas agrupadas por proyecto dentro de la columna, anillo de estado de 16 dp y `CountBadge`.
 
 **Verificación:** `daily_parity_test` y `qa10_roles_a11y_test` adaptados al nuevo formato de fecha, con la misma verificación. Capturas. · **Tamaño:** M
 

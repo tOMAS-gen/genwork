@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +18,7 @@ import '../../shared/widgets/state_views.dart';
 import 'board_providers.dart';
 import '../../shared/widgets/progress_bar.dart';
 import '../../shared/widgets/stat_cards.dart';
+import '../../shared/widgets/count_badge.dart';
 
 /// Vista de tareas: avance y pendientes de cada sector, como `/board` de la web.
 class BoardScreen extends ConsumerWidget {
@@ -89,8 +92,9 @@ class BoardScreen extends ConsumerWidget {
   }
 }
 
-/// Card de un sector: acento del color del sector, nombre, conteo de
-/// pendientes, avance y, sobre `field`, las tareas pendientes.
+/// Card de un sector: acento del color del sector, nombre, contador de
+/// pendientes, porcentaje y barra; debajo, las tareas pendientes agrupadas
+/// por proyecto.
 class _SectorCard extends StatelessWidget {
   const _SectorCard({required this.column, this.readOnly = false});
   final BoardColumn column;
@@ -142,27 +146,25 @@ class _SectorCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.xs,
-                              vertical: AppSpacing.hairline,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: c.outline),
-                              borderRadius: AppGeometry.chip,
-                            ),
-                            child: Semantics(
-                              label:
-                                  '${progress.pending} ${progress.pending == 1 ? 'pendiente' : 'pendientes'}',
-                              excludeSemantics: true,
-                              child: Text(
-                                '${progress.pending}',
-                                style: AppTextStyles.supporting.copyWith(
-                                  color: c.muted,
-                                ),
+                          // El mismo contador que en Sectores (P10-M4).
+                          CountBadge(
+                            count: progress.pending,
+                            singular: 'pendiente',
+                            plural: 'pendientes',
+                          ),
+                          if (progress.total > 0) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            Text(
+                              '${(progress.ratio * 100).round()}%',
+                              style: AppTextStyles.technical.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: c.text,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
-                          ),
+                          ],
                           const SizedBox(width: AppSpacing.xs),
                           if (!readOnly)
                             Icon(
@@ -172,31 +174,20 @@ class _SectorCard extends StatelessWidget {
                             ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              progress.total > 0
-                                  ? '${progress.done} de ${progress.total} finalizadas'
-                                  : column.tasks.isEmpty
-                                  ? 'Sin tareas asignadas'
-                                  : 'Avance en las subtareas',
-                              style: AppTextStyles.supporting.copyWith(
-                                color: c.muted,
-                              ),
-                            ),
+                      // La barra ya dice cuántas se finalizaron; el texto solo
+                      // queda cuando no hay barra (P10-M4).
+                      if (progress.total == 0) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          column.tasks.isEmpty
+                              ? 'Sin tareas asignadas'
+                              : 'Avance en las subtareas',
+                          style: AppTextStyles.supporting.copyWith(
+                            color: c.muted,
                           ),
-                          if (progress.total > 0)
-                            Text(
-                              '${(progress.ratio * 100).round()}%',
-                              style: AppTextStyles.supporting.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: c.text,
-                              ),
-                            ),
-                        ],
-                      ),
+                        ),
+                      ],
+                      const SizedBox(height: AppSpacing.sm),
                       const SizedBox(height: AppSpacing.xxs),
                       Semantics(
                         label:
@@ -228,9 +219,24 @@ class _SectorCard extends StatelessWidget {
                           style: AppTextStyles.body.copyWith(color: c.muted),
                         ),
                       ),
-                    for (var i = 0; i < pending.length; i++) ...[
-                      if (i > 0) Divider(height: 1, color: c.border),
-                      _TaskRow(column: column, task: pending[i]),
+                    // Agrupadas por proyecto: la ruta va una vez (P10-M2).
+                    for (final group in _byContext(pending).entries) ...[
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: AppSpacing.xs,
+                          bottom: AppSpacing.xxs,
+                        ),
+                        child: Text(
+                          group.key.toUpperCase(),
+                          style: AppTextStyles.sectionLabel.copyWith(
+                            color: c.muted,
+                          ),
+                        ),
+                      ),
+                      for (var i = 0; i < group.value.length; i++) ...[
+                        if (i > 0) Divider(height: 1, color: c.border),
+                        _TaskRow(column: column, task: group.value[i]),
+                      ],
                     ],
                   ],
                 ),
@@ -243,9 +249,19 @@ class _SectorCard extends StatelessWidget {
   }
 }
 
-/// Tarea del tablero, como la de la web: punto de acento, la marca de
-/// subtarea, el texto, la carpeta con proyecto y objetivo, el avance de las
-/// subtareas y el estado como pastilla de contorno neutro.
+/// Tareas pendientes agrupadas por «proyecto › objetivo», en el orden en que
+/// aparecen.
+Map<String, List<BoardTask>> _byContext(List<BoardTask> tasks) {
+  final groups = <String, List<BoardTask>>{};
+  for (final t in tasks) {
+    (groups[t.contextLabel.replaceAll(' › ', ' · ')] ??= []).add(t);
+  }
+  return groups;
+}
+
+/// Tarea del tablero (P10-M2, P10-M3): anillo de estado de 16 dp, título
+/// 13/500 y una sola línea de metadatos en 12 gris. La ruta va en el
+/// encabezado del grupo.
 class _TaskRow extends StatelessWidget {
   const _TaskRow({required this.column, required this.task});
   final BoardColumn column;
@@ -255,6 +271,12 @@ class _TaskRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final supporting = AppTextStyles.supporting.copyWith(color: c.muted);
+    final status = task.isContainer ? 'En curso' : task.status.name;
+    final meta = [
+      if (task.isContainer)
+        '${task.subtaskDone}/${task.subtaskCount} subtareas',
+      status,
+    ].join(' · ');
     return Padding(
       key: ValueKey('board_task_${column.sector.id}_${task.id}'),
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -262,11 +284,12 @@ class _TaskRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs),
-            child: Container(
-              width: AppSpace.dot,
-              height: AppSpace.dot,
-              decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
+            padding: const EdgeInsets.only(top: AppSpacing.hairline),
+            child: StatusRing(
+              color: colorFromHex(task.status.color),
+              progress: task.isContainer
+                  ? task.subtaskDone / task.subtaskCount
+                  : null,
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -287,44 +310,12 @@ class _TaskRow extends StatelessWidget {
                   ),
                 Text(
                   task.text,
-                  style: AppTextStyles.body.copyWith(color: c.text),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      AppIcons.projects,
-                      size: AppIconSizes.compact,
-                      color: c.muted,
-                    ),
-                    const SizedBox(width: AppSpacing.xxs),
-                    Expanded(child: Text(task.contextLabel, style: supporting)),
-                  ],
-                ),
-                if (task.isContainer) ...[
-                  const SizedBox(height: AppSpacing.xxs),
-                  Text(
-                    '${task.subtaskDone}/${task.subtaskCount} subtareas',
-                    style: supporting,
-                  ),
-                ],
-                const SizedBox(height: AppSpacing.xs),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.hairline,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.field,
-                    border: Border.all(color: c.outline),
-                    borderRadius: AppGeometry.chip,
-                  ),
-                  child: Text(
-                    task.isContainer ? 'En curso' : task.status.name,
-                    style: supporting.copyWith(fontSize: 11),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: c.text,
                   ),
                 ),
+                Text(meta, style: supporting),
               ],
             ),
           ),
@@ -332,4 +323,66 @@ class _TaskRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Anillo de estado de 16 dp (P10-M3): el contorno en el color del estado y,
+/// en una tarea con subtareas, el relleno según su avance.
+class StatusRing extends StatelessWidget {
+  const StatusRing({super.key, required this.color, this.progress});
+
+  final Color color;
+
+  /// De 0 a 1, o null si no hay subtareas.
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: AppSpacing.md,
+    child: CustomPaint(
+      painter: _RingPainter(
+        color: color,
+        track: context.colors.outline,
+        progress: progress,
+      ),
+    ),
+  );
+}
+
+class _RingPainter extends CustomPainter {
+  const _RingPainter({
+    required this.color,
+    required this.track,
+    required this.progress,
+  });
+
+  final Color color, track;
+  final double? progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const stroke = AppSpacing.hairline;
+    final rect = (Offset.zero & size).deflate(stroke / 2);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = stroke;
+    final p = progress;
+    if (p == null) {
+      canvas.drawOval(rect, paint..color = color);
+      return;
+    }
+    canvas.drawOval(rect, paint..color = track);
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * p.clamp(0, 1),
+      false,
+      paint
+        ..color = color
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingPainter old) =>
+      old.color != color || old.track != track || old.progress != progress;
 }

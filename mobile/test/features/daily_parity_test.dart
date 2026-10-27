@@ -29,6 +29,7 @@ import 'package:genwork_mobile/features/sectors/sector_detail_screen.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:genwork_mobile/shared/widgets/progress_bar.dart';
 
 Json taskJson(String id, {List<Json> children = const [], bool? canToggle}) => {
   'id': id,
@@ -176,7 +177,9 @@ void main() {
     );
     addTearDown(container.dispose);
     await mount(tester, container, const MyDayScreen());
-    expect(find.text('viernes 5 de marzo'), findsOneWidget);
+    // Misma verificación del día del sistema; ahora encabeza la línea de
+    // avance (P04-M3).
+    expect(find.textContaining('Viernes 5 de marzo · '), findsOneWidget);
   });
 
   testWidgets('DS-15 Mi día como la web: header, progreso y una sola card', (
@@ -210,12 +213,22 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Mi día: 0 de 1 completadas hoy'), findsOneWidget);
+    // Fecha y avance en una línea con barra (P04-M3).
+    expect(find.textContaining(' · 0 de 1 completadas'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('my_day_progress')),
+        matching: find.byType(ProgressBar),
+      ),
+      findsOneWidget,
+    );
     // Una sola card (WorkspaceListPanel) para Mi día + referencias, sin
     // encabezados de sección.
     expect(find.byType(WorkspaceListPanel), findsOneWidget);
     expect(find.text('Pendientes'), findsNothing);
-    expect(find.text('Mi día'), findsOneWidget);
+    // El grupo dice de dónde viene, sin repetir «Mi día» (P04-M4); la
+    // referencia conserva su marca.
+    expect(find.text('Mi día'), findsNothing);
     expect(find.text('Referencia'), findsOneWidget);
     expect(find.byKey(const ValueKey('my_day_source_hoy')), findsOneWidget);
     expect(find.byKey(const ValueKey('task_toggle_hoy')), findsOneWidget);

@@ -13,6 +13,7 @@ import '../../data/models/common.dart';
 import '../../data/models/task.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
+import '../../shared/widgets/progress_bar.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/task_tile.dart';
 import '../../shared/widgets/workspace_panel.dart';
@@ -98,7 +99,6 @@ class MyDayScreen extends ConsumerWidget {
           }
 
           Widget tile(Task t) {
-            final source = myDaySourceLabel(t);
             final isRef = merged.referenceIds.contains(t.id);
             final route = t.work != null
                 ? Routes.work(t.work!.id)
@@ -110,9 +110,8 @@ class MyDayScreen extends ConsumerWidget {
               children: [
                 _RowMeta(
                   taskId: t.id,
-                  isMyDay: t.isInMyDay,
                   isReference: isRef,
-                  source: source,
+                  task: t,
                   onSource: route == null ? null : () => context.push(route),
                 ),
                 TaskTile(
@@ -150,26 +149,15 @@ class MyDayScreen extends ConsumerWidget {
             key: const ValueKey('my_day_list'),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
+              // Fecha y avance en una línea, con la barra debajo (P04-M3).
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.gutter,
-                  AppSpace.lg,
-                  AppSpace.gutter,
-                  0,
-                ),
-                child: Text(
-                  DateFormat("EEEE d 'de' MMMM", 'es').format(today),
-                  style: AppTextStyles.supporting.copyWith(
-                    color: context.colors.muted,
-                  ),
+                key: const ValueKey('my_day_progress'),
+                padding: AppSpace.page,
+                child: _ProgressText(
+                  today: today,
+                  progress: tasks.isEmpty ? null : progress,
                 ),
               ),
-              if (tasks.isNotEmpty)
-                Padding(
-                  key: const ValueKey('my_day_progress'),
-                  padding: AppSpace.page,
-                  child: _ProgressText(progress: progress),
-                ),
               if (pending.isNotEmpty || refs.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -210,105 +198,141 @@ class MyDayScreen extends ConsumerWidget {
   }
 }
 
-/// «☼ Mi día: **0 de 1** completadas hoy», como la línea de progreso de la web
-/// (sin barra).
+/// «Lunes 26 de octubre · **3 de 9** completadas» en 13/500 con las cifras en
+/// mono tabular y, debajo, la barra de avance (P04-M3).
 class _ProgressText extends StatelessWidget {
-  const _ProgressText({required this.progress});
+  const _ProgressText({required this.today, required this.progress});
 
-  final Progress progress;
+  final DateTime today;
+  final Progress? progress;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final base = AppTextStyles.body.copyWith(color: c.muted);
-    return Row(
+    final base = AppTextStyles.body.copyWith(
+      color: c.muted,
+      fontWeight: FontWeight.w500,
+    );
+    final date = DateFormat("EEEE d 'de' MMMM", 'es').format(today);
+    final digits = AppTextStyles.technical.copyWith(
+      fontWeight: FontWeight.w700,
+      color: c.text,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final p = progress;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(AppIcons.myDay, size: AppIconSizes.compact, color: c.muted),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              style: base,
-              children: [
-                const TextSpan(text: 'Mi día: '),
-                TextSpan(
-                  text: '${progress.done} de ${progress.total}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const TextSpan(text: ' completadas hoy'),
+        Text.rich(
+          TextSpan(
+            style: base,
+            children: [
+              TextSpan(text: date[0].toUpperCase() + date.substring(1)),
+              if (p != null) ...[
+                const TextSpan(text: ' · '),
+                // Solo las cifras en mono: el espacio mono separa de más.
+                TextSpan(text: '${p.done}', style: digits),
+                const TextSpan(text: ' de '),
+                TextSpan(text: '${p.total}', style: digits),
+                const TextSpan(text: ' completadas'),
               ],
-            ),
+            ],
           ),
         ),
+        if (p != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          ProgressBar(value: p.ratio),
+        ],
       ],
     );
   }
 }
 
-/// Línea sobre cada tarea: «☼ Mi día» o «@ Referencia» (+ «· Referencia» si es
-/// ambas) y el origen como enlace `muted`.
+/// Encabezado de cada tarea: de dónde viene, con el proyecto o sector en
+/// 13/600 y el resto («› Preparación y entrega») en gris (P04-M4). El título de
+/// la página ya dice «Mi día»; una referencia lleva «@ Referencia».
 class _RowMeta extends StatelessWidget {
   const _RowMeta({
     required this.taskId,
-    required this.isMyDay,
     required this.isReference,
-    required this.source,
+    required this.task,
     required this.onSource,
   });
 
   final String taskId;
-  final bool isMyDay, isReference;
-  final String? source;
+  final bool isReference;
+  final Task task;
   final VoidCallback? onSource;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final label = AppTextStyles.supporting.copyWith(
-      fontWeight: FontWeight.w600,
-      color: c.text,
-    );
-    final muted = AppTextStyles.supporting.copyWith(color: c.muted);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.gutter,
-        AppSpace.sm,
-        AppSpace.gutter,
-        0,
-      ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: AppSpacing.sm,
+    final owner = task.work?.name ?? task.homeSector?.name;
+    final rest = [
+      task.objectiveTitle,
+      task.parentText,
+    ].whereType<String>().where((s) => s.isNotEmpty).join(' › ');
+    final source = Text.rich(
+      TextSpan(
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isMyDay ? AppIcons.myDay : AppIcons.mention,
-                size: AppIconSizes.compact,
+          if (owner != null)
+            TextSpan(
+              text: owner,
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
                 color: c.text,
               ),
-              const SizedBox(width: AppSpacing.xxs),
-              Text(isMyDay ? 'Mi día' : 'Referencia', style: label),
-              if (isMyDay && isReference) ...[
-                const SizedBox(width: AppSpacing.xxs),
-                Text('· Referencia', style: muted),
-              ],
-            ],
-          ),
-          if (source != null)
-            onSource == null
-                ? Text(source!, style: muted)
-                : InkWell(
-                    key: ValueKey('my_day_source_$taskId'),
-                    onTap: onSource,
-                    child: Padding(
+            ),
+          if (rest.isNotEmpty)
+            TextSpan(
+              text: '${owner == null ? '' : '  '}› $rest',
+              style: AppTextStyles.body.copyWith(color: c.muted),
+            ),
+        ],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+      child: Row(
+        children: [
+          if (isReference) ...[
+            Icon(AppIcons.mention, size: AppIconSizes.compact, color: c.text),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              'Referencia',
+              style: AppTextStyles.supporting.copyWith(
+                fontWeight: FontWeight.w600,
+                color: c.text,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          if (owner != null || rest.isNotEmpty)
+            Expanded(
+              child: onSource == null
+                  ? Padding(
                       padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.xs,
+                        vertical: AppSpacing.sm,
                       ),
-                      child: Text(source!, style: muted),
+                      child: source,
+                    )
+                  // El origen se toca: 48 dp (T4).
+                  : InkWell(
+                      key: ValueKey('my_day_source_$taskId'),
+                      onTap: onSource,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: kMinInteractiveDimension,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: source,
+                        ),
+                      ),
                     ),
-                  ),
+            ),
         ],
       ),
     );
