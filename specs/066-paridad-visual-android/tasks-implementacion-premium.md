@@ -103,13 +103,13 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** En oscuro, los escalones pasan a subir siempre (D10): página `#0c0c0c`, card `#151515`, campo `#1c1c1c`, borde `#272727` y `#333` en controles. El verde y el ámbar se desaturan y mantienen 4,5:1. El contorno en reposo de campos y botones secundarios pasa a ≥3:1 en los dos temas, con un token nuevo (T11). El interruptor recibe un `switchTheme` para que el thumb no quede negro en oscuro (PS15).
 
 **Criterios de aceptación:**
-- [ ] En oscuro, ningún campo es más oscuro que la card que lo contiene (P05, P24a, P31b) y el borde de un botón contorneado se ve sobre la card (P26, P30, P31a).
-- [ ] El contorno de campos y botones secundarios mide ≥3:1 contra su superficie en claro y en oscuro.
-- [ ] El thumb del interruptor se ve en los dos temas (P07M, P09).
+- [x] En oscuro, ningún campo es más oscuro que la card que lo contiene (P05, P24a, P31b) y el borde de un botón contorneado se ve sobre la card (P26, P30, P31a).
+- [x] El contorno de campos y botones secundarios mide ≥3:1 contra su superficie en claro y en oscuro.
+- [x] El thumb del interruptor se ve en los dos temas (P07M, P09).
 
 **Verificación:**
-- [ ] `gen_colors_test` con los valores nuevos y el test de contraste con los pares de contorno (verificación nueva).
-- [ ] Capturas oscuras de P05, P07, P24a, P30 y P31b.
+- [x] `gen_colors_test` con los valores nuevos y el test de contraste con los pares de contorno (verificación nueva).
+- [ ] Capturas oscuras de P05, P07, P24a, P30 y P31b. P05 verificado en oscuro; el resto va en el checkpoint 1.
 
 **Depende de:** nada · **Archivos:** `core/theme/gen_colors.dart`, `core/theme/app_theme.dart`, `shared/widgets/workspace_input_theme.dart`, `shared/widgets/app_button_styles.dart`, `test/core/gen_colors_test.dart` · **Tamaño:** M
 

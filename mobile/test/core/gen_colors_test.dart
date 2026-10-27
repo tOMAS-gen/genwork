@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genwork_mobile/core/theme/color_contrast.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 
 void main() {
@@ -29,6 +30,39 @@ void main() {
     ]) {
       expect(c.g, c.r);
       expect(c.b, c.r);
+    }
+  });
+
+  // D10 (auditoría premium): en oscuro los escalones siempre suben.
+  test('oscuro con escalones que suben: página < card < campo < flotante', () {
+    const d = GenColors.dark;
+    final steps = [d.page, d.surface, d.field, d.floating];
+    for (var i = 1; i < steps.length; i++) {
+      expect(
+        steps[i].computeLuminance(),
+        greaterThan(steps[i - 1].computeLuminance()),
+      );
+    }
+  });
+
+  // T11: el contorno que identifica un campo o un botón secundario mide ≥3:1
+  // contra lo que lo rodea (WCAG 1.4.11).
+  test('contorno de control a 3:1 en ambos temas', () {
+    for (final c in [GenColors.light, GenColors.dark]) {
+      for (final bg in [c.page, c.surface, c.floating]) {
+        expect(appContrastRatio(c.control, bg), greaterThanOrEqualTo(3));
+      }
+    }
+  });
+
+  // D10: verde y ámbar desaturados en oscuro, sin perder 4,5:1.
+  test('verde y ámbar oscuros legibles y sin vibrar', () {
+    const d = GenColors.dark;
+    for (final color in [d.ok, d.success, d.warning, d.dueText, d.favorite]) {
+      expect(HSLColor.fromColor(color).saturation, lessThanOrEqualTo(.75));
+      for (final bg in [d.surface, d.field]) {
+        expect(appContrastRatio(color, bg), greaterThanOrEqualTo(4.5));
+      }
     }
   });
 

@@ -100,7 +100,7 @@ class AppWorkFooter extends StatelessWidget {
     // tamaño mínimo) sale del tema.
     final secondary = TextButton.styleFrom(
       foregroundColor: c.text,
-      side: BorderSide(color: c.outline),
+      side: BorderSide(color: c.control),
       shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
     ).merge(Theme.of(context).textButtonTheme.style);

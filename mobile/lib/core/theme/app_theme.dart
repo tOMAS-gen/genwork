@@ -99,7 +99,8 @@ abstract final class AppTheme {
       surface: c.surface,
       onSurface: c.text,
       onSurfaceVariant: c.muted,
-      outline: c.outline,
+      // Contorno de controles de Material (switch, radio, chips): ≥3:1 (T11).
+      outline: c.control,
       outlineVariant: c.border,
       surfaceContainerLowest: c.page,
       surfaceContainerLow: c.page,
@@ -227,8 +228,8 @@ abstract final class AppTheme {
         labelStyle: AppTextStyles.body.copyWith(color: c.muted),
         floatingLabelStyle: AppTextStyles.supporting.copyWith(color: c.muted),
         errorStyle: AppTextStyles.supporting.copyWith(color: c.danger),
-        border: inputBorder(c.outline),
-        enabledBorder: inputBorder(c.outline),
+        border: inputBorder(c.control),
+        enabledBorder: inputBorder(c.control),
         disabledBorder: inputBorder(c.outline),
         focusedBorder: inputBorder(c.brand, AppGeometry.focusRingWidth),
         errorBorder: inputBorder(c.danger),
@@ -248,7 +249,7 @@ abstract final class AppTheme {
           foregroundColor: c.text,
           minimumSize: const Size(48, 40),
           shape: controlShape,
-          side: BorderSide(color: c.border),
+          side: BorderSide(color: c.control),
           textStyle: AppTextStyles.action,
         ),
       ),
@@ -290,6 +291,24 @@ abstract final class AppTheme {
               : BorderSide(color: c.muted, width: 1.5),
         ),
       ),
+      // PS15: sin tema, en oscuro el thumb elegido sale de `onPrimary` (casi
+      // negro) sobre el azul. El thumb va siempre claro y el track apagado
+      // lleva el contorno de control.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? (dark ? c.text : c.surface)
+              : c.muted,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? c.brand : c.field,
+        ),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : c.control,
+        ),
+      ),
       chipTheme: ChipThemeData(
         shape: const RoundedRectangleBorder(borderRadius: AppGeometry.chip),
         side: BorderSide.none,
@@ -306,7 +325,7 @@ abstract final class AppTheme {
           shape: WidgetStatePropertyAll(controlShape),
           minimumSize: const WidgetStatePropertyAll(Size(48, 40)),
           textStyle: const WidgetStatePropertyAll(AppTextStyles.action),
-          side: WidgetStatePropertyAll(BorderSide(color: c.border)),
+          side: WidgetStatePropertyAll(BorderSide(color: c.control)),
           backgroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.selected)
                 ? c.brandFill

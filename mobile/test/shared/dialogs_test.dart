@@ -86,7 +86,8 @@ void main() {
         final side = TextButtonTheme.of(
           cancel,
         ).style?.side?.resolve(<WidgetState>{});
-        expect(side?.color, c.outline);
+        // Contorno de control a 3:1 (T11, auditoría premium).
+        expect(side?.color, c.control);
         final fg = TextButtonTheme.of(
           cancel,
         ).style?.foregroundColor?.resolve(<WidgetState>{});

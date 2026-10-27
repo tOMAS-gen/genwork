@@ -20,6 +20,7 @@ class GenColors extends ThemeExtension<GenColors> {
     required this.muted,
     required this.border,
     required this.outline,
+    required this.control,
     required this.brand,
     required this.onBrand,
     required this.brandFill,
@@ -75,8 +76,12 @@ class GenColors extends ThemeExtension<GenColors> {
   /// Bordes estructurales.
   final Color border;
 
-  /// Borde de inputs y tracks de progreso.
+  /// Tracks de progreso y separadores finos.
   final Color outline;
+
+  /// Contorno en reposo de campos y botones secundarios: ≥3:1 contra la
+  /// página, la card y los flotantes (WCAG 1.4.11, T11 de la auditoría premium).
+  final Color control;
 
   /// Primario, links, foco y selección.
   final Color brand;
@@ -175,6 +180,7 @@ class GenColors extends ThemeExtension<GenColors> {
     muted: Color(0xFF5C5C70),
     border: Color(0xFFD2D6DE),
     outline: Color(0xFFE3E6EB),
+    control: Color(0xFF7D8494),
     brand: Color(0xFF3B5BFA),
     onBrand: Color(0xFFFFFFFF),
     brandFill: Color(0xFFEEF1FF),
@@ -208,33 +214,34 @@ class GenColors extends ThemeExtension<GenColors> {
 
   static const dark = GenColors(
     page: Color(0xFF0C0C0C),
-    field: Color(0xFF151515),
-    surface: Color(0xFF1C1C1C),
+    field: Color(0xFF1C1C1C),
+    surface: Color(0xFF151515),
     floating: Color(0xFF262626),
     hover: Color(0xFF2C2C2C),
     text: Color(0xFFF0F0F0),
     muted: Color(0xFF959595),
     border: Color(0xFF272727),
     outline: Color(0xFF333333),
+    control: Color(0xFF707070),
     brand: Color(0xFF5B7FFF),
     onBrand: Color(0xFF0C0C0C),
     brandFill: Color(0xFF171C2E),
     danger: Color(0xFFF87171),
     dangerFill: Color(0xFF3A1518),
     dangerText: Color(0xFFFCA5A5),
-    ok: Color(0xFF3ECF8E),
-    success: Color(0xFF4ADE80),
+    ok: Color(0xFF45B583),
+    success: Color(0xFF5BBF86),
     successFill: Color(0x1A22C55E),
     successText: Color(0xFF86EFAC),
-    warning: Color(0xFFFBBF24),
+    warning: Color(0xFFE0A83A),
     warningFill: Color(0x1AF59E0B),
-    warningText: Color(0xFFFCD34D),
+    warningText: Color(0xFFE8C46E),
     info: Color(0xFF60A5FA),
     infoFill: Color(0x1A3B82F6),
     infoText: Color(0xFF93C5FD),
-    favorite: Color(0xFFFACC15),
-    dueText: Color(0xFFFBBF24),
-    dueFill: Color(0x26FBBF24),
+    favorite: Color(0xFFE3B341),
+    dueText: Color(0xFFE0A83A),
+    dueFill: Color(0x26E0A83A),
     tagWorkText: Color(0xFFB79CFF),
     tagWorkFill: Color(0xFF2A2140),
     tagExecText: Color(0xFF7FB0FF),
@@ -276,6 +283,7 @@ class GenColors extends ThemeExtension<GenColors> {
     Color? muted,
     Color? border,
     Color? outline,
+    Color? control,
     Color? brand,
     Color? onBrand,
     Color? brandFill,
@@ -316,6 +324,7 @@ class GenColors extends ThemeExtension<GenColors> {
       muted: muted ?? this.muted,
       border: border ?? this.border,
       outline: outline ?? this.outline,
+      control: control ?? this.control,
       brand: brand ?? this.brand,
       onBrand: onBrand ?? this.onBrand,
       brandFill: brandFill ?? this.brandFill,
@@ -361,6 +370,7 @@ class GenColors extends ThemeExtension<GenColors> {
       muted: Color.lerp(muted, other.muted, t)!,
       border: Color.lerp(border, other.border, t)!,
       outline: Color.lerp(outline, other.outline, t)!,
+      control: Color.lerp(control, other.control, t)!,
       brand: Color.lerp(brand, other.brand, t)!,
       onBrand: Color.lerp(onBrand, other.onBrand, t)!,
       brandFill: Color.lerp(brandFill, other.brandFill, t)!,

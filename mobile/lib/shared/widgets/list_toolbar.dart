@@ -238,7 +238,7 @@ class _FiltersButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           foregroundColor: fg,
           backgroundColor: expanded ? c.brandFill : Colors.transparent,
-          side: BorderSide(color: expanded ? c.brand : c.outline),
+          side: BorderSide(color: expanded ? c.brand : c.control),
           shape: const RoundedRectangleBorder(
             borderRadius: AppGeometry.control,
           ),
@@ -364,7 +364,7 @@ class _ViewSwitch extends StatelessWidget {
       padding: const EdgeInsets.all(AppSpacing.hairline),
       decoration: BoxDecoration(
         color: c.field,
-        border: Border.all(color: c.outline),
+        border: Border.all(color: c.control),
         borderRadius: AppGeometry.control,
       ),
       child: Row(
