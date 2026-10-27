@@ -5,8 +5,8 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 
-/// Contador en pill: fondo `hover`, borde `border`, texto 11 `muted`. Oculto en
-/// 0 y "999+" desde 1000. Lo lee un lector de pantalla como una sola frase
+/// Contador de 18 dp (P03-M4): fondo `hover` sin borde, radio de chip y
+/// cifra 11/600 en mono tabular `muted`. Oculto en 0 y "999+" desde 1000. Lo lee un lector de pantalla como una sola frase
 /// ("3 tareas pendientes"); el nombre del destino ya se lee en la misma fila.
 class CountBadge extends StatelessWidget {
   const CountBadge({
@@ -22,6 +22,8 @@ class CountBadge extends StatelessWidget {
   /// Tope visible del contador.
   static const max = 999;
 
+  static const _height = 18.0;
+
   @override
   Widget build(BuildContext context) {
     if (count <= 0) return const SizedBox.shrink();
@@ -29,22 +31,35 @@ class CountBadge extends StatelessWidget {
     return Semantics(
       label: countLabel(count, singular, plural),
       excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.hairline,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: _height,
+          minWidth: _height,
         ),
-        decoration: BoxDecoration(
-          color: c.hover,
-          border: Border.all(color: c.border),
-          borderRadius: AppGeometry.pill,
-        ),
-        child: Text(
-          count > max ? '$max+' : '$count',
-          style: AppTextStyles.supporting.copyWith(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: c.muted,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.hover,
+            borderRadius: AppGeometry.chip,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxs + AppSpacing.hairline,
+            ),
+            // Factor 1: centra la cifra sin estirarse al ancho disponible.
+            child: Center(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Text(
+                count > max ? '$max+' : '$count',
+                style: AppTextStyles.technical.copyWith(
+                  fontSize: 11,
+                  height: 1,
+                  fontWeight: FontWeight.w600,
+                  color: c.muted,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
           ),
         ),
       ),

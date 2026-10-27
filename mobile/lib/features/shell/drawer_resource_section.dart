@@ -119,8 +119,10 @@ class DrawerResourceSection extends StatelessWidget {
                 key: ValueKey('nav_$id'),
                 // Abrir la sección conserva su ruta y filtros.
                 onPressed: onVisit,
+                // "ver todos" en 12/600 de marca: no compite con el activo
+                // (P03-M1).
                 style: TextButton.styleFrom(
-                  foregroundColor: c.text,
+                  foregroundColor: c.brand,
                   textStyle: AppTextStyles.supporting.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -184,36 +186,27 @@ class DrawerResourceSection extends StatelessWidget {
                           ),
                         ),
                       ),
+                    // Sin Tooltip: TalkBack leía el nombre dos veces (T9).
                     for (final item in ordered.items.take(drawerItemLimit))
-                      Tooltip(
-                        message: [
-                          item.name,
-                          if (item.subtitle != null) item.subtitle!,
-                        ].join(' · '),
-                        child: DrawerTile(
-                          id: 'nav_${id}_item_${item.id}',
-                          compact: true,
-                          selected: selectedItemId == item.id,
-                          leading: Icon(
-                            itemIcon,
-                            size: AppIconSizes.compact,
-                            color: item.color == null
-                                ? (selectedItemId == item.id
-                                      ? c.brand
-                                      : c.muted)
-                                : colorFromHex(item.color),
-                          ),
-                          label:
-                              itemLabel == DrawerItemLabel.groupPrefix &&
-                                  item.subtitle != null
-                              ? '${item.subtitle} — ${item.name}'
-                              : item.name,
-                          suffix: itemLabel == DrawerItemLabel.scopeSuffix
-                              ? item.subtitle
-                              : null,
-                          trailing: CountBadge(count: item.pending),
-                          onTap: () => onOpenItem(item.id),
+                      DrawerTile(
+                        id: 'nav_${id}_item_${item.id}',
+                        compact: true,
+                        selected: selectedItemId == item.id,
+                        leading: Icon(
+                          itemIcon,
+                          size: AppIconSizes.action,
+                          color: item.color == null
+                              ? (selectedItemId == item.id ? c.brand : c.muted)
+                              : colorFromHex(item.color),
                         ),
+                        // El nombre primero; el grupo o el ámbito de sufijo
+                        // (P03-M3).
+                        label: item.name,
+                        suffix: itemLabel == DrawerItemLabel.suffix
+                            ? item.subtitle
+                            : null,
+                        trailing: CountBadge(count: item.pending),
+                        onTap: () => onOpenItem(item.id),
                       ),
                     if (ordered.items.length > drawerItemLimit)
                       TextButton(
@@ -233,14 +226,11 @@ class DrawerResourceSection extends StatelessWidget {
   }
 }
 
-/// Cómo se arma el texto de un ítem de la sublista, como en la web.
+/// Cómo se arma el texto de un ítem de la sublista.
 enum DrawerItemLabel {
   /// Solo el nombre (grupos).
   name,
 
-  /// "Grupo — Proyecto" (proyectos).
-  groupPrefix,
-
-  /// "Sector - Ámbito", con el ámbito en `muted` (sectores).
-  scopeSuffix,
+  /// El nombre y, en `muted`, el grupo (proyectos) o el ámbito (sectores).
+  suffix,
 }

@@ -344,9 +344,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 22: Navegación (P03)
 
 **Criterios de aceptación:**
-- [ ] Ítems y subítems en 14/500 sobre un solo eje; contadores de 18 dp sin borde, en mono.
-- [ ] El nombre del proyecto va primero y el grupo como sufijo.
-- [ ] Sin `Tooltip` duplicado en los ítems (T9), con filas de ≥48 dp (T4).
+- [x] Ítems y subítems en 14/500 sobre un solo eje; contadores de 18 dp sin borde, en mono.
+- [x] El nombre del proyecto va primero y el grupo como sufijo.
+- [x] Sin `Tooltip` duplicado en los ítems (T9), con filas de ≥48 dp (T4).
 
 **Verificación:** `navigation_parity_test` con `androidTapTargetGuideline` en el drawer. Captura del drawer en claro y oscuro. · **Tamaño:** S
 

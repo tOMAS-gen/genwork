@@ -22,7 +22,7 @@ class LogoutTile extends ConsumerStatefulWidget {
   /// "Salir" en el drawer, como la web.
   final String label;
 
-  /// Como un ítem más del drawer: ícono `muted` y texto regular.
+  /// Como un ítem más del drawer: ícono `muted` y texto 14/500.
   final bool plain;
   @override
   ConsumerState<LogoutTile> createState() => _LogoutTileState();
@@ -49,22 +49,18 @@ class _LogoutTileState extends ConsumerState<LogoutTile> {
         onTap: onTap,
       );
     }
+    // En el drawer, sobre el mismo eje que los demás ítems (P03-M2).
     return ListTile(
       key: ValueKey(widget.actionKey),
       contentPadding: const EdgeInsets.only(
-        left: AppSpacing.md,
+        left: AppSpacing.xs,
         right: AppSpacing.xs,
       ),
-      minLeadingWidth: AppSpacing.md,
+      minTileHeight: kMinInteractiveDimension,
+      minLeadingWidth: AppIconSizes.action,
       horizontalTitleGap: AppSpacing.sm,
-      leading: Icon(AppIcons.logout, size: AppIconSizes.drawer, color: c.muted),
-      title: Text(
-        label,
-        style: AppTextStyles.itemTitle.copyWith(
-          color: c.text,
-          fontWeight: FontWeight.w400,
-        ),
-      ),
+      leading: Icon(AppIcons.logout, size: AppIconSizes.action, color: c.muted),
+      title: Text(label, style: AppTextStyles.nav.copyWith(color: c.text)),
       onTap: onTap,
     );
   }

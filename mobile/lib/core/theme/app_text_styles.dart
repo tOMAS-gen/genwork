@@ -35,6 +35,16 @@ abstract final class AppTextStyles {
   /// Mapea a `titleMedium`.
   static const itemTitle = cardTitle;
 
+  /// Ítem del menú lateral, 14/500 (P03-M1): un paso más que el cuerpo para
+  /// que la navegación se lea de un vistazo.
+  static const nav = TextStyle(
+    fontFamily: 'Montserrat',
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0,
+    height: 1.4,
+  );
+
   /// Mapea a `bodyLarge` y `bodyMedium`.
   static const body = TextStyle(
     fontFamily: 'Montserrat',

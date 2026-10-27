@@ -238,7 +238,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                             title: 'Proyectos',
                             icon: AppIcons.notes,
                             itemIcon: AppIcons.notes,
-                            itemLabel: DrawerItemLabel.groupPrefix,
+                            itemLabel: DrawerItemLabel.suffix,
                             expanded: _worksExpanded,
                             onToggle: () => setState(
                               () => _worksExpanded = !_worksExpanded,
@@ -286,7 +286,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                             title: 'Sectores',
                             icon: AppIcons.sectors,
                             itemIcon: AppIcons.sectors,
-                            itemLabel: DrawerItemLabel.scopeSuffix,
+                            itemLabel: DrawerItemLabel.suffix,
                             expanded: _sectorsExpanded,
                             onToggle: () => setState(
                               () => _sectorsExpanded = !_sectorsExpanded,

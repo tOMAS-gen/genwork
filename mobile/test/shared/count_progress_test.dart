@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/data/models/common.dart';
@@ -15,24 +16,29 @@ Future<void> _mount(WidgetTester t, Widget body, {bool dark = false}) =>
     );
 
 void main() {
-  testWidgets('CountBadge: oculto en 0, tope 999+ y estilo pill', (t) async {
+  // P03-M4: 18 dp de alto, sin borde, radio de chip y cifra mono.
+  testWidgets('CountBadge: oculto en 0, tope 999+, 18 dp y sin borde', (
+    t,
+  ) async {
     await _mount(t, const CountBadge(count: 0));
-    expect(find.byType(Container), findsNothing);
+    expect(find.byType(DecoratedBox), findsNothing);
     await _mount(t, const CountBadge(count: 7));
     expect(find.text('7'), findsOneWidget);
     final deco =
         t
-                .widget<Container>(
+                .widget<DecoratedBox>(
                   find.descendant(
                     of: find.byType(CountBadge),
-                    matching: find.byType(Container),
+                    matching: find.byType(DecoratedBox),
                   ),
                 )
-                .decoration!
+                .decoration
             as BoxDecoration;
     expect(deco.color, GenColors.light.hover);
-    expect((deco.border! as Border).top.color, GenColors.light.border);
-    expect(deco.borderRadius!.resolve(TextDirection.ltr).topLeft.x, 999);
+    expect(deco.border, isNull);
+    expect(deco.borderRadius, AppGeometry.chip);
+    expect(t.getSize(find.byType(CountBadge)).height, 18);
+    expect(t.widget<Text>(find.text('7')).style!.fontFamily, 'RobotoMono');
     await _mount(t, const CountBadge(count: 1000));
     expect(find.text('999+'), findsOneWidget);
     await _mount(t, const CountBadge(count: 999));

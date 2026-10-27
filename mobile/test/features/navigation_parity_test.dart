@@ -17,6 +17,7 @@ import 'package:genwork_mobile/core/providers.dart';
 import 'package:genwork_mobile/core/router/app_router.dart';
 import 'package:genwork_mobile/core/router/routes.dart';
 import 'package:genwork_mobile/core/theme/app_geometry.dart';
+import 'package:genwork_mobile/core/theme/app_icons.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/app_user.dart';
@@ -461,10 +462,7 @@ void main() {
       expect(find.byKey(const ValueKey('work_own')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('work_favorite_favorite')));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Sin favoritos'),
-        findsOneWidget,
-      );
+      expect(find.text('Sin favoritos'), findsOneWidget);
       await _open(tester);
       await _drawerTap(tester, 'nav_works_archived');
       expect(find.byKey(const ValueKey('work_archived')), findsOneWidget);
@@ -630,21 +628,69 @@ void main() {
       final shape = active.shape! as LeadingTickBorder;
       expect(shape.tickWidth, kActiveTickWidth);
       expect(shape.tickColor, c.brand);
-      expect((active.leading! as Icon).size, 14);
+      // P03-M2: un solo tamaño de ícono (20 dp) en todo el cajón.
+      expect((active.leading! as Icon).size, AppIconSizes.action);
       expect((active.leading! as Icon).color, c.brand);
-      // Inactivo: ícono 16 `muted` y forma redondeada de control.
+      // Inactivo: ícono `muted` y forma redondeada de control.
       final idle = tester.widget<ListTile>(
         find.byKey(const ValueKey('nav_notes')),
       );
       expect(idle.selected, isFalse);
       expect(idle.shape, isA<RoundedRectangleBorder>());
       expect((idle.leading! as Icon).color, c.muted);
-      expect(
-        tester.getSize(find.byKey(const ValueKey('nav_notes'))).height,
-        greaterThanOrEqualTo(44),
+      expect((idle.leading! as Icon).size, AppIconSizes.action);
+      // T4: filas de 48 dp, también en las sublistas.
+      for (final key in ['nav_notes', 'nav_works_all']) {
+        expect(
+          tester.getSize(find.byKey(ValueKey(key))).height,
+          greaterThanOrEqualTo(kMinInteractiveDimension),
+        );
+      }
+      // P03-M1: ítems y subítems en 14/500; los subítems en gris.
+      final main = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('nav_notes')),
+          matching: find.byType(Text),
+        ),
       );
+      expect(main.style!.fontSize, 14);
+      expect(main.style!.fontWeight, FontWeight.w500);
+      final sub = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('nav_works_mine')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(sub.style!.fontSize, 14);
+      expect(sub.style!.color, c.muted);
     });
   }
+
+  // P03-M3 y T9: el proyecto va primero y el grupo como sufijo; sin Tooltip
+  // que TalkBack lea dos veces.
+  testWidgets('proyecto primero, grupo de sufijo y sin Tooltip (P03, T9)', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await _mount(tester, _Fixture(), path: Routes.works);
+    await _open(tester);
+    final item = find.byKey(const ValueKey('nav_works_item_own'));
+    final text = tester.widget<Text>(
+      find.descendant(of: item, matching: find.byType(Text)).first,
+    );
+    expect(text.textSpan!.toPlainText(), startsWith('Cartelería de recepción'));
+    expect(text.textSpan!.toPlainText(), contains('Producción'));
+    expect(text.textSpan!.toPlainText(), isNot(contains('—')));
+    expect(
+      find.ancestor(of: item, matching: find.byType(Tooltip)),
+      findsNothing,
+    );
+    // P03-M4: contador de 18 dp, sin borde.
+    final badge = find.byKey(const ValueKey('nav_works_total'));
+    expect(tester.getSize(badge).height, lessThanOrEqualTo(18));
+    await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+    handle.dispose();
+  });
 
   testWidgets('drawer como la web: cabecera, perfil, secciones y pie (P03)', (
     tester,
