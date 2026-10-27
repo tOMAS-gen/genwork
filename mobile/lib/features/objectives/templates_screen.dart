@@ -73,15 +73,18 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: AppSpace.page,
             children: [
-              StatCards(
-                items: [
-                  (label: 'Total', value: total, pct: total > 0 ? 100 : 0),
-                  (label: 'En progreso', value: 0, pct: 0),
-                  (label: 'Completados', value: 0, pct: 0),
-                  (label: 'Pendientes', value: total, pct: total > 0 ? 100 : 0),
-                ],
-              ),
-              const SizedBox(height: AppSpace.md),
+              // Sin plantillas no hay franja (P08-M1).
+              if (total > 0) ...[
+                StatCards(
+                  items: [
+                    (label: 'Total', value: '$total'),
+                    (label: 'En progreso', value: '0'),
+                    (label: 'Completados', value: '0'),
+                    (label: 'Pendientes', value: '$total'),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.md),
+              ],
               ListToolbar<bool>(
                 keyPrefix: 'templates',
                 searchHint: 'Buscar proyectos…',

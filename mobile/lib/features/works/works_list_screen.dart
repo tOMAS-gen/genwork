@@ -204,12 +204,14 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
         padding: AppSpace.page,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          if (list != null)
+          // Sin proyectos no hay franja: el vacío queda arriba (P08-M1).
+          if (list != null && list.isNotEmpty) ...[
             _Stats(
               key: const ValueKey('works_stats'),
               stats: WorksStats.of(list),
             ),
-          if (list != null) const SizedBox(height: AppSpace.md),
+            const SizedBox(height: AppSpace.md),
+          ],
           ListToolbar<WorksSort>(
             key: const ValueKey('works_toolbar'),
             keyPrefix: 'works',
@@ -336,22 +338,10 @@ class _Stats extends StatelessWidget {
   @override
   Widget build(BuildContext context) => StatCards(
     items: [
-      (label: 'Total', value: stats.total, pct: stats.total > 0 ? 100 : 0),
-      (
-        label: 'En progreso',
-        value: stats.inProgress,
-        pct: stats.pct(stats.inProgress),
-      ),
-      (
-        label: 'Completados',
-        value: stats.completed,
-        pct: stats.pct(stats.completed),
-      ),
-      (
-        label: 'Pendientes',
-        value: stats.pending,
-        pct: stats.pct(stats.pending),
-      ),
+      (label: 'Total', value: '${stats.total}'),
+      (label: 'En progreso', value: '${stats.inProgress}'),
+      (label: 'Completados', value: '${stats.completed}'),
+      (label: 'Pendientes', value: '${stats.pending}'),
     ],
   );
 }

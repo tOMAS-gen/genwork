@@ -271,12 +271,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Los cuatro KPI pasan a una sola card con divisores verticales, con la cifra en 20/700 mono y el rótulo en 11/700, sin "· %". Si el total es 0, la franja no se muestra (P08-M1).
 
 **Criterios de aceptación:**
-- [ ] P05 y P08 muestran la franja de ~72 dp, y P35 la de 3 valores.
-- [ ] Sin datos, no hay franja.
+- [x] P05 y P08 muestran la franja de ~72 dp, y P35 la de 3 valores.
+- [x] Sin datos, no hay franja.
 
 **Verificación:**
-- [ ] `stat_cards_test` con la nueva forma.
-- [ ] Capturas de P05, P08 y P35.
+- [x] `stat_cards_test` con la nueva forma.
+- [x] Capturas de P05, P08 y P35. El rótulo va en 11/600 caja normal en lugar de 11/700 mayúsculas: "COMPLETADOS" mide 97 dp y la columna deja 76. P35 (TV) usa el mismo tablero; su captura con el rol Lector queda para el checkpoint 2.
 
 **Depende de:** 7 · **Archivos:** `shared/widgets/stat_cards.dart`, `shared/widgets/kpi_tile.dart`, `test/shared/stat_cards_test.dart` · **Tamaño:** S
 

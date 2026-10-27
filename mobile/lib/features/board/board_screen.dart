@@ -15,6 +15,7 @@ import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
 import 'board_providers.dart';
 import '../../shared/widgets/progress_bar.dart';
+import '../../shared/widgets/stat_cards.dart';
 
 /// Vista de tareas: avance y pendientes de cada sector, como `/board` de la web.
 class BoardScreen extends ConsumerWidget {
@@ -60,19 +61,21 @@ class BoardScreen extends ConsumerWidget {
                   'Las tareas aparecerán aquí cuando se asignen a un sector al que tengas acceso.',
             ),
           if (columns != null && columns.isNotEmpty) ...[
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xxs,
-              children: [
-                Text(
-                  '${progress!.pending} ${progress.pending == 1 ? 'tarea pendiente' : 'tareas pendientes'} · ${columns.length} ${columns.length == 1 ? 'sector' : 'sectores'}',
-                  key: const ValueKey('board_summary'),
-                  style: AppTextStyles.supporting.copyWith(color: c.muted),
+            // El resumen global es el dato principal de la TV (P35-M4).
+            StatCards(
+              key: const ValueKey('board_summary'),
+              items: [
+                (
+                  label: progress!.pending == 1 ? 'Pendiente' : 'Pendientes',
+                  value: '${progress.pending}',
                 ),
-                Text(
-                  '${progress.done} de ${progress.total} finalizadas',
-                  style: AppTextStyles.supporting.copyWith(color: c.muted),
+                (
+                  label: columns.length == 1 ? 'Sector' : 'Sectores',
+                  value: '${columns.length}',
+                ),
+                (
+                  label: 'Finalizadas',
+                  value: '${progress.done}/${progress.total}',
                 ),
               ],
             ),
