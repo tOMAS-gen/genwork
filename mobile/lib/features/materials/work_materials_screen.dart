@@ -18,6 +18,7 @@ import '../../shared/widgets/labeled_field.dart';
 import '../../shared/widgets/state_views.dart';
 import '../works/works_providers.dart';
 import 'materials_providers.dart';
+import '../works/project_breadcrumb.dart';
 
 /// Pestaña Materiales del proyecto, como `MaterialsPanel` de la web: buscar
 /// en Genstock ("Solo insumos"), agregar con cantidad y notas, y la lista con
@@ -132,6 +133,7 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
 
     return GenPageScaffold(
       title: 'Materiales',
+      breadcrumb: ProjectBreadcrumb(workId: widget.workId),
       showBack: true,
       onRefresh: () => ref.refresh(workMaterialsProvider(widget.workId).future),
       body: ListView(

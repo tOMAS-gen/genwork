@@ -14,12 +14,14 @@ import '../../core/theme/gen_colors.dart';
 /// mismo renglón que el título. Sin caja de ícono ni regla: el contenido
 /// empieza antes. Es plano: no es una card, apoya sobre el fondo de la página.
 ///
-/// [bottom] es un área opcional (tabs, filtros) bajo el borde.
+/// [breadcrumb] va arriba del título, en las subpantallas (PS13). [bottom] es
+/// un área opcional (tabs, filtros) debajo.
 class GenSectionHeader extends StatelessWidget {
   const GenSectionHeader({
     super.key,
     required this.title,
     this.subtitle,
+    this.breadcrumb,
     this.showBackButton = false,
     this.actions = const [],
     this.bottom,
@@ -27,6 +29,7 @@ class GenSectionHeader extends StatelessWidget {
 
   final String title;
   final String? subtitle;
+  final Widget? breadcrumb;
   final bool showBackButton;
   final List<Widget> actions;
   final Widget? bottom;
@@ -41,6 +44,7 @@ class GenSectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              ?breadcrumb,
               Semantics(
                 header: true,
                 child: Text(

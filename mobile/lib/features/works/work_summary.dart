@@ -9,6 +9,7 @@ import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/dashed_border.dart';
+import '../../shared/widgets/entity_header.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import 'works_dashboard.dart';
 
@@ -55,7 +56,6 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final hex = projectColor(work.labels);
-    final accent = hex == null ? c.brand : colorFromHex(hex);
     final muted = AppTextStyles.body.copyWith(color: c.muted);
     final label = AppTextStyles.supporting.copyWith(
       fontWeight: FontWeight.w500,
@@ -83,68 +83,34 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: AppSpacing.xl + AppSpacing.xxs,
-                      height: AppSpacing.xl + AppSpacing.xxs,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: .12),
-                        borderRadius: AppGeometry.card,
+                EntityHeader(
+                  title: work.name,
+                  colorHex: hex,
+                  trailing: menu,
+                  meta: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xxs,
+                    children: [
+                      Text(
+                        work.groupName == null
+                            ? 'Espacio personal'
+                            : 'Grupo ${work.groupName}',
+                        style: muted,
                       ),
-                      child: Icon(
-                        AppIcons.projects,
-                        size: AppIconSizes.header,
-                        color: accent,
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: AppSpacing.hairline,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: c.outline),
+                          borderRadius: AppGeometry.chip,
+                        ),
+                        child: Text(state, style: label),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              work.name,
-                              style: AppTextStyles.screenTitle.copyWith(
-                                fontSize: 20,
-                                height: 1.3,
-                                color: c.text,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: AppSpacing.xs,
-                            runSpacing: AppSpacing.xxs,
-                            children: [
-                              Text(
-                                work.groupName == null
-                                    ? 'Espacio personal'
-                                    : 'Grupo ${work.groupName}',
-                                style: muted,
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.xs,
-                                  vertical: AppSpacing.hairline,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: c.outline),
-                                  borderRadius: AppGeometry.chip,
-                                ),
-                                child: Text(state, style: label),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    ?menu,
-                  ],
+                    ],
+                  ),
                 ),
                 if (work.description != null &&
                     work.description!.isNotEmpty) ...[

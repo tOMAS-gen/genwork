@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_geometry.dart';
-import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
-import '../../core/util/format.dart';
 import '../../data/models/sector.dart';
 import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import '../../data/models/common.dart';
 import '../works/works_dashboard.dart';
+import '../../shared/widgets/entity_header.dart';
 
 /// Card de resumen del sector, como la de la web: símbolo del color del sector,
 /// nombre 20/700, ámbito, kebab, «Avance del sector» (20/600 + barra) y, sobre
@@ -23,7 +22,6 @@ class SectorSummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final accent = board.color == null ? c.brand : colorFromHex(board.color);
     final label = AppTextStyles.supporting.copyWith(
       fontWeight: FontWeight.w500,
       color: c.muted,
@@ -51,53 +49,18 @@ class SectorSummaryPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: AppSpacing.xl + AppSpacing.xxs,
-                      height: AppSpacing.xl + AppSpacing.xxs,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: .12),
-                        borderRadius: AppGeometry.card,
-                      ),
-                      child: Icon(
-                        AppIcons.sectors,
-                        size: AppIconSizes.header,
-                        color: accent,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              board.name,
-                              style: AppTextStyles.screenTitle.copyWith(
-                                fontSize: 20,
-                                color: c.text,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            // La web dice «Espacio personal» para el ámbito
-                            // personal.
-                            board.scopeLabel == 'Personal'
-                                ? 'Espacio personal'
-                                : board.isGroupScope
-                                ? 'Grupo ${board.scopeLabel}'
-                                : board.scopeLabel,
-                            style: AppTextStyles.body.copyWith(color: c.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ?menu,
-                  ],
+                EntityHeader(
+                  title: board.name,
+                  colorHex: board.color,
+                  trailing: menu,
+                  meta: Text(
+                    // La web dice «Espacio personal» para el ámbito personal.
+                    board.scopeLabel == 'Personal'
+                        ? 'Espacio personal'
+                        : board.isGroupScope
+                        ? 'Grupo ${board.scopeLabel}'
+                        : board.scopeLabel,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Text('Avance del sector', style: label),

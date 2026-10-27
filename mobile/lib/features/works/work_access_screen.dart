@@ -16,6 +16,7 @@ import 'works_providers.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import 'project_breadcrumb.dart';
 
 final workActivityProvider = FutureProvider.autoDispose.family<Json, String>(
   (ref, id) => ref.watch(worksRepositoryProvider).activity(id),
@@ -31,6 +32,7 @@ class WorkActivityScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Actividad',
+    breadcrumb: ProjectBreadcrumb(workId: id),
     showBack: true,
     onRefresh: () => ref.refresh(workActivityProvider(id).future),
     body: AsyncValueView(
@@ -120,6 +122,7 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
   @override
   Widget build(BuildContext context) => GenPageScaffold(
     title: 'Acceso cliente',
+    breadcrumb: ProjectBreadcrumb(workId: widget.id),
     showBack: true,
     body: AsyncValueView(
       value: ref.watch(workDetailProvider(widget.id)),

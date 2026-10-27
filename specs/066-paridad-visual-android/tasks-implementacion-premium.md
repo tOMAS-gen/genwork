@@ -163,13 +163,13 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Las subpantallas del proyecto (Documento, Archivos, Actividad, Acceso cliente y Materiales) muestran una miga de 12/500 gris con el nombre del proyecto y un título de 20/700, sin tile (PS13). Proyecto, sector y grupo comparten un encabezado de entidad: título 20/700, metadatos 13 gris, color como punto de 8 dp y "⋯" (P14-M1). Las migas tienen 48 dp de área táctil (T4).
 
 **Criterios de aceptación:**
-- [ ] Cada subpantalla dice de qué proyecto es (P17–P19, P07M-M1).
-- [ ] El encabezado de proyecto, sector y grupo es el mismo componente.
-- [ ] La miga mide ≥48 dp de alto táctil.
+- [x] Cada subpantalla dice de qué proyecto es (P17–P19, P07M-M1): `ProjectBreadcrumb` en Documento, Archivos, Actividad, Acceso cliente y Materiales.
+- [x] El encabezado de proyecto, sector y grupo es el mismo componente (`EntityHeader`).
+- [x] La miga mide ≥48 dp de alto táctil.
 
 **Verificación:**
-- [ ] `androidTapTargetGuideline` en el detalle de proyecto y en una subpantalla.
-- [ ] Capturas de P07, P12, P14, P17, P18 y P19.
+- [x] `androidTapTargetGuideline` sobre la miga (`headers_premium_test`). En el detalle completo se suma con las pantallas (fase 3).
+- [ ] Capturas de P07, P12, P14, P17, P18 y P19: van en el checkpoint 1 (emulador sin espacio en disco).
 
 **Depende de:** 9 · **Archivos:** `shared/widgets/breadcrumb.dart`, encabezado de entidad (nuevo o existente en `shared/widgets/`), `features/documents/document_screen.dart`, `features/files/files_screen.dart`, `features/works/work_access_screen.dart` · **Tamaño:** M
 

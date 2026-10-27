@@ -25,6 +25,7 @@ import '../../shared/widgets/brand_name.dart';
 import '../../shared/widgets/gen_section_header.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/workspace_panel.dart';
+import '../works/project_breadcrumb.dart';
 
 class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key, required this.workId});
@@ -261,6 +262,7 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           children: [
             GenSectionHeader(
               title: 'Archivos',
+              breadcrumb: ProjectBreadcrumb(workId: widget.workId),
               actions: [
                 IconButton(
                   key: const ValueKey('files_refresh'),

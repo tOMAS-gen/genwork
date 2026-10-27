@@ -25,6 +25,7 @@ import '../works/works_providers.dart';
 import 'groups_providers.dart';
 import 'member_dialog.dart';
 import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/entity_header.dart';
 
 class GroupDetailScreen extends ConsumerWidget {
   const GroupDetailScreen({super.key, required this.groupId});
@@ -127,30 +128,15 @@ class GroupDetailScreen extends ConsumerWidget {
                   rootKey: const ValueKey('group_breadcrumb_root'),
                   rootLabel: 'Grupos',
                   onRoot: () => context.go(Routes.groups),
-                  current: group.name,
                 ),
                 const SizedBox(height: AppSpace.sm),
-                Row(
-                  children: [
-                    ColorDot(hex: group.color, size: AppSpace.dotLarge),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: Semantics(
-                        header: true,
-                        child: Text(
-                          group.name,
-                          style: AppTextStyles.screenTitle.copyWith(
-                            color: c.text,
-                          ),
-                        ),
-                      ),
-                    ),
-                    ?menu,
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                muted(
-                  '${countLabel(group.members.length, 'miembro', 'miembros')} · ${countLabel(group.workCount, 'proyecto', 'proyectos')} · ${countLabel(group.pendingCount, 'pendiente', 'pendientes')}',
+                EntityHeader(
+                  title: group.name,
+                  colorHex: group.color,
+                  trailing: menu,
+                  meta: Text(
+                    '${countLabel(group.members.length, 'miembro', 'miembros')} · ${countLabel(group.workCount, 'proyecto', 'proyectos')} · ${countLabel(group.pendingCount, 'pendiente', 'pendientes')}',
+                  ),
                 ),
                 const SizedBox(height: AppSpace.md),
                 WorkspacePanel(

@@ -25,6 +25,7 @@ import '../../shared/widgets/error_text.dart';
 import '../../shared/widgets/breadcrumb.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import '../works/project_breadcrumb.dart';
 
 final richEditorBuilderProvider = Provider<Widget Function(RichDocumentEditor)>(
   (ref) =>
@@ -310,7 +311,13 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
         children: [
           // ✓ y ⋯, como en la web.
           if (widget.noteId == null)
-            GenSectionHeader(title: 'Documentos', actions: _actions())
+            GenSectionHeader(
+              title: 'Documentos',
+              breadcrumb: widget.workId == null
+                  ? null
+                  : ProjectBreadcrumb(workId: widget.workId!),
+              actions: _actions(),
+            )
           else ...[
             // Nota como la web: migas con la papelera, el título como
             // encabezado editable y debajo ✓ y ⋯.

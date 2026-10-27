@@ -229,7 +229,6 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                         onRoot: () => context.go(
                           work.isTemplate ? Routes.templates : Routes.works,
                         ),
-                        current: work.name,
                       ),
                       const SizedBox(height: AppSpace.md),
                       WorkSummaryPanel(

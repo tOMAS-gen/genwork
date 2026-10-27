@@ -24,6 +24,7 @@ class GenPageScaffold extends StatelessWidget {
     required this.title,
     required this.body,
     this.subtitle,
+    this.breadcrumb,
     this.actions = const [],
     this.showBack = false,
     this.showThemeToggle = false,
@@ -37,6 +38,9 @@ class GenPageScaffold extends StatelessWidget {
 
   final String title;
   final String? subtitle;
+
+  /// Miga arriba del título (subpantallas del proyecto).
+  final Widget? breadcrumb;
   final List<Widget> actions;
   final bool showBack;
 
@@ -74,6 +78,7 @@ class GenPageScaffold extends StatelessWidget {
             child: GenSectionHeader(
               title: title,
               subtitle: subtitle,
+              breadcrumb: breadcrumb,
               actions: actions,
               bottom: headerBottom,
             ),

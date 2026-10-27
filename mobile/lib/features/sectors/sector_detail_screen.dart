@@ -176,7 +176,6 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                       Breadcrumb(
                         rootLabel: 'Sectores',
                         onRoot: () => context.go(Routes.sectors),
-                        current: b.name,
                       ),
                       const SizedBox(height: AppSpace.md),
                       SectorSummaryPanel(board: b, menu: menu),
