@@ -160,7 +160,7 @@ class MyDayScreen extends ConsumerWidget {
                 ),
                 child: Text(
                   DateFormat("EEEE d 'de' MMMM", 'es').format(today),
-                  style: AppTextStyles.technical.copyWith(
+                  style: AppTextStyles.supporting.copyWith(
                     color: context.colors.muted,
                   ),
                 ),

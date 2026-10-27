@@ -154,7 +154,7 @@ void main() {
     expect(parts[1].style!.color, GenColors.light.text);
   });
 
-  testWidgets('PageIntro: caja de ícono 38 brandFill, título 24/700', (
+  testWidgets('PageIntro: caja de ícono 38 brandFill, título 20/700 (D2)', (
     t,
   ) async {
     await _mount(
@@ -166,7 +166,7 @@ void main() {
     expect(find.text('Mi día'), findsOneWidget);
     expect(find.text('Hoy'), findsOneWidget);
     final style = t.widget<Text>(find.text('Mi día')).style!;
-    expect(style.fontSize, 24);
+    expect(style.fontSize, 20);
     expect(style.fontWeight, FontWeight.w700);
     final box = t.widget<Container>(
       find.ancestor(
@@ -270,43 +270,56 @@ void main() {
     );
   });
 
-  testWidgets('GenSectionHeader: la acción queda a la derecha del título a 390 (P05)', (
-    t,
-  ) async {
-    await t.runAsync(() async {
-      final loader = FontLoader('Montserrat')
-        ..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'));
-      await loader.load();
-    });
-    t.view.physicalSize = const Size(390, 844);
-    t.view.devicePixelRatio = 1;
-    addTearDown(t.view.reset);
-    await t.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: Scaffold(
-          body: GenSectionHeader(
-            title: 'Todos los Proyectos',
-            subtitle: 'Un subtítulo',
-            icon: AppIcons.projects,
-            actions: [
-              IconButton.filled(
-                key: const ValueKey('accion'),
-                onPressed: () {},
-                icon: const Icon(AppIcons.add),
-              ),
-            ],
+  testWidgets(
+    'GenSectionHeader: la acción queda a la derecha del título a 390 (P05)',
+    (t) async {
+      await t.runAsync(() async {
+        final loader = FontLoader('Montserrat')
+          ..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'));
+        await loader.load();
+      });
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: GenSectionHeader(
+              title: 'Todos los Proyectos',
+              subtitle: 'Un subtítulo',
+              icon: AppIcons.projects,
+              actions: [
+                IconButton.filled(
+                  key: const ValueKey('accion'),
+                  onPressed: () {},
+                  icon: const Icon(AppIcons.add),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-    final action = t.getRect(find.byKey(const ValueKey('accion')));
-    final title = t.getRect(find.text('Todos los Proyectos'));
-    expect(action.left, greaterThan(title.right), reason: 'misma fila, a la derecha');
-    expect(action.top, lessThan(title.bottom), reason: 'no baja a otra línea');
-    final subtitle = t.getRect(find.text('Un subtítulo'));
-    expect(subtitle.left, title.left, reason: 'el subtítulo va en la columna del título');
-  });
+      );
+      final action = t.getRect(find.byKey(const ValueKey('accion')));
+      final title = t.getRect(find.text('Todos los Proyectos'));
+      expect(
+        action.left,
+        greaterThan(title.right),
+        reason: 'misma fila, a la derecha',
+      );
+      expect(
+        action.top,
+        lessThan(title.bottom),
+        reason: 'no baja a otra línea',
+      );
+      final subtitle = t.getRect(find.text('Un subtítulo'));
+      expect(
+        subtitle.left,
+        title.left,
+        reason: 'el subtítulo va en la columna del título',
+      );
+    },
+  );
 
   testWidgets('GenPageScaffold: el encabezado se desplaza con el contenido', (
     t,

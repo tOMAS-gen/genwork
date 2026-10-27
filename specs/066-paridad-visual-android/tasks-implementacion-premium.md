@@ -118,12 +118,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** D2 deja cuatro pasos: 20/700 título, 15/600 título de card o sección, 13/400 cuerpo y 11/700 rótulo en mayúsculas con tracking de 0,06 em. Roboto Mono queda solo para cifras y códigos, con números tabulares. `screenTitle` pasa a 20 y se agrega el 15/600 de card.
 
 **Criterios de aceptación:**
-- [ ] `AppTextStyles` expone los cuatro pasos. Los estilos que quedan fuera de la escala se mapean a uno de ellos.
-- [ ] `technical` usa números tabulares (`FontFeature.tabularFigures`).
-- [ ] Ninguna pantalla usa Roboto Mono para un rótulo o una fecha escrita en palabras (P04, P05).
+- [x] `AppTextStyles` expone los cuatro pasos. Los estilos que quedan fuera de la escala se mapean a uno de ellos.
+- [x] `technical` usa números tabulares (`FontFeature.tabularFigures`).
+- [x] Ninguna pantalla usa Roboto Mono para una fecha escrita en palabras (P04). Los rótulos de KPI de P05 pasan a Montserrat en la tarea 17.
 
 **Verificación:**
-- [ ] `theme_tokens_test` con los valores nuevos. El test de overflow de `ui_phase3_test` sigue en verde.
+- [x] `theme_tokens_test` con los valores nuevos. El test de overflow de `ui_phase3_test` sigue en verde.
 
 **Depende de:** nada · **Archivos:** `core/theme/app_text_styles.dart`, `core/theme/app_theme.dart`, `test/core/theme_tokens_test.dart` · **Tamaño:** S
 
