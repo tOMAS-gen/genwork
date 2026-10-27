@@ -95,6 +95,9 @@ abstract final class AppIcons {
   static const success = Icons.check_circle_outline;
   static const warning = Icons.warning_amber_outlined;
   static const info = Icons.info_outline;
+
+  /// Ayuda del compositor de tareas.
+  static const help = Icons.help_outline;
   static const offline = Icons.wifi_off_outlined;
   static const server = Icons.dns_outlined;
   static const login = Icons.login_outlined;

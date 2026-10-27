@@ -300,12 +300,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** El compositor del detalle de proyecto y de sector pasa a una sola barra de 56 dp: campo "Nueva tarea en…" con el destino como chip dentro y botón de enviar de 40 dp (P07-M1). "Descripción y ayuda" va al "⋯" de la entidad (P12-M5). El alto máximo se calcula con el espacio que deja el teclado (T8).
 
 **Criterios de aceptación:**
-- [ ] Sin foco, el compositor ocupa ≤56 dp.
-- [ ] Con el teclado abierto en horizontal, no tapa toda la lista ni desborda.
+- [x] Sin foco, el compositor ocupa ≤56 dp.
+- [x] Con el teclado abierto en horizontal, no tapa toda la lista ni desborda.
 
 **Verificación:**
-- [ ] Test con `viewInsets.bottom` en 800 × 360: sin overflow.
-- [ ] Capturas de P07 y P12.
+- [x] Test con `viewInsets.bottom` en 800 × 360: sin overflow.
+- [x] Capturas de P07 y P12. "Descripción y ayuda" quedó como ícono "?" dentro del campo (la variante de P07-M1) en lugar del "⋯" de la entidad: mantiene el estado en el compositor y la misma clave task_composer_details.
 
 **Depende de:** 18 · **Archivos:** `shared/widgets/task_composer.dart`, `features/works/work_detail_screen.dart`, `features/sectors/sector_detail_screen.dart`, tests · **Tamaño:** M
 

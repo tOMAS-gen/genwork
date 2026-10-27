@@ -34,8 +34,6 @@ import '../../shared/widgets/dashed_border.dart';
 import '../../shared/widgets/count_badge.dart';
 import 'work_metadata_dialog.dart';
 import 'works_dashboard.dart';
-import '../../shared/widgets/labeled_field.dart';
-import '../../shared/widgets/app_dropdown_decoration.dart';
 import '../../shared/widgets/progress_bar.dart';
 
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
@@ -407,57 +405,30 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                 ),
               ),
               if (canEdit) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.lg,
-                    AppSpace.sm,
-                    AppSpace.lg,
-                    0,
-                  ),
-                  child: LabeledField(
-                    label: 'Agregar tarea en',
-                    child: DropdownButtonFormField<String>(
-                      icon: const AppDropdownIcon(),
-                      key: ValueKey(
-                        'work_composer_section_${_targetObjectiveId ?? "general"}',
-                      ),
-                      initialValue:
-                          work.objectives.any((o) => o.id == _targetObjectiveId)
-                          ? _targetObjectiveId
-                          : '',
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(AppIcons.addToList),
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: '',
-                          child: Text('Generales'),
-                        ),
-                        for (final o in work.objectives)
-                          DropdownMenuItem(
-                            value: o.id,
-                            child: Text(
-                              o.title,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: (id) => setState(
-                        () => _targetObjectiveId = id == '' ? null : id,
-                      ),
-                    ),
-                  ),
-                ),
                 TaskComposer(
                   workId: work.id,
+                  // El destino como chip dentro del campo (P07-M1).
+                  destination: ComposerTarget(
+                    key: ValueKey(
+                      'work_composer_section_${_targetObjectiveId ?? "general"}',
+                    ),
+                    selected:
+                        work.objectives.any((o) => o.id == _targetObjectiveId)
+                        ? _targetObjectiveId!
+                        : '',
+                    options: {
+                      '': 'Generales',
+                      for (final o in work.objectives) o.id: o.title,
+                    },
+                    onSelected: (id) => setState(
+                      () => _targetObjectiveId = id == '' ? null : id,
+                    ),
+                  ),
                   objectiveId:
                       work.objectives.any((o) => o.id == _targetObjectiveId)
                       ? _targetObjectiveId
                       : null,
-                  hint: _targetObjectiveId == null
-                      ? 'Nueva tarea en Generales…'
-                      : 'Nueva tarea…',
+                  hint: 'Nueva tarea…',
                   onSubmit: _create,
                 ),
               ],
