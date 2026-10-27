@@ -16,7 +16,7 @@ import '../../shared/widgets/card_progress.dart';
 import '../../shared/widgets/count_badge.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/list_toolbar.dart';
-import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/entity_card_title.dart';
 import '../../shared/widgets/state_views.dart';
 import 'sector_form_dialog.dart';
 import 'sector_sections.dart';
@@ -315,7 +315,7 @@ class _SectorCard extends StatelessWidget {
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: NamePill(name: sector.name, color: color),
+                      child: EntityCardTitle(name: sector.name, color: color),
                     ),
                   ),
                   CountBadge(count: sector.pending),

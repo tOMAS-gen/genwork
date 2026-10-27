@@ -15,7 +15,7 @@ import '../../data/models/app_user.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/name_color_dialog.dart';
-import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/entity_card_title.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
@@ -121,7 +121,7 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
                                 Flexible(
                                   child: Align(
                                     alignment: Alignment.centerLeft,
-                                    child: NamePill(
+                                    child: EntityCardTitle(
                                       name: group.name,
                                       color: group.color == null
                                           ? null

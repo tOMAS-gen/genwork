@@ -8,7 +8,7 @@ import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/card_progress.dart';
 import '../../shared/widgets/color_dot.dart';
-import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/entity_card_title.dart';
 import 'works_dashboard.dart';
 
 /// Card de proyecto, como `ProjectCard.tsx` de la web: píldora con el nombre
@@ -62,7 +62,7 @@ class WorkCard extends StatelessWidget {
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: NamePill(name: work.name, color: color),
+                      child: EntityCardTitle(name: work.name, color: color),
                     ),
                   ),
                   IconButton(

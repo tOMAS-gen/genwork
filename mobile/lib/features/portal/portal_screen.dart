@@ -15,7 +15,7 @@ import 'portal_providers.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/card_progress.dart';
-import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/entity_card_title.dart';
 import '../../shared/widgets/gen_tab_bar.dart';
 import '../works/works_dashboard.dart';
 import '../../shared/widgets/progress_bar.dart';
@@ -76,7 +76,7 @@ class _PortalWorkCard extends StatelessWidget {
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: NamePill(
+                child: EntityCardTitle(
                   name: work.name,
                   color: primary == null ? null : colorFromHex(primary.color),
                 ),

@@ -773,7 +773,7 @@ void main() {
             )
             .first,
       );
-      expect(find.text('IMPRESIÓN Y TERMINACIONES'), findsOneWidget);
+      expect(find.text('Impresión y terminaciones'), findsOneWidget);
       // Como la web: los pendientes van en el contador de la card.
       expect(find.text('8 pendientes · 12 tareas'), findsNothing);
       expect(find.text('8'), findsWidgets);

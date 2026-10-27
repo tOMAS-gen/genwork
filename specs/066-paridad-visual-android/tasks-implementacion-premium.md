@@ -257,12 +257,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** El nombre de proyecto, sector o grupo es el título de su card en 15/600 y en su caja original, hasta dos líneas, y no un chip gris en mayúsculas (D4). Los chips quedan para metadatos.
 
 **Criterios de aceptación:**
-- [ ] P05, P11, P13 y P33 muestran el nombre como título.
-- [ ] El color de sector o grupo aparece como punto de 8 dp.
+- [x] P05, P11, P13 y P33 muestran el nombre como título.
+- [x] El color de sector o grupo aparece como punto de 8 dp.
 
 **Verificación:**
-- [ ] `works_dashboard_test`, `groups_parity_test` y `sector_summary_test` en verde.
-- [ ] Capturas de P05, P11, P13 y P33.
+- [x] `works_dashboard_test`, `groups_parity_test` y `sector_summary_test` en verde.
+- [x] Capturas de P05, P11, P13 y P33. P33 (portal de cliente) se captura en el checkpoint 2.
 
 **Depende de:** 15 · **Archivos:** `shared/widgets/name_pill.dart`, `features/works/work_card.dart`, `features/portal/portal_screen.dart`, cards de sector y grupo · **Tamaño:** M
 

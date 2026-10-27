@@ -111,7 +111,8 @@ void main() {
       );
       expect(t.takeException(), isNull);
       final c = dark ? GenColors.dark : GenColors.light;
-      expect(find.text('PROYECTO A'), findsOneWidget);
+      // D4: el nombre es el título, en su caja original.
+      expect(find.text('Proyecto a'), findsOneWidget);
       expect(find.text('Grupo Diseño'), findsOneWidget);
       expect(find.text('75%'), findsOneWidget);
       expect(find.text('3/4 tareas'), findsOneWidget);
