@@ -9,6 +9,7 @@ import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/servers/server_profile.dart';
 import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
@@ -168,7 +169,14 @@ class _ServersScreenState extends ConsumerState<ServersScreen> {
     final busy = _busyId != null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Servidores')),
+      appBar: AppBar(
+        // El tema pone el título pegado a la flecha; sin flecha (la lista es
+        // la raíz con la sesión cerrada) lleva el margen de página.
+        titleSpacing: ModalRoute.of(context)?.canPop == true
+            ? null
+            : AppSpace.gutter,
+        title: const Text('Servidores'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),

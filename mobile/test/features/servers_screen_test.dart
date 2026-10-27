@@ -114,6 +114,8 @@ void main() {
     expect(_inTile(_b, find.text('Sin sesión')), findsOneWidget);
     expect(find.byKey(const ValueKey('servers_add')), findsOneWidget);
     expect(s.calls, hasLength(1)); // el login automático del arranque, cancelado
+    // Sin flecha (es la raíz), el título no queda pegado al borde.
+    expect(tester.getTopLeft(find.text('Servidores')).dx, greaterThanOrEqualTo(16));
   });
 
   testWidgets('cada servidor muestra su estado de sesión con el email', (tester) async {
