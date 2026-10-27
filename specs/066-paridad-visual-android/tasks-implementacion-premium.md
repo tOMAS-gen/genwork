@@ -396,8 +396,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 28: Archivos, Actividad y Acceso cliente (P18, P19)
 
 **Criterios de aceptación:**
-- [ ] P18: "Recargar" oculto mientras la carpeta no está habilitada.
-- [ ] P19: explicación de dos líneas con "Clientes del grupo" como enlace; filas de 56 dp con avatar y chip de estado.
+- [x] P18: "Recargar" oculto mientras la carpeta no está habilitada.
+- [x] P19: explicación de dos líneas con "Clientes del grupo" como enlace; filas de 56 dp con avatar y chip de estado.
 
 **Verificación:** tests de archivos y acceso. Capturas. · **Tamaño:** S
 

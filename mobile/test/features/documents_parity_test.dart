@@ -471,7 +471,8 @@ void main() {
     final f = Fixture();
     await mount(t, f, const FilesScreen(workId: 'w'));
     expect(find.byType(GenSectionHeader), findsOneWidget);
-    expect(find.text('Archivos'), findsOneWidget);
+    // Migas «Proyecto › Archivos» y el título (P17-M1).
+    expect(find.text('Archivos'), findsNWidgets(2));
     expect(
       find.descendant(
         of: find.byType(GenSectionHeader),
@@ -535,6 +536,8 @@ void main() {
   testWidgets('habilitar carpeta muestra estado de preparación', (t) async {
     final f = Fixture()..enabled = false;
     await mount(t, f, const FilesScreen(workId: 'w'));
+    // Sin carpeta no hay nada que recargar (P18-M3).
+    expect(find.byKey(const ValueKey('files_refresh')), findsNothing);
     await tap(t, 'files_enable');
     expect(find.text('La carpeta se está preparando'), findsOneWidget);
     expect(find.byKey(const ValueKey('files_upload')), findsNothing);

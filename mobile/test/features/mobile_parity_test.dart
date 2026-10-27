@@ -377,6 +377,16 @@ void main() {
       ];
     await mount(t, f, role: 'MEMBER', path: '/works/w/clients');
     expect(find.text('Invitado'), findsOneWidget);
+    // P19-M3: fila con avatar de iniciales; P19-M1: «Agregar cliente» es la
+    // acción del título.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('work_client_u2')),
+        matching: find.text('C'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('work_clients_add')), findsOneWidget);
     expect(find.byKey(const ValueKey('work_clients_revoke_u2')), findsNothing);
     await t.tap(find.byKey(const ValueKey('work_clients_menu_u2')));
     await t.pumpAndSettle();

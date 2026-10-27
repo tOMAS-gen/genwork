@@ -265,14 +265,19 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           children: [
             GenSectionHeader(
               title: 'Archivos',
-              breadcrumb: ProjectBreadcrumb(workId: widget.workId),
+              breadcrumb: ProjectBreadcrumb(
+                workId: widget.workId,
+                current: 'Archivos',
+              ),
+              // Sin carpeta habilitada no hay nada que recargar (P18-M3).
               actions: [
-                IconButton(
-                  key: const ValueKey('files_refresh'),
-                  tooltip: 'Actualizar archivos',
-                  onPressed: _busy ? null : _reload,
-                  icon: const Icon(AppIcons.retry),
-                ),
+                if (ready)
+                  IconButton(
+                    key: const ValueKey('files_refresh'),
+                    tooltip: 'Actualizar archivos',
+                    onPressed: _busy ? null : _reload,
+                    icon: const Icon(AppIcons.retry),
+                  ),
               ],
             ),
             if (_trail.isNotEmpty)

@@ -18,6 +18,8 @@ import '../../shared/widgets/status_chip.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import 'project_breadcrumb.dart';
+import '../../shared/widgets/settings_rows.dart';
+import '../../shared/widgets/initials_avatar.dart';
 
 final workActivityProvider = FutureProvider.autoDispose.family<Json, String>(
   (ref, id) => ref.watch(worksRepositoryProvider).activity(id),
@@ -33,7 +35,7 @@ class WorkActivityScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Actividad',
-    breadcrumb: ProjectBreadcrumb(workId: id),
+    breadcrumb: ProjectBreadcrumb(workId: id, current: 'Actividad'),
     showBack: true,
     onRefresh: () => ref.refresh(workActivityProvider(id).future),
     body: AsyncValueView(
@@ -121,113 +123,138 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => GenPageScaffold(
-    title: 'Acceso cliente',
-    breadcrumb: ProjectBreadcrumb(workId: widget.id),
-    showBack: true,
-    body: AsyncValueView(
-      value: ref.watch(workDetailProvider(widget.id)),
-      onRetry: () => ref.invalidate(workDetailProvider(widget.id)),
-      data: (work) {
-        if (!work.canManageClients) {
-          return const EmptyView(
-            message:
-                'No tenés permiso para administrar los accesos de este proyecto.',
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Los clientes con acceso ven este proyecto, sus tareas y su avance en modo lectura. No pueden completar ni modificar nada.'
-              '${work.groupId != null ? ' Para darle varios proyectos a la vez, usá Clientes del grupo.' : ''}',
-              style: AppTextStyles.body.copyWith(color: context.colors.muted),
-            ),
-            if (work.groupId != null)
-              TextButton(
-                key: const ValueKey('work_clients_group'),
-                onPressed: () =>
-                    context.push('${Routes.group(work.groupId!)}/clients'),
-                child: const Text('Clientes del grupo'),
-              ),
-            FilledButton.icon(
-              key: const ValueKey('work_clients_add'),
-              onPressed: _busy ? null : _add,
-              icon: const Icon(AppIcons.personAdd),
-              label: const Text('Agregar cliente'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () =>
-                    ref.refresh(workClientsProvider(widget.id).future),
-                child: AsyncValueView(
-                  value: ref.watch(workClientsProvider(widget.id)),
-                  onRetry: () => ref.invalidate(workClientsProvider(widget.id)),
-                  data: (clients) => ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: clients.isEmpty ? 1 : clients.length,
-                    itemBuilder: (_, i) => clients.isEmpty
-                        ? const EmptyView(
+  Widget build(BuildContext context) {
+    final work = ref.watch(workDetailProvider(widget.id));
+    final canManage = work.value?.canManageClients == true;
+    return GenPageScaffold(
+      title: 'Acceso cliente',
+      breadcrumb: ProjectBreadcrumb(workId: widget.id),
+      showBack: true,
+      // La acción de la pantalla va en el renglón del título (P19-M1).
+      actions: [
+        if (canManage)
+          FilledButton.icon(
+            key: const ValueKey('work_clients_add'),
+            onPressed: _busy ? null : _add,
+            icon: const Icon(AppIcons.personAdd),
+            label: const Text('Agregar cliente'),
+          ),
+      ],
+      body: AsyncValueView(
+        value: work,
+        onRetry: () => ref.invalidate(workDetailProvider(widget.id)),
+        data: (work) {
+          if (!work.canManageClients) {
+            return const EmptyView(
+              message:
+                  'No tenés permiso para administrar los accesos de este proyecto.',
+            );
+          }
+          final c = context.colors;
+          final muted = AppTextStyles.body.copyWith(color: c.muted);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Dos líneas, con «Clientes del grupo» como enlace al final
+              // (P19-M2, P19-M3).
+              Text('Proyecto y tareas en modo lectura.', style: muted),
+              if (work.groupId != null)
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('Para varios proyectos: ', style: muted),
+                    TextButton(
+                      key: const ValueKey('work_clients_group'),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, kMinInteractiveDimension),
+                        tapTargetSize: MaterialTapTargetSize.padded,
+                        textStyle: AppTextStyles.action,
+                      ),
+                      onPressed: () => context.push(
+                        '${Routes.group(work.groupId!)}/clients',
+                      ),
+                      child: const Text('Clientes del grupo'),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () =>
+                      ref.refresh(workClientsProvider(widget.id).future),
+                  child: AsyncValueView(
+                    value: ref.watch(workClientsProvider(widget.id)),
+                    onRetry: () =>
+                        ref.invalidate(workClientsProvider(widget.id)),
+                    data: (clients) => ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        if (clients.isEmpty)
+                          const EmptyView(
                             icon: AppIcons.view,
                             title: 'Ningún cliente ve este proyecto',
                             message:
                                 'Agregá uno con su correo para que pueda seguir el avance.',
                           )
-                        : Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: AppSpacing.sm,
-                            ),
-                            child: WorkspaceListPanel(
-                              children: [
-                                ListTile(
-                                  title: Text(clients[i]['name'] as String),
-                                  subtitle: Text('${clients[i]['email']}'),
-                                  // Estado como insignia, como la web.
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      StatusChip(
-                                        label:
-                                            clients[i]['firstLoginAt'] == null
-                                            ? 'Invitado'
-                                            : 'Activo',
-                                        color: context.colors.muted,
-                                        fill: context.colors.hover,
-                                      ),
-                                      // Quitar acceso, adentro del "⋯"
-                                      // (P19-M4).
-                                      RowActionsMenu(
-                                        key: ValueKey(
-                                          'work_clients_menu_${clients[i]['userId']}',
-                                        ),
-                                        tooltip:
-                                            'Acciones de ${clients[i]['name']}',
-                                        enabled: !_busy,
-                                        actions: [
-                                          RowAction(
-                                            key:
-                                                'work_clients_revoke_${clients[i]['userId']}',
-                                            label: 'Quitar acceso',
-                                            destructive: true,
-                                            onSelected: () =>
-                                                _revoke(clients[i]),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                        else
+                          // Una card con filas de 56 dp separadas por
+                          // divisores (P19-M3).
+                          WorkspaceListPanel(
+                            children: [
+                              for (final client in clients) _row(client),
+                            ],
                           ),
+                      ],
+                    ),
                   ),
                 ),
               ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _row(Json client) {
+    final c = context.colors;
+    final name = client['name'] as String? ?? '';
+    return SettingsRow(
+      key: ValueKey('work_client_${client['userId']}'),
+      leading: InitialsAvatar(name: name.isEmpty ? '${client['email']}' : name),
+      title: name,
+      subtitle: '${client['email']}',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Estado como insignia, como la web.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * .25,
             ),
-          ],
-        );
-      },
-    ),
-  );
+            child: StatusChip(
+              label: client['firstLoginAt'] == null ? 'Invitado' : 'Activo',
+              color: c.muted,
+              fill: c.hover,
+            ),
+          ),
+          // Quitar acceso, adentro del "⋯" (P19-M4).
+          RowActionsMenu(
+            key: ValueKey('work_clients_menu_${client['userId']}'),
+            tooltip: 'Acciones de $name',
+            enabled: !_busy,
+            actions: [
+              RowAction(
+                key: 'work_clients_revoke_${client['userId']}',
+                label: 'Quitar acceso',
+                destructive: true,
+                onSelected: () => _revoke(client),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
