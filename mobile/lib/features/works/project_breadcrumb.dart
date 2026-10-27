@@ -8,9 +8,12 @@ import 'works_providers.dart';
 /// Acceso cliente y Materiales): dice de qué proyecto son y vuelve al detalle
 /// (PS13 de la auditoría premium). Mientras el proyecto carga, no ocupa lugar.
 class ProjectBreadcrumb extends ConsumerWidget {
-  const ProjectBreadcrumb({super.key, required this.workId});
+  const ProjectBreadcrumb({super.key, required this.workId, this.current});
 
   final String workId;
+
+  /// La subpantalla, después del proyecto: «Cartelería del local / Documento».
+  final String? current;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,6 +22,7 @@ class ProjectBreadcrumb extends ConsumerWidget {
     return Breadcrumb(
       rootKey: const ValueKey('project_breadcrumb'),
       rootLabel: work.name,
+      current: current,
       onRoot: () => Navigator.maybePop(context),
     );
   }

@@ -106,6 +106,25 @@ const assert = require("node:assert/strict");
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     true,
   );
+  // Barra (P16-M2): íconos SVG, activo según el cursor y acciones de tabla
+  // solo dentro de una tabla.
+  assert.equal(await page.locator('#toolbar button[aria-label="Negrita"] svg').count(), 1);
+  // ProseMirror lee la selección del DOM en `selectionchange`, que es
+  // asíncrono: se espera el estado en lugar de leerlo una vez.
+  const toolbarState = (pressed, rowVisible) =>
+    page.waitForFunction(
+      ([p, v]) =>
+        document.querySelector('#toolbar button[aria-label="Negrita"]').ariaPressed === p &&
+        !document.querySelector('#toolbar button[aria-label="Agregar fila"]').hidden === v,
+      [pressed, rowVisible],
+      { timeout: 3000 },
+    );
+  await page.getByText("Detalle importante").click();
+  await toolbarState("true", false);
+  await page.getByText("Plan de entrega").click();
+  await toolbarState("false", false);
+  await page.locator("td").first().click();
+  await toolbarState("false", true);
   await page.reload();
   await page.evaluate(() =>
     nativeEditor.init({

@@ -840,13 +840,32 @@ void main() {
         );
         expect(preview.maxLines, 2);
         expect(preview.style!.color, c.muted);
-        // La fecha va en Mono.
-        final mono = tester
-            .widgetList<Text>(
-              find.descendant(of: card, matching: find.byType(Text)),
+        // P15-M1: la fecha va en el renglón del título, en 12 gris; Mono
+        // solo si lleva cifras.
+        final row = find
+            .ancestor(
+              of: find.text('Reunión de producción'),
+              matching: find.byType(Row),
             )
-            .where((t) => t.style?.fontFamily == 'RobotoMono');
-        expect(mono, hasLength(1));
+            .first;
+        final texts = tester
+            .widgetList<Text>(
+              find.descendant(of: row, matching: find.byType(Text)),
+            )
+            .toList();
+        expect(texts, hasLength(2));
+        final date = texts.last;
+        expect(date.style!.fontSize, 12);
+        expect(date.style!.color, c.muted);
+        expect(
+          date.style!.fontFamily == 'RobotoMono',
+          date.data!.contains(RegExp(r'\d')),
+        );
+        // P15-M2: sin ícono en la card.
+        expect(
+          find.descendant(of: card, matching: find.byType(Icon)),
+          findsNothing,
+        );
       },
     );
   }

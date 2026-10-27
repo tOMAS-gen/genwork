@@ -388,8 +388,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 27: Notas y Documento (P15–P17)
 
 **Criterios de aceptación:**
-- [ ] P15: fecha en el renglón del título, extracto de dos líneas y sin ícono.
-- [ ] P16 y P17: barra de formato con radio 6 y relleno dentro del margen; un solo indicador "Guardado ✓"; ✓ tonal solo si hay cambios.
+- [x] P15: fecha en el renglón del título, extracto de dos líneas y sin ícono.
+- [x] P16 y P17: barra de formato con radio 6 y relleno dentro del margen; un solo indicador "Guardado ✓"; ✓ tonal solo si hay cambios.
 
 **Verificación:** `documents_parity_test`. Capturas. · **Tamaño:** M
 

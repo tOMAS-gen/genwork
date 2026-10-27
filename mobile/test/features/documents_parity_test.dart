@@ -318,31 +318,61 @@ void main() {
       await expectLater(repo.image(src), throwsFormatException);
     }
   });
-  testWidgets('DS-21 nota: migas, título y ✓ y opciones como la web', (t) async {
-    final f = Fixture();
-    await mount(
-      t,
-      f,
-      const DocumentScreen(noteId: 'n', title: 'Nota', content: rich),
-    );
-    // Como la web: migas "Mis notas / …", el título editable y ✓ ⋯ debajo.
-    expect(find.byType(GenSectionHeader), findsNothing);
-    expect(find.text('Mis notas'), findsOneWidget);
-    expect(find.byKey(const ValueKey('note_delete_icon')), findsOneWidget);
-    final header = find.byKey(const ValueKey('note_actions'));
-    expect(find.byType(BrandName), findsOneWidget); // AppBar con la marca
-    for (final key in ['note_save', 'document_options']) {
-      expect(
-        find.descendant(of: header, matching: find.byKey(ValueKey(key))),
-        findsOneWidget,
-        reason: key,
+  testWidgets(
+    'DS-21 nota: migas y ⋯ en un renglón, título y un solo «Guardado» '
+    '(P16-M1, P16-M4)',
+    (t) async {
+      final f = Fixture();
+      await mount(
+        t,
+        f,
+        const DocumentScreen(noteId: 'n', title: 'Nota', content: rich),
       );
-    }
-    expect(
-      t.widget<IconButton>(find.byKey(const ValueKey('note_save'))).onPressed,
-      isNull, // nada para guardar todavía
-    );
-  });
+      expect(find.byType(GenSectionHeader), findsNothing);
+      expect(find.text('Mis notas'), findsOneWidget);
+      expect(find.byType(BrandName), findsOneWidget); // AppBar con la marca
+      // La papelera vive en el ⋯ («Borrar nota»), no en las migas.
+      expect(find.byKey(const ValueKey('note_delete_icon')), findsNothing);
+      final header = find.byKey(const ValueKey('note_actions'));
+      expect(
+        find.descendant(
+          of: header,
+          matching: find.byKey(const ValueKey('document_options')),
+        ),
+        findsOneWidget,
+      );
+      // Sin cambios: solo «✓ Guardado», sin botón de guardar.
+      expect(find.byKey(const ValueKey('note_save')), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('document_status')),
+          matching: find.text('Guardado'),
+        ),
+        findsOneWidget,
+      );
+      // Con cambios, el botón tonal «Guardar» reemplaza al indicador.
+      await t.enterText(find.byKey(const ValueKey('note_title')), 'Otra');
+      await t.pump();
+      expect(find.byKey(const ValueKey('note_save')), findsOneWidget);
+      expect(find.byKey(const ValueKey('document_status')), findsNothing);
+      await t.pump(const Duration(seconds: 1));
+      await t.pumpAndSettle();
+      expect(find.byKey(const ValueKey('note_save')), findsNothing);
+    },
+  );
+  testWidgets(
+    'documento: migas «proyecto / Documento» y título 20/700 sin tile (P17-M1)',
+    (t) async {
+      final f = Fixture();
+      await mount(t, f, const WorkDocumentScreen(workId: 'w'));
+      expect(find.byType(GenSectionHeader), findsNothing);
+      expect(find.byKey(const ValueKey('project_breadcrumb')), findsOneWidget);
+      final title = t.widget<Text>(find.text('Documento').last);
+      expect(title.style?.fontSize, 20);
+      expect(title.style?.fontWeight, FontWeight.w700);
+      expect(find.byKey(const ValueKey('document_status')), findsOneWidget);
+    },
+  );
   test(
     'DS-21 el CSS del editor usa los tokens de genwork, sin colores del sistema',
     () {
@@ -359,6 +389,10 @@ void main() {
       ]) {
         expect(html, contains(token), reason: token);
       }
+      // Barra de formato dentro del margen, con radio y relleno (P16-M2).
+      expect(html, contains('margin: 0 16px;'));
+      expect(html, contains('background: var(--field);'));
+      expect(html, contains('button[aria-pressed="true"]'));
       // Nada de colores de sistema (Canvas/GrayText) ni azules sueltos.
       for (final legacy in ['Canvas', 'GrayText', '#5b7fff33', '#9eafff']) {
         expect(html.contains(legacy), isFalse, reason: legacy);
