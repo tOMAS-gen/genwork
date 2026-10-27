@@ -177,7 +177,7 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 
 - [x] `dart analyze` limpio y `flutter test` en verde (534 tests).
 - [x] Capturas `despues` de las 41 pantallas en claro y oscuro, con el comparador regenerado (2026-10-27). Las de la paridad quedaron en `.context/paridad-visual/despues-paridad/`.
-- [ ] El usuario revisa las bases antes de seguir con los componentes.
+- [x] El usuario revisa las bases antes de seguir con los componentes (2026-10-27: volvió a pedir `/build auto`).
 
 ## Fase 2 — Componentes
 
@@ -186,12 +186,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Una card por grupo con rótulo 11/700 y filas de 56 dp (64 con dos líneas) separadas por divisores de 1 px, en lugar de una card por ítem. Íconos de 20 dp en gris y chevron en las filas que navegan. `listTileTheme.minTileHeight` pasa a 48 (T4).
 
 **Criterios de aceptación:**
-- [ ] Cuenta (P23) y Configuración (P25) entran en una pantalla con sus grupos.
-- [ ] Ninguna fila tocable mide menos de 48 dp.
+- [x] Cuenta (P23) y Configuración (P25) entran en una pantalla con sus grupos.
+- [x] Ninguna fila tocable mide menos de 48 dp.
 
 **Verificación:**
-- [ ] `settings_parity_test` y `accessibility_audit_test` en verde, con las mismas aserciones.
-- [ ] Capturas de P23 y P25.
+- [x] `settings_parity_test` y `accessibility_audit_test` en verde, con las mismas aserciones.
+- [x] Capturas de P23 y P25. Configuración muestra 9 filas en el test a 390 × 844 (en el teléfono, 7 y media por las pestañas y el título, que se resuelven en las tareas 20 y 31).
 
 **Depende de:** 9 · **Archivos:** `features/settings/settings_screen.dart`, `core/theme/app_theme.dart`, `shared/widgets/` (fila de ajuste) · **Tamaño:** M
 

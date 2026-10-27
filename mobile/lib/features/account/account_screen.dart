@@ -10,13 +10,16 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
-import '../../shared/widgets/workspace_panel.dart';
+import '../../shared/widgets/settings_rows.dart';
 import 'logout_tile.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../settings/settings_tabs.dart';
 
-/// Radio del avatar de la cuenta (48 px de diámetro).
-const double _avatarRadius = 24;
+/// Radio del avatar de la cuenta: 40 dp, la columna de íconos de las filas.
+const double _avatarRadius = 20;
+
+/// Versión que muestra la app (como `pubspec.yaml`).
+const String _version = '1.0.0 (1)';
 
 class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
@@ -37,9 +40,11 @@ class AccountScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          WorkspaceListPanel(
+          // Perfil, servidor y versión en un solo grupo de filas de 56–64 dp,
+          // con el texto en la misma columna (P23-M1, P23-M3).
+          SettingsGroup(
             children: [
-              ListTile(
+              SettingsRow(
                 // Decorativo: el nombre se lee al lado.
                 leading: ExcludeSemantics(
                   child: CircleAvatar(
@@ -60,84 +65,71 @@ class AccountScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                title: Text(user.name),
-                subtitle: Text(user.email),
+                title: user.name,
+                subtitle: user.email,
               ),
-              ListTile(
-                leading: const Icon(AppIcons.server),
-                title: const Text('Servidor'),
-                subtitle: Text(
-                  session.serverUrl.toString(),
-                  style: AppTextStyles.technical.copyWith(color: c.muted),
-                ),
+              SettingsRow(
+                icon: AppIcons.server,
+                title: 'Servidor',
+                subtitle: session.serverUrl.toString(),
+                technicalSubtitle: true,
               ),
-              ListTile(
+              SettingsRow(
                 key: const ValueKey('account_servers'),
-                leading: const Icon(AppIcons.qrScanner),
-                title: const Text('Servidores'),
-                subtitle: Text(() {
+                icon: AppIcons.qrScanner,
+                title: 'Servidores',
+                subtitle: () {
                   final n = ref.watch(serverListProvider).length;
                   return '$n ${n == 1 ? 'vinculado' : 'vinculados'} · cambiar o agregar';
-                }()),
-                trailing: Icon(
-                  AppIcons.chevronRight,
-                  size: AppIconSizes.action,
-                  color: c.muted,
-                ),
+                }(),
                 onTap: () => context.push(Routes.servers),
               ),
-              const ListTile(
-                leading: Icon(AppIcons.info),
-                title: Text('genwork'),
-                subtitle: Text('Versión 1.0.0 (1)'),
-              ),
+              // La versión una sola vez: con Sistema si se puede abrir
+              // (P23-M4).
+              if (user.isWriter)
+                SettingsRow(
+                  key: ValueKey('account_${SettingsSection.system.name}'),
+                  icon: AppIcons.info,
+                  title: '${SettingsSection.system.title} · v$_version',
+                  subtitle: 'Entorno y estado de la nube',
+                  onTap: () =>
+                      context.push(Routes.setting(SettingsSection.system.name)),
+                )
+              else
+                const SettingsRow(
+                  icon: AppIcons.info,
+                  title: 'genwork',
+                  subtitle: 'Versión $_version',
+                ),
             ],
           ),
-          // Como la web: Cuenta de almacenamiento y Sistema dentro de Mi cuenta.
+          // Como la web: Cuenta de almacenamiento dentro de Mi cuenta.
           if (user.isWriter) ...[
             const SizedBox(height: AppSpacing.md),
-            WorkspaceListPanel(
+            SettingsGroup(
               children: [
-                for (final (section, description) in [
-                  (
-                    SettingsSection.storageLink,
-                    'Vinculá tu cuenta de Nextcloud para acceder a tus archivos con tus propios permisos.',
+                SettingsRow(
+                  key: ValueKey('account_${SettingsSection.storageLink.name}'),
+                  icon: AppIcons.cloud,
+                  title: SettingsSection.storageLink.title,
+                  subtitle:
+                      'Vinculá tu cuenta de Nextcloud para acceder a tus archivos con tus propios permisos.',
+                  onTap: () => context.push(
+                    Routes.setting(SettingsSection.storageLink.name),
                   ),
-                  (
-                    SettingsSection.system,
-                    'Versión, entorno y estado de la nube.',
-                  ),
-                ])
-                  ListTile(
-                    key: ValueKey('account_${section.name}'),
-                    title: Text(section.title),
-                    subtitle: Text(description),
-                    trailing: Icon(
-                      AppIcons.chevronRight,
-                      size: AppIconSizes.action,
-                      color: c.muted,
-                    ),
-                    onTap: () => context.push(Routes.setting(section.name)),
-                  ),
+                ),
               ],
             ),
           ],
           const SizedBox(height: AppSpacing.md),
-          WorkspaceListPanel(
+          SettingsGroup(
             children: [
               if (user.isWriter)
-                ListTile(
+                SettingsRow(
                   key: const ValueKey('account_settings'),
-                  leading: const Icon(AppIcons.settings),
-                  title: const Text('Configuración'),
-                  subtitle: const Text(
-                    'Tema, almacenamiento y opciones del sistema',
-                  ),
-                  trailing: Icon(
-                    AppIcons.chevronRight,
-                    size: AppIconSizes.action,
-                    color: c.muted,
-                  ),
+                  icon: AppIcons.settings,
+                  title: 'Configuración',
+                  subtitle: 'Tema, almacenamiento y opciones del sistema',
                   onTap: () => context.push(Routes.settings),
                 ),
               const LogoutTile(actionKey: 'account_logout'),

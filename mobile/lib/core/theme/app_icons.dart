@@ -36,6 +36,8 @@ abstract final class AppIcons {
 
   /// Reintentar / recargar
   static const retry = Icons.refresh_outlined;
+  /// Fila "Apariencia" de Configuración.
+  static const appearance = Icons.contrast_outlined;
   static const themeSystem = Icons.computer_outlined;
   static const themeLight = Icons.wb_sunny_outlined;
   static const themeDark = Icons.dark_mode_outlined;
@@ -94,6 +96,9 @@ abstract final class AppIcons {
   static const server = Icons.dns_outlined;
   static const login = Icons.login_outlined;
   static const logout = Icons.logout_outlined;
+
+  /// Cuenta de almacenamiento vinculada.
+  static const cloud = Icons.cloud_outlined;
   static const person = Icons.person_outline;
   static const personAdd = Icons.person_add_outlined;
   static const personRemove = Icons.person_remove_outlined;

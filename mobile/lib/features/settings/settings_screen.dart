@@ -25,61 +25,34 @@ import 'settings_tabs.dart';
 import 'storage_settings.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../shared/widgets/panel_section.dart';
+import '../../shared/widgets/settings_rows.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../core/auth/session.dart';
 
-/// Portada de Configuración, como `/admin` de la web: una card por destino con
-/// ícono, título y descripción. Arriba van las preferencias propias de la app
-/// (tema y notificaciones, decisión 2 de la spec 066).
+/// Portada de Configuración, como `/admin` de la web: los mismos destinos,
+/// agrupados en cards con rótulo y filas de 56 dp (PS4). Arriba van las
+/// preferencias propias de la app (tema y notificaciones, decisión 2 de la
+/// spec 066).
 class SettingsHomeScreen extends ConsumerWidget {
   const SettingsHomeScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final admin = ref.watch(currentUserProvider)?.isSuperAdmin == true;
-    final c = context.colors;
-    Widget card(
+    Widget row(
       String key,
       IconData icon,
       String title,
       String description,
       String route,
-    ) => Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          key: ValueKey('settings_$key'),
-          onTap: () => context.push(route),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                Icon(icon, size: AppIconSizes.action, color: c.text),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: AppTextStyles.itemTitle.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: c.text,
-                        ),
-                      ),
-                      Text(
-                        description,
-                        style: AppTextStyles.body.copyWith(color: c.muted),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    ) => SettingsRow(
+      key: ValueKey('settings_$key'),
+      icon: icon,
+      title: title,
+      subtitle: description,
+      onTap: () => context.push(route),
     );
+    Widget section(SettingsSection s, IconData icon, String title, String d) =>
+        row(s.name, icon, title, d, Routes.setting(s.name));
 
     return GenPageScaffold(
       title: 'Configuración',
@@ -89,114 +62,123 @@ class SettingsHomeScreen extends ConsumerWidget {
         padding: EdgeInsets.zero,
         children: [
           // Solo en la app: tema y notificaciones push.
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: WorkspaceListPanel(
+          SettingsGroup(
+            children: [
+              const ThemeToggleTile(key: ValueKey('settings_theme')),
+              row(
+                'notifications',
+                AppIcons.bell,
+                'Notificaciones',
+                'Avisos en este teléfono',
+                Routes.notificationSettings,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SettingsGroup(
+            label: 'Cuenta',
+            children: [
+              row(
+                'account',
+                AppIcons.person,
+                'Mi cuenta',
+                'Almacenamiento vinculado, versión y estado del sistema',
+                Routes.account,
+              ),
+              section(
+                SettingsSection.mcp,
+                AppIcons.link,
+                'Vincular con Claude',
+                'Vinculación de asistentes de IA a la cuenta vía MCP',
+              ),
+            ],
+          ),
+          if (admin) ...[
+            const SizedBox(height: AppSpacing.md),
+            SettingsGroup(
+              label: 'Equipo',
               children: [
-                const ThemeToggleTile(key: ValueKey('settings_theme')),
-                ListTile(
-                  key: const ValueKey('settings_notifications'),
-                  leading: Icon(AppIcons.bell, color: c.text),
-                  title: const Text('Notificaciones'),
-                  subtitle: const Text('Avisos en este teléfono'),
-                  trailing: Icon(
-                    AppIcons.chevronRight,
-                    size: AppIconSizes.action,
-                    color: c.muted,
-                  ),
-                  onTap: () => context.push(Routes.notificationSettings),
+                section(
+                  SettingsSection.access,
+                  AppIcons.lock,
+                  'Control de acceso',
+                  'Quién puede ingresar: dominio corporativo o lista de correos',
+                ),
+                section(
+                  SettingsSection.users,
+                  AppIcons.groups,
+                  'Usuarios y roles',
+                  'Rol Lector para pantallas/TV y grupos habilitados',
+                ),
+                section(
+                  SettingsSection.clients,
+                  AppIcons.view,
+                  'Clientes',
+                  'Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada',
                 ),
               ],
             ),
-          ),
-          card(
-            'account',
-            AppIcons.person,
-            'Mi cuenta',
-            'Almacenamiento vinculado, versión y estado del sistema',
-            Routes.account,
+          ],
+          const SizedBox(height: AppSpacing.md),
+          SettingsGroup(
+            label: 'Catálogos',
+            children: [
+              row(
+                'labels',
+                AppIcons.label,
+                'Etiquetas',
+                'Claves y valores de etiquetas para clasificar proyectos',
+                Routes.catalog('labels'),
+              ),
+              row(
+                'stages',
+                AppIcons.sectors,
+                'Estados de producción',
+                'Configurar las etapas de producción para los proyectos del grupo',
+                Routes.catalog('stages'),
+              ),
+              row(
+                'statuses',
+                AppIcons.check,
+                'Estados de tarea',
+                'Conjunto general de estados de tarea (en curso/final) por grupo o personal',
+                Routes.catalog('statuses'),
+              ),
+            ],
           ),
           if (admin) ...[
-            card(
-              SettingsSection.access.name,
-              AppIcons.lock,
-              'Control de acceso',
-              'Quién puede ingresar: dominio corporativo o lista de correos',
-              Routes.setting(SettingsSection.access.name),
-            ),
-            card(
-              SettingsSection.storage.name,
-              AppIcons.server,
-              'Almacenamiento (mini nube)',
-              'Conexión con Nextcloud y estado del aprovisionamiento',
-              Routes.setting(SettingsSection.storage.name),
-            ),
-            card(
-              SettingsSection.users.name,
-              AppIcons.groups,
-              'Usuarios y roles',
-              'Rol Lector para pantallas/TV y grupos habilitados',
-              Routes.setting(SettingsSection.users.name),
-            ),
-            card(
-              SettingsSection.clients.name,
-              AppIcons.view,
-              'Clientes',
-              'Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada',
-              Routes.setting(SettingsSection.clients.name),
-            ),
-            card(
-              'genstock',
-              AppIcons.integration,
-              'Integración con Genstock',
-              'URL del server para buscar productos y materiales',
-              Routes.genstock,
+            const SizedBox(height: AppSpacing.md),
+            SettingsGroup(
+              label: 'Sistema',
+              children: [
+                section(
+                  SettingsSection.storage,
+                  AppIcons.server,
+                  'Almacenamiento (mini nube)',
+                  'Conexión con Nextcloud y estado del aprovisionamiento',
+                ),
+                row(
+                  'genstock',
+                  AppIcons.integration,
+                  'Integración con Genstock',
+                  'URL del server para buscar productos y materiales',
+                  Routes.genstock,
+                ),
+                section(
+                  SettingsSection.reminders,
+                  AppIcons.bell,
+                  'Recordatorios',
+                  'Calendario y avisos programados del grupo',
+                ),
+                section(
+                  SettingsSection.errors,
+                  AppIcons.error,
+                  'Errores',
+                  'Errores capturados automáticamente, listos para revisar y corregir',
+                ),
+              ],
             ),
           ],
-          card(
-            'labels',
-            AppIcons.label,
-            'Etiquetas',
-            'Claves y valores de etiquetas para clasificar proyectos',
-            Routes.catalog('labels'),
-          ),
-          card(
-            'stages',
-            AppIcons.sectors,
-            'Estados de producción',
-            'Configurar las etapas de producción para los proyectos del grupo',
-            Routes.catalog('stages'),
-          ),
-          card(
-            'statuses',
-            AppIcons.check,
-            'Estados de tarea',
-            'Conjunto general de estados de tarea (en curso/final) por grupo o personal',
-            Routes.catalog('statuses'),
-          ),
-          if (admin) ...[
-            card(
-              SettingsSection.errors.name,
-              AppIcons.error,
-              'Errores',
-              'Errores capturados automáticamente, listos para revisar y corregir',
-              Routes.setting(SettingsSection.errors.name),
-            ),
-            card(
-              SettingsSection.reminders.name,
-              AppIcons.bell,
-              'Recordatorios',
-              'Calendario y avisos programados del grupo',
-              Routes.setting(SettingsSection.reminders.name),
-            ),
-          ],
-          card(
-            SettingsSection.mcp.name,
-            AppIcons.link,
-            'Vincular con Claude',
-            'Vinculación de asistentes de IA a la cuenta vía MCP',
-            Routes.setting(SettingsSection.mcp.name),
-          ),
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),

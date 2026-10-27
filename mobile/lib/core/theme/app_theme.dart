@@ -213,7 +213,7 @@ abstract final class AppTheme {
       listTileTheme: ListTileThemeData(
         contentPadding: AppSpace.page,
         minVerticalPadding: AppSpace.md,
-        minTileHeight: 44,
+        minTileHeight: kMinInteractiveDimension,
         shape: controlShape,
         titleTextStyle: typography.titleMedium,
         subtitleTextStyle: typography.bodySmall,

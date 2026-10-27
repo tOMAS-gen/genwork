@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/theme/theme_preference.dart';
+import 'settings_rows.dart';
 import 'state_views.dart';
 
 IconData _iconFor(ThemeMode mode) => switch (mode) {
@@ -67,17 +68,15 @@ class ThemeToggle extends ConsumerWidget {
   }
 }
 
-/// Fila de preferencia "Apariencia": título, tema activo y el [ThemeToggle].
-class ThemeToggleTile extends ConsumerWidget {
+/// Fila de preferencia "Apariencia" con el [ThemeToggle]: una fila de ajuste
+/// de 56 dp. El tema activo lo dice el control, no un subtítulo (P25-M3).
+class ThemeToggleTile extends StatelessWidget {
   const ThemeToggleTile({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(themePreferenceProvider);
-    return ListTile(
-      title: const Text('Apariencia'),
-      subtitle: Text('Tema: ${_labelFor(current)}'),
-      trailing: const ThemeToggle(),
-    );
-  }
+  Widget build(BuildContext context) => const SettingsRow(
+    icon: AppIcons.appearance,
+    title: 'Apariencia',
+    trailing: ThemeToggle(),
+  );
 }
