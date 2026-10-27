@@ -404,8 +404,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 29: Materiales y Recordatorios (P20, P21)
 
 **Criterios de aceptación:**
-- [ ] P20: sin buscador mientras no haya materiales; ícono propio en el vacío.
-- [ ] P21: celdas de 44 dp sin líneas y hoy en un círculo de 28 dp; mes y grilla en una card; alcance como chip de texto; segmentado sin check; botón del mes de 48 dp (T4).
+- [x] P20: sin buscador mientras no haya materiales; ícono propio en el vacío.
+- [x] P21: celdas de 44 dp sin líneas y hoy en un círculo de 28 dp; mes y grilla en una card; alcance como chip de texto; segmentado sin check; botón del mes de 48 dp (T4).
 
 **Verificación:** `reminders_advanced_test` con `androidTapTargetGuideline`. Capturas. · **Tamaño:** M
 

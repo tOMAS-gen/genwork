@@ -39,6 +39,7 @@ abstract final class AppIcons {
 
   /// Reintentar / recargar
   static const retry = Icons.refresh_outlined;
+
   /// Fila "Apariencia" de Configuración.
   static const appearance = Icons.contrast_outlined;
   static const themeSystem = Icons.computer_outlined;
@@ -76,6 +77,9 @@ abstract final class AppIcons {
 
   /// Materiales (`Package` de la web).
   static const materials = Icons.inventory_2_outlined;
+
+  /// Vacío de Materiales: «sin cargas», distinto del ícono del menú (P20-M3).
+  static const materialsEmpty = Icons.add_box_outlined;
 
   /// Integración con Genstock (`Globe` de la web).
   static const integration = Icons.public;

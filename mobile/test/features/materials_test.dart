@@ -15,6 +15,7 @@ import 'package:genwork_mobile/features/materials/work_materials_screen.dart';
 import 'package:genwork_mobile/features/works/works_providers.dart';
 
 import 'resource_operations_test.dart' show user;
+import 'package:genwork_mobile/core/theme/app_icons.dart';
 
 class _FakeRepo extends MaterialsRepository {
   _FakeRepo(this.items)
@@ -197,6 +198,10 @@ void main() {
 
     await pump(const []);
     expect(find.text('No hay materiales cargados'), findsOneWidget);
+    // P20-M2/M3: sin buscador mientras no hay materiales, y el vacío con su
+    // propio ícono (no el del menú).
+    expect(find.byKey(const ValueKey('materials_filter')), findsNothing);
+    expect(find.byIcon(AppIcons.materialsEmpty), findsOneWidget);
     await pump([
       MaterialTotal.fromJson({
         'genstockProductId': 'p1',

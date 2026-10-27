@@ -40,44 +40,47 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
       title: 'Materiales',
       subtitle: 'Totales consolidados de proyectos activos visibles.',
       onRefresh: () => ref.refresh(materialTotalsProvider.future),
-      body: ListView(
-        key: const ValueKey('materials_totals'),
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          TextField(
-            key: const ValueKey('materials_filter'),
-            onChanged: (v) => setState(() => _query = v),
-            decoration: const InputDecoration(
-              hintText: 'Filtrar por material o código',
-              prefixIcon: Icon(AppIcons.search, size: AppIconSizes.notice),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AsyncValueView(
-            value: ref.watch(materialTotalsProvider),
-            onRetry: () => ref.invalidate(materialTotalsProvider),
-            data: (rows) {
-              if (rows.isEmpty) {
-                return const EmptyView(
-                  icon: AppIcons.materials,
+      body: AsyncValueView(
+        value: ref.watch(materialTotalsProvider),
+        onRetry: () => ref.invalidate(materialTotalsProvider),
+        data: (rows) {
+          final visible = rows.where(_matches).toList();
+          return ListView(
+            key: const ValueKey('materials_totals'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              // Sin materiales no hay nada que filtrar (P20-M2).
+              if (rows.isEmpty)
+                const EmptyView(
+                  icon: AppIcons.materialsEmpty,
                   title: 'No hay materiales cargados',
                   message:
                       'Los materiales que agregues en cada proyecto aparecerán consolidados acá.',
-                );
-              }
-              final visible = rows.where(_matches).toList();
-              if (visible.isEmpty) {
-                return Text(
-                  'Sin materiales que coincidan.',
-                  style: AppTextStyles.body.copyWith(color: c.muted),
-                );
-              }
-              return Column(
-                children: [for (final row in visible) _TotalCard(row: row)],
-              );
-            },
-          ),
-        ],
+                )
+              else ...[
+                TextField(
+                  key: const ValueKey('materials_filter'),
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: const InputDecoration(
+                    hintText: 'Filtrar por material o código',
+                    prefixIcon: Icon(
+                      AppIcons.search,
+                      size: AppIconSizes.notice,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                if (visible.isEmpty)
+                  Text(
+                    'Sin materiales que coincidan.',
+                    style: AppTextStyles.body.copyWith(color: c.muted),
+                  )
+                else
+                  for (final row in visible) _TotalCard(row: row),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

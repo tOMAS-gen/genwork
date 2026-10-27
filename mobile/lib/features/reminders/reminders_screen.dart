@@ -20,6 +20,9 @@ import '../../shared/widgets/state_views.dart';
 import 'reminders_providers.dart';
 
 /// Notificaciones pendientes (descartar / posponer) y próximas ocurrencias.
+/// Alto del botón «Nuevo» de la cabecera.
+const double _newButtonHeight = 36;
+
 class RemindersScreen extends ConsumerStatefulWidget {
   const RemindersScreen({super.key, this.deliveriesOnly = false});
   final bool deliveriesOnly;
@@ -84,10 +87,17 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
           : 'Fechas, avisos y compromisos del equipo.',
       actions: [
         if (!deliveriesOnly)
-          IconButton.filled(
+          // Botón compacto «+ Nuevo» de 36 dp, alineado con el título
+          // (P21-M4); el área táctil sigue siendo de 48.
+          FilledButton.icon(
             key: const ValueKey('reminders_create'),
-            tooltip: 'Crear recordatorio',
-            icon: const Icon(AppIcons.add),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, _newButtonHeight),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              tapTargetSize: MaterialTapTargetSize.padded,
+            ),
+            icon: const Icon(AppIcons.add, size: AppIconSizes.field),
+            label: const Text('Nuevo'),
             onPressed: () => context.push(Routes.newReminder),
           ),
       ],
@@ -156,6 +166,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                   icon: Icon(AppIcons.calendarMonth),
                 ),
               ],
+              // Sin check: la opción activa se lee por el relleno (P21-M5).
+              showSelectedIcon: false,
               selected: {_calendar},
               onSelectionChanged: (v) => setState(() => _calendar = v.single),
             ),
