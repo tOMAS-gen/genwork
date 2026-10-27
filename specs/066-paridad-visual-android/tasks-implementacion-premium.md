@@ -325,8 +325,9 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 
 ## Checkpoint 2: componentes
 
-- [ ] `dart analyze` limpio y `flutter test` en verde.
-- [ ] Capturas de todas las pantallas que cambiaron; el usuario revisa P05, P07, P23 y P28.
+- [x] `dart analyze` limpio y `flutter test` en verde (574 tests).
+- [x] Capturas de todas las pantallas que cambiaron, en claro y oscuro, con el comparador regenerado (2026-10-27): P04, P05, P06, P07, P08, P10–P13, P18–P35 (portal con el rol Cliente y TV con el rol Lector). Vence hoy (P22) muestra un aviso de los datos semilla, así que su captura no tiene el vacío.
+- [ ] El usuario revisa P05, P07, P23 y P28.
 
 ## Fase 3 — Pantallas
 
