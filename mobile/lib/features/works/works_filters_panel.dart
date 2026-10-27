@@ -7,6 +7,7 @@ import '../../data/models/work.dart';
 import '../../shared/widgets/list_toolbar.dart';
 import 'works_dashboard.dart';
 import 'works_filter.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 typedef WorkFilters = ({
   Set<String> groups,
@@ -105,6 +106,7 @@ class WorksFiltersPanel extends StatelessWidget {
       required Map<T, String> options,
       required ValueChanged<T?> onSelect,
     }) => DropdownButtonFormField<T>(
+      icon: const AppDropdownIcon(),
       key: ValueKey(fieldKey),
       isExpanded: true,
       initialValue: value,
@@ -181,39 +183,44 @@ class WorksFiltersPanel extends StatelessWidget {
             spacing: AppSpacing.lg,
             children: [
               for (final g in groups.entries)
-                InkWell(
-                  key: ValueKey('works_filter_group_${g.key}'),
-                  onTap: () {
-                    final selected = {...filters.groups};
-                    if (!selected.remove(g.key)) selected.add(g.key);
-                    _set(groups: selected);
-                  },
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 44),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Checkbox(
-                          value: filters.groups.contains(g.key),
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                          onChanged: (_) {
-                            final selected = {...filters.groups};
-                            if (!selected.remove(g.key)) selected.add(g.key);
-                            _set(groups: selected);
-                          },
-                        ),
-                        const SizedBox(width: AppSpacing.xxs),
-                        Text(
-                          g.value,
-                          style: AppTextStyles.body.copyWith(
-                            color: filters.groups.contains(g.key)
-                                ? c.text
-                                : c.muted,
+                // Casilla y nombre son una sola parada para TalkBack (T1).
+                MergeSemantics(
+                  child: InkWell(
+                    key: ValueKey('works_filter_group_${g.key}'),
+                    onTap: () {
+                      final selected = {...filters.groups};
+                      if (!selected.remove(g.key)) selected.add(g.key);
+                      _set(groups: selected);
+                    },
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minHeight: kMinInteractiveDimension,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Checkbox(
+                            value: filters.groups.contains(g.key),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            onChanged: (_) {
+                              final selected = {...filters.groups};
+                              if (!selected.remove(g.key)) selected.add(g.key);
+                              _set(groups: selected);
+                            },
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: AppSpacing.xxs),
+                          Text(
+                            g.value,
+                            style: AppTextStyles.body.copyWith(
+                              color: filters.groups.contains(g.key)
+                                  ? c.text
+                                  : c.muted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

@@ -14,6 +14,7 @@ import '../../shared/widgets/app_inline_notice.dart';
 import '../../shared/widgets/auth_card.dart';
 import '../../shared/widgets/state_views.dart';
 import 'qr_scanner_view.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 /// Cómo mostrar el QR en la web. Se ve debajo del visor de cámara.
 class _QrInstructions extends StatelessWidget {
@@ -188,18 +189,18 @@ class _ServerSetupScreenState extends ConsumerState<ServerSetupScreen> {
         ],
         const SizedBox(height: AppSpacing.md),
         if (_manual) ...[
-          TextField(
-            key: const ValueKey('setup_url_field'),
-            controller: _controller,
-            enabled: !_checking,
-            enableSuggestions: false,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            textInputAction: TextInputAction.go,
-            onSubmitted: (_) => _submitManual(),
-            decoration: const InputDecoration(
-              labelText: 'URL del sistema',
-              hintText: 'work.empresa.com',
+          LabeledField(
+            label: 'URL del sistema',
+            child: TextField(
+              key: const ValueKey('setup_url_field'),
+              controller: _controller,
+              enabled: !_checking,
+              enableSuggestions: false,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              textInputAction: TextInputAction.go,
+              onSubmitted: (_) => _submitManual(),
+              decoration: const InputDecoration(hintText: 'work.empresa.com'),
             ),
           ),
         ] else ...[

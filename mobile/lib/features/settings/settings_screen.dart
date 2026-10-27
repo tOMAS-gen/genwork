@@ -29,6 +29,8 @@ import '../../shared/widgets/row_actions_menu.dart';
 import '../../shared/widgets/settings_rows.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../core/auth/session.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 /// Portada de Configuración, como `/admin` de la web: los mismos destinos,
 /// agrupados en cards con rótulo y filas de 56 dp (PS4). Arriba van las
@@ -306,16 +308,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           if (_busy) const LinearProgressIndicator(),
           if (widget.section == SettingsSection.errors) ...[
-            DropdownButtonFormField<String>(
-              key: const ValueKey('settings_error_filter'),
-              initialValue: _filter ?? 'ALL',
-              decoration: const InputDecoration(labelText: 'Estado'),
-              items: const [
-                DropdownMenuItem(value: 'ALL', child: Text('Todos')),
-                DropdownMenuItem(value: 'PENDING', child: Text('Abiertos')),
-                DropdownMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
-              ],
-              onChanged: (v) => setState(() => _filter = v == 'ALL' ? null : v),
+            LabeledField(
+              label: 'Estado',
+              child: DropdownButtonFormField<String>(
+                icon: const AppDropdownIcon(),
+                key: const ValueKey('settings_error_filter'),
+                initialValue: _filter ?? 'ALL',
+                items: const [
+                  DropdownMenuItem(value: 'ALL', child: Text('Todos')),
+                  DropdownMenuItem(value: 'PENDING', child: Text('Abiertos')),
+                  DropdownMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
+                ],
+                onChanged: (v) =>
+                    setState(() => _filter = v == 'ALL' ? null : v),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -1080,22 +1086,26 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    key: const ValueKey('settings_client_name'),
-                    controller: name,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                    maxLength: 120,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Ingresá el nombre.'
-                        : null,
+                  LabeledField(
+                    label: 'Nombre',
+                    child: TextFormField(
+                      key: const ValueKey('settings_client_name'),
+                      controller: name,
+                      enabled: !busy,
+                      maxLength: 120,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Ingresá el nombre.'
+                          : null,
+                    ),
                   ),
-                  TextFormField(
-                    key: const ValueKey('settings_client_email'),
-                    controller: email,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: 'Correo'),
-                    validator: (v) => emailError(v?.trim() ?? ''),
+                  LabeledField(
+                    label: 'Correo',
+                    child: TextFormField(
+                      key: const ValueKey('settings_client_email'),
+                      controller: email,
+                      enabled: !busy,
+                      validator: (v) => emailError(v?.trim() ?? ''),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   const Text('Proyectos autorizados (opcional)'),

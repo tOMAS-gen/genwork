@@ -14,6 +14,7 @@ import '../../features/shell/resource_refresh.dart';
 import 'state_views.dart';
 import 'task_text_field.dart';
 import 'error_text.dart';
+import 'labeled_field.dart';
 
 class TaskComposer extends ConsumerStatefulWidget {
   const TaskComposer({
@@ -243,15 +244,15 @@ class _TaskComposerState extends ConsumerState<TaskComposer> {
                 const Text(
                   r'Una tarea por línea. Usá /proyecto, #sector, @referencia, $etiqueta y fechas DD/MM/AAAA.',
                 ),
-                TextField(
-                  key: const ValueKey('task_composer_description'),
-                  controller: _description,
-                  enabled: !_sending,
-                  maxLength: 2000,
-                  minLines: 1,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción para las tareas nuevas',
+                LabeledField(
+                  label: 'Descripción para las tareas nuevas',
+                  child: TextField(
+                    key: const ValueKey('task_composer_description'),
+                    controller: _description,
+                    enabled: !_sending,
+                    maxLength: 2000,
+                    minLines: 1,
+                    maxLines: 3,
                   ),
                 ),
               ],

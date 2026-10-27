@@ -10,6 +10,7 @@ import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/error_text.dart';
 import '../../shared/widgets/gen_skeleton.dart';
 import '../files/files_providers.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 /// Injectable editor boundary for widget tests; the bundled TipTap is tested in
 /// a real WebView. The bridge never receives credentials or arbitrary API URLs.
@@ -184,11 +185,13 @@ class _RichDocumentEditorState extends ConsumerState<RichDocumentEditor> {
                 child: const Text('Insertar'),
               ),
             ],
-            child: TextField(
-              key: const ValueKey('document_link_url'),
-              onChanged: (value) => text = value,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(labelText: 'URL https://'),
+            child: LabeledField(
+              label: 'URL https://',
+              child: TextField(
+                key: const ValueKey('document_link_url'),
+                onChanged: (value) => text = value,
+                keyboardType: TextInputType.url,
+              ),
             ),
           ),
         );

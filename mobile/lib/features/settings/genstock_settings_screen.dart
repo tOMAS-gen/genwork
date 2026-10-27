@@ -133,7 +133,7 @@ class _GenstockSettingsScreenState
                           keyboardType: TextInputType.url,
                           onChanged: (_) => setState(() {}),
                           decoration: const InputDecoration(
-                            hintText: 'http://127.0.0.1:8110',
+                            hintText: 'Ej.: http://127.0.0.1:8110',
                           ),
                         ),
                       ),

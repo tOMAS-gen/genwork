@@ -159,19 +159,26 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                Switch(
-                  key: const ValueKey('materials_supply_only'),
-                  value: _supplyOnly,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  onChanged: (v) {
-                    setState(() => _supplyOnly = v);
-                    _search();
-                  },
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  'Solo insumos',
-                  style: AppTextStyles.body.copyWith(color: c.text),
+                // El interruptor se anuncia como "Solo insumos" (T1).
+                MergeSemantics(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        key: const ValueKey('materials_supply_only'),
+                        value: _supplyOnly,
+                        onChanged: (v) {
+                          setState(() => _supplyOnly = v);
+                          _search();
+                        },
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        'Solo insumos',
+                        style: AppTextStyles.body.copyWith(color: c.text),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

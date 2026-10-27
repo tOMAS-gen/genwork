@@ -45,6 +45,8 @@ final _rules = <_Rule>[
       r"TextButton(?:\.icon)?\((?:(?!(?:Text|Filled|Outlined)Button)[\s\S]){0,400}?Text\(\s*'Guardar",
     ),
   ),
+  // PS10: una sola receta de campo, con el rótulo arriba.
+  _Rule('labelText (usar LabeledField)', RegExp(r'\blabelText:')),
   _Rule('AlertDialog (usar AppWorkDialog)', RegExp(r'\bAlertDialog\(')),
   _Rule(
     'showDialog directo (usar showAppFormDialog)',

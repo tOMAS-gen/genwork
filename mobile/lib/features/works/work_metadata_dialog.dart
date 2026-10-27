@@ -13,6 +13,7 @@ import '../shell/resource_refresh.dart';
 import 'works_providers.dart';
 import '../../shared/widgets/error_text.dart';
 import '../../core/theme/app_icons.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 Future<void> showWorkMetadata(
   BuildContext context,
@@ -154,11 +155,13 @@ class _MetadataDialogState extends ConsumerState<_MetadataDialog> {
                   ),
                 ),
               const Divider(),
-              TextField(
-                key: const ValueKey('work_label_search'),
-                decoration: const InputDecoration(labelText: 'Buscar etiqueta'),
-                onChanged: (v) =>
-                    setState(() => _search = v.trim().toLowerCase()),
+              LabeledField(
+                label: 'Buscar etiqueta',
+                child: TextField(
+                  key: const ValueKey('work_label_search'),
+                  onChanged: (v) =>
+                      setState(() => _search = v.trim().toLowerCase()),
+                ),
               ),
               AsyncValueView(
                 value: ref.watch(workLabelsProvider(work.groupId)),

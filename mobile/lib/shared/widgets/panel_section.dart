@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 
@@ -62,7 +63,7 @@ class PanelSection extends StatelessWidget {
 }
 
 /// Valor para copiar, como `CopyField` de la web: el texto en mono sobre
-/// `field` y el botón "Copiar".
+/// `field` y el botón de copiar como ícono dentro del campo (P24a-M1).
 class CopyField extends StatelessWidget {
   const CopyField({
     super.key,
@@ -78,31 +79,34 @@ class CopyField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: c.field,
-            border: Border.all(color: c.outline),
-            borderRadius: AppGeometry.control,
+    return Container(
+      key: const ValueKey('copy_field'),
+      padding: const EdgeInsets.only(left: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: c.field,
+        border: Border.all(color: c.outline),
+        borderRadius: AppGeometry.control,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SelectableText(
+              value,
+              style: AppTextStyles.technical.copyWith(color: c.text),
+            ),
           ),
-          child: SelectableText(
-            value,
-            style: AppTextStyles.technical.copyWith(color: c.text),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Align(
-          alignment: Alignment.centerRight,
-          child: OutlinedButton(
+          IconButton(
             key: buttonKey,
+            tooltip: 'Copiar',
             onPressed: onCopy,
-            child: const Text('Copiar'),
+            icon: Icon(
+              AppIcons.copy,
+              size: AppIconSizes.action,
+              color: c.muted,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

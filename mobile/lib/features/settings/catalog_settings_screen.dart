@@ -19,6 +19,8 @@ import 'settings_tabs.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 class CatalogSettingsScreen extends ConsumerStatefulWidget {
   const CatalogSettingsScreen({
@@ -255,35 +257,30 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                 style: AppTextStyles.body.copyWith(color: context.colors.muted),
               ),
             ),
-          // Rótulo arriba del campo, como la web.
-          Text(
-            'Ámbito',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.w500,
-              color: context.colors.muted,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxs + AppSpacing.hairline),
-          DropdownButtonFormField<String>(
-            key: const ValueKey('catalog_scope'),
-            initialValue: scope,
-            isExpanded: true,
-            style: AppTextStyles.body.copyWith(color: context.colors.text),
-            items: choices.entries
-                .map(
-                  (e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Text(
-                      e.value,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+          LabeledField(
+            label: 'Ámbito',
+            child: DropdownButtonFormField<String>(
+              icon: const AppDropdownIcon(),
+              key: const ValueKey('catalog_scope'),
+              initialValue: scope,
+              isExpanded: true,
+              style: AppTextStyles.body.copyWith(color: context.colors.text),
+              items: choices.entries
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e.key,
+                      child: Text(
+                        e.value,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                )
-                .toList(),
-            onChanged: busy
-                ? null
-                : (v) => setState(() => scope = v ?? 'personal'),
+                  )
+                  .toList(),
+              onChanged: busy
+                  ? null
+                  : (v) => setState(() => scope = v ?? 'personal'),
+            ),
           ),
           if (groups.hasError)
             ErrorView(

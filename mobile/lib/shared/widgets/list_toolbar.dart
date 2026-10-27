@@ -4,6 +4,8 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import 'labeled_field.dart';
+import 'app_dropdown_decoration.dart';
 
 /// Un filtro activo, con la acción que lo quita (`.toolbar-chips`).
 typedef ActiveFilter = ({String label, VoidCallback remove});
@@ -296,16 +298,12 @@ class _SortSelect<S> extends StatelessWidget {
       label: 'Ordenar',
       child: DropdownButtonHideUnderline(
         child: DropdownButton<S>(
+          icon: const AppDropdownIcon(),
           key: selectKey,
           value: value,
           isExpanded: true,
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxs),
           borderRadius: AppGeometry.menu,
-          icon: Icon(
-            AppIcons.expandMore,
-            size: AppIconSizes.notice,
-            color: c.muted,
-          ),
           style: AppTextStyles.body.copyWith(
             color: c.text,
             fontWeight: FontWeight.w500,
@@ -442,19 +440,8 @@ class ToolbarFilterField extends StatelessWidget {
   final String label;
   final Widget child;
 
+  /// La misma receta que cualquier campo (PS10, T1).
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(
-        label,
-        style: AppTextStyles.supporting.copyWith(
-          fontWeight: FontWeight.w600,
-          color: context.colors.text,
-        ),
-      ),
-      const SizedBox(height: AppSpacing.xxs + AppSpacing.hairline),
-      child,
-    ],
-  );
+  Widget build(BuildContext context) =>
+      LabeledField(label: label, child: child);
 }

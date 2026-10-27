@@ -5,9 +5,12 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 
-/// Campo con el rótulo arriba, como `.dialog-field` de la web: rótulo 13/500
-/// `muted`, 6 de separación y el control debajo. Reemplaza al rótulo flotante
-/// de Material (`labelText`).
+/// Campo con el rótulo arriba, la única receta de campo de la app (PS10):
+/// rótulo 12/600 `muted`, 6 de separación y el control debajo. Reemplaza al
+/// rótulo flotante de Material (`labelText`).
+///
+/// TalkBack lee el rótulo como nombre del campo (T1): se fusiona con el nodo
+/// del control y el texto visual no suma una parada aparte.
 class LabeledField extends StatelessWidget {
   const LabeledField({super.key, required this.label, required this.child});
 
@@ -19,15 +22,19 @@ class LabeledField extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        label,
-        style: AppTextStyles.body.copyWith(
-          fontWeight: FontWeight.w500,
-          color: context.colors.muted,
+      ExcludeSemantics(
+        child: Text(
+          label,
+          style: AppTextStyles.supporting.copyWith(
+            fontWeight: FontWeight.w600,
+            color: context.colors.muted,
+          ),
         ),
       ),
       const SizedBox(height: AppSpacing.xxs + AppSpacing.hairline),
-      child,
+      MergeSemantics(
+        child: Semantics(label: label, child: child),
+      ),
     ],
   );
 }

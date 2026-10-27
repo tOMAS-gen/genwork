@@ -214,13 +214,13 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Todos los campos usan la misma receta: rótulo arriba en 12/600 gris, relleno de campo, radio 6, 44 dp y valor en 14/400. Se acaban el rótulo flotante y la sugerencia que parece un valor. El rótulo queda asociado al campo para TalkBack (T1). "Copiar" va como ícono dentro del campo (P24a-M1). Los desplegables llevan el mismo chevron gris de 20 px.
 
 **Criterios de aceptación:**
-- [ ] `LabeledField` y `ToolbarFilterField` anuncian su rótulo.
-- [ ] El interruptor "Solo insumos" y la casilla de grupo tienen nombre accesible.
-- [ ] Ningún campo usa rótulo flotante (P09, P28, P32).
+- [x] `LabeledField` y `ToolbarFilterField` anuncian su rótulo.
+- [x] El interruptor "Solo insumos" y la casilla de grupo tienen nombre accesible.
+- [x] Ningún campo usa rótulo flotante (P09, P28, P32).
 
 **Verificación:**
-- [ ] `labeledTapTargetGuideline` en el alta de proyecto, los filtros y los materiales (verificación nueva).
-- [ ] Capturas de P06, P24a, P28 y P31b.
+- [x] `labeledTapTargetGuideline` en el alta de proyecto, los filtros y los materiales (verificación nueva).
+- [x] Capturas de P06, P24a, P28 y P31b. Los 29 rótulos flotantes pasaron a LabeledField y una regla nueva de design_tokens_guard_test prohíbe labelText; los 11 desplegables usan AppDropdownIcon (lo verifica fields_premium_test).
 
 **Depende de:** 6 · **Archivos:** `shared/widgets/labeled_field.dart`, `shared/widgets/list_toolbar.dart`, `shared/widgets/app_dropdown_decoration.dart`, `shared/widgets/field_suffix.dart`, `shared/widgets/workspace_input_theme.dart` · **Tamaño:** M
 

@@ -26,6 +26,7 @@ import '../../shared/widgets/gen_section_header.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import '../works/project_breadcrumb.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 class FilesScreen extends ConsumerStatefulWidget {
   const FilesScreen({super.key, required this.workId});
@@ -90,12 +91,14 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
               child: const Text('Guardar'),
             ),
           ],
-          child: TextFormField(
-            key: const ValueKey('file_name'),
-            initialValue: initial,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Nombre'),
-            onChanged: (v) => set(() => value = v),
+          child: LabeledField(
+            label: 'Nombre',
+            child: TextFormField(
+              key: const ValueKey('file_name'),
+              initialValue: initial,
+              autofocus: true,
+              onChanged: (v) => set(() => value = v),
+            ),
           ),
         ),
       ),

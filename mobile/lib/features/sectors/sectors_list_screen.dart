@@ -21,6 +21,7 @@ import '../../shared/widgets/state_views.dart';
 import 'sector_form_dialog.dart';
 import 'sector_sections.dart';
 import 'sectors_providers.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 class SectorsListScreen extends ConsumerStatefulWidget {
   const SectorsListScreen({super.key});
@@ -100,6 +101,7 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
                 filtersPanel: ToolbarFilterField(
                   label: 'Grupo o ámbito',
                   child: DropdownButtonFormField<String>(
+                    icon: const AppDropdownIcon(),
                     key: ValueKey('sectors_scope_$_scope'),
                     isExpanded: true,
                     initialValue: _scope,

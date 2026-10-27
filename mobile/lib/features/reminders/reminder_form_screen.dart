@@ -19,6 +19,8 @@ import '../../shared/widgets/state_views.dart';
 import '../works/works_providers.dart';
 import '../sectors/sectors_providers.dart';
 import 'reminders_providers.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 class ReminderFormScreen extends ConsumerStatefulWidget {
   const ReminderFormScreen({
@@ -348,28 +350,31 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
     void Function(String) change,
   ) => Padding(
     padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-    child: DropdownButtonFormField<String>(
-      key: ValueKey(key),
-      initialValue: value,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: label),
-      items: items.entries
-          .map(
-            (e) => DropdownMenuItem(
-              value: e.key,
-              child: Text(
-                e.value,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+    child: LabeledField(
+      label: label,
+      child: DropdownButtonFormField<String>(
+        icon: const AppDropdownIcon(),
+        key: ValueKey(key),
+        initialValue: value,
+        isExpanded: true,
+        items: items.entries
+            .map(
+              (e) => DropdownMenuItem(
+                value: e.key,
+                child: Text(
+                  e.value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-          )
-          .toList(),
-      onChanged: enabled
-          ? (v) {
-              if (v != null) setState(() => change(v));
-            }
-          : null,
+            )
+            .toList(),
+        onChanged: enabled
+            ? (v) {
+                if (v != null) setState(() => change(v));
+              }
+            : null,
+      ),
     ),
   );
   Widget _number(
@@ -379,13 +384,15 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
     bool editable,
   ) => Padding(
     padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-    child: TextField(
-      key: ValueKey(key),
-      controller: c,
-      enabled: editable,
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      decoration: InputDecoration(labelText: label),
+    child: LabeledField(
+      label: label,
+      child: TextField(
+        key: ValueKey(key),
+        controller: c,
+        enabled: editable,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      ),
     ),
   );
   Future<DateTime?> _pickDate(DateTime initial, DateTime? today) =>
@@ -504,23 +511,23 @@ class _ReminderFormScreenState extends ConsumerState<ReminderFormScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextField(
-                          key: const ValueKey('reminder_title'),
-                          controller: _title,
-                          enabled: editable,
-                          decoration: const InputDecoration(
-                            labelText: 'Título',
+                        LabeledField(
+                          label: 'Título',
+                          child: TextField(
+                            key: const ValueKey('reminder_title'),
+                            controller: _title,
+                            enabled: editable,
                           ),
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        TextField(
-                          key: const ValueKey('reminder_description'),
-                          controller: _description,
-                          enabled: editable,
-                          minLines: 1,
-                          maxLines: 5,
-                          decoration: const InputDecoration(
-                            labelText: 'Descripción (opcional)',
+                        LabeledField(
+                          label: 'Descripción (opcional)',
+                          child: TextField(
+                            key: const ValueKey('reminder_description'),
+                            controller: _description,
+                            enabled: editable,
+                            minLines: 1,
+                            maxLines: 5,
                           ),
                         ),
                       ],

@@ -17,7 +17,8 @@ import 'package:genwork_mobile/features/works/works_providers.dart';
 import 'resource_operations_test.dart' show user;
 
 class _FakeRepo extends MaterialsRepository {
-  _FakeRepo(this.items) : super(ApiClient(baseUrl: Uri.parse('https://x.invalid')));
+  _FakeRepo(this.items)
+    : super(ApiClient(baseUrl: Uri.parse('https://x.invalid')));
   List<WorkMaterial> items;
   final added = <String>[];
   final removed = <String>[];
@@ -26,7 +27,10 @@ class _FakeRepo extends MaterialsRepository {
   Future<List<WorkMaterial>> forWork(String workId) async => items;
 
   @override
-  Future<GenstockSearch> search(String query, {required bool supplyOnly}) async => (
+  Future<GenstockSearch> search(
+    String query, {
+    required bool supplyOnly,
+  }) async => (
     items: [
       GenstockProduct.fromJson({
         'id': 'p2',
@@ -125,8 +129,17 @@ void main() {
   });
 
   testWidgets('buscar en Genstock y agregar con cantidad', (t) async {
+    final handle = t.ensureSemantics();
     final repo = await _mount(t);
     expect(find.text('Solo insumos'), findsOneWidget);
+    // T1: el interruptor tiene nombre y mide 48 dp.
+    expect(
+      t.getSemantics(find.byKey(const ValueKey('materials_supply_only'))).label,
+      contains('Solo insumos'),
+    );
+    await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
+    await expectLater(t, meetsGuideline(androidTapTargetGuideline));
+    handle.dispose();
     await t.enterText(find.byKey(const ValueKey('materials_search')), 'lona');
     await t.pump(const Duration(milliseconds: 300));
     await t.pumpAndSettle();

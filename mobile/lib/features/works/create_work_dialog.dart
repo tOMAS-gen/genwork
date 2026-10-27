@@ -12,6 +12,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/state_views.dart';
 import 'works_providers.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 /// Diálogo de alta de proyecto (nombre, descripción, grupo). Devuelve el id creado.
 Future<String?> showCreateWorkDialog(
@@ -109,6 +110,7 @@ class _CreateWorkDialogState extends ConsumerState<_CreateWorkDialog> {
             LabeledField(
               label: 'Ámbito',
               child: DropdownButtonFormField<String?>(
+                icon: const AppDropdownIcon(),
                 key: const ValueKey('create_work_group'),
                 isExpanded: true,
                 initialValue: _groupId,

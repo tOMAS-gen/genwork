@@ -5,6 +5,7 @@ import 'app_work_dialog.dart';
 import 'color_palette.dart';
 import 'error_text.dart';
 import 'state_views.dart';
+import 'labeled_field.dart';
 
 Future<bool> showNameColorDialog(
   BuildContext context, {
@@ -108,14 +109,16 @@ class _NameColorDialogState extends State<_NameColorDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
-              key: const ValueKey('name_color_name'),
-              controller: _name,
-              enabled: !_busy,
-              maxLength: widget.maxLength,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+            LabeledField(
+              label: 'Nombre',
+              child: TextFormField(
+                key: const ValueKey('name_color_name'),
+                controller: _name,
+                enabled: !_busy,
+                maxLength: widget.maxLength,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+              ),
             ),
             if (widget.withColor)
               ColorPalette(

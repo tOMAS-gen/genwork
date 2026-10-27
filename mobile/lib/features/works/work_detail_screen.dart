@@ -34,6 +34,8 @@ import '../../shared/widgets/dashed_border.dart';
 import '../../shared/widgets/count_badge.dart';
 import 'work_metadata_dialog.dart';
 import 'works_dashboard.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
 /// alta rápida de tareas en la sección elegida.
@@ -411,32 +413,38 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                     AppSpace.lg,
                     0,
                   ),
-                  child: DropdownButtonFormField<String>(
-                    key: ValueKey(
-                      'work_composer_section_${_targetObjectiveId ?? "general"}',
-                    ),
-                    initialValue:
-                        work.objectives.any((o) => o.id == _targetObjectiveId)
-                        ? _targetObjectiveId
-                        : '',
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Agregar tarea en',
-                      prefixIcon: Icon(AppIcons.addToList),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('Generales'),
+                  child: LabeledField(
+                    label: 'Agregar tarea en',
+                    child: DropdownButtonFormField<String>(
+                      icon: const AppDropdownIcon(),
+                      key: ValueKey(
+                        'work_composer_section_${_targetObjectiveId ?? "general"}',
                       ),
-                      for (final o in work.objectives)
-                        DropdownMenuItem(
-                          value: o.id,
-                          child: Text(o.title, overflow: TextOverflow.ellipsis),
+                      initialValue:
+                          work.objectives.any((o) => o.id == _targetObjectiveId)
+                          ? _targetObjectiveId
+                          : '',
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(AppIcons.addToList),
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Generales'),
                         ),
-                    ],
-                    onChanged: (id) => setState(
-                      () => _targetObjectiveId = id == '' ? null : id,
+                        for (final o in work.objectives)
+                          DropdownMenuItem(
+                            value: o.id,
+                            child: Text(
+                              o.title,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: (id) => setState(
+                        () => _targetObjectiveId = id == '' ? null : id,
+                      ),
                     ),
                   ),
                 ),

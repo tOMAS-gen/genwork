@@ -451,6 +451,16 @@ void main() {
             ),
           ),
         );
+        // T1: casilla y desplegables con nombre.
+        final handle = t.ensureSemantics();
+        expect(
+          t
+              .getSemantics(find.byKey(const ValueKey('works_filter_group_g')))
+              .label,
+          contains('Producción'),
+        );
+        await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
+        handle.dispose();
         await t.tap(find.byKey(const ValueKey('works_filter_group_g')));
         await t.pumpAndSettle();
         expect(applied!.groups, {'g'});
