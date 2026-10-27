@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/task.dart';
@@ -753,18 +752,24 @@ void main() {
       expect(find.text('1 SECTOR'), findsOneWidget);
       // Encabezado de ámbito en `sectionLabel` mayúsculas con su conteo.
       expect(find.text('PERSONAL'), findsOneWidget);
-      expect(find.text('(1)'), findsOneWidget);
-      final head = tester.widget<Material>(
-        find
-            .ancestor(
-              of: find.byKey(const ValueKey('sectors_section_scope:personal')),
-              matching: find.byType(Material),
-            )
-            .first,
+      // P11-M4: rótulo sin card, con la cantidad y los pendientes a la
+      // derecha.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('sectors_section_scope:personal')),
+          matching: find.textContaining('1 sector · 8 pendientes'),
+        ),
+        findsOneWidget,
       );
-      // Cabecera de ámbito sobre `field`, como en la web.
-      expect(head.color, c.field);
-      expect(head.shape, isA<LeadingTickBorder>());
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('sectors_section_scope:personal')),
+          matching: find.byWidgetPredicate(
+            (w) => w is Material && w.color == c.field,
+          ),
+        ),
+        findsNothing,
+      );
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('sector_s1')).hitTestable(),
         200,
@@ -791,8 +796,10 @@ void main() {
     expect(find.byType(Breadcrumb), findsOneWidget);
     expect(find.text('Sectores'), findsOneWidget);
     expect(find.byType(SectorSummaryPanel), findsOneWidget);
-    expect(find.text('Avance del sector'), findsOneWidget);
-    expect(find.text('Color del sector'), findsOneWidget);
+    // P12-M3: rótulo 11/700; el color va como punto junto al título, sin
+    // la banda «Color del sector».
+    expect(find.text('AVANCE'), findsOneWidget);
+    expect(find.text('Color del sector'), findsNothing);
     expect(find.text('0 proyectos vinculados'), findsOneWidget);
     expect(find.text('Espacio personal'), findsOneWidget); // ámbito personal
     expect(find.byKey(const ValueKey('sector_filter')), findsOneWidget);

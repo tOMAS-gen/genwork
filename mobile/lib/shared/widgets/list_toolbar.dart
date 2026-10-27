@@ -39,6 +39,7 @@ class ListToolbar<S> extends StatelessWidget {
     this.summaryTrailing,
     this.clearKey,
     this.countKey,
+    this.framed = true,
   });
 
   /// Prefijo de las `ValueKey`: `<prefix>_search`, `<prefix>_filters_toggle`,
@@ -75,24 +76,30 @@ class ListToolbar<S> extends StatelessWidget {
   /// Claves que la pantalla ya tenía antes de usar la barra (se conservan).
   final Key? clearKey, countKey;
 
+  /// En falso, los controles van directo sobre la página, sin card (P11-M3).
+  final bool framed;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final divider = BorderSide(color: c.border);
-    final hasFooter =
-        activeFilters.isNotEmpty || onClear != null || summaryTrailing != null;
+    final hasFooter = activeFilters.isNotEmpty || onClear != null;
     final card = DecoratedBox(
       key: ValueKey('${keyPrefix}_toolbar_card'),
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border.all(color: c.border),
-        borderRadius: AppGeometry.card,
-      ),
+      decoration: framed
+          ? BoxDecoration(
+              color: c.surface,
+              border: Border.all(color: c.border),
+              borderRadius: AppGeometry.card,
+            )
+          : const BoxDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.all(AppSpacing.xs),
+            padding: framed
+                ? const EdgeInsets.all(AppSpacing.xs)
+                : EdgeInsets.zero,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -176,7 +183,6 @@ class ListToolbar<S> extends StatelessWidget {
                       ),
                       child: const Text('Limpiar filtros'),
                     ),
-                  ?summaryTrailing,
                 ],
               ),
             ),
@@ -189,13 +195,21 @@ class ListToolbar<S> extends StatelessWidget {
       children: [
         card,
         const SizedBox(height: AppSpacing.md),
-        Text(
-          count.toUpperCase(),
-          key: countKey,
-          style: AppTextStyles.sectionLabel.copyWith(
-            color: c.muted,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
+        // La acción del pie ("Contraer todo") va en el mismo renglón.
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                count.toUpperCase(),
+                key: countKey,
+                style: AppTextStyles.sectionLabel.copyWith(
+                  color: c.muted,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            ?summaryTrailing,
+          ],
         ),
       ],
     );

@@ -90,7 +90,9 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
             padding: AppSpace.page,
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
+              // Sin card contenedora: la lista empieza antes (P11-M3).
               ListToolbar<SectorSort>(
+                framed: false,
                 keyPrefix: 'sectors',
                 searchHint: 'Buscar sectores…',
                 searchController: _search,
@@ -222,8 +224,8 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
   }
 }
 
-/// Encabezado de ámbito, como el de la web: acento de 3 px `brand` a la
-/// izquierda, chevron, ícono, «PERSONAL (n)» en `sectionLabel`.
+/// Encabezado de ámbito como rótulo, sin card (P11-M4): chevron de 20 dp, el
+/// nombre en 11/700 y, a la derecha, «1 sector · 2 pendientes» en 12 gris.
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.section,
@@ -238,52 +240,53 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Material(
-      color: c.field,
-      clipBehavior: Clip.antiAlias,
-      shape: LeadingTickBorder(
-        tickColor: c.brand,
-        side: BorderSide(color: c.border),
-      ),
-      child: ListTile(
+    final count = section.sectors.length;
+    final summary = [
+      '$count ${count == 1 ? 'sector' : 'sectores'}',
+      if (section.pending > 0)
+        '${section.pending} ${section.pending == 1 ? 'pendiente' : 'pendientes'}',
+    ].join(' · ');
+    return Semantics(
+      expanded: !closed,
+      button: true,
+      child: InkWell(
         key: ValueKey('sectors_section_${section.key}'),
-        dense: true,
-        minTileHeight: AppSpacing.xxl,
-        minVerticalPadding: 0,
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        horizontalTitleGap: AppSpacing.xs,
-        minLeadingWidth: AppSpacing.md,
-        shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
-        leading: Icon(
-          closed ? AppIcons.chevronRight : AppIcons.expandMore,
-          size: AppIconSizes.field,
-          color: c.muted,
-        ),
-        title: Row(
-          children: [
-            Container(
-              width: AppSpace.dot,
-              height: AppSpace.dot,
-              decoration: BoxDecoration(color: c.brand, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                section.title.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.sectionLabel.copyWith(color: c.text),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              '(${section.sectors.length})',
-              style: AppTextStyles.supporting.copyWith(color: c.muted),
-            ),
-          ],
-        ),
-        trailing: CountBadge(count: section.pending),
         onTap: onTap,
+        borderRadius: AppGeometry.control,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinInteractiveDimension,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                closed ? AppIcons.chevronRight : AppIcons.expandMore,
+                size: AppIconSizes.action,
+                color: c.muted,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  section.title.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.text),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              // Con texto grande se trunca antes que el nombre.
+              Flexible(
+                child: Text(
+                  summary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: AppTextStyles.supporting.copyWith(color: c.muted),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

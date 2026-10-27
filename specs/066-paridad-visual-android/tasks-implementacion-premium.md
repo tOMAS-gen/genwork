@@ -378,10 +378,10 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 26: Sectores y grupos (P11–P14)
 
 **Criterios de aceptación:**
-- [ ] P11: buscador y filtros sin card contenedora; cabecera de grupo como rótulo con chevron.
-- [ ] P12: Lista/Tablero como dos íconos de 36 dp junto a "Tareas"; "AVANCE" con cifra mono.
-- [ ] P13: una card con filas de 56 dp y chip neutro "Pública".
-- [ ] P14: filas de 56 dp; "MIEMBROS 2" con "Agregar" tonal; avatares de iniciales; sin violeta propio.
+- [x] P11: buscador y filtros sin card contenedora; cabecera de grupo como rótulo con chevron.
+- [x] P12: Lista/Tablero como dos íconos de 36 dp junto a "Tareas"; "AVANCE" con cifra mono.
+- [x] P13: una card con filas de 56 dp y chip neutro "Pública".
+- [x] P14: filas de 56 dp; "MIEMBROS 2" con "Agregar" tonal; avatares de iniciales; sin violeta propio.
 
 **Verificación:** `groups_parity_test` y `sector_summary_test`. Capturas. · **Tamaño:** M
 

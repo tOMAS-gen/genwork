@@ -4,7 +4,6 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../data/models/sector.dart';
-import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import '../../data/models/common.dart';
 import '../works/works_dashboard.dart';
@@ -64,19 +63,28 @@ class SectorSummaryPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('Avance del sector', style: label),
-                const SizedBox(height: AppSpacing.xxs),
+                // Rótulo 11/700 y cifra en mono (P12-M3).
+                Text(
+                  'AVANCE',
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+                ),
+                const SizedBox(height: AppSpacing.xs),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
                       progress.total == 0 ? 'Sin tareas' : '$pct%',
-                      style: AppTextStyles.screenTitle.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: c.text,
-                      ),
+                      style: progress.total == 0
+                          ? AppTextStyles.body.copyWith(color: c.muted)
+                          : AppTextStyles.technical.copyWith(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: c.text,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
@@ -100,28 +108,17 @@ class SectorSummaryPanel extends StatelessWidget {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            color: c.field,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '$linked ${linked == 1 ? 'proyecto vinculado' : 'proyectos vinculados'}',
-                    style: label.copyWith(fontWeight: FontWeight.w400),
-                  ),
-                ),
-                Text('Color del sector', style: label),
-                const SizedBox(width: AppSpacing.xs),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.xs),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: c.outline),
-                    borderRadius: AppGeometry.control,
-                  ),
-                  child: ColorDot(hex: board.color, size: AppSpacing.md),
-                ),
-              ],
+          // Un renglón separado por un divisor, sin la banda gris; el color
+          // ya va como punto junto al título (P12-M3).
+          Divider(height: 1, thickness: 1, color: c.border),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.sm,
+            ),
+            child: Text(
+              '$linked ${linked == 1 ? 'proyecto vinculado' : 'proyectos vinculados'}',
+              style: label.copyWith(fontWeight: FontWeight.w400),
             ),
           ),
         ],

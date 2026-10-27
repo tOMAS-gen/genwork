@@ -24,6 +24,7 @@ import 'drawer_tile.dart';
 import '../works/works_providers.dart';
 import '../works/works_filter.dart';
 import '../sectors/sectors_providers.dart';
+import '../../shared/widgets/initials_avatar.dart';
 
 /// Drawer compartido; las ramas siguen vivas al cambiar de sección.
 class HomeShell extends ConsumerStatefulWidget {
@@ -461,12 +462,6 @@ class _Profile extends StatelessWidget {
   final String name, email;
   final String? image;
 
-  /// Iniciales del nombre (máx. 2 letras), como `getInitials` de la web.
-  static String initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
-    final letters = parts.take(2).map((p) => p[0].toUpperCase()).join();
-    return letters.isEmpty ? '?' : letters;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +484,7 @@ class _Profile extends StatelessWidget {
               foregroundImage: image == null ? null : NetworkImage(image!),
               onForegroundImageError: image == null ? null : (_, _) {},
               child: Text(
-                initials(name),
+                initialsOf(name),
                 style: AppTextStyles.supporting.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colors.onBrand,

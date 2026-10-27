@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/gen_colors.dart';
 import '../../data/models/task.dart';
 import 'color_dot.dart';
 
@@ -79,6 +81,9 @@ class TaskBoard extends StatelessWidget {
   }
 }
 
+/// Lado de cada botón de ícono del cambio de vista.
+const double _iconButton = 36;
+
 class TaskViewToggle extends StatelessWidget {
   const TaskViewToggle({
     super.key,
@@ -86,6 +91,7 @@ class TaskViewToggle extends StatelessWidget {
     required this.onChanged,
     this.padding = AppSpace.page,
     this.compact = false,
+    this.iconsOnly = false,
   });
   final bool board;
 
@@ -94,27 +100,67 @@ class TaskViewToggle extends StatelessWidget {
 
   /// Solo el texto, sin íconos: para compartir la fila con otras acciones.
   final bool compact;
+
+  /// Dos botones de ícono de 36 dp en lugar del segmentado, para el renglón
+  /// del título (P12-M2).
+  final bool iconsOnly;
   final ValueChanged<bool> onChanged;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: padding,
-    child: SegmentedButton<bool>(
-      key: const ValueKey('task_view_toggle'),
-      showSelectedIcon: false,
-      segments: [
-        ButtonSegment(
-          value: false,
-          icon: compact ? null : const Icon(AppIcons.list),
-          label: const Text('Lista'),
+  Widget build(BuildContext context) {
+    if (iconsOnly) {
+      final c = context.colors;
+      Widget option(bool value, IconData icon, String label) {
+        final selected = board == value;
+        return Semantics(
+          selected: selected,
+          child: IconButton(
+            tooltip: label,
+            onPressed: () => onChanged(value),
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(_iconButton),
+              backgroundColor: selected ? c.brandFill : null,
+              foregroundColor: selected ? c.brand : c.muted,
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppGeometry.control,
+              ),
+            ),
+            icon: Icon(icon, size: AppIconSizes.action),
+          ),
+        );
+      }
+
+      return Padding(
+        padding: padding,
+        child: Row(
+          key: const ValueKey('task_view_toggle'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            option(false, AppIcons.list, 'Ver como lista'),
+            option(true, AppIcons.gridView, 'Ver como tablero'),
+          ],
         ),
-        ButtonSegment(
-          value: true,
-          icon: compact ? null : const Icon(AppIcons.gridView),
-          label: const Text('Tablero'),
-        ),
-      ],
-      selected: {board},
-      onSelectionChanged: (s) => onChanged(s.first),
-    ),
-  );
+      );
+    }
+    return Padding(
+      padding: padding,
+      child: SegmentedButton<bool>(
+        key: const ValueKey('task_view_toggle'),
+        showSelectedIcon: false,
+        segments: [
+          ButtonSegment(
+            value: false,
+            icon: compact ? null : const Icon(AppIcons.list),
+            label: const Text('Lista'),
+          ),
+          ButtonSegment(
+            value: true,
+            icon: compact ? null : const Icon(AppIcons.gridView),
+            label: const Text('Tablero'),
+          ),
+        ],
+        selected: {board},
+        onSelectionChanged: (s) => onChanged(s.first),
+      ),
+    );
+  }
 }

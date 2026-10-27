@@ -212,6 +212,7 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                                   ),
                                   TaskViewToggle(
                                     padding: EdgeInsets.zero,
+                                    iconsOnly: true,
                                     board: _board,
                                     onChanged: (v) =>
                                         setState(() => _board = v),
