@@ -33,7 +33,6 @@ class BoardScreen extends ConsumerWidget {
       title: 'Vista de tareas',
       // La TV de la web no lleva bajada.
       subtitle: readOnly ? null : 'Avance y pendientes de cada sector.',
-      icon: AppIcons.dashboard,
       onRefresh: () async {
         ref.invalidate(boardProvider);
         await ref.read(boardProvider.future);

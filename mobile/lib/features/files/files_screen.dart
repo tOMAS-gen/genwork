@@ -261,7 +261,6 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
           children: [
             GenSectionHeader(
               title: 'Archivos',
-              icon: AppIcons.projects,
               actions: [
                 IconButton(
                   key: const ValueKey('files_refresh'),

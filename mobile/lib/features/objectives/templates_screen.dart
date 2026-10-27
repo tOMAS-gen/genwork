@@ -43,7 +43,6 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     return GenPageScaffold(
       title: 'Plantillas de objetivo',
       // Como la web: la misma página que Proyectos, con "Nueva plantilla".
-      icon: AppIcons.projects,
       actions: [
         FilledButton(
           key: const ValueKey('template_create'),

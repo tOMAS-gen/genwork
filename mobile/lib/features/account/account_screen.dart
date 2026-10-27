@@ -31,7 +31,6 @@ class AccountScreen extends ConsumerWidget {
     return GenPageScaffold(
       title: 'Mi cuenta',
       subtitle: 'Almacenamiento vinculado, versión y estado del sistema.',
-      icon: AppIcons.settings,
       top: user.isWriter ? const SettingsTabs(current: 'account') : null,
       showThemeToggle: user.isClient || user.isReader,
       bodyPadding: EdgeInsets.zero,

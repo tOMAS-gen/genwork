@@ -26,7 +26,6 @@ class PortalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Mis proyectos',
-    icon: AppIcons.projects,
     subtitle: 'Seguimiento del avance y las entregas de tus proyectos.',
     showThemeToggle: true,
     onRefresh: () => ref.refresh(portalWorksProvider.future),
@@ -154,7 +153,6 @@ class _PortalWorkScreenState extends ConsumerState<PortalWorkScreen> {
     final c = context.colors;
     return GenPageScaffold(
       title: value.value?.name ?? 'Proyecto',
-      icon: AppIcons.projects,
       showBack: true,
       top: Padding(
         padding: const EdgeInsets.fromLTRB(

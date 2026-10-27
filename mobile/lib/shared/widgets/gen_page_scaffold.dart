@@ -8,7 +8,8 @@ import 'gen_section_header.dart';
 import 'theme_toggle.dart';
 
 /// Marco de una pantalla de genwork móvil: AppBar de 48 con el botón del
-/// drawer (o `BackButton`) y la marca, [GenSectionHeader] y el [body] debajo
+/// drawer (o `BackButton`) y la marca, [GenSectionHeader] compacto (título,
+/// subtítulo y acciones, sin tile ni regla) y el [body] debajo
 /// con el margen de página (16 dp en los cuatro lados). Como
 /// en la web, el encabezado se desplaza con el contenido: si el [body] es un
 /// scrollable sin controller propio, comparte el desplazamiento con el
@@ -22,7 +23,6 @@ class GenPageScaffold extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
-    this.icon,
     this.subtitle,
     this.actions = const [],
     this.showBack = false,
@@ -37,7 +37,6 @@ class GenPageScaffold extends StatelessWidget {
 
   final String title;
   final String? subtitle;
-  final IconData? icon;
   final List<Widget> actions;
   final bool showBack;
 
@@ -75,7 +74,6 @@ class GenPageScaffold extends StatelessWidget {
             child: GenSectionHeader(
               title: title,
               subtitle: subtitle,
-              icon: icon,
               actions: actions,
               bottom: headerBottom,
             ),

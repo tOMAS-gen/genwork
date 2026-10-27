@@ -32,7 +32,6 @@ class WorkActivityScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Actividad',
     showBack: true,
-    icon: AppIcons.schedule,
     onRefresh: () => ref.refresh(workActivityProvider(id).future),
     body: AsyncValueView(
       value: ref.watch(workActivityProvider(id)),
@@ -121,7 +120,6 @@ class _WorkClientsScreenState extends ConsumerState<WorkClientsScreen> {
   @override
   Widget build(BuildContext context) => GenPageScaffold(
     title: 'Acceso cliente',
-    icon: AppIcons.view,
     showBack: true,
     body: AsyncValueView(
       value: ref.watch(workDetailProvider(widget.id)),

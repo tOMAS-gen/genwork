@@ -9,11 +9,10 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/gen_colors.dart';
 
-/// Encabezado de página, como `.page-header` de la web: caja de ícono (38,
-/// `brandFill`), título 24/700 con el subtítulo 13 `muted` debajo, en la misma
-/// columna, y las acciones a la derecha en el mismo renglón. Abajo, un borde de
-/// 1 px `border` con el margen de la página (no llega a los costados). Es plano:
-/// no es una card, apoya sobre el fondo de la página.
+/// Encabezado compacto de página (D1, PS3 de la auditoría premium): título
+/// 20/700 con el subtítulo 13 `muted` debajo y las acciones a la derecha en el
+/// mismo renglón que el título. Sin caja de ícono ni regla: el contenido
+/// empieza antes. Es plano: no es una card, apoya sobre el fondo de la página.
 ///
 /// [bottom] es un área opcional (tabs, filtros) bajo el borde.
 class GenSectionHeader extends StatelessWidget {
@@ -21,7 +20,6 @@ class GenSectionHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.subtitle,
-    this.icon,
     this.showBackButton = false,
     this.actions = const [],
     this.bottom,
@@ -29,7 +27,6 @@ class GenSectionHeader extends StatelessWidget {
 
   final String title;
   final String? subtitle;
-  final IconData? icon;
   final bool showBackButton;
   final List<Widget> actions;
   final Widget? bottom;
@@ -40,22 +37,6 @@ class GenSectionHeader extends StatelessWidget {
     final heading = Row(
       children: [
         if (showBackButton) const BackButton(),
-        if (icon != null) ...[
-          Container(
-            width: WorkspaceMetrics.headerIconExtent,
-            height: WorkspaceMetrics.headerIconExtent,
-            decoration: BoxDecoration(
-              color: c.brandFill,
-              borderRadius: AppGeometry.control,
-            ),
-            child: Icon(
-              icon,
-              size: WorkspaceMetrics.headerIconSize,
-              color: c.brand,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,36 +74,29 @@ class GenSectionHeader extends StatelessWidget {
             AppSpace.gutter,
             0,
           ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: c.border)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: LayoutBuilder(
-                builder: (context, constraints) => Row(
-                  children: [
-                    Expanded(child: heading),
-                    if (actions.isNotEmpty) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      // El título conserva al menos 160 px; si las acciones no
-                      // entran en el resto, pasan a otra línea entre ellas.
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: math.max(0, constraints.maxWidth - 160),
-                        ),
-                        child: Wrap(
-                          spacing: AppSpacing.xs,
-                          runSpacing: AppSpacing.xs,
-                          alignment: WrapAlignment.end,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: actions,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+          child: LayoutBuilder(
+            builder: (context, constraints) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: heading),
+                if (actions.isNotEmpty) ...[
+                  const SizedBox(width: AppSpacing.sm),
+                  // El título conserva al menos 160 px; si las acciones no
+                  // entran en el resto, pasan a otra línea entre ellas.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: math.max(0, constraints.maxWidth - 160),
+                    ),
+                    child: Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: actions,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

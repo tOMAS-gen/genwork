@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/notifications/push_service.dart';
-import '../../core/theme/app_icons.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
 import 'notifications_providers.dart';
@@ -55,7 +54,6 @@ class _State extends ConsumerState<NotificationSettingsScreen> {
     final data = ref.watch(notificationPreferencesProvider);
     return GenPageScaffold(
       title: 'Notificaciones',
-      icon: AppIcons.reminders,
       showBack: true,
       body: ListView(
         children: [

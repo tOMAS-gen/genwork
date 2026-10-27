@@ -82,7 +82,6 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
       subtitle: deliveriesOnly
           ? null
           : 'Fechas, avisos y compromisos del equipo.',
-      icon: AppIcons.bell,
       actions: [
         if (!deliveriesOnly)
           IconButton.filled(

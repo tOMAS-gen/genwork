@@ -40,7 +40,6 @@ class _GroupsListScreenState extends ConsumerState<GroupsListScreen> {
     return GenPageScaffold(
       title: 'Grupos',
       subtitle: 'Equipos, miembros y proyectos compartidos.',
-      icon: AppIcons.groups,
       actions: [
         if (canCreate)
           IconButton.filled(

@@ -50,7 +50,6 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
     return GenPageScaffold(
       title: 'Sectores',
       subtitle: 'Tareas y proyectos organizados por área de trabajo.',
-      icon: AppIcons.sectors,
       actions: [
         if (canCreateSector(ref.watch(currentUserProvider)))
           IconButton.filled(

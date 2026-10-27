@@ -188,7 +188,6 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
         WorksView.favorites => 'Proyectos Favoritos',
         WorksView.archived => 'Archivados',
       },
-      icon: AppIcons.projects,
       actions: [
         if (!_archived)
           IconButton.filled(

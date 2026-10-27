@@ -64,7 +64,6 @@ class MyDayScreen extends ConsumerWidget {
       title: 'Mi día y referencias',
       subtitle:
           'Primero lo que hay que hacer hoy, después las tareas que necesitan tu aporte.',
-      icon: AppIcons.myDay,
       appBarActions: const [DeliveriesButton()],
       onRefresh: refresh,
       bodyPadding: EdgeInsets.zero,

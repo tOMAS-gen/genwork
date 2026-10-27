@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/auth/session.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_geometry.dart';
-import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
@@ -38,7 +37,6 @@ class MobileAppScreen extends ConsumerWidget {
       title: 'App móvil',
       subtitle:
           'Escaneá este código con la app de Genwork para conectarla a este sistema.',
-      icon: AppIcons.settings,
       showBack: true,
       top: const SettingsTabs(current: 'mobile'),
       body: ListView(

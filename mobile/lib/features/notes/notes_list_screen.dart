@@ -29,7 +29,6 @@ class NotesListScreen extends ConsumerWidget {
     return GenPageScaffold(
       title: 'Mis notas',
       subtitle: 'Tu espacio para escribir, organizar ideas y documentar.',
-      icon: AppIcons.notes,
       actions: [
         IconButton.filled(
           key: const ValueKey('notes_create'),

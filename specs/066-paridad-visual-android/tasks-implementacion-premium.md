@@ -147,14 +147,14 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** En las pantallas raíz (Mi día, Proyectos, Tablero, Sectores, Grupos, Notas, Materiales, Recordatorios, Vence hoy y Portal), la cabecera es un título de 20/700 sin tile, un subtítulo de una línea en 13/400 gris y sin regla. La acción principal va en el mismo renglón que el título. En Configuración no se repite el título de la pestaña. El contenido empieza antes de los 160 dp (D1).
 
 **Criterios de aceptación:**
-- [ ] Ninguna raíz muestra el tile de 38 dp ni la regla.
-- [ ] La acción principal (por ejemplo, "+" en Proyectos y Plantillas o "+ Nuevo" en Recordatorios) queda alineada con el título.
-- [ ] En las subpáginas de Configuración, el contenido arranca antes de los 180 dp (P27-M1).
+- [x] Ninguna raíz muestra el tile de 38 dp ni la regla.
+- [x] La acción principal (por ejemplo, "+" en Proyectos y Plantillas o "+ Nuevo" en Recordatorios) queda alineada con el título.
+- [ ] En las subpáginas de Configuración, el contenido arranca antes de los 180 dp (P27-M1): se mide en el checkpoint 1. El título se conserva sin tile; que la pestaña y el título digan lo mismo va en la tarea 20.
 
 **Verificación:**
-- [ ] Test: en P05 a 360 × 800, el primer contenido empieza por encima de los 160 dp.
-- [ ] Tests que buscan el texto del título siguen verdes.
-- [ ] Capturas de las raíces.
+- [x] Test: en una raíz a 360 dp con subtítulo de dos líneas (el de Mi día), el primer contenido empieza por encima de los 160 dp (`surfaces_test`).
+- [x] Tests que buscan el texto del título siguen verdes.
+- [ ] Capturas de las raíces. El emulador no arrancó por falta de espacio en disco: van en el checkpoint 1.
 
 **Depende de:** 7, 8 · **Archivos:** `shared/widgets/gen_section_header.dart`, `shared/widgets/page_intro.dart`, `shared/widgets/gen_page_scaffold.dart`, tests · **Tamaño:** M
 

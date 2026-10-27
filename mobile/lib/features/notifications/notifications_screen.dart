@@ -122,7 +122,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final page = ref.watch(notificationsProvider(_kind));
     return GenPageScaffold(
       title: 'Notificaciones',
-      icon: AppIcons.reminders,
       onRefresh: _refresh,
       actions: [
         IconButton(

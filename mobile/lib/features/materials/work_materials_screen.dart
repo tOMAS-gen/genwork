@@ -132,7 +132,6 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
 
     return GenPageScaffold(
       title: 'Materiales',
-      icon: AppIcons.materials,
       showBack: true,
       onRefresh: () => ref.refresh(workMaterialsProvider(widget.workId).future),
       body: ListView(

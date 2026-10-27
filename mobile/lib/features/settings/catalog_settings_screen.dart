@@ -235,7 +235,6 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
     return GenPageScaffold(
       title: widget.kind.title,
       top: SettingsTabs(current: widget.kind.name),
-      icon: AppIcons.settings,
       showBack: true,
       bodyPadding: EdgeInsets.zero,
       onRefresh: () async {

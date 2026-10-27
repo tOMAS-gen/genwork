@@ -83,7 +83,6 @@ class SettingsHomeScreen extends ConsumerWidget {
 
     return GenPageScaffold(
       title: 'Configuración',
-      icon: AppIcons.settings,
       top: const SettingsTabs(current: 'home'),
       body: ListView(
         key: const ValueKey('settings_home'),
@@ -310,7 +309,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
       title: widget.section.title,
-      icon: AppIcons.settings,
       showBack: true,
       top: SettingsTabs(current: widget.section.name),
       bodyPadding: EdgeInsets.zero,
@@ -1148,7 +1146,6 @@ class _SettingsErrorScreenState extends ConsumerState<SettingsErrorScreen> {
     final c = context.colors;
     return GenPageScaffold(
       title: 'Detalle del error',
-      icon: AppIcons.settings,
       showBack: true,
       bodyPadding: EdgeInsets.zero,
       body: ListView(

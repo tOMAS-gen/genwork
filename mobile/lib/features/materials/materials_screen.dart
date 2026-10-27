@@ -39,7 +39,6 @@ class _MaterialsScreenState extends ConsumerState<MaterialsScreen> {
     return GenPageScaffold(
       title: 'Materiales',
       subtitle: 'Totales consolidados de proyectos activos visibles.',
-      icon: AppIcons.materials,
       onRefresh: () => ref.refresh(materialTotalsProvider.future),
       body: ListView(
         key: const ValueKey('materials_totals'),

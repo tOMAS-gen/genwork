@@ -310,11 +310,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
         children: [
           // ✓ y ⋯, como en la web.
           if (widget.noteId == null)
-            GenSectionHeader(
-              title: 'Documentos',
-              icon: AppIcons.document,
-              actions: _actions(),
-            )
+            GenSectionHeader(title: 'Documentos', actions: _actions())
           else ...[
             // Nota como la web: migas con la papelera, el título como
             // encabezado editable y debajo ✓ y ⋯.

@@ -111,7 +111,6 @@ class _GenstockSettingsScreenState
       title: 'Integración con Genstock',
       subtitle:
           'URL del backend que Genwork usa para buscar productos y armar materiales.',
-      icon: AppIcons.integration,
       showBack: true,
       top: const SettingsTabs(current: 'genstock'),
       body: !admin
