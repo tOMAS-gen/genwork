@@ -109,7 +109,7 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 
 **Verificación:**
 - [x] `gen_colors_test` con los valores nuevos y el test de contraste con los pares de contorno (verificación nueva).
-- [ ] Capturas oscuras de P05, P07, P24a, P30 y P31b. P05 verificado en oscuro; el resto va en el checkpoint 1.
+- [x] Capturas oscuras de P05, P07, P24a, P30 y P31b (checkpoint 1, 2026-10-27).
 
 **Depende de:** nada · **Archivos:** `core/theme/gen_colors.dart`, `core/theme/app_theme.dart`, `shared/widgets/workspace_input_theme.dart`, `shared/widgets/app_button_styles.dart`, `test/core/gen_colors_test.dart` · **Tamaño:** M
 
@@ -138,7 +138,7 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 
 **Verificación:**
 - [x] Test nuevo: `GenPageScaffold` con `MediaQuery.padding.bottom = 48` deja la última fila visible y tocable.
-- [ ] Capturas de P02, P05 y P25. Mi día verificado en el emulador; el resto va en el checkpoint 1.
+- [x] Capturas de P02, P05 y P25 (checkpoint 1).
 
 **Depende de:** nada · **Archivos:** `core/theme/app_geometry.dart`, `shared/widgets/gen_page_scaffold.dart`, `core/theme/app_theme.dart`, `test/shared/surfaces_test.dart` · **Tamaño:** M
 
@@ -149,12 +149,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Criterios de aceptación:**
 - [x] Ninguna raíz muestra el tile de 38 dp ni la regla.
 - [x] La acción principal (por ejemplo, "+" en Proyectos y Plantillas o "+ Nuevo" en Recordatorios) queda alineada con el título.
-- [ ] En las subpáginas de Configuración, el contenido arranca antes de los 180 dp (P27-M1): se mide en el checkpoint 1. El título se conserva sin tile; que la pestaña y el título digan lo mismo va en la tarea 20.
+- [ ] En las subpáginas de Configuración, el contenido arranca antes de los 180 dp (P27-M1). Medido en el checkpoint 1: arranca en ~205 dp, por la barra de pestañas más el título. Pasa a las tareas 20 y 31. El título se conserva sin tile; que la pestaña y el título digan lo mismo va en la tarea 20.
 
 **Verificación:**
 - [x] Test: en una raíz a 360 dp con subtítulo de dos líneas (el de Mi día), el primer contenido empieza por encima de los 160 dp (`surfaces_test`).
 - [x] Tests que buscan el texto del título siguen verdes.
-- [ ] Capturas de las raíces. El emulador no arrancó por falta de espacio en disco: van en el checkpoint 1.
+- [x] Capturas de las raíces (checkpoint 1).
 
 **Depende de:** 7, 8 · **Archivos:** `shared/widgets/gen_section_header.dart`, `shared/widgets/page_intro.dart`, `shared/widgets/gen_page_scaffold.dart`, tests · **Tamaño:** M
 
@@ -169,14 +169,14 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 
 **Verificación:**
 - [x] `androidTapTargetGuideline` sobre la miga (`headers_premium_test`). En el detalle completo se suma con las pantallas (fase 3).
-- [ ] Capturas de P07, P12, P14, P17, P18 y P19: van en el checkpoint 1 (emulador sin espacio en disco).
+- [x] Capturas de P07, P12, P14, P17, P18 y P19 (checkpoint 1).
 
 **Depende de:** 9 · **Archivos:** `shared/widgets/breadcrumb.dart`, encabezado de entidad (nuevo o existente en `shared/widgets/`), `features/documents/document_screen.dart`, `features/files/files_screen.dart`, `features/works/work_access_screen.dart` · **Tamaño:** M
 
 ## Checkpoint 1: bases
 
-- [ ] `dart analyze` limpio y `flutter test` en verde.
-- [ ] Capturas `despues` de las 41 pantallas en claro y oscuro, con el comparador regenerado.
+- [x] `dart analyze` limpio y `flutter test` en verde (534 tests).
+- [x] Capturas `despues` de las 41 pantallas en claro y oscuro, con el comparador regenerado (2026-10-27). Las de la paridad quedaron en `.context/paridad-visual/despues-paridad/`.
 - [ ] El usuario revisa las bases antes de seguir con los componentes.
 
 ## Fase 2 — Componentes
