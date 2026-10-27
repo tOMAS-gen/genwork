@@ -285,13 +285,13 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** La fila muestra la casilla, el título y, como mucho, el sol si la tarea está en Mi día. "Agregar subtarea" y "Eliminar" pasan a un "⋯" de 48 dp. El contador "1/2" pasa a texto de 12 gris debajo del título. El sol activo va en azul de marca y el inactivo en gris (P04-M5).
 
 **Criterios de aceptación:**
-- [ ] A 360 dp, el texto de la tarea tiene ≥160 dp de ancho (T3).
-- [ ] Las tres acciones siguen disponibles con los mismos permisos.
+- [x] A 360 dp, el texto de la tarea tiene ≥160 dp de ancho (T3).
+- [x] Las tres acciones siguen disponibles con los mismos permisos.
 
 **Verificación:**
-- [ ] Aserción nueva en `ui_phase3_test`: ancho del texto ≥160 dp a 360 dp.
-- [ ] `task_widgets_test` y `daily_parity_test` abren el menú para las acciones movidas.
-- [ ] Capturas de P04, P07 y P12.
+- [x] Aserción nueva en `ui_phase3_test`: ancho del texto ≥160 dp a 360 dp.
+- [x] `task_widgets_test` y `daily_parity_test` abren el menú para las acciones movidas.
+- [x] Capturas de P04, P07 y P12. La aserción de ancho ≥160 dp quedó en task_widgets_test (monta la fila sola a 360 dp con todas las acciones) en lugar de ui_phase3_test; daily_parity_test no tocaba esas acciones.
 
 **Depende de:** 6 · **Archivos:** `shared/widgets/task_tile.dart`, `test/shared/task_widgets_test.dart`, `test/ui_phase3_test.dart`, `test/features/daily_parity_test.dart` · **Tamaño:** M
 

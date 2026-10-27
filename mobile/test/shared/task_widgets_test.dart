@@ -90,14 +90,11 @@ void main() {
       expect(t.widget<Text>(due).style!.fontFamily, 'RobotoMono');
       // Mención + fecha: sin pill de estado con solo dos estados (como la web).
       expect(find.byType(StatusChip), findsNWidgets(2));
-      // El ícono de Mi día va en ámbar (`warning`) cuando está marcado, como la web.
-      final day = t.widget<Icon>(
-        find.descendant(
-          of: find.byKey(const ValueKey('task_day_t1')),
-          matching: find.byType(Icon),
-        ),
-      );
-      expect(day.color, c.warning);
+      // P04-M5: el sol de una tarea en Mi día va en azul de marca y es lo
+      // único visible a la derecha, además del "⋯".
+      final day = t.widget<Icon>(find.byKey(const ValueKey('task_in_day_t1')));
+      expect(day.color, c.brand);
+      expect(find.byKey(const ValueKey('task_more_t1')), findsOneWidget);
       // Card plana: borde `border`, sin sombra.
       final card = t.widget<Card>(find.byType(Card));
       expect(card.clipBehavior, Clip.antiAlias);
@@ -127,11 +124,18 @@ void main() {
     for (final k in [
       'task_t1',
       'task_toggle_t1',
-      'task_day_t1',
+      'task_more_t1',
       'task_swipe_t1',
     ]) {
       expect(find.byKey(ValueKey(k)), findsOneWidget, reason: k);
     }
+    // Fuera de Mi día no hay sol a la vista; Mi día va en el "⋯".
+    expect(find.byKey(const ValueKey('task_in_day_t1')), findsNothing);
+    await t.tap(find.byKey(const ValueKey('task_more_t1')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('task_day_t1')), findsOneWidget);
+    await t.tapAt(Offset.zero);
+    await t.pumpAndSettle();
     final c = GenColors.light;
     final tile = find.byKey(const ValueKey('task_swipe_t1'));
     await t.drag(tile, const Offset(120, 0));
@@ -236,7 +240,7 @@ void main() {
     ],
   });
 
-  testWidgets('TaskTile como la web: flecha, "1/2" y acciones + y × (P04)', (
+  testWidgets('TaskTile: flecha, "1/2" debajo y acciones en el "⋯" (P04, T3)', (
     t,
   ) async {
     var added = 0, deleted = 0;
@@ -255,10 +259,25 @@ void main() {
     // Una tarea con subtareas no lleva casilla: su estado sale de las hijas.
     expect(find.byKey(const ValueKey('task_toggle_p')), findsNothing);
     expect(find.byKey(const ValueKey('task_expand_p')), findsOneWidget);
-    expect(find.text('1/2'), findsOneWidget);
+    // El contador va en 12 gris debajo del título, no como insignia.
+    final count = t.widget<Text>(find.text('1/2'));
+    expect(count.style!.fontSize, 12);
+    expect(count.style!.color, GenColors.light.muted);
+    expect(
+      t.getTopLeft(find.text('1/2')).dy,
+      greaterThan(t.getBottomLeft(find.text('Preparar los originales')).dy - 1),
+    );
     expect(find.text('1/2 subtareas'), findsNothing);
+    // Agregar subtarea y eliminar, dentro del "⋯" (mismas claves).
+    expect(find.byKey(const ValueKey('task_add_subtask_p')), findsNothing);
+    await t.tap(find.byKey(const ValueKey('task_more_p')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('task_add_subtask_p')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('task_more_p')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('task_delete_p')));
+    await t.pumpAndSettle();
     expect((added, deleted), (1, 1));
     // La flecha pliega y despliega las subtareas.
     expect(find.text('Confirmar colores'), findsOneWidget);
@@ -270,6 +289,26 @@ void main() {
     expect(find.text('Confirmar colores'), findsOneWidget);
     // Las subtareas no tienen "+" (no hay subtareas de subtareas).
     expect(find.byKey(const ValueKey('task_add_subtask_s2')), findsNothing);
+  });
+
+  // T3: a 360 dp, con todas las acciones y en Mi día, el texto conserva
+  // ≥160 dp de ancho.
+  testWidgets('TaskTile a 360 dp deja ≥160 dp para el texto (T3)', (t) async {
+    await _mount(
+      t,
+      TaskTile(
+        task: _task(inDay: true),
+        onTap: () {},
+        onToggleDone: () {},
+        onToggleMyDay: () {},
+        onAddSubtask: () {},
+        onDelete: () {},
+      ),
+    );
+    final text = find.text('Preparar originales');
+    final column = find.ancestor(of: text, matching: find.byType(Expanded));
+    expect(t.getSize(column.first).width, greaterThanOrEqualTo(160));
+    await expectLater(t, meetsGuideline(androidTapTargetGuideline));
   });
 
   // El tablero vive dentro del `ExpansionTile` de un objetivo, que guarda su

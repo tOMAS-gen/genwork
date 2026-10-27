@@ -7,12 +7,14 @@ import '../../core/theme/gen_colors.dart';
 import '../../core/util/format.dart';
 import '../../data/models/task.dart';
 import 'color_dot.dart';
+import 'row_actions_menu.dart';
 import 'status_chip.dart';
 
-/// Fila de tarea, como `TaskItem.tsx` de la web: casilla (o la flecha que
-/// pliega las subtareas, si las tiene), el texto con la insignia "hechas/total",
-/// y a la derecha Mi día (☀), agregar subtarea (+) y eliminar (×). Los gestos de
-/// deslizar (completar, Mi día) son propios del teléfono.
+/// Fila de tarea: casilla (o la flecha que pliega las subtareas, si las
+/// tiene), el texto con "hechas/total" debajo y, a la derecha, como mucho el
+/// sol si está en Mi día y un "⋯" con Mi día, agregar subtarea y eliminar
+/// (PS9, T3: el texto conserva el ancho). Los gestos de deslizar (completar,
+/// Mi día) son propios del teléfono.
 class TaskTile extends StatefulWidget {
   const TaskTile({
     super.key,
@@ -100,6 +102,27 @@ class _TaskTileState extends State<TaskTile> {
       for (final label in task.labels)
         ColorPill(label: label.valueName, hex: label.color),
     ];
+    final actions = [
+      if (canDay)
+        RowAction(
+          key: 'task_day_${task.id}',
+          label: task.isInMyDay ? 'Quitar de Mi día' : 'Agregar a Mi día',
+          onSelected: onToggleMyDay,
+        ),
+      if (widget.onAddSubtask != null && depth == 0)
+        RowAction(
+          key: 'task_add_subtask_${task.id}',
+          label: 'Agregar subtarea',
+          onSelected: widget.onAddSubtask!,
+        ),
+      if (widget.onDelete != null)
+        RowAction(
+          key: 'task_delete_${task.id}',
+          label: 'Eliminar tarea',
+          destructive: true,
+          onSelected: widget.onDelete!,
+        ),
+    ];
     Widget row = Card(
       color: flat ? Colors.transparent : null,
       shape: flat ? const RoundedRectangleBorder() : null,
@@ -112,7 +135,7 @@ class _TaskTileState extends State<TaskTile> {
           padding: const EdgeInsets.fromLTRB(
             AppSpace.xs,
             AppSpace.xs,
-            AppSpace.md,
+            AppSpace.xs,
             AppSpace.xs,
           ),
           child: Row(
@@ -168,36 +191,21 @@ class _TaskTileState extends State<TaskTile> {
                               ),
                             ),
                           ),
-                          // Progreso "hechas/total" junto al texto (`.badge`).
-                          if (task.subtaskCount > 0) ...[
-                            const SizedBox(width: AppSpace.sm),
-                            Semantics(
-                              label:
-                                  '${task.subtaskDone} de ${task.subtaskCount} subtareas hechas',
-                              excludeSemantics: true,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpace.xs,
-                                  vertical: AppSpace.xxs,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: c.hover,
-                                  border: Border.all(color: c.border),
-                                  borderRadius: AppGeometry.pill,
-                                ),
-                                child: Text(
-                                  '${task.subtaskDone}/${task.subtaskCount}',
-                                  style: AppTextStyles.supporting.copyWith(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: c.muted,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
+                      // "hechas/total" en 12 gris debajo del título.
+                      if (task.subtaskCount > 0)
+                        Semantics(
+                          label:
+                              '${task.subtaskDone} de ${task.subtaskCount} subtareas hechas',
+                          excludeSemantics: true,
+                          child: Text(
+                            '${task.subtaskDone}/${task.subtaskCount}',
+                            style: AppTextStyles.supporting.copyWith(
+                              color: c.muted,
+                            ),
+                          ),
+                        ),
                       if (meta.isNotEmpty) ...[
                         const SizedBox(height: AppSpace.xs),
                         Text(
@@ -217,50 +225,26 @@ class _TaskTileState extends State<TaskTile> {
                   ),
                 ),
               ),
-              if (canDay)
-                IconButton(
-                  key: ValueKey('task_day_${task.id}'),
-                  tooltip: task.isInMyDay
-                      ? 'Quitar de Mi día'
-                      : 'Agregar a Mi día',
-                  onPressed: onToggleMyDay,
-                  icon: Icon(
-                    AppIcons.myDay,
-                    size: AppIconSizes.action,
-                    color: task.isInMyDay ? c.warning : c.muted,
-                  ),
-                )
-              else if (task.isInMyDay)
+              // Solo el estado de Mi día queda a la vista (P04-M5).
+              if (task.isInMyDay)
                 Padding(
-                  padding: const EdgeInsets.all(AppSpace.sm),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AppSpace.md,
+                    horizontal: AppSpace.xxs,
+                  ),
                   child: Icon(
                     AppIcons.myDay,
+                    key: ValueKey('task_in_day_${task.id}'),
                     size: AppIconSizes.action,
-                    color: c.warning,
+                    color: c.brand,
                     semanticLabel: 'En Mi día',
                   ),
                 ),
-              if (widget.onAddSubtask != null && depth == 0)
-                IconButton(
-                  key: ValueKey('task_add_subtask_${task.id}'),
-                  tooltip: 'Agregar subtarea',
-                  onPressed: widget.onAddSubtask,
-                  icon: Icon(
-                    AppIcons.add,
-                    size: AppIconSizes.action,
-                    color: c.muted,
-                  ),
-                ),
-              if (widget.onDelete != null)
-                IconButton(
-                  key: ValueKey('task_delete_${task.id}'),
-                  tooltip: 'Eliminar tarea',
-                  onPressed: widget.onDelete,
-                  icon: Icon(
-                    AppIcons.close,
-                    size: AppIconSizes.action,
-                    color: c.muted,
-                  ),
+              if (actions.isNotEmpty)
+                RowActionsMenu(
+                  key: ValueKey('task_more_${task.id}'),
+                  tooltip: 'Acciones de la tarea',
+                  actions: actions,
                 ),
             ],
           ),
