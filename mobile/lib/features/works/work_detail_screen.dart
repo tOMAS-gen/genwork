@@ -36,6 +36,7 @@ import 'work_metadata_dialog.dart';
 import 'works_dashboard.dart';
 import '../../shared/widgets/labeled_field.dart';
 import '../../shared/widgets/app_dropdown_decoration.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
 /// alta rápida de tareas en la sección elegida.
@@ -648,13 +649,7 @@ class _WorkSectionView extends ConsumerWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: LinearProgressIndicator(
-                    value: total == 0 ? 0 : done / total,
-                    minHeight: 4,
-                    color: accent,
-                    backgroundColor: c.outline,
-                    borderRadius: AppGeometry.pill,
-                  ),
+                  child: ProgressBar(value: total == 0 ? 0 : done / total),
                 ),
                 const SizedBox(width: AppSpacing.xs),
                 Text(

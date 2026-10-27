@@ -51,26 +51,29 @@ void main() {
     expect(WorksStats.of([]).pct(0), 0);
   });
 
-  test('dueUrgency: >7 verde, 1–7 naranja, hoy/vencido rojo', () {
+  // D5: neutro con margen, ámbar a 3 días o menos (hoy incluido) y rojo
+  // solo si venció.
+  test('dueUrgency: >3 neutro, 0–3 ámbar, vencido rojo', () {
     final now = DateTime(2026, 10, 10, 18);
-    expect(dueUrgency(DateTime(2026, 10, 25), now).tone, DueTone.green);
+    expect(dueUrgency(DateTime(2026, 10, 25), now).tone, DueTone.neutral);
     expect(dueUrgency(DateTime(2026, 10, 25), now).label, '15 días restantes');
     expect(
-      dueUrgency(DateTime(2026, 10, 18), now).tone,
-      DueTone.green,
-    ); // 8 días
-    expect(dueUrgency(DateTime(2026, 10, 17), now).tone, DueTone.orange); // 7
-    expect(dueUrgency(DateTime(2026, 10, 11), now).tone, DueTone.orange);
-    expect(dueUrgency(DateTime(2026, 10, 10), now).tone, DueTone.red);
+      dueUrgency(DateTime(2026, 10, 14), now).tone,
+      DueTone.neutral,
+    ); // 4 días
+    expect(dueUrgency(DateTime(2026, 10, 13), now).tone, DueTone.warning); // 3
+    expect(dueUrgency(DateTime(2026, 10, 11), now).tone, DueTone.warning);
+    expect(dueUrgency(DateTime(2026, 10, 10), now).tone, DueTone.warning);
     expect(dueUrgency(DateTime(2026, 10, 10), now).label, 'Vence hoy');
+    expect(dueUrgency(DateTime(2026, 10, 9), now).tone, DueTone.danger);
     expect(dueUrgency(DateTime(2026, 10, 9), now).label, 'Vencido');
   });
 
-  test('dueToneColor usa los colores de texto de .due-* de la web', () {
+  test('dueToneColor: gris, ámbar o rojo', () {
     for (final c in [GenColors.light, GenColors.dark]) {
-      expect(dueToneColor(c, DueTone.green), c.successText);
-      expect(dueToneColor(c, DueTone.orange), c.warningText);
-      expect(dueToneColor(c, DueTone.red), c.dangerText);
+      expect(dueToneColor(c, DueTone.neutral), c.muted);
+      expect(dueToneColor(c, DueTone.warning), c.warningText);
+      expect(dueToneColor(c, DueTone.danger), c.dangerText);
     }
     expect(GenColors.light.dangerText, const Color(0xFF991B1B));
     expect(GenColors.dark.dangerText, const Color(0xFFFCA5A5));
@@ -115,13 +118,14 @@ void main() {
       expect(find.textContaining('Entrega:'), findsOneWidget);
       final remaining = t.widget<Text>(find.text('2 días restantes'));
       expect(remaining.style!.color, c.warningText);
-      expect(remaining.style!.fontStyle, FontStyle.italic);
+      // D5: el plazo nunca va en itálica; el progreso, azul de 4 dp.
+      expect(remaining.style!.fontStyle, isNot(FontStyle.italic));
       final bar = t.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );
       expect(
         (bar.minHeight, bar.color, bar.backgroundColor),
-        (8, c.ok, c.border),
+        (4, c.brand, c.outline),
       );
       await t.tap(find.byKey(const ValueKey('work_a')));
       await t.tap(find.byKey(const ValueKey('work_favorite_a')));

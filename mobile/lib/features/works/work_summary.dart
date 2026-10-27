@@ -12,6 +12,7 @@ import '../../shared/widgets/dashed_border.dart';
 import '../../shared/widgets/entity_header.dart';
 import '../../shared/widgets/workspace_panel.dart';
 import 'works_dashboard.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Card de resumen del proyecto, como `.work-overview` de la web: símbolo,
 /// nombre 20/700, «Espacio personal / Grupo X» + estado, descripción, avance
@@ -182,13 +183,7 @@ class _WorkSummaryPanelState extends State<WorkSummaryPanel> {
                   label:
                       '${progress.done} de ${progress.total} tareas completadas',
                   excludeSemantics: true,
-                  child: LinearProgressIndicator(
-                    value: progress.ratio,
-                    minHeight: 5,
-                    color: c.brand,
-                    backgroundColor: c.outline,
-                    borderRadius: AppGeometry.chip,
-                  ),
+                  child: ProgressBar(value: progress.ratio),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 // Fecha límite debajo del avance, como `.work-due-summary`:

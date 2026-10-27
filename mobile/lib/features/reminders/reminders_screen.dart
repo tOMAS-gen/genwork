@@ -189,10 +189,13 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                           key: ValueKey(
                             'occurrence_${o.reminderId}_${o.date.toIso8601String()}',
                           ),
+                          // Ícono neutro y el alcance como chip (P21-M2).
                           leading: Icon(
                             AppIcons.reminders,
-                            color: reminderScopeColor(context, o.scope),
+                            size: AppIconSizes.action,
+                            color: context.colors.muted,
                           ),
+                          trailing: ReminderScopeChip(scope: o.scope),
                           title: Text(o.title),
                           subtitle: Text(dayLabel(o.date)),
                           onTap: () =>

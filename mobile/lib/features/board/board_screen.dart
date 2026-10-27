@@ -14,6 +14,7 @@ import '../../data/models/board.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
 import '../../shared/widgets/state_views.dart';
 import 'board_providers.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Vista de tareas: avance y pendientes de cada sector, como `/board` de la web.
 class BoardScreen extends ConsumerWidget {
@@ -198,13 +199,7 @@ class _SectorCard extends StatelessWidget {
                         label:
                             '${progress.done} de ${progress.total} finalizadas',
                         excludeSemantics: true,
-                        child: LinearProgressIndicator(
-                          value: progress.ratio,
-                          minHeight: 4,
-                          color: c.brand,
-                          backgroundColor: c.outline,
-                          borderRadius: AppGeometry.pill,
-                        ),
+                        child: ProgressBar(value: progress.ratio),
                       ),
                     ],
                   ),

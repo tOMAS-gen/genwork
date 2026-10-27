@@ -151,7 +151,6 @@ class WorkCard extends StatelessWidget {
                       due.label,
                       style: AppTextStyles.body.copyWith(
                         color: dueColor,
-                        fontStyle: FontStyle.italic,
                         fontWeight: FontWeight.w500,
                       ),
                     ),

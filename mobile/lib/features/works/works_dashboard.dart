@@ -51,10 +51,10 @@ class WorksStats {
   int pct(int n) => total > 0 ? (n / total * 100).round() : 0;
 }
 
-enum DueTone { green, orange, red }
+enum DueTone { neutral, warning, danger }
 
-/// Urgencia de una fecha límite, como `getDueDateUrgency` de la web: más de 7
-/// días, verde; de 1 a 7, naranja; hoy o vencido, rojo. Solo cuenta la fecha.
+/// Urgencia de una fecha límite (D5): con más de 3 días, neutro; de hoy a 3
+/// días, ámbar; vencido, rojo. Solo cuenta la fecha.
 ({String label, DueTone tone}) dueUrgency(DateTime due, DateTime now) {
   final days = DateTime(
     due.year,
@@ -66,19 +66,30 @@ enum DueTone { green, orange, red }
       : days == 0
       ? 'Vence hoy'
       : '$days días restantes';
-  final tone = days > 7
-      ? DueTone.green
-      : days >= 1
-      ? DueTone.orange
-      : DueTone.red;
+  final tone = days > 3
+      ? DueTone.neutral
+      : days >= 0
+      ? DueTone.warning
+      : DueTone.danger;
   return (label: label, tone: tone);
 }
 
-/// Color del texto de urgencia, como `.due-green/.due-orange/.due-red` de la web.
+/// Color del texto de urgencia: gris, ámbar o rojo.
 Color dueToneColor(GenColors c, DueTone tone) => switch (tone) {
-  DueTone.green => c.successText,
-  DueTone.orange => c.warningText,
-  DueTone.red => c.dangerText,
+  DueTone.neutral => c.muted,
+  DueTone.warning => c.warningText,
+  DueTone.danger => c.dangerText,
+};
+
+/// Colores de un estado de proyecto, iguales en todas las pantallas (D5):
+/// pendiente neutro, en curso azul y terminado verde.
+({Color text, Color fill}) projectStatusColors(
+  GenColors c,
+  ProjectStatus status,
+) => switch (status) {
+  ProjectStatus.pending => (text: c.muted, fill: c.hover),
+  ProjectStatus.inProgress => (text: c.brand, fill: c.brandFill),
+  ProjectStatus.completed => (text: c.successText, fill: c.successFill),
 };
 
 /// Color del proyecto a partir de sus etiquetas (igual que `WorkSummary.color`):

@@ -243,12 +243,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** El progreso va siempre en azul de marca, con barra de 4 dp, y en verde solo al 100 %. El plazo es neutro si hay margen, ámbar a 3 días o menos y rojo si venció, sin itálica. Los estados usan el mismo color en todas las pantallas: Pendiente neutro, En curso azul y Terminado verde. El verde deja de marcar "recordatorio individual" (D5).
 
 **Criterios de aceptación:**
-- [ ] La misma barra y los mismos colores en card, detalle, sector y portal.
-- [ ] El plazo cambia de color por días restantes y nunca va en itálica.
+- [x] La misma barra y los mismos colores en card, detalle, sector y portal.
+- [x] El plazo cambia de color por días restantes y nunca va en itálica.
 
 **Verificación:**
-- [ ] `count_progress_test` y `chips_notices_test` cubren el verde al 100 % y los tres plazos.
-- [ ] Capturas de P05, P07, P11, P21 y P33.
+- [x] `count_progress_test` y `chips_notices_test` cubren el verde al 100 % y los tres plazos.
+- [x] Capturas de P05, P07, P11, P21 y P33. P33 (portal de cliente) se captura en el checkpoint 2, porque requiere cambiar de rol.
 
 **Depende de:** 6 · **Archivos:** `shared/widgets/card_progress.dart`, `shared/widgets/progress_line.dart`, `shared/widgets/status_chip.dart`, `features/reminders/reminder_scope_color.dart`, tests · **Tamaño:** M
 

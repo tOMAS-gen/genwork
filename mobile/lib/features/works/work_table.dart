@@ -10,6 +10,7 @@ import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'works_dashboard.dart';
 import 'works_filters_panel.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Vista de lista de Proyectos, como la tabla `.data-table` de la web
 /// (`ProjectListRow.tsx`): Proyecto, Grupo, Etiquetas, Progreso, Entrega, Días
@@ -135,15 +136,7 @@ class WorkTable extends StatelessWidget {
                       const SizedBox(width: AppSpacing.xs),
                       SizedBox(
                         width: AppSpacing.xxl * 2,
-                        child: ClipRRect(
-                          borderRadius: AppGeometry.pill,
-                          child: LinearProgressIndicator(
-                            value: pct / 100,
-                            minHeight: 6,
-                            color: c.ok,
-                            backgroundColor: c.border,
-                          ),
-                        ),
+                        child: ProgressBar(value: pct / 100),
                       ),
                     ],
                   ),
@@ -160,16 +153,8 @@ class WorkTable extends StatelessWidget {
           tap(
             StatusChip(
               label: worksStatusLabels[status]!,
-              color: switch (status) {
-                ProjectStatus.pending => c.muted,
-                ProjectStatus.inProgress => c.warningText,
-                ProjectStatus.completed => c.successText,
-              },
-              fill: switch (status) {
-                ProjectStatus.pending => c.hover,
-                ProjectStatus.inProgress => c.warningFill,
-                ProjectStatus.completed => c.successFill,
-              },
+              color: projectStatusColors(c, status).text,
+              fill: projectStatusColors(c, status).fill,
             ),
           ),
           onArchive == null

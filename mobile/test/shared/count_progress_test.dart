@@ -56,7 +56,7 @@ void main() {
   });
 
   for (final dark in [false, true]) {
-    testWidgets('ProgressLine: track outline, relleno ok o brand '
+    testWidgets('ProgressLine: track outline, azul y verde solo al 100 % '
         '(dark=$dark)', (t) async {
       final c = dark ? GenColors.dark : GenColors.light;
       await _mount(
@@ -72,7 +72,7 @@ void main() {
       );
       expect(bar.value, .6);
       expect(bar.minHeight, 4);
-      expect(bar.color, c.ok);
+      expect(bar.color, c.brand);
       expect(bar.backgroundColor, c.outline);
       expect(find.text('3/5'), findsOneWidget);
       final label = t.widget<Text>(find.text('3/5')).style!;
@@ -83,10 +83,7 @@ void main() {
         t,
         const SizedBox(
           width: 300,
-          child: ProgressLine(
-            progress: Progress(done: 0, total: 0),
-            emphasis: true,
-          ),
+          child: ProgressLine(progress: Progress(done: 0, total: 0)),
         ),
         dark: dark,
       );
@@ -95,6 +92,18 @@ void main() {
       );
       expect(bar.color, c.brand);
       expect(bar.value, 0);
+      await _mount(
+        t,
+        const SizedBox(
+          width: 300,
+          child: ProgressLine(progress: Progress(done: 5, total: 5)),
+        ),
+        dark: dark,
+      );
+      bar = t.widget<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      );
+      expect(bar.color, c.ok);
     });
   }
 

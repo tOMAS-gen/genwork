@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import 'progress_bar.dart';
 
-/// Avance de una card (proyecto, sector): barra de 8 px `ok` sobre `border` con
-/// su porcentaje, y debajo «d/t tareas» (o «Sin tareas todavía»).
+/// Avance de una card (proyecto, sector): la [ProgressBar] común con su
+/// porcentaje, y debajo «d/t tareas» (o «Sin tareas todavía»).
 class CardProgress extends StatelessWidget {
   const CardProgress({super.key, required this.done, required this.total});
 
@@ -24,15 +25,7 @@ class CardProgress extends StatelessWidget {
             excludeSemantics: true,
             child: Row(
               children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: done / total,
-                    minHeight: 8,
-                    color: c.ok,
-                    backgroundColor: c.border,
-                    borderRadius: AppGeometry.pill,
-                  ),
-                ),
+                Expanded(child: ProgressBar(value: done / total)),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   '$pct%',

@@ -9,6 +9,7 @@ import '../../shared/widgets/workspace_panel.dart';
 import '../../data/models/common.dart';
 import '../works/works_dashboard.dart';
 import '../../shared/widgets/entity_header.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Card de resumen del sector, como la de la web: símbolo del color del sector,
 /// nombre 20/700, ámbito, kebab, «Avance del sector» (20/600 + barra) y, sobre
@@ -93,13 +94,7 @@ class SectorSummaryPanel extends StatelessWidget {
                     label:
                         '${progress.done} de ${progress.total} tareas completadas',
                     excludeSemantics: true,
-                    child: LinearProgressIndicator(
-                      value: progress.ratio,
-                      minHeight: 5,
-                      color: c.brand,
-                      backgroundColor: c.outline,
-                      borderRadius: AppGeometry.chip,
-                    ),
+                    child: ProgressBar(value: progress.ratio),
                   ),
                 ],
               ],

@@ -274,10 +274,13 @@ class _ReminderCalendarState extends ConsumerState<ReminderCalendar> {
                           key: ValueKey(
                             'calendar_occurrence_${o.reminderId}_${o.date.toIso8601String()}',
                           ),
+                          // Ícono neutro y el alcance como chip (P21-M2).
                           leading: Icon(
                             AppIcons.reminders,
-                            color: reminderScopeColor(context, o.scope),
+                            size: AppIconSizes.action,
+                            color: context.colors.muted,
                           ),
+                          trailing: ReminderScopeChip(scope: o.scope),
                           title: Text(o.title),
                           subtitle: Text(
                             DateFormat('d MMM y', 'es').format(o.date),
@@ -355,18 +358,8 @@ class _DayCell extends StatelessWidget {
                   height: AppSpacing.xs,
                   child: count == 0
                       ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final scope in ReminderScope.values)
-                              if (scopes.contains(scope))
-                                Icon(
-                                  AppIcons.dot,
-                                  size: 5,
-                                  color: reminderScopeColor(context, scope),
-                                ),
-                          ],
-                        ),
+                      // Un punto de marca: el alcance se lee en la lista.
+                      : Icon(AppIcons.dot, size: 5, color: c.brand),
                 ),
               ],
             ),

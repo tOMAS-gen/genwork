@@ -18,6 +18,7 @@ import '../../shared/widgets/card_progress.dart';
 import '../../shared/widgets/name_pill.dart';
 import '../../shared/widgets/gen_tab_bar.dart';
 import '../works/works_dashboard.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Portal del cliente, como `/portal` de la web: una card por proyecto con el
 /// nombre, el avance, las tareas y la entrega.
@@ -119,7 +120,6 @@ class _PortalWorkCard extends StatelessWidget {
                       due.label,
                       style: AppTextStyles.body.copyWith(
                         color: dueToneColor(c, due.tone),
-                        fontStyle: FontStyle.italic,
                       ),
                     ),
                   ],
@@ -296,15 +296,7 @@ class _ProgressRow extends StatelessWidget {
       excludeSemantics: true,
       child: Row(
         children: [
-          Expanded(
-            child: LinearProgressIndicator(
-              value: total == 0 ? 0 : done / total,
-              minHeight: 6,
-              color: c.brand,
-              backgroundColor: c.outline,
-              borderRadius: AppGeometry.pill,
-            ),
-          ),
+          Expanded(child: ProgressBar(value: total == 0 ? 0 : done / total)),
           const SizedBox(width: AppSpacing.xs),
           Text(
             '$done/$total · $pct%',
