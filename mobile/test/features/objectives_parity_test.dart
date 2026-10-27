@@ -355,7 +355,9 @@ void main() {
     await objectiveMenu(t);
     await label(t, 'Guardar como plantilla');
     expect(f.mutations.last.path, '/api/objectives/o1/save-as-template');
-    await scrollTo(t, 'objective_insert_template');
+    // Insertar plantilla va en el "⋯" de la fila de tareas (P07-M4).
+    await scrollTo(t, 'work_tasks_more');
+    await tap(t, 'work_tasks_more');
     await tap(t, 'objective_insert_template');
     await tap(t, 'objective_template_tpl');
     await enter(t, 'objective_title', 'Otro objetivo');

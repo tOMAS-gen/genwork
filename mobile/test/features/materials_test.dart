@@ -101,9 +101,33 @@ Future<_FakeRepo> _mount(
 }
 
 void main() {
-  testWidgets('vacío como la web', (t) async {
+  testWidgets('vacío como la web, con "Agregar material" que va al buscador', (
+    t,
+  ) async {
     await _mount(t);
     expect(find.text('Sin materiales asignados'), findsOneWidget);
+    // P07M-M3: el vacío empieza el alta enfocando el buscador.
+    await t.tap(find.byKey(const ValueKey('materials_empty_add')));
+    await t.pump();
+    expect(
+      t
+          .widget<EditableText>(
+            find.descendant(
+              of: find.byKey(const ValueKey('materials_search')),
+              matching: find.byType(EditableText),
+            ),
+          )
+          .focusNode
+          .hasFocus,
+      isTrue,
+    );
+    // P07M-M2: el buscador va a lo ancho, con "Solo insumos" debajo.
+    expect(
+      t.getTopLeft(find.byKey(const ValueKey('materials_supply_only'))).dy,
+      greaterThanOrEqualTo(
+        t.getBottomLeft(find.byKey(const ValueKey('materials_search'))).dy,
+      ),
+    );
     expect(
       find.text(
         'Agregá productos de Genstock para calcular lo necesario en este proyecto.',

@@ -85,11 +85,15 @@ class TaskViewToggle extends StatelessWidget {
     required this.board,
     required this.onChanged,
     this.padding = AppSpace.page,
+    this.compact = false,
   });
   final bool board;
 
   /// Margen alrededor del control (cero cuando ya va dentro de un panel).
   final EdgeInsets padding;
+
+  /// Solo el texto, sin íconos: para compartir la fila con otras acciones.
+  final bool compact;
   final ValueChanged<bool> onChanged;
   @override
   Widget build(BuildContext context) => Padding(
@@ -97,16 +101,16 @@ class TaskViewToggle extends StatelessWidget {
     child: SegmentedButton<bool>(
       key: const ValueKey('task_view_toggle'),
       showSelectedIcon: false,
-      segments: const [
+      segments: [
         ButtonSegment(
           value: false,
-          icon: Icon(AppIcons.list),
-          label: Text('Lista'),
+          icon: compact ? null : const Icon(AppIcons.list),
+          label: const Text('Lista'),
         ),
         ButtonSegment(
           value: true,
-          icon: Icon(AppIcons.gridView),
-          label: Text('Tablero'),
+          icon: compact ? null : const Icon(AppIcons.gridView),
+          label: const Text('Tablero'),
         ),
       ],
       selected: {board},

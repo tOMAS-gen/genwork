@@ -370,8 +370,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 25: Detalle de proyecto y su pestaña Materiales (P07, P07M)
 
 **Criterios de aceptación:**
-- [ ] P07: una card con Descripción, Avance, Fecha límite, Etiquetas y Código separados por divisores; Lista/Tablero como segmentado en una fila de 40 dp.
-- [ ] P07M: buscador a ancho completo; "Solo insumos" como fila con interruptor; el vacío ofrece "Agregar material" con el alta que ya existe (`_add`).
+- [x] P07: una card con Descripción, Avance, Fecha límite, Etiquetas y Código separados por divisores; Lista/Tablero como segmentado en una fila de 40 dp.
+- [x] P07M: buscador a ancho completo; "Solo insumos" como fila con interruptor; el vacío ofrece "Agregar material" con el alta que ya existe (`_add`).
 
 **Verificación:** `materials_test` y `work_summary_test`. Capturas. · **Tamaño:** M
 

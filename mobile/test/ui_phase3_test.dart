@@ -640,11 +640,12 @@ void main() {
           ),
           findsOneWidget,
         );
+        // Rótulos de sección en 11/700 mayúsculas (P07-M3).
         for (final label in [
-          'Avance',
-          'Fecha límite',
-          'Etiquetas',
-          'Código / carpeta',
+          'AVANCE',
+          'FECHA LÍMITE',
+          'ETIQUETAS',
+          'CÓDIGO / CARPETA',
         ]) {
           expect(find.text(label), findsOneWidget, reason: label);
         }

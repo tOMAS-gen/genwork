@@ -35,6 +35,7 @@ class WorkMaterialsScreen extends ConsumerStatefulWidget {
 
 class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
   final _query = TextEditingController();
+  final _searchFocus = FocusNode();
   final _quantity = TextEditingController(text: '1');
   final _notes = TextEditingController();
   Timer? _debounce;
@@ -49,6 +50,7 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
   void dispose() {
     _debounce?.cancel();
     _query.dispose();
+    _searchFocus.dispose();
     _quantity.dispose();
     _notes.dispose();
     super.dispose();
@@ -141,46 +143,38 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           if (editable) ...[
-            // Como la web: buscador y "Solo insumos" en la misma fila.
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('materials_search'),
-                    controller: _query,
-                    onChanged: (_) => _search(),
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar producto en Genstock',
-                      prefixIcon: Icon(
-                        AppIcons.search,
-                        size: AppIconSizes.notice,
-                      ),
+            // Buscador a lo ancho y "Solo insumos" en su propia fila
+            // (P07M-M2).
+            TextField(
+              key: const ValueKey('materials_search'),
+              controller: _query,
+              focusNode: _searchFocus,
+              onChanged: (_) => _search(),
+              decoration: const InputDecoration(
+                hintText: 'Buscar producto en Genstock',
+                prefixIcon: Icon(AppIcons.search, size: AppIconSizes.action),
+              ),
+            ),
+            // El interruptor se anuncia como "Solo insumos" (T1).
+            MergeSemantics(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Solo insumos',
+                      style: AppTextStyles.body.copyWith(color: c.text),
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                // El interruptor se anuncia como "Solo insumos" (T1).
-                MergeSemantics(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Switch(
-                        key: const ValueKey('materials_supply_only'),
-                        value: _supplyOnly,
-                        onChanged: (v) {
-                          setState(() => _supplyOnly = v);
-                          _search();
-                        },
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        'Solo insumos',
-                        style: AppTextStyles.body.copyWith(color: c.text),
-                      ),
-                    ],
+                  Switch(
+                    key: const ValueKey('materials_supply_only'),
+                    value: _supplyOnly,
+                    onChanged: (v) {
+                      setState(() => _supplyOnly = v);
+                      _search();
+                    },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             if (_query.text.trim().length >= 2 && _selected == null)
@@ -253,11 +247,16 @@ class _WorkMaterialsScreenState extends ConsumerState<WorkMaterialsScreen> {
             value: materials,
             onRetry: () => ref.invalidate(workMaterialsProvider(widget.workId)),
             data: (list) => list.isEmpty
-                ? const EmptyView(
+                // El vacío ofrece empezar el alta: buscar el producto
+                // (P07M-M3).
+                ? EmptyView(
                     icon: AppIcons.materials,
                     title: 'Sin materiales asignados',
                     message:
                         'Agregá productos de Genstock para calcular lo necesario en este proyecto.',
+                    actionKey: const ValueKey('materials_empty_add'),
+                    actionLabel: editable ? 'Agregar material' : null,
+                    onAction: editable ? _searchFocus.requestFocus : null,
                   )
                 : Column(
                     children: [

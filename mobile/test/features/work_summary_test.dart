@@ -44,8 +44,8 @@ void main() {
       ),
     );
     expect(
-      t.getTopLeft(find.text('Fecha límite')).dy,
-      greaterThan(t.getTopLeft(find.text('Avance')).dy),
+      t.getTopLeft(find.text('FECHA LÍMITE')).dy,
+      greaterThan(t.getTopLeft(find.text('AVANCE')).dy),
       reason: 'como la web, la fecha va debajo del avance',
     );
     expect(find.text('29/10/2026'), findsOneWidget);
@@ -55,5 +55,30 @@ void main() {
     await t.tap(find.byKey(const ValueKey('work_due_clear')));
     await t.tap(find.byKey(const ValueKey('work_labels_edit')));
     expect((picked, cleared, labels), (1, 1, 1));
+    // P07-M2: una sola card blanca, secciones separadas por divisores y sin
+    // bloques de relleno de campo.
+    final panel = find.byType(WorkSummaryPanel);
+    expect(
+      find.descendant(of: panel, matching: find.byType(Divider)),
+      findsNWidgets(4),
+    );
+    final c = GenColors.light;
+    expect(
+      t
+          .widgetList<Container>(
+            find.descendant(of: panel, matching: find.byType(Container)),
+          )
+          .where(
+            (box) =>
+                box.color == c.field ||
+                (box.decoration as BoxDecoration?)?.color == c.field,
+          ),
+      isEmpty,
+    );
+    // Copiar el código es un ícono, no un botón con borde.
+    expect(
+      find.descendant(of: panel, matching: find.byType(OutlinedButton)),
+      findsNothing,
+    );
   });
 }

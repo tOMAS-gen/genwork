@@ -35,6 +35,7 @@ import '../../shared/widgets/count_badge.dart';
 import 'work_metadata_dialog.dart';
 import 'works_dashboard.dart';
 import '../../shared/widgets/progress_bar.dart';
+import '../../shared/widgets/row_actions_menu.dart';
 
 /// Detalle de proyecto: cabecera, tareas por sección (generales + objetivos) y
 /// alta rápida de tareas en la sección elegida.
@@ -320,55 +321,65 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                                       color: context.colors.muted,
                                     ),
                                   ),
-                                  if (work.canManageObjectives) ...[
-                                    const SizedBox(height: AppSpacing.sm),
-                                    Wrap(
-                                      spacing: AppSpacing.xs,
-                                      runSpacing: AppSpacing.xs,
-                                      children: [
-                                        OutlinedButton.icon(
-                                          key: const ValueKey(
-                                            'objective_create',
-                                          ),
-                                          onPressed: () => showObjectiveDialog(
-                                            context,
-                                            work.id,
-                                          ),
-                                          icon: const Icon(
-                                            AppIcons.add,
-                                            size: AppIconSizes.field,
-                                          ),
-                                          label: const Text('Nuevo objetivo'),
-                                        ),
-                                        OutlinedButton.icon(
-                                          key: const ValueKey(
-                                            'objective_insert_template',
-                                          ),
-                                          onPressed: () => showObjectiveDialog(
-                                            context,
-                                            work.id,
-                                            fromTemplate: true,
-                                          ),
-                                          icon: const Icon(
-                                            AppIcons.templates,
-                                            size: AppIconSizes.field,
-                                          ),
-                                          label: const Text(
-                                            'Insertar plantilla',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
+                                  // Una sola fila: Lista | Tablero y, a la
+                                  // derecha, "+ Objetivo" y "⋯" con Insertar
+                                  // plantilla (P07-M4).
                                   const SizedBox(height: AppSpacing.sm),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: TaskViewToggle(
-                                      padding: EdgeInsets.zero,
-                                      board: _board,
-                                      onChanged: (v) =>
-                                          setState(() => _board = v),
-                                    ),
+                                  Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    spacing: AppSpacing.xs,
+                                    runSpacing: AppSpacing.xs,
+                                    children: [
+                                      TaskViewToggle(
+                                        padding: EdgeInsets.zero,
+                                        compact: true,
+                                        board: _board,
+                                        onChanged: (v) =>
+                                            setState(() => _board = v),
+                                      ),
+                                      if (work.canManageObjectives)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            OutlinedButton.icon(
+                                              key: const ValueKey(
+                                                'objective_create',
+                                              ),
+                                              onPressed: () =>
+                                                  showObjectiveDialog(
+                                                    context,
+                                                    work.id,
+                                                  ),
+                                              icon: const Icon(
+                                                AppIcons.add,
+                                                size: AppIconSizes.field,
+                                              ),
+                                              label: const Text('Objetivo'),
+                                            ),
+                                            RowActionsMenu(
+                                              key: const ValueKey(
+                                                'work_tasks_more',
+                                              ),
+                                              tooltip: 'Más acciones de tareas',
+                                              actions: [
+                                                RowAction(
+                                                  key:
+                                                      'objective_insert_template',
+                                                  label: 'Insertar plantilla',
+                                                  onSelected: () =>
+                                                      showObjectiveDialog(
+                                                        context,
+                                                        work.id,
+                                                        fromTemplate: true,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                    ],
                                   ),
                                   for (final section in work.sections)
                                     if (section.objective == null ||
