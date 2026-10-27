@@ -7,6 +7,7 @@ import 'package:genwork_mobile/core/theme/color_contrast.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/data/models/task.dart';
 import 'package:genwork_mobile/shared/widgets/status_chip.dart';
+import 'package:genwork_mobile/shared/widgets/task_board.dart';
 import 'package:genwork_mobile/shared/widgets/task_composer.dart';
 import 'package:genwork_mobile/shared/widgets/task_text_field.dart';
 import 'package:genwork_mobile/shared/widgets/task_tile.dart';
@@ -270,4 +271,39 @@ void main() {
     // Las subtareas no tienen "+" (no hay subtareas de subtareas).
     expect(find.byKey(const ValueKey('task_add_subtask_s2')), findsNothing);
   });
+
+  // El tablero vive dentro del `ExpansionTile` de un objetivo, que guarda su
+  // estado (bool) en PageStorage con su clave. Sin clave propia, el scroll del
+  // tablero leía ese bool como offset y fallaba al volver a expandir.
+  testWidgets(
+    'TaskBoard dentro de un objetivo plegable no choca en PageStorage',
+    (t) async {
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ExpansionTile(
+                key: const PageStorageKey('work_section_o1'),
+                initiallyExpanded: true,
+                title: const Text('Objetivo'),
+                children: [
+                  TaskBoard(
+                    tasks: [_task()],
+                    itemBuilder: (task) => Text(task.displayText),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await t.tap(find.text('Objetivo'));
+      await t.pumpAndSettle();
+      await t.tap(find.text('Objetivo'));
+      await t.pumpAndSettle();
+      expect(t.takeException(), isNull);
+      expect(find.byType(TaskBoard), findsOneWidget);
+    },
+  );
 }

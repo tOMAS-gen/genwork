@@ -28,6 +28,9 @@ class TaskBoard extends StatelessWidget {
     }
     // Una columna visible a la vez en teléfono; altura natural y scroll exterior.
     return SingleChildScrollView(
+      // Clave propia: sin ella el offset se guardaba con la clave del objetivo
+      // plegable que lo contiene, que ya guarda ahí un bool.
+      key: const PageStorageKey('task_board'),
       scrollDirection: Axis.horizontal,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
