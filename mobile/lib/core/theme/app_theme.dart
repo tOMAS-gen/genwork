@@ -17,9 +17,12 @@ abstract final class AppSpace {
   static const double xs = 4, sm = 8, md = 12, lg = 16, xl = 24, xxl = 32;
   static const double touch = 48, icon = 20, hero = 64, contentMax = 480;
 
-  /// Margen de página de la web móvil: `.main { padding: 16px 12px }`.
-  static const page = EdgeInsets.symmetric(horizontal: md, vertical: lg);
-  static const list = EdgeInsets.fromLTRB(md, sm, md, 96);
+  /// Margen lateral de página: todo arranca en la misma línea de 16 dp (D8,
+  /// PS2 de la auditoría premium; antes 12, el `.main` de la web).
+  static const double gutter = lg;
+
+  static const page = EdgeInsets.symmetric(horizontal: gutter, vertical: lg);
+  static const list = EdgeInsets.fromLTRB(gutter, sm, gutter, 96);
 }
 
 /// Fachada sobre [GenColors] y [AppGeometry] para el código que ya usaba
@@ -191,6 +194,9 @@ abstract final class AppTheme {
         elevation: AppGeometry.elevation,
         scrolledUnderElevation: AppGeometry.elevation,
         centerTitle: false,
+        // Flecha en 16 dp y título 16 dp después (x = 56), sin el hueco de
+        // 16 que agrega Material (P02-M2).
+        titleSpacing: 0,
         titleTextStyle: typography.titleLarge,
         toolbarHeight: 48,
         shape: Border(bottom: BorderSide(color: c.border)),

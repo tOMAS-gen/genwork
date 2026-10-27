@@ -153,9 +153,9 @@ class MyDayScreen extends ConsumerWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpace.md,
+                  AppSpace.gutter,
                   AppSpace.lg,
-                  AppSpace.md,
+                  AppSpace.gutter,
                   0,
                 ),
                 child: Text(
@@ -173,7 +173,9 @@ class MyDayScreen extends ConsumerWidget {
                 ),
               if (pending.isNotEmpty || refs.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpace.gutter,
+                  ),
                   child: WorkspaceListPanel(
                     children: [...pending.map(tile), ...refs.map(tile)],
                   ),
@@ -192,7 +194,7 @@ class MyDayScreen extends ConsumerWidget {
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.md,
+                        horizontal: AppSpace.gutter,
                       ),
                       child: WorkspaceListPanel(
                         children: done.map(tile).toList(),
@@ -270,9 +272,9 @@ class _RowMeta extends StatelessWidget {
     final muted = AppTextStyles.supporting.copyWith(color: c.muted);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpace.md,
+        AppSpace.gutter,
         AppSpace.sm,
-        AppSpace.md,
+        AppSpace.gutter,
         0,
       ),
       child: Wrap(

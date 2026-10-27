@@ -9,7 +9,7 @@ import 'theme_toggle.dart';
 
 /// Marco de una pantalla de genwork móvil: AppBar de 48 con el botón del
 /// drawer (o `BackButton`) y la marca, [GenSectionHeader] y el [body] debajo
-/// con el margen de la web móvil (16 arriba y abajo, 12 a los costados). Como
+/// con el margen de página (16 dp en los cuatro lados). Como
 /// en la web, el encabezado se desplaza con el contenido: si el [body] es un
 /// scrollable sin controller propio, comparte el desplazamiento con el
 /// encabezado (`NestedScrollView`).
@@ -32,10 +32,7 @@ class GenPageScaffold extends StatelessWidget {
     this.fab,
     this.headerBottom,
     this.top,
-    this.bodyPadding = const EdgeInsets.symmetric(
-      horizontal: AppSpacing.sm,
-      vertical: AppSpacing.md,
-    ),
+    this.bodyPadding = const EdgeInsets.all(AppSpacing.md),
   });
 
   final String title;
@@ -84,9 +81,14 @@ class GenPageScaffold extends StatelessWidget {
             ),
           ),
         ],
-        body: onRefresh == null
-            ? content
-            : RefreshIndicator(onRefresh: onRefresh!, child: content),
+        // Edge-to-edge (targetSdk 36): el contenido no queda bajo la barra de
+        // navegación ni bajo un recorte lateral (T6). El fondo sí pasa.
+        body: SafeArea(
+          top: false,
+          child: onRefresh == null
+              ? content
+              : RefreshIndicator(onRefresh: onRefresh!, child: content),
+        ),
       ),
     );
   }

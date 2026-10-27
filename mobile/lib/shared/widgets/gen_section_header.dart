@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/gen_colors.dart';
 
 /// Encabezado de página, como `.page-header` de la web: caja de ícono (38,
@@ -85,11 +86,11 @@ class GenSectionHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          // Margen de página de la web móvil: `.main { padding: 16px 12px }`.
+          // Margen de página: la misma línea de 16 dp que el contenido (PS2).
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.sm,
+            AppSpace.gutter,
             AppSpacing.md,
-            AppSpacing.sm,
+            AppSpace.gutter,
             0,
           ),
           child: DecoratedBox(

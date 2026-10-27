@@ -132,13 +132,13 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Todo arranca en la misma línea de 16 dp (D8). El título de la barra empieza en x≈56 dp (`titleSpacing`). `GenPageScaffold` suma el inset inferior y lateral del sistema para que el final de las listas no quede bajo la barra de navegación (T6).
 
 **Criterios de aceptación:**
-- [ ] El margen de página es de 16 dp en todas las pantallas (hoy hay 12 y 16).
-- [ ] El título de la barra arranca en x≈56 dp con la flecha (P02-M2).
-- [ ] Con navegación de 3 botones, la última card de Configuración se puede tocar.
+- [x] El margen de página es de 16 dp en todas las pantallas (hoy hay 12 y 16).
+- [x] El título de la barra arranca en x≈56 dp con la flecha (P02-M2).
+- [x] Con navegación de 3 botones, la última card de Configuración se puede tocar.
 
 **Verificación:**
-- [ ] Test nuevo: `GenPageScaffold` con `MediaQuery.padding.bottom = 48` deja la última fila visible y tocable.
-- [ ] Capturas de P02, P05 y P25.
+- [x] Test nuevo: `GenPageScaffold` con `MediaQuery.padding.bottom = 48` deja la última fila visible y tocable.
+- [ ] Capturas de P02, P05 y P25. Mi día verificado en el emulador; el resto va en el checkpoint 1.
 
 **Depende de:** nada · **Archivos:** `core/theme/app_geometry.dart`, `shared/widgets/gen_page_scaffold.dart`, `core/theme/app_theme.dart`, `test/shared/surfaces_test.dart` · **Tamaño:** M
 

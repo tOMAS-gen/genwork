@@ -98,6 +98,69 @@ void main() {
     }
   }
 
+  // PS2 (auditoría premium): todo arranca en la misma línea de 16 dp.
+  testWidgets('GenPageScaffold: margen de página único de 16 dp', (t) async {
+    await _mount(
+      t,
+      const GenPageScaffold(title: 'Proyectos', body: Text('contenido')),
+    );
+    expect(t.getTopLeft(find.text('Proyectos')).dx, AppSpace.gutter);
+    expect(t.getTopLeft(find.text('contenido')).dx, AppSpace.gutter);
+    expect(AppSpace.page.left, AppSpace.gutter);
+    expect(AppSpace.list.left, AppSpace.gutter);
+  });
+
+  // P02-M2: la flecha en 16 dp y el título 16 dp después (x≈56), no en 72.
+  testWidgets('GenPageScaffold: el título de la barra arranca en 56 dp', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      const GenPageScaffold(title: 'Detalle', showBack: true, body: Text('x')),
+    );
+    expect(t.getTopLeft(find.byType(BrandName)).dx, 56);
+  });
+
+  // T6: con edge-to-edge, el final de la lista no queda bajo la barra de
+  // navegación de 3 botones.
+  testWidgets('GenPageScaffold: respeta el inset inferior del sistema', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(360, 720),
+          padding: EdgeInsets.only(bottom: 48),
+          viewPadding: EdgeInsets.only(bottom: 48),
+        ),
+        child: GenPageScaffold(
+          title: 'Configuración',
+          bodyPadding: EdgeInsets.zero,
+          body: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              for (var i = 0; i < 30; i++)
+                SizedBox(height: 56, child: Text('fila $i')),
+            ],
+          ),
+        ),
+      ),
+    );
+    await t.dragUntilVisible(
+      find.text('fila 29'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await t.pumpAndSettle();
+    await t.drag(find.byType(ListView), const Offset(0, -2000));
+    await t.pumpAndSettle();
+    expect(
+      t.getBottomLeft(find.text('fila 29')).dy,
+      lessThanOrEqualTo(720 - 48),
+    );
+  });
+
   testWidgets('GenPageScaffold: showBack usa BackButton y AppBar de 48', (
     t,
   ) async {

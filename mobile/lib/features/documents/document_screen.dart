@@ -1,4 +1,5 @@
 import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_button_styles.dart';
 import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
@@ -319,7 +320,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
             // encabezado editable y debajo ✓ y ⋯.
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.sm,
+                AppSpace.gutter,
                 AppSpacing.sm,
                 AppSpacing.xxs,
                 0,
@@ -348,7 +349,7 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
               child: TextField(
                 key: const ValueKey('note_title'),
                 controller: _title,
