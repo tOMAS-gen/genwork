@@ -314,12 +314,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** La pestaña activa se lleva al centro y la primera abre completa, con 16 dp en los extremos y un degradado de 24 dp del lado que tiene más contenido. La pestaña y el título dicen lo mismo ("Configuración", "Producción" ↔ "Etapas").
 
 **Criterios de aceptación:**
-- [ ] Ninguna pestaña abre cortada (P28L-M1).
-- [ ] Cada pestaña y su título usan el mismo nombre.
+- [x] Ninguna pestaña abre cortada (P28L-M1).
+- [x] Cada pestaña y su título usan el mismo nombre.
 
 **Verificación:**
-- [ ] `settings_tabs_test` cubre la pestaña activa visible.
-- [ ] Capturas de P25, P27 y P28.
+- [x] `settings_tabs_test` cubre la pestaña activa visible.
+- [x] Capturas de P25, P27 y P28.
 
 **Depende de:** 9 · **Archivos:** `features/settings/settings_tabs.dart`, `shared/widgets/gen_tab_bar.dart`, `test/features/settings_tabs_test.dart` · **Tamaño:** S
 

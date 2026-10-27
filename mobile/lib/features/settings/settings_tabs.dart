@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/gen_colors.dart';
+import '../../data/repositories/catalogs_repository.dart';
 import '../../data/repositories/settings_repository.dart';
 import '../../shared/widgets/gen_tab_bar.dart';
 
@@ -16,50 +17,34 @@ class SettingsTabs extends ConsumerWidget {
 
   final String current;
 
+  /// Cada pestaña lleva el mismo nombre que el título de su pantalla
+  /// (P25-M4): por eso salen de las mismas fuentes.
   static List<(String, String, String)> _items(bool admin) => [
     ('account', 'Mi cuenta', Routes.account),
     (
       SettingsSection.mcp.name,
-      'Vincular con Claude',
+      SettingsSection.mcp.title,
       Routes.setting(SettingsSection.mcp.name),
     ),
     ('mobile', 'App móvil', Routes.mobileApp),
     if (admin) ...[
-      ('home', 'Resumen', Routes.settings),
-      (
-        SettingsSection.access.name,
-        'Acceso',
-        Routes.setting(SettingsSection.access.name),
-      ),
-      (
-        SettingsSection.users.name,
-        'Usuarios',
-        Routes.setting(SettingsSection.users.name),
-      ),
-      (
-        SettingsSection.clients.name,
-        'Clientes',
-        Routes.setting(SettingsSection.clients.name),
-      ),
-      ('labels', 'Etiquetas', Routes.catalog('labels')),
-      ('stages', 'Producción', Routes.catalog('stages')),
-      ('statuses', 'Estados de tarea', Routes.catalog('statuses')),
+      ('home', 'Configuración', Routes.settings),
+      for (final s in [
+        SettingsSection.access,
+        SettingsSection.users,
+        SettingsSection.clients,
+      ])
+        (s.name, s.title, Routes.setting(s.name)),
+      for (final k in CatalogKind.values)
+        (k.name, k.title, Routes.catalog(k.name)),
       (
         SettingsSection.storage.name,
-        'Almacenamiento',
+        SettingsSection.storage.title,
         Routes.setting(SettingsSection.storage.name),
       ),
-      ('genstock', 'Genstock', Routes.genstock),
-      (
-        SettingsSection.reminders.name,
-        'Recordatorios',
-        Routes.setting(SettingsSection.reminders.name),
-      ),
-      (
-        SettingsSection.errors.name,
-        'Errores',
-        Routes.setting(SettingsSection.errors.name),
-      ),
+      ('genstock', 'Integración con Genstock', Routes.genstock),
+      for (final s in [SettingsSection.reminders, SettingsSection.errors])
+        (s.name, s.title, Routes.setting(s.name)),
     ],
   ];
 
@@ -71,6 +56,10 @@ class SettingsTabs extends ConsumerWidget {
       key: const ValueKey('settings_tabs'),
       color: context.colors.page,
       child: GenTabBar(
+        // Activa al centro y un degradado del lado con más pestañas
+        // (P27-M2, P28L-M1).
+        centerActive: true,
+        edgeFadeColor: context.colors.page,
         activeIndex: items.indexWhere((i) => i.$1 == current),
         tabs: [for (final i in items) GenTabItem(label: i.$2)],
         onSelect: (index) {

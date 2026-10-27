@@ -10,6 +10,7 @@ import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/repositories/settings_repository.dart';
 import 'package:genwork_mobile/features/settings/genstock_settings_screen.dart';
 import 'package:genwork_mobile/features/settings/settings_providers.dart';
+import 'package:genwork_mobile/shared/widgets/gen_section_header.dart';
 
 import 'resource_operations_test.dart' show user;
 
@@ -66,7 +67,21 @@ Future<List<RequestOptions>> _mount(WidgetTester t, String role) async {
 void main() {
   testWidgets('el admin ve la URL, guarda y prueba la conexión', (t) async {
     final requests = await _mount(t, 'SUPERADMIN');
-    expect(find.text('Integración con Genstock'), findsOneWidget);
+    // Título de la pantalla; la pestaña activa dice lo mismo (P25-M4).
+    expect(
+      find.descendant(
+        of: find.byType(GenSectionHeader),
+        matching: find.text('Integración con Genstock'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('settings_tabs')),
+        matching: find.text('Integración con Genstock'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('URL del server Genstock'), findsOneWidget);
     expect(find.text('Usando configuración guardada'), findsOneWidget);
     await t.enterText(
