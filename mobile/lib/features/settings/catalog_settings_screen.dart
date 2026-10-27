@@ -319,9 +319,9 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
                 label: const Text('Agregar'),
               ),
             if (items.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(AppSpacing.lg),
-                child: Text('No hay elementos en este ámbito.'),
+              const EmptyView(
+                icon: AppIcons.label,
+                message: 'No hay elementos en este ámbito.',
               ),
             for (var i = 0; i < items.length; i++)
               if (scope != 'global' ||

@@ -6,6 +6,7 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import 'app_error_widget.dart';
+import 'app_button_styles.dart';
 import 'app_state_block.dart';
 import 'gen_skeleton.dart';
 
@@ -101,6 +102,7 @@ class EmptyView extends StatelessWidget {
     this.title,
     this.actionLabel,
     this.onAction,
+    this.actionKey,
   });
 
   final String message;
@@ -108,38 +110,68 @@ class EmptyView extends StatelessWidget {
   final String? title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final Key? actionKey;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return AppStateBlock(
-      child: Padding(
+    // Un solo vacío (PS11): card arriba del contenido, ícono de 32 dp de
+    // marca sobre `brandFill`, título 15/600, texto 13/400 y acción tonal.
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: Container(
+        key: const ValueKey('empty_card'),
+        width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _kEmptyMaxWidth),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: AppIconSizes.state, color: c.muted),
-              const SizedBox(height: AppSpacing.md),
-              if (title != null) ...[
-                Text(
-                  title!,
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.dialogTitle.copyWith(color: c.text),
+        decoration: BoxDecoration(
+          color: c.surface,
+          border: Border.all(color: c.border),
+          borderRadius: AppGeometry.card,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _kEmptyMaxWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  key: const ValueKey('empty_icon_tile'),
+                  width: AppSpacing.xxxl,
+                  height: AppSpacing.xxxl,
+                  decoration: BoxDecoration(
+                    color: c.brandFill,
+                    borderRadius: AppGeometry.card,
+                  ),
+                  child: Icon(icon, size: AppIconSizes.empty, color: c.brand),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-              ],
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(color: c.muted),
-              ),
-              if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: AppSpacing.sm),
-                FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+                if (title != null) ...[
+                  Text(
+                    title!,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.cardTitle.copyWith(color: c.text),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                ],
+                if (message.isNotEmpty)
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(color: c.muted),
+                  ),
+                // Sin onAction, el botón queda deshabilitado (p. ej. mientras guarda).
+                if (actionLabel != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton.tonal(
+                    key: actionKey,
+                    style: AppButtonStyles.tonal(context),
+                    onPressed: onAction,
+                    child: Text(actionLabel!),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

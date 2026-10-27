@@ -123,11 +123,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                 onRetry: () => ref.invalidate(deliveriesProvider),
               ),
             if (deliveries.hasValue && deliveries.requireValue.isEmpty)
-              const WorkspacePanel(
-                child: ListTile(
-                  title: Text('Estás al día'),
-                  subtitle: Text('No tenés avisos pendientes.'),
-                ),
+              const EmptyView(
+                icon: AppIcons.check,
+                title: 'Estás al día',
+                message: 'No tenés avisos pendientes.',
               ),
             if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
               WorkspaceListPanel(
@@ -220,11 +219,10 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                 onRetry: () => ref.invalidate(deliveriesProvider),
               ),
             if (deliveries.hasValue && deliveries.requireValue.isEmpty)
-              const WorkspacePanel(
-                child: ListTile(
-                  title: Text('Estás al día'),
-                  subtitle: Text('No tenés avisos pendientes.'),
-                ),
+              const EmptyView(
+                icon: AppIcons.check,
+                title: 'Estás al día',
+                message: 'No tenés avisos pendientes.',
               ),
             if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
               WorkspaceListPanel(

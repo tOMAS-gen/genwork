@@ -19,4 +19,11 @@ abstract final class AppButtonStyles {
         foregroundColor: context.colors.danger,
         side: BorderSide(color: context.colors.danger),
       );
+
+  /// Tonal (D7): `brandFill` con texto de marca. El tema de FilledButton
+  /// pisaría los colores de `FilledButton.tonal`, así que van explícitos.
+  static ButtonStyle tonal(BuildContext context) => FilledButton.styleFrom(
+    backgroundColor: context.colors.brandFill,
+    foregroundColor: context.colors.brand,
+  );
 }

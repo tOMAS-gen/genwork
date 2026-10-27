@@ -229,12 +229,12 @@ Plan: [plan-implementacion-premium.md](plan-implementacion-premium.md). Cada tar
 **Descripción:** Todos los vacíos tienen la misma forma: card de radio 8 anclada a 48 dp de la cabecera, ícono de 32 dp en `brandFill`, título 15/600 y texto 13/400 gris. Si hay una acción, va como botón tonal.
 
 **Criterios de aceptación:**
-- [ ] P18, P19, P20, P22, P24a, P28, P29 y P32 usan el mismo componente.
-- [ ] El vacío sigue anunciándose con `liveRegion`.
+- [x] P18, P19, P20, P22, P24a, P28, P29 y P32 usan el mismo componente.
+- [x] El vacío sigue anunciándose con `liveRegion`.
 
 **Verificación:**
-- [ ] `state_views_test` cubre ícono, título, texto y acción.
-- [ ] Capturas de P18, P20 y P22.
+- [x] `state_views_test` cubre ícono, título, texto y acción.
+- [x] Capturas de P18, P20 y P22. Vence hoy tiene un aviso en los datos semilla, así que su captura no muestra el vacío.
 
 **Depende de:** 7 · **Archivos:** `shared/widgets/state_views.dart`, `shared/widgets/app_state_block.dart`, `test/shared/state_views_test.dart` · **Tamaño:** S
 

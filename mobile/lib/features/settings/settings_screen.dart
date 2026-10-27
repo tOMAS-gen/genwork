@@ -480,7 +480,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               style: AppTextStyles.body.copyWith(color: context.colors.muted),
             ),
           ),
-          if (list.isEmpty) const Text('No hay usuarios internos.'),
+          if (list.isEmpty)
+            const EmptyView(
+              icon: AppIcons.groups,
+              message: 'No hay usuarios internos.',
+            ),
           if (list.isNotEmpty)
             SettingsGroup(
               children: [
@@ -504,19 +508,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             addClient,
             icon: AppIcons.personAdd,
           ),
-          if (list.isEmpty) const Text('No hay clientes externos.'),
+          if (list.isEmpty)
+            const EmptyView(
+              icon: AppIcons.view,
+              message: 'No hay clientes externos.',
+            ),
           for (final raw in list) clientCard(Json.from(raw as Map)),
         ];
       case SettingsSection.errors:
         return [
           if (list.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Text(
-                _filter == null
-                    ? 'No hay errores registrados.'
-                    : 'No hay errores en este estado.',
-              ),
+            EmptyView(
+              icon: AppIcons.check,
+              message: _filter == null
+                  ? 'No hay errores registrados.'
+                  : 'No hay errores en este estado.',
             ),
           for (final raw in list)
             tile(
@@ -571,8 +577,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               if (connections.isEmpty)
-                const Text(
-                  'Todavía no tenés tokens. Generá uno para vincular Claude.',
+                const EmptyView(
+                  icon: AppIcons.link,
+                  message:
+                      'Todavía no tenés tokens. Generá uno para vincular Claude.',
                 ),
               for (final c in connections)
                 ListTile(

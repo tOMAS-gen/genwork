@@ -555,6 +555,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                               alignment: Alignment.centerRight,
                               child: FilledButton.tonal(
                                 key: const ValueKey('task_description_save'),
+                                style: AppButtonStyles.tonal(context),
                                 onPressed: () {
                                   final text = value.text.trim();
                                   _run(

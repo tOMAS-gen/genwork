@@ -339,70 +339,41 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
                 onRetry: _reload,
                 data: (data) {
                   if (!data.ready) {
-                    return Center(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              AppIcons.projects,
-                              size: AppIconSizes.state,
-                              color: context.colors.muted,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            Text(
-                              data.folderEnabled == true
-                                  ? 'La carpeta se está preparando'
-                                  : 'Carpeta no habilitada',
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.dialogTitle.copyWith(
-                                color: context.colors.text,
-                              ),
-                            ),
-                            if (data.folderEnabled != true) ...[
-                              const SizedBox(height: AppSpacing.xs),
-                              Text(
-                                'Este proyecto todavía no tiene carpeta de archivos. Habilitala para poder subir, organizar y compartir documentos.',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.body.copyWith(
-                                  color: context.colors.muted,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: AppSpacing.md),
-                            if (data.folderEnabled == false && data.canEnable)
-                              FilledButton(
-                                key: const ValueKey('files_enable'),
-                                onPressed: _busy
-                                    ? null
-                                    : () => _run(
-                                        () => ref
-                                            .read(filesRepositoryProvider)
-                                            .enable(widget.workId),
-                                      ),
-                                child: const Text('Habilitar carpeta'),
-                              ),
-                            if (data.folderEnabled == true)
-                              TextButton(
-                                onPressed: _reload,
-                                child: const Text('Reintentar'),
-                              ),
-                            if (data.folderEnabled == false && !data.canEnable)
-                              Text(
-                                'Un administrador puede habilitar la carpeta.',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.body.copyWith(
-                                  color: context.colors.muted,
-                                ),
-                              ),
-                          ],
-                        ),
+                    final enabling = data.folderEnabled == true;
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: EmptyView(
+                        icon: AppIcons.projects,
+                        title: enabling
+                            ? 'La carpeta se está preparando'
+                            : 'Carpeta no habilitada',
+                        message: enabling
+                            ? ''
+                            : 'Este proyecto todavía no tiene carpeta de archivos. Habilitala para poder subir, organizar y compartir documentos.'
+                                  '${data.canEnable ? '' : '\n\nUn administrador puede habilitar la carpeta.'}',
+                        actionKey: enabling
+                            ? null
+                            : const ValueKey('files_enable'),
+                        actionLabel: enabling
+                            ? 'Reintentar'
+                            : data.canEnable
+                            ? 'Habilitar carpeta'
+                            : null,
+                        onAction: enabling
+                            ? _reload
+                            : data.canEnable && !_busy
+                            ? () => _run(
+                                () => ref
+                                    .read(filesRepositoryProvider)
+                                    .enable(widget.workId),
+                              )
+                            : null,
                       ),
                     );
                   }
                   if (data.files.isEmpty) {
-                    return const Center(
+                    return const SingleChildScrollView(
+                      padding: EdgeInsets.all(AppSpacing.md),
                       child: EmptyView(
                         icon: AppIcons.projects,
                         title: 'Carpeta vacía',

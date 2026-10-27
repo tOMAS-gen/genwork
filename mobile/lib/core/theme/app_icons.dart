@@ -22,8 +22,11 @@ abstract final class AppIconSizes {
   /// Encabezado de página.
   static const header = 22.0;
 
-  /// Estado vacío.
+  /// Estado de error a pantalla completa.
   static const state = 48.0;
+
+  /// Ícono del estado vacío, sobre su recuadro de `brandFill` (PS11).
+  static const empty = 32.0;
 }
 
 abstract final class AppIcons {

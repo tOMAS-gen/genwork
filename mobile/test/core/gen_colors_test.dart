@@ -55,6 +55,13 @@ void main() {
     }
   });
 
+  // D7: el botón tonal (texto de marca sobre brandFill) se lee a 4,5:1.
+  test('tonal: marca sobre brandFill a 4,5:1 en ambos temas', () {
+    for (final c in [GenColors.light, GenColors.dark]) {
+      expect(appContrastRatio(c.brand, c.brandFill), greaterThanOrEqualTo(4.5));
+    }
+  });
+
   // D10: verde y ámbar desaturados en oscuro, sin perder 4,5:1.
   test('verde y ámbar oscuros legibles y sin vibrar', () {
     const d = GenColors.dark;

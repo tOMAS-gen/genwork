@@ -45,12 +45,12 @@ class WorkActivityScreen extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: entries.isEmpty ? 1 : entries.length,
           itemBuilder: (_, i) => entries.isEmpty
-              // Como la pestaña web: el aviso en texto, sin ícono.
-              ? Text(
-                  'Todavía no hay acciones de un asistente de IA en este proyecto.',
-                  style: AppTextStyles.body.copyWith(
-                    color: context.colors.muted,
-                  ),
+              // El mismo vacío que Archivos (P19-M1).
+              ? const EmptyView(
+                  icon: AppIcons.schedule,
+                  title: 'Sin actividad todavía',
+                  message:
+                      'Todavía no hay acciones de un asistente de IA en este proyecto.',
                 )
               : ListTile(
                   title: Text(entries[i]['summary'] as String? ?? ''),
