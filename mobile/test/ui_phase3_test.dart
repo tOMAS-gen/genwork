@@ -496,7 +496,7 @@ void main() {
       )!;
       expect(route, isA<MaterialPageRoute<void>>());
       expect((route as MaterialPageRoute<void>).fullscreenDialog, isTrue);
-      // AppBar de 48 con el cierre y la tarea como título.
+      // AppBar de 64 con el cierre, la marca y la miga (boceto P09).
       expect(
         tester
             .getSize(
@@ -506,7 +506,7 @@ void main() {
               ),
             )
             .height,
-        48,
+        64,
       );
       // La barra dice de dónde es la tarea; el título va en el cuerpo
       // (piloto premium P09).

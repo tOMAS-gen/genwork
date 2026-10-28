@@ -276,10 +276,13 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
         // La marca y, debajo, de dónde es la tarea; el título va en el
         // cuerpo (D1, boceto P09).
         centerTitle: true,
+        // Más alta que la de las listas: la marca y la miga respiran.
+        toolbarHeight: AppSpace.hero,
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const BrandName(),
+            const BrandName(size: BrandName.headerSize),
+            const SizedBox(height: AppSpace.xxs),
             if (contextLabel != null)
               Text(
                 contextLabel,
@@ -922,7 +925,7 @@ class _MoreMenu extends StatelessWidget {
   Widget build(BuildContext context) => PopupMenuButton<_MoreAction>(
     key: const ValueKey('task_more'),
     tooltip: 'Más acciones',
-    icon: const Icon(AppIcons.moreHorizontal),
+    icon: const Icon(AppIcons.moreVertical),
     onSelected: onSelected,
     itemBuilder: (context) => [
       if (canMoveToObjective)

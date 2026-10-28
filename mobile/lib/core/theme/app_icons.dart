@@ -60,6 +60,9 @@ abstract final class AppIcons {
 
   /// Menú de acciones de una card (`MoreHorizontal` de la web).
   static const moreHorizontal = Icons.more_horiz;
+
+  /// Menú de la barra de una pantalla abierta (detalle de tarea, boceto P09).
+  static const moreVertical = Icons.more_vert;
   static const edit = Icons.edit_outlined;
   static const delete = Icons.delete_outline;
   static const copy = Icons.copy_outlined;
