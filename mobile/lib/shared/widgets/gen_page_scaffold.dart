@@ -6,6 +6,7 @@ import 'app_drawer_scope.dart';
 import 'brand_name.dart';
 import 'gen_section_header.dart';
 import 'theme_toggle.dart';
+import 'content_width.dart';
 
 /// Marco de una pantalla de genwork móvil: AppBar de 48 con el botón del
 /// drawer (o `BackButton`) y la marca, [GenSectionHeader] compacto (título,
@@ -78,27 +79,29 @@ class GenPageScaffold extends StatelessWidget {
         ],
       ),
       floatingActionButton: fab,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, _) => [
-          if (top != null) SliverToBoxAdapter(child: top),
-          SliverToBoxAdapter(
-            child: GenSectionHeader(
-              title: title,
-              subtitle: subtitle,
-              count: count,
-              breadcrumb: breadcrumb,
-              actions: actions,
-              bottom: headerBottom,
+      body: ContentWidth(
+        child: NestedScrollView(
+          headerSliverBuilder: (context, _) => [
+            if (top != null) SliverToBoxAdapter(child: top),
+            SliverToBoxAdapter(
+              child: GenSectionHeader(
+                title: title,
+                subtitle: subtitle,
+                count: count,
+                breadcrumb: breadcrumb,
+                actions: actions,
+                bottom: headerBottom,
+              ),
             ),
+          ],
+          // Edge-to-edge (targetSdk 36): el contenido no queda bajo la barra de
+          // navegación ni bajo un recorte lateral (T6). El fondo sí pasa.
+          body: SafeArea(
+            top: false,
+            child: onRefresh == null
+                ? content
+                : RefreshIndicator(onRefresh: onRefresh!, child: content),
           ),
-        ],
-        // Edge-to-edge (targetSdk 36): el contenido no queda bajo la barra de
-        // navegación ni bajo un recorte lateral (T6). El fondo sí pasa.
-        body: SafeArea(
-          top: false,
-          child: onRefresh == null
-              ? content
-              : RefreshIndicator(onRefresh: onRefresh!, child: content),
         ),
       ),
     );

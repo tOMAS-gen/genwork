@@ -144,8 +144,9 @@ Future<void> _pump(
   NotesRepository? notesRepository,
   List<WorkSummary>? works,
   SectorBoard? board,
+  Size size = const Size(360, 800),
 }) async {
-  tester.view.physicalSize = const Size(360, 800);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -336,6 +337,77 @@ void main() {
       },
     );
   }
+  // T7: horizontal y tablet, también sin desborde.
+  for (final size in const [Size(800, 360), Size(1024, 768)]) {
+    testWidgets('pantallas a ${size.width.round()} × ${size.height.round()} '
+        'sin overflow', (tester) async {
+      for (final screen in <Widget>[
+        const MyDayScreen(),
+        const AccountScreen(),
+        const WorksListScreen(),
+        const WorkDetailScreen(workId: 'w1'),
+        const SectorsListScreen(),
+        const SectorDetailScreen(sectorId: 's1'),
+        const NotesListScreen(),
+        const NoteDetailScreen(noteId: 'n1'),
+        const RemindersScreen(),
+        const ReminderFormScreen(),
+      ]) {
+        await _pump(tester, screen, size: size, scale: 1.3);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${screen.runtimeType} a $size',
+        );
+      }
+    });
+  }
+  testWidgets('T7: a 1024 dp el menú queda fijo y el contenido mide 720', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      shell: true,
+      scale: 1,
+      size: const Size(1024, 768),
+    );
+    expect(tester.takeException(), isNull);
+    // Menú permanente, sin botón para abrirlo.
+    expect(find.byKey(const ValueKey('main_navigation')), findsOneWidget);
+    expect(find.byKey(const ValueKey('drawer_open')), findsNothing);
+    expect(find.byKey(const ValueKey('drawer_close')), findsNothing);
+    // Contenido centrado y acotado.
+    final list = tester.getRect(find.byKey(const ValueKey('works_list')));
+    expect(list.width, lessThanOrEqualTo(720));
+    // Cards de proyecto en dos columnas.
+    final a = tester.getRect(find.byKey(const ValueKey('work_w1')));
+    final b = tester.getRect(find.byKey(const ValueKey('work_w2')));
+    expect(a.top, b.top);
+  });
+  testWidgets('T7: cambiar de ancho en uso no rompe el shell', (tester) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      shell: true,
+      scale: 1,
+      size: const Size(1024, 768),
+    );
+    for (final size in const [
+      Size(360, 800),
+      Size(1024, 768),
+      Size(800, 360),
+    ]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$size');
+    }
+  });
+  testWidgets('T7: a 360 dp el menú sigue siendo modal', (tester) async {
+    await _pump(tester, const WorksListScreen(), shell: true, scale: 1);
+    expect(find.byKey(const ValueKey('main_navigation')), findsNothing);
+    expect(find.byKey(const ValueKey('drawer_open')), findsOneWidget);
+  });
   for (final dark in [false, true]) {
     testWidgets('detalle de tarea en pantalla completa, sin bottom sheet '
         '(${dark ? "oscuro" : "claro"})', (tester) async {

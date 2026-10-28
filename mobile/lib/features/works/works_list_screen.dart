@@ -27,6 +27,7 @@ import 'works_filters_panel.dart';
 import 'work_table.dart';
 import '../sectors/sectors_providers.dart';
 import '../shell/resource_refresh.dart';
+import '../../shared/widgets/content_width.dart';
 
 /// Listado de proyectos: búsqueda local, activos/archivados, favoritos primero.
 class WorksListScreen extends ConsumerStatefulWidget {
@@ -186,6 +187,7 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
     final loaded = works.hasError ? null : works.value;
     final shown = loaded == null ? null : _visible(loaded, userId);
     final lazyCards = _grid && shown != null && shown.isNotEmpty ? shown : null;
+    final columns = ContentWidth.isWide(context) ? 2 : 1;
     return GenPageScaffold(
       title: switch (_view) {
         WorksView.all => 'Todos los Proyectos',
@@ -272,19 +274,42 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
           if (lazyCards != null)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+              // En ventanas anchas, dos cards por fila (T7).
               sliver: SliverList.builder(
-                itemCount: lazyCards.length,
-                itemBuilder: (context, i) {
-                  final work = lazyCards[i];
+                itemCount: (lazyCards.length / columns).ceil(),
+                itemBuilder: (context, row) {
+                  Widget card(WorkSummary work) => WorkCard(
+                    work: work,
+                    onTap: () =>
+                        context.push(Routes.work(work.id, view: _view)),
+                    onFavorite: () => _toggleFavorite(work),
+                    onArchive: () => _toggleArchived(work),
+                  );
+                  final start = row * columns;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpace.md),
-                    child: WorkCard(
-                      work: work,
-                      onTap: () =>
-                          context.push(Routes.work(work.id, view: _view)),
-                      onFavorite: () => _toggleFavorite(work),
-                      onArchive: () => _toggleArchived(work),
-                    ),
+                    child: columns == 1
+                        ? card(lazyCards[start])
+                        : IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (
+                                  var i = start;
+                                  i < start + columns;
+                                  i++
+                                ) ...[
+                                  if (i > start)
+                                    const SizedBox(width: AppSpace.md),
+                                  Expanded(
+                                    child: i < lazyCards.length
+                                        ? card(lazyCards[i])
+                                        : const SizedBox.shrink(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                   );
                 },
               ),

@@ -485,8 +485,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 37: Tablet y ventanas anchas (T7)
 
 **Criterios de aceptación:**
-- [ ] A ≥840 dp, drawer fijo; a ≥600 dp, contenido limitado a ~720 dp y `WorkCard` en grilla.
-- [ ] Sin overflow a 800 × 360 ni a 1024 × 768.
+- [x] A ≥840 dp, drawer fijo; a ≥600 dp, contenido limitado a ~720 dp y `WorkCard` en grilla.
+- [x] Sin overflow a 800 × 360 ni a 1024 × 768.
 
 **Verificación:** el test de overflow corre también en esos dos tamaños (verificación nueva). · **Tamaño:** M
 

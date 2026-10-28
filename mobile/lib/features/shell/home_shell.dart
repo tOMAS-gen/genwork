@@ -26,6 +26,9 @@ import '../works/works_filter.dart';
 import '../sectors/sectors_providers.dart';
 import '../../shared/widgets/initials_avatar.dart';
 
+/// Ancho desde el que el menú queda fijo al costado (T7).
+const double _permanentDrawerAt = 840;
+
 /// Drawer compartido; las ramas siguen vivas al cambiar de sección.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
@@ -150,8 +153,285 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
     );
 
+    final permanent = MediaQuery.sizeOf(context).width >= _permanentDrawerAt;
+    final Widget navigation = Drawer(
+      key: const ValueKey('main_navigation'),
+      // Fijo, es una columna más: sin sombra ni curva.
+      elevation: permanent ? 0 : null,
+      shape: permanent ? const RoundedRectangleBorder() : null,
+      width: math.min(
+        AppGeometry.drawerWidth,
+        MediaQuery.sizeOf(context).width - AppSpacing.xxxl,
+      ),
+      semanticLabel: 'Menú principal',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: colors.border)),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Cabecera del drawer de la web: rótulo y cierre.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.xxs,
+                  AppSpacing.xxs,
+                  0,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'ESPACIO DE TRABAJO',
+                        style: AppTextStyles.sectionLabel.copyWith(
+                          color: colors.muted,
+                        ),
+                      ),
+                    ),
+                    // Fijo al costado no se cierra.
+                    if (!permanent)
+                      IconButton(
+                        key: const ValueKey('drawer_close'),
+                        tooltip: 'Cerrar menú',
+                        onPressed: _closeDrawer,
+                        icon: const Icon(AppIcons.close),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  key: const ValueKey('drawer_list'),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  children: [
+                    _Profile(
+                      name: user.name,
+                      email: user.email,
+                      image: user.image,
+                    ),
+                    top(
+                      id: 'nav_notes',
+                      icon: AppIcons.notes,
+                      label: 'Mis notas',
+                      selected: currentBranch == 3,
+                      onTap: () => _branch(3),
+                    ),
+                    top(
+                      id: 'nav_day',
+                      icon: AppIcons.myDay,
+                      label: 'Mi día y referencias',
+                      selected: currentBranch == 0,
+                      onTap: () => _branch(0),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    DrawerResourceSection(
+                      id: 'works',
+                      title: 'Proyectos',
+                      icon: AppIcons.notes,
+                      itemIcon: AppIcons.notes,
+                      itemLabel: DrawerItemLabel.suffix,
+                      expanded: _worksExpanded,
+                      onToggle: () =>
+                          setState(() => _worksExpanded = !_worksExpanded),
+                      onVisit: () => _branch(1),
+                      onViewAll: () => _route(Routes.works),
+                      value: works,
+                      onRetry: () => ref.invalidate(worksListProvider(false)),
+                      onOpenItem: (id) => _route(Routes.work(id)),
+                      selectedItemId: path.startsWith('${Routes.works}/')
+                          ? uri.pathSegments.last
+                          : null,
+                      shortcuts: [
+                        for (final view in WorksView.values) ...[
+                          // Plantillas va entre Favoritos y Archivados.
+                          if (view == WorksView.archived)
+                            DrawerTile(
+                              id: 'nav_templates',
+                              compact: true,
+                              icon: AppIcons.templates,
+                              label: 'Plantillas de objetivo',
+                              selected: currentBranch == 7,
+                              onTap: () => _branch(7),
+                            ),
+                          DrawerTile(
+                            id: 'nav_works_${view.name}',
+                            compact: true,
+                            icon: switch (view) {
+                              WorksView.all => AppIcons.gridView,
+                              WorksView.mine => AppIcons.person,
+                              WorksView.favorites => AppIcons.favorite,
+                              WorksView.archived => AppIcons.archived,
+                            },
+                            label: view.label,
+                            selected: path == Routes.works && worksView == view,
+                            onTap: () => _route(Routes.worksList(view)),
+                          ),
+                        ],
+                      ],
+                    ),
+                    DrawerResourceSection(
+                      id: 'sectors',
+                      title: 'Sectores',
+                      icon: AppIcons.sectors,
+                      itemIcon: AppIcons.sectors,
+                      itemLabel: DrawerItemLabel.suffix,
+                      expanded: _sectorsExpanded,
+                      onToggle: () =>
+                          setState(() => _sectorsExpanded = !_sectorsExpanded),
+                      onVisit: () => _branch(2),
+                      onViewAll: () => _route(Routes.sectors),
+                      value: sectors,
+                      onRetry: () => ref.invalidate(sectorsProvider),
+                      onOpenItem: (id) => _route(Routes.sector(id)),
+                      selectedItemId: path.startsWith('${Routes.sectors}/')
+                          ? uri.pathSegments.last
+                          : null,
+                    ),
+                    DrawerResourceSection(
+                      id: 'groups',
+                      title: 'Grupos',
+                      icon: AppIcons.groups,
+                      itemIcon: AppIcons.groups,
+                      expanded: _groupsExpanded,
+                      onToggle: () =>
+                          setState(() => _groupsExpanded = !_groupsExpanded),
+                      onVisit: () => _branch(5),
+                      onViewAll: () => _route(Routes.groups),
+                      value: groups,
+                      onRetry: () => ref.invalidate(groupsProvider),
+                      onOpenItem: (id) => _route(Routes.group(id)),
+                      selectedItemId: path.startsWith('${Routes.groups}/')
+                          ? uri.pathSegments[1]
+                          : null,
+                    ),
+                    top(
+                      id: 'nav_board',
+                      icon: AppIcons.dashboard,
+                      label: 'Vista de tareas',
+                      selected: currentBranch == 6,
+                      onTap: () => _branch(6),
+                    ),
+                    top(
+                      id: 'nav_materials',
+                      icon: AppIcons.materials,
+                      label: 'Materiales',
+                      selected: path == Routes.materials,
+                      onTap: () => _route(Routes.materials),
+                    ),
+                    top(
+                      id: 'nav_reminders',
+                      icon: AppIcons.calendarToday,
+                      label: 'Recordatorios',
+                      selected:
+                          path == Routes.reminders ||
+                          path.startsWith('${Routes.reminders}/'),
+                      onTap: () => _route(Routes.reminders),
+                    ),
+                    // Solo en la app: la bandeja de avisos push.
+                    top(
+                      id: 'nav_notifications',
+                      icon: AppIcons.bell,
+                      label: 'Notificaciones',
+                      selected: path == Routes.notifications,
+                      trailing: unread > 0
+                          ? CountBadge(
+                              count: unread,
+                              singular: 'aviso sin leer',
+                              plural: 'avisos sin leer',
+                            )
+                          : null,
+                      onTap: () => _route(Routes.notifications),
+                    ),
+                    top(
+                      id: 'nav_settings',
+                      icon: AppIcons.settings,
+                      label: 'Configuración',
+                      selected: path.startsWith(Routes.settings),
+                      onTap: () => _route(Routes.settings),
+                    ),
+                    top(
+                      id: 'nav_account',
+                      icon: AppIcons.person,
+                      label: 'Mi cuenta',
+                      selected: path == Routes.account,
+                      onTap: () => _route(Routes.account),
+                    ),
+                  ],
+                ),
+              ),
+              // Pie fijo, como `.sidebar-footer`.
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: colors.border)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      top(
+                        id: 'nav_due_today',
+                        icon: AppIcons.bell,
+                        label: 'Vence hoy',
+                        selected: path == Routes.dueToday,
+                        trailing:
+                            deliveries.value != null &&
+                                deliveries.value!.isNotEmpty
+                            ? CountBadge(
+                                key: const ValueKey('nav_due_today_total'),
+                                count: deliveries.value!.length,
+                                singular: 'aviso pendiente',
+                                plural: 'avisos pendientes',
+                              )
+                            : deliveries.hasError
+                            ? const Icon(
+                                AppIcons.error,
+                                semanticLabel:
+                                    'No se pudieron actualizar los avisos',
+                              )
+                            : null,
+                        onTap: () {
+                          ref.invalidate(deliveriesProvider);
+                          _route(Routes.dueToday);
+                        },
+                      ),
+                      // Solo en la app: abre la lista sin cerrar la
+                      // sesión de este servidor.
+                      top(
+                        id: 'drawer_switch_server',
+                        icon: AppIcons.server,
+                        label: 'Cambiar de servidor',
+                        subtitle: session.serverUrl.host,
+                        selected: false,
+                        onTap: () {
+                          _closeDrawer();
+                          context.push(Routes.servers);
+                        },
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                        ),
+                        child: LogoutTile(
+                          actionKey: 'nav_logout',
+                          label: 'Salir',
+                          plain: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
     return AppDrawerScope(
       openDrawer: _openDrawer,
+      permanent: permanent,
       // Con el menú abierto, atrás lo cierra. Sin esto, en Android 14+ el
       // sistema cierra la app: Flutter solo recibe el atrás si avisa que lo
       // maneja, y el shell es la raíz del navegador (hallazgo 4).
@@ -167,287 +447,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
           drawerEnableOpenDragGesture:
               !path.startsWith('${Routes.notes}/') &&
               !path.startsWith('${Routes.reminders}/'),
-          drawer: Drawer(
-            key: const ValueKey('main_navigation'),
-            width: math.min(
-              AppGeometry.drawerWidth,
-              MediaQuery.sizeOf(context).width - AppSpacing.xxxl,
-            ),
-            semanticLabel: 'Menú principal',
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: colors.border)),
-              ),
-              child: SafeArea(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+          drawer: permanent ? null : navigation,
+          // A partir de 840 dp el menú queda fijo al costado (T7).
+          body: permanent
+              ? Row(
                   children: [
-                    // Cabecera del drawer de la web: rótulo y cierre.
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.xxs,
-                        AppSpacing.xxs,
-                        0,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'ESPACIO DE TRABAJO',
-                              style: AppTextStyles.sectionLabel.copyWith(
-                                color: colors.muted,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            key: const ValueKey('drawer_close'),
-                            tooltip: 'Cerrar menú',
-                            onPressed: _closeDrawer,
-                            icon: const Icon(AppIcons.close),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        key: const ValueKey('drawer_list'),
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        children: [
-                          _Profile(
-                            name: user.name,
-                            email: user.email,
-                            image: user.image,
-                          ),
-                          top(
-                            id: 'nav_notes',
-                            icon: AppIcons.notes,
-                            label: 'Mis notas',
-                            selected: currentBranch == 3,
-                            onTap: () => _branch(3),
-                          ),
-                          top(
-                            id: 'nav_day',
-                            icon: AppIcons.myDay,
-                            label: 'Mi día y referencias',
-                            selected: currentBranch == 0,
-                            onTap: () => _branch(0),
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          DrawerResourceSection(
-                            id: 'works',
-                            title: 'Proyectos',
-                            icon: AppIcons.notes,
-                            itemIcon: AppIcons.notes,
-                            itemLabel: DrawerItemLabel.suffix,
-                            expanded: _worksExpanded,
-                            onToggle: () => setState(
-                              () => _worksExpanded = !_worksExpanded,
-                            ),
-                            onVisit: () => _branch(1),
-                            onViewAll: () => _route(Routes.works),
-                            value: works,
-                            onRetry: () =>
-                                ref.invalidate(worksListProvider(false)),
-                            onOpenItem: (id) => _route(Routes.work(id)),
-                            selectedItemId: path.startsWith('${Routes.works}/')
-                                ? uri.pathSegments.last
-                                : null,
-                            shortcuts: [
-                              for (final view in WorksView.values) ...[
-                                // Plantillas va entre Favoritos y Archivados.
-                                if (view == WorksView.archived)
-                                  DrawerTile(
-                                    id: 'nav_templates',
-                                    compact: true,
-                                    icon: AppIcons.templates,
-                                    label: 'Plantillas de objetivo',
-                                    selected: currentBranch == 7,
-                                    onTap: () => _branch(7),
-                                  ),
-                                DrawerTile(
-                                  id: 'nav_works_${view.name}',
-                                  compact: true,
-                                  icon: switch (view) {
-                                    WorksView.all => AppIcons.gridView,
-                                    WorksView.mine => AppIcons.person,
-                                    WorksView.favorites => AppIcons.favorite,
-                                    WorksView.archived => AppIcons.archived,
-                                  },
-                                  label: view.label,
-                                  selected:
-                                      path == Routes.works && worksView == view,
-                                  onTap: () => _route(Routes.worksList(view)),
-                                ),
-                              ],
-                            ],
-                          ),
-                          DrawerResourceSection(
-                            id: 'sectors',
-                            title: 'Sectores',
-                            icon: AppIcons.sectors,
-                            itemIcon: AppIcons.sectors,
-                            itemLabel: DrawerItemLabel.suffix,
-                            expanded: _sectorsExpanded,
-                            onToggle: () => setState(
-                              () => _sectorsExpanded = !_sectorsExpanded,
-                            ),
-                            onVisit: () => _branch(2),
-                            onViewAll: () => _route(Routes.sectors),
-                            value: sectors,
-                            onRetry: () => ref.invalidate(sectorsProvider),
-                            onOpenItem: (id) => _route(Routes.sector(id)),
-                            selectedItemId:
-                                path.startsWith('${Routes.sectors}/')
-                                ? uri.pathSegments.last
-                                : null,
-                          ),
-                          DrawerResourceSection(
-                            id: 'groups',
-                            title: 'Grupos',
-                            icon: AppIcons.groups,
-                            itemIcon: AppIcons.groups,
-                            expanded: _groupsExpanded,
-                            onToggle: () => setState(
-                              () => _groupsExpanded = !_groupsExpanded,
-                            ),
-                            onVisit: () => _branch(5),
-                            onViewAll: () => _route(Routes.groups),
-                            value: groups,
-                            onRetry: () => ref.invalidate(groupsProvider),
-                            onOpenItem: (id) => _route(Routes.group(id)),
-                            selectedItemId: path.startsWith('${Routes.groups}/')
-                                ? uri.pathSegments[1]
-                                : null,
-                          ),
-                          top(
-                            id: 'nav_board',
-                            icon: AppIcons.dashboard,
-                            label: 'Vista de tareas',
-                            selected: currentBranch == 6,
-                            onTap: () => _branch(6),
-                          ),
-                          top(
-                            id: 'nav_materials',
-                            icon: AppIcons.materials,
-                            label: 'Materiales',
-                            selected: path == Routes.materials,
-                            onTap: () => _route(Routes.materials),
-                          ),
-                          top(
-                            id: 'nav_reminders',
-                            icon: AppIcons.calendarToday,
-                            label: 'Recordatorios',
-                            selected:
-                                path == Routes.reminders ||
-                                path.startsWith('${Routes.reminders}/'),
-                            onTap: () => _route(Routes.reminders),
-                          ),
-                          // Solo en la app: la bandeja de avisos push.
-                          top(
-                            id: 'nav_notifications',
-                            icon: AppIcons.bell,
-                            label: 'Notificaciones',
-                            selected: path == Routes.notifications,
-                            trailing: unread > 0
-                                ? CountBadge(
-                                    count: unread,
-                                    singular: 'aviso sin leer',
-                                    plural: 'avisos sin leer',
-                                  )
-                                : null,
-                            onTap: () => _route(Routes.notifications),
-                          ),
-                          top(
-                            id: 'nav_settings',
-                            icon: AppIcons.settings,
-                            label: 'Configuración',
-                            selected: path.startsWith(Routes.settings),
-                            onTap: () => _route(Routes.settings),
-                          ),
-                          top(
-                            id: 'nav_account',
-                            icon: AppIcons.person,
-                            label: 'Mi cuenta',
-                            selected: path == Routes.account,
-                            onTap: () => _route(Routes.account),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Pie fijo, como `.sidebar-footer`.
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: colors.border)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.xxs,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            top(
-                              id: 'nav_due_today',
-                              icon: AppIcons.bell,
-                              label: 'Vence hoy',
-                              selected: path == Routes.dueToday,
-                              trailing:
-                                  deliveries.value != null &&
-                                      deliveries.value!.isNotEmpty
-                                  ? CountBadge(
-                                      key: const ValueKey(
-                                        'nav_due_today_total',
-                                      ),
-                                      count: deliveries.value!.length,
-                                      singular: 'aviso pendiente',
-                                      plural: 'avisos pendientes',
-                                    )
-                                  : deliveries.hasError
-                                  ? const Icon(
-                                      AppIcons.error,
-                                      semanticLabel:
-                                          'No se pudieron actualizar los avisos',
-                                    )
-                                  : null,
-                              onTap: () {
-                                ref.invalidate(deliveriesProvider);
-                                _route(Routes.dueToday);
-                              },
-                            ),
-                            // Solo en la app: abre la lista sin cerrar la
-                            // sesión de este servidor.
-                            top(
-                              id: 'drawer_switch_server',
-                              icon: AppIcons.server,
-                              label: 'Cambiar de servidor',
-                              subtitle: session.serverUrl.host,
-                              selected: false,
-                              onTap: () {
-                                _closeDrawer();
-                                context.push(Routes.servers);
-                              },
-                            ),
-                            const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xs,
-                              ),
-                              child: LogoutTile(
-                                actionKey: 'nav_logout',
-                                label: 'Salir',
-                                plain: true,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    navigation,
+                    Expanded(child: widget.navigationShell),
                   ],
-                ),
-              ),
-            ),
-          ),
-          body: widget.navigationShell,
+                )
+              : widget.navigationShell,
         ),
       ),
     );
@@ -461,7 +470,6 @@ class _Profile extends StatelessWidget {
 
   final String name, email;
   final String? image;
-
 
   @override
   Widget build(BuildContext context) {
