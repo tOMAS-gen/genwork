@@ -4562,3 +4562,108 @@ a.my-day-source:hover {
 .work-title-line h1 {
   font-size: 20px;
 }
+
+/* Las pantallas que arman su cabecera a mano siguen la misma escala. */
+.sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+.sheet-desc {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Spec 066, T41: filas de ajuste agrupadas, como la app ----
+   Rótulo 11/700 en mayúsculas, una card por grupo y filas de 56 px con ícono
+   de 20 gris, título 15/600, una línea de descripción y chevron. */
+.settings-group + .settings-group {
+  margin-top: 16px;
+}
+.settings-group-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.settings-group-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 12px 8px 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+.settings-row + .settings-row {
+  border-top: 1px solid var(--border);
+}
+a.settings-row:hover {
+  background: var(--hover-soft);
+}
+.settings-row-icon,
+.settings-row-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.settings-row-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.settings-row-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.settings-row-subtitle {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* Spec 066, T41: una receta de campo, como `LabeledField` de la app:
+   rótulo arriba en 12/600 gris, 6 px hasta el campo. */
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Spec 066, T41: un solo estado vacío, como `EmptyView` de la app: card con
+   borde, ícono de 32 en una caja de 48 sobre el acento suave, título 15/600 y
+   el texto en 13 gris. */
+.empty-state {
+  min-height: 0;
+  margin: 0;
+  padding: 24px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.empty-state-icon {
+  box-sizing: border-box;
+  padding: 8px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.empty-state-title {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.empty-state-description {
+  font-size: 13px;
+}

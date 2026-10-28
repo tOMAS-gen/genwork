@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { Trash2 } from "@/components/ui/icons";
+import { Menu } from "@/components/ui/Menu";
 
 /**
  * Alta y baja de clientes externos (feature 059, US1).
@@ -130,15 +130,11 @@ export default function ClientsAdminPage() {
                 >
                   {c.firstLoginAt ? "Activo" : "Invitado"}
                 </span>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => void remove(c)}
-                  aria-label={`Dar de baja a ${c.name}`}
-                  title="Dar de baja"
-                >
-                  <Trash2 size={15} />
-                </button>
+                {/* «Dar de baja» dentro del «⋯», como la app (spec 066, T41). */}
+                <Menu
+                  label={`Acciones de ${c.name}`}
+                  items={[{ label: "Dar de baja", danger: true, onSelect: () => void remove(c) }]}
+                />
               </div>
             </div>
             <div className="muted" style={{ marginTop: 6 }}>

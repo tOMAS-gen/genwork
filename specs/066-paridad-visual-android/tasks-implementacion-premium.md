@@ -530,7 +530,7 @@ Antes de tocar Next.js, leer `node_modules/next/dist/docs/` (AGENTS.md). El deta
 ## Tarea 41: Web — filas, acciones, campos y vacíos
 
 **Criterios de aceptación:**
-- [ ] Filas de ajustes agrupadas, acciones en "⋯", una receta de campo y un estado vacío, como en Android.
+- [x] Filas de ajustes agrupadas, acciones en "⋯", una receta de campo y un estado vacío, como en Android.
 
 **Verificación:** tests de la web en verde; capturas de Configuración. · **Tamaño:** M
 

@@ -94,7 +94,6 @@ export default function MaterialsPage() {
       <div className="sheet-header">
         <div>
           <div className="sheet-title-row">
-            <Package size={24} className="muted" />
             <h1 className="sheet-title">Materiales</h1>
           </div>
           <p className="sheet-desc">Totales consolidados de proyectos activos visibles.</p>
