@@ -48,6 +48,32 @@ class ColorPalette extends StatelessWidget {
     '#92400e',
   ];
 
+  /// Nombre de cada color para TalkBack (T10): se anuncia «Rojo», no el
+  /// hexadecimal.
+  static const _names = {
+    '#3b5bfa': 'Azul de marca',
+    '#ef4444': 'Rojo',
+    '#f97316': 'Naranja',
+    '#f59e0b': 'Ámbar',
+    '#84cc16': 'Lima',
+    '#22c55e': 'Verde',
+    '#10b981': 'Esmeralda',
+    '#14b8a6': 'Turquesa',
+    '#0ea5e9': 'Celeste',
+    '#3b82f6': 'Azul',
+    '#6366f1': 'Índigo',
+    '#8b5cf6': 'Violeta',
+    '#d946ef': 'Fucsia',
+    '#ec4899': 'Rosa',
+    '#6b7280': 'Gris',
+    '#475569': 'Pizarra',
+    '#92400e': 'Marrón',
+  };
+
+  /// Nombre legible de [hex]; «Color personalizado» si no es de la paleta.
+  static String nameOf(String hex) =>
+      _names[hex.toLowerCase()] ?? 'Color personalizado';
+
   /// Lado visual de cada swatch.
   static const double swatchSize = 32;
 
@@ -91,12 +117,16 @@ class _Swatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = colorFromHex(hex);
+    // Un solo anuncio, con el nombre del color (T10).
     return Semantics(
-      label: 'Color $hex',
+      label: ColorPalette.nameOf(hex),
       selected: selected,
+      button: true,
+      enabled: onTap != null,
+      onTap: onTap,
+      excludeSemantics: true,
       child: IconButton(
         key: ValueKey('color_$hex'),
-        tooltip: 'Color $hex',
         style: IconButton.styleFrom(
           backgroundColor: color,
           fixedSize: const Size.square(ColorPalette.swatchSize),

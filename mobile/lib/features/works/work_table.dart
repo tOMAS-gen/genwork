@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
@@ -68,41 +69,67 @@ class WorkTable extends StatelessWidget {
       final pct = work.progress.total == 0
           ? null
           : (work.progress.done * 100 / work.progress.total).round();
+      // Una sola parada por fila (T9): la primera celda lleva la etiqueta
+      // compuesta, abrir y archivar; el resto queda fuera de TalkBack.
       Widget tap(Widget child) => InkWell(
         onTap: () => onOpen(work),
-        child: Padding(padding: padding, child: child),
+        excludeFromSemantics: true,
+        child: ExcludeSemantics(
+          child: Padding(padding: padding, child: child),
+        ),
       );
+      final summary = [
+        work.name,
+        'grupo ${work.groupName ?? 'Personal'}',
+        if (pct != null) '$pct %',
+        if (due != null) 'entrega ${formatDueDate(due)}',
+        ?urgency?.label,
+        worksStatusLabels[status]!.toLowerCase(),
+      ].join(', ');
       return TableRow(
         key: ValueKey('work_row_${work.id}'),
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: c.border)),
         ),
         children: [
-          tap(
-            Row(
-              children: [
-                if (work.color != null) ...[
-                  ColorDot(hex: work.color),
-                  const SizedBox(width: AppSpacing.xs),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        work.name,
-                        style: cell.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      if (due != null)
+          Semantics(
+            label: summary,
+            button: true,
+            onTap: () => onOpen(work),
+            customSemanticsActions: onArchive == null
+                ? null
+                : {
+                    CustomSemanticsAction(
+                      label: work.isArchived ? 'Desarchivar' : 'Archivar',
+                    ): () =>
+                        onArchive!(work),
+                  },
+            child: tap(
+              Row(
+                children: [
+                  if (work.color != null) ...[
+                    ColorDot(hex: work.color),
+                    const SizedBox(width: AppSpacing.xs),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          'Entrega: ${formatDueDate(due, dayMonth: true)}',
-                          style: cell.copyWith(color: c.muted),
+                          work.name,
+                          style: cell.copyWith(fontWeight: FontWeight.w700),
                         ),
-                    ],
+                        if (due != null)
+                          Text(
+                            'Entrega: ${formatDueDate(due, dayMonth: true)}',
+                            style: cell.copyWith(color: c.muted),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           tap(Text(work.groupName ?? 'Personal', style: cell)),
@@ -153,28 +180,34 @@ class WorkTable extends StatelessWidget {
               fill: projectStatusColors(c, status).fill,
             ),
           ),
+          // El «⋯» sigue para el dedo; TalkBack lo ofrece como acción de
+          // la fila.
           onArchive == null
               ? const SizedBox.shrink()
-              : PopupMenuButton<String>(
-                  key: ValueKey('work_row_menu_${work.id}'),
-                  tooltip: 'Acciones del proyecto',
-                  icon: Icon(
-                    AppIcons.moreHorizontal,
-                    size: AppIconSizes.notice,
-                    color: c.muted,
+              : ExcludeSemantics(
+                  child: PopupMenuButton<String>(
+                    key: ValueKey('work_row_menu_${work.id}'),
+                    tooltip: 'Acciones del proyecto',
+                    icon: Icon(
+                      AppIcons.moreHorizontal,
+                      size: AppIconSizes.notice,
+                      color: c.muted,
+                    ),
+                    onSelected: (action) =>
+                        action == 'open' ? onOpen(work) : onArchive!(work),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'open',
+                        child: Text('Abrir proyecto'),
+                      ),
+                      PopupMenuItem(
+                        value: 'archive',
+                        child: Text(
+                          work.isArchived ? 'Desarchivar' : 'Archivar',
+                        ),
+                      ),
+                    ],
                   ),
-                  onSelected: (action) =>
-                      action == 'open' ? onOpen(work) : onArchive!(work),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'open',
-                      child: Text('Abrir proyecto'),
-                    ),
-                    PopupMenuItem(
-                      value: 'archive',
-                      child: Text(work.isArchived ? 'Desarchivar' : 'Archivar'),
-                    ),
-                  ],
                 ),
         ],
       );

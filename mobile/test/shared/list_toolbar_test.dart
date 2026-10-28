@@ -6,6 +6,7 @@ import 'package:genwork_mobile/data/models/work.dart';
 import 'package:genwork_mobile/features/works/work_table.dart';
 import 'package:genwork_mobile/shared/widgets/list_toolbar.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter/rendering.dart';
 
 Future<void> _pump(
   WidgetTester t,
@@ -133,6 +134,46 @@ void main() {
       expect(t.takeException(), isNull);
     });
   }
+
+  testWidgets('T9: cada fila de la tabla es una sola parada de TalkBack', (
+    t,
+  ) async {
+    final handle = t.ensureSemantics();
+    WorkSummary? opened, archived;
+    await _pump(
+      t,
+      WorkTable(
+        works: [
+          WorkSummary.fromJson({
+            'id': 'w',
+            'name': 'Cartelería del local',
+            'groupName': 'QA produccion',
+            'dueDate': '2026-10-29T00:00:00.000Z',
+            'taskCounts': {'done': 1, 'total': 3},
+          }),
+        ],
+        now: DateTime(2026, 10, 26),
+        onOpen: (w) => opened = w,
+        onArchive: (w) => archived = w,
+      ),
+    );
+    const label =
+        'Cartelería del local, grupo QA produccion, 33 %, '
+        'entrega 29/10/2026, 3 días restantes, en progreso';
+    // Una sola parada con la etiqueta compuesta, y nada suelto por celda.
+    expect(find.bySemanticsLabel(label), findsOneWidget);
+    expect(find.bySemanticsLabel('QA produccion'), findsNothing);
+    expect(find.bySemanticsLabel('33%'), findsNothing);
+    t.semantics.tap(find.semantics.byLabel(label));
+    expect(opened?.id, 'w');
+    // Archivar, como acción de la fila (sin el «⋯» como parada aparte).
+    t.semantics.customAction(
+      find.semantics.byLabel(label),
+      const CustomSemanticsAction(label: 'Archivar'),
+    );
+    expect(archived?.id, 'w');
+    handle.dispose();
+  });
 
   testWidgets('WorkTable: columnas de la web y fila que abre el proyecto', (
     t,

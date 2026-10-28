@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
@@ -110,6 +111,27 @@ void main() {
     expect(picked, '#92400e');
     await t.tap(find.byKey(const ValueKey('color_clear')));
     expect(picked, isNull);
+  });
+
+  testWidgets('T10: la paleta anuncia nombres de color, una sola vez', (
+    t,
+  ) async {
+    final handle = t.ensureSemantics();
+    await _mount(t, ColorPalette(value: '#ef4444', onChanged: (_) {}));
+    expect(find.bySemanticsLabel('Rojo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ámbar'), findsOneWidget);
+    expect(find.bySemanticsLabel('Azul de marca'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('#')), findsNothing);
+    expect(
+      t.getSemantics(find.bySemanticsLabel('Rojo')).flagsCollection.isSelected,
+      ui.Tristate.isTrue,
+    );
+    // Todos los colores de la paleta tienen nombre.
+    for (final hex in [...ColorPalette.colors, ColorPalette.defaultColor]) {
+      expect(ColorPalette.nameOf(hex), isNot(contains('#')), reason: hex);
+    }
+    expect(ColorPalette.nameOf('#123456'), 'Color personalizado');
+    handle.dispose();
   });
 
   testWidgets('destructiveFilled usa danger y onError', (t) async {

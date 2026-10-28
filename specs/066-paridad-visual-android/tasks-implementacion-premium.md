@@ -493,8 +493,8 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 38: TalkBack: una parada por fila y colores con nombre (T9, T10)
 
 **Criterios de aceptación:**
-- [ ] Cada fila de la tabla de proyectos es una sola parada con una etiqueta compuesta.
-- [ ] La paleta anuncia "Rojo", "Ámbar"… en lugar del hexadecimal, una sola vez.
+- [x] Cada fila de la tabla de proyectos es una sola parada con una etiqueta compuesta.
+- [x] La paleta anuncia "Rojo", "Ámbar"… en lugar del hexadecimal, una sola vez.
 
 **Verificación:** tests de semántica de la tabla y de `ColorPalette`. · **Tamaño:** S
 
