@@ -17,6 +17,8 @@ import 'package:genwork_mobile/data/repositories/catalogs_repository.dart';
 import 'package:genwork_mobile/features/settings/settings_screen.dart';
 import 'package:genwork_mobile/features/settings/catalog_settings_screen.dart';
 import 'package:genwork_mobile/features/settings/storage_settings.dart';
+import 'package:genwork_mobile/shared/widgets/initials_avatar.dart';
+import 'package:genwork_mobile/shared/widgets/gen_section_header.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -412,6 +414,12 @@ void main() {
   ) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.access));
+    // P26a-M1: el modo como chip y «Editar» como botón de texto.
+    expect(find.byKey(const ValueKey('settings_access_mode')), findsOneWidget);
+    expect(
+      t.widget(find.byKey(const ValueKey('settings_edit_access'))),
+      isA<TextButton>(),
+    );
     await tap(t, 'settings_edit_access');
     await select(t, 'settings_field_mode', 'Dominio');
     await tap(t, 'settings_form_save');
@@ -443,6 +451,18 @@ void main() {
       // contorneados a todo el ancho.
       expect(find.byKey(const ValueKey('settings_user_menu_me')), findsNothing);
       expect(find.byType(OutlinedButton), findsNothing);
+      // P26u-M2/M3: avatar de iniciales y el rol como chip.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings_user_u')),
+          matching: find.byType(InitialsAvatar),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('settings_user_role_u')),
+        findsOneWidget,
+      );
       await tap(t, 'settings_user_menu_u');
       expect(find.byKey(const ValueKey('settings_role_u')), findsOneWidget);
       await tap(t, 'settings_grants_u');
@@ -457,6 +477,14 @@ void main() {
   testWidgets('ADM-02 dar de baja un cliente desde su "⋯"', (t) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.clients));
+    // P27-M5: «Agregar cliente» relleno en la cabecera, junto al título.
+    expect(
+      find.descendant(
+        of: find.byType(GenSectionHeader),
+        matching: find.byKey(const ValueKey('settings_add_client')),
+      ),
+      findsOneWidget,
+    );
     // La única acción a la vista es "Agregar cliente" (P27-M4).
     expect(
       find.byKey(const ValueKey('settings_delete_client_c')),

@@ -25,7 +25,6 @@ class GenPageScaffold extends StatelessWidget {
     required this.body,
     this.subtitle,
     this.count,
-    this.titleVisible = true,
     this.breadcrumb,
     this.actions = const [],
     this.showBack = false,
@@ -43,9 +42,6 @@ class GenPageScaffold extends StatelessWidget {
 
   /// Cantidad junto al título (ver [GenSectionHeader.count]).
   final int? count;
-
-  /// Ver [GenSectionHeader.titleVisible].
-  final bool titleVisible;
 
   /// Miga arriba del título (subpantallas del proyecto).
   final Widget? breadcrumb;
@@ -87,7 +83,6 @@ class GenPageScaffold extends StatelessWidget {
               title: title,
               subtitle: subtitle,
               count: count,
-              titleVisible: titleVisible,
               breadcrumb: breadcrumb,
               actions: actions,
               bottom: headerBottom,

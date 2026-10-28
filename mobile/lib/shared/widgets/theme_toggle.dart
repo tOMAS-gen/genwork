@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/theme/theme_preference.dart';
@@ -68,8 +69,92 @@ class ThemeToggle extends ConsumerWidget {
   }
 }
 
-/// Fila de preferencia "Apariencia" con el [ThemeToggle]: una fila de ajuste
-/// de 56 dp. El tema activo lo dice el control, no un subtítulo (P25-M3).
+/// Alto visual del segmentado del tema (P25-M3); el área táctil sigue siendo
+/// de 48.
+const double _segmentHeight = 32;
+
+/// Ancho de cada opción del segmentado del tema.
+const double _segmentWidth = 44;
+
+/// Segmentado de tres opciones (sistema · claro · oscuro) con borde `outline`
+/// y la activa sobre el acento al 12 % (P25-M3). Sin check: la activa se lee
+/// por el relleno y el color del ícono. Se ve de 32 dp, pero cada opción
+/// responde en 48 (objetivo táctil móvil).
+class ThemeSegmented extends ConsumerWidget {
+  const ThemeSegmented({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(themePreferenceProvider);
+    final c = context.colors;
+    return SizedBox(
+      key: const ValueKey('theme_segmented'),
+      height: kMinInteractiveDimension,
+      width: _segmentWidth * ThemeMode.values.length,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // El marco de 32 dp, detrás de las tres opciones.
+          Container(
+            height: _segmentHeight,
+            decoration: BoxDecoration(
+              border: Border.all(color: c.outline),
+              borderRadius: AppGeometry.control,
+            ),
+          ),
+          Row(
+            children: [
+              for (final mode in ThemeMode.values)
+                Semantics(
+                  button: true,
+                  selected: mode == current,
+                  label: _labelFor(mode),
+                  excludeSemantics: true,
+                  child: InkWell(
+                    key: ValueKey('theme_${mode.name}'),
+                    onTap: () async {
+                      try {
+                        await ref
+                            .read(themePreferenceProvider.notifier)
+                            .setMode(mode);
+                      } catch (e) {
+                        if (context.mounted) showErrorSnack(context, e);
+                      }
+                    },
+                    child: SizedBox(
+                      width: _segmentWidth,
+                      height: kMinInteractiveDimension,
+                      child: Center(
+                        child: Container(
+                          height: _segmentHeight - 2,
+                          width: _segmentWidth - 2,
+                          decoration: BoxDecoration(
+                            color: mode == current
+                                ? c.brand.withValues(alpha: .12)
+                                : null,
+                            borderRadius: AppGeometry.control,
+                          ),
+                          child: Icon(
+                            _iconFor(mode),
+                            size: AppIconSizes.field,
+                            color: mode == current ? c.brand : c.muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fila de preferencia "Apariencia" con el [ThemeSegmented]: una fila de
+/// ajuste de 56 dp. El tema activo lo dice el control, no un subtítulo
+/// (P25-M3).
 class ThemeToggleTile extends StatelessWidget {
   const ThemeToggleTile({super.key});
 
@@ -77,6 +162,6 @@ class ThemeToggleTile extends StatelessWidget {
   Widget build(BuildContext context) => const SettingsRow(
     icon: AppIcons.appearance,
     title: 'Apariencia',
-    trailing: ThemeToggle(),
+    trailing: ThemeSegmented(),
   );
 }

@@ -32,6 +32,7 @@ import '../../core/auth/session.dart';
 import '../../shared/widgets/labeled_field.dart';
 import '../../shared/widgets/app_dropdown_decoration.dart';
 import '../../shared/widgets/numbered_steps.dart';
+import '../../shared/widgets/initials_avatar.dart';
 
 /// Portada de Configuración, como `/admin` de la web: los mismos destinos,
 /// agrupados en cards con rótulo y filas de 56 dp (PS4). Arriba van las
@@ -295,10 +296,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
       title: widget.section.title,
-      // Bajo las pestañas, la activa ya nombra la pantalla (P24a-M3).
-      titleVisible: widget.section != SettingsSection.mcp,
       showBack: true,
       top: SettingsTabs(current: widget.section.name),
+      // «Agregar cliente» relleno, junto al título (P27-M5).
+      actions: [
+        if (widget.section == SettingsSection.clients)
+          FilledButton.icon(
+            key: const ValueKey('settings_add_client'),
+            onPressed: _busy ? null : addClient,
+            icon: const Icon(AppIcons.personAdd, size: AppIconSizes.field),
+            label: const Text('Agregar cliente'),
+          ),
+      ],
       bodyPadding: EdgeInsets.zero,
       onRefresh: () async {
         ref.invalidate(settingsDataProvider(query));
@@ -336,8 +345,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (data.isLoading && !data.hasValue) const LoadingView(),
           if (data.hasValue && cards) ...body,
           if (data.hasValue && !cards)
+            // 16 dp de relleno en todas las cards de ajustes (P26a-M3).
             WorkspacePanel(
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: body,
@@ -375,58 +385,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case SettingsSection.storageLink:
         return [StorageAccountPanel(status: json, onChanged: refresh)];
       case SettingsSection.access:
-        return [
-          tile(
-            'Modo de acceso',
-            json['mode'] == 'DOMAIN'
-                ? 'Dominio: ${json['domain'] ?? 'sin definir'}'
-                : 'Lista de correos permitidos',
-          ),
-          button(
-            'edit_access',
-            'Editar acceso',
-            () => edit(
-              'Acceso al sistema',
-              [
-                SettingsField(
-                  'mode',
-                  'Modo',
-                  initial: json['mode'] ?? 'LIST',
-                  options: const {
-                    'LIST': 'Lista de correos',
-                    'DOMAIN': 'Dominio',
-                  },
-                ),
-                SettingsField(
-                  'domain',
-                  'Dominio (sin https://)',
-                  initial: json['domain'] ?? '',
-                  required: false,
-                  validate: (v) =>
-                      v.isNotEmpty &&
-                          !RegExp(
-                            r'^@?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                          ).hasMatch(v)
-                      ? 'Ingresá un dominio válido.'
-                      : null,
-                ),
-              ],
-              (input) async {
-                if (input['mode'] == 'DOMAIN' && input['domain'] == '') {
-                  throw const ApiException(
-                    code: 'INVALID_INPUT',
-                    message: 'Ingresá el dominio permitido.',
-                  );
-                }
-                await repo.saveAccess({
-                  ...input,
-                  'domain': input['domain'] == '' ? null : input['domain'],
-                });
-              },
-              description:
-                  'Este cambio afecta quién puede ingresar al sistema.',
+        final c = context.colors;
+        void editAccess() => edit(
+          'Acceso al sistema',
+          [
+            SettingsField(
+              'mode',
+              'Modo',
+              initial: json['mode'] ?? 'LIST',
+              options: const {'LIST': 'Lista de correos', 'DOMAIN': 'Dominio'},
             ),
+            SettingsField(
+              'domain',
+              'Dominio (sin https://)',
+              initial: json['domain'] ?? '',
+              required: false,
+              validate: (v) =>
+                  v.isNotEmpty &&
+                      !RegExp(r'^@?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(v)
+                  ? 'Ingresá un dominio válido.'
+                  : null,
+            ),
+          ],
+          (input) async {
+            if (input['mode'] == 'DOMAIN' && input['domain'] == '') {
+              throw const ApiException(
+                code: 'INVALID_INPUT',
+                message: 'Ingresá el dominio permitido.',
+              );
+            }
+            await repo.saveAccess({
+              ...input,
+              'domain': input['domain'] == '' ? null : input['domain'],
+            });
+          },
+          description: 'Este cambio afecta quién puede ingresar al sistema.',
+        );
+        // Modo como chip con «Editar» a la derecha, divisor y la fila de
+        // correos (P26a-M1).
+        return [
+          Text(
+            'MODO DE ACCESO',
+            style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
           ),
+          const SizedBox(height: AppSpacing.xxs),
+          Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusChip(
+                    key: const ValueKey('settings_access_mode'),
+                    label: json['mode'] == 'DOMAIN'
+                        ? 'Dominio: ${json['domain'] ?? 'sin definir'}'
+                        : 'Lista de correos',
+                    color: c.text,
+                    fill: c.hover,
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('settings_edit_access'),
+                onPressed: _busy ? null : editAccess,
+                child: const Text('Editar'),
+              ),
+            ],
+          ),
+          Divider(height: AppSpacing.md, color: c.border),
           tile(
             'Correos permitidos',
             'Agregar o quitar acceso por correo',
@@ -504,12 +529,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'Los proyectos se asignan desde la pestaña "Acceso cliente" de cada proyecto.',
               style: AppTextStyles.body.copyWith(color: context.colors.muted),
             ),
-          ),
-          button(
-            'add_client',
-            'Agregar cliente',
-            addClient,
-            icon: AppIcons.personAdd,
           ),
           if (list.isEmpty)
             const EmptyView(
@@ -859,62 +878,147 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           },
         ),
     ];
+    final c = context.colors;
+    final admin = u['globalRole'] == 'SUPERADMIN';
+    // Avatar de iniciales, el correo solo y el rol como chip; la columna del
+    // «⋯» se reserva en todas las filas (P26u-M1, M2, M3).
     return SettingsRow(
       key: ValueKey('settings_user_${u['id']}'),
-      icon: AppIcons.person,
+      leading: InitialsAvatar(name: '$name'),
       title: name,
-      subtitle: '${u['email']} · ${roleLabel(u['globalRole'])}',
-      trailing: actions.isEmpty
-          ? null
-          : RowActionsMenu(
+      subtitle: '${u['email']}',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * .25,
+            ),
+            child: StatusChip(
+              key: ValueKey('settings_user_role_${u['id']}'),
+              label: roleChipLabel(u['globalRole']),
+              color: admin ? c.brand : c.muted,
+              fill: admin ? c.brandFill : c.hover,
+            ),
+          ),
+          if (actions.isEmpty)
+            const SizedBox(width: kMinInteractiveDimension)
+          else
+            RowActionsMenu(
               key: ValueKey('settings_user_menu_${u['id']}'),
               tooltip: 'Acciones de $name',
               enabled: !_busy,
               actions: actions,
             ),
+        ],
+      ),
     );
   }
 
-  /// Cliente con "Dar de baja" dentro del "⋯" de la card (P27-M4).
-  Widget clientCard(Json c) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-    child: WorkspacePanel(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          tile(
-            c['name'] ?? '',
-            '${c['email']}\n${c['firstLoginAt'] == null ? 'Todavía no ingresó' : 'Ya ingresó al portal'}',
-            trailing: RowActionsMenu(
-              key: ValueKey('settings_client_menu_${c['id']}'),
-              tooltip: 'Acciones de ${c['name'] ?? c['email']}',
-              enabled: !_busy,
-              actions: [
-                RowAction(
-                  key: 'settings_delete_client_${c['id']}',
-                  label: 'Dar de baja',
-                  destructive: true,
-                  onSelected: () async {
-                    if (await settingsConfirm(
-                      context,
-                      '¿Dar de baja al cliente?',
-                      'Se eliminará ${c['email']} y sus permisos de consulta en proyectos.',
-                      action: 'Dar de baja',
-                    )) {
-                      await run(() => repo.deleteClient(c['id']));
-                    }
-                  },
+  /// Cliente: nombre 15/600 con el chip de estado, el correo, y sus
+  /// proyectos bajo un rótulo; «Dar de baja» dentro del «⋯» (P27-M3, M4).
+  Widget clientCard(Json client) {
+    final c = context.colors;
+    final works = (client['works'] as List?) ?? [];
+    return Padding(
+      key: ValueKey('settings_client_${client['id']}'),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: WorkspacePanel(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.xxs,
+          AppSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xxs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        client['name'] ?? '',
+                        style: AppTextStyles.cardTitle.copyWith(color: c.text),
+                      ),
+                      StatusChip(
+                        label: client['firstLoginAt'] == null
+                            ? 'Sin ingresar'
+                            : 'Activo',
+                        color: c.muted,
+                        fill: c.hover,
+                      ),
+                    ],
+                  ),
+                ),
+                RowActionsMenu(
+                  key: ValueKey('settings_client_menu_${client['id']}'),
+                  tooltip: 'Acciones de ${client['name'] ?? client['email']}',
+                  enabled: !_busy,
+                  actions: [
+                    RowAction(
+                      key: 'settings_delete_client_${client['id']}',
+                      label: 'Dar de baja',
+                      destructive: true,
+                      onSelected: () async {
+                        if (await settingsConfirm(
+                          context,
+                          '¿Dar de baja al cliente?',
+                          'Se eliminará ${client['email']} y sus permisos de consulta en proyectos.',
+                          action: 'Dar de baja',
+                        )) {
+                          await run(() => repo.deleteClient(client['id']));
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-          for (final work in (c['works'] as List?) ?? [])
-            Text('• ${work['name']}'),
-        ],
+            Text(
+              '${client['email']}',
+              style: AppTextStyles.body.copyWith(color: c.muted),
+            ),
+            if (works.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: Divider(height: AppSpacing.lg, color: c.border),
+              ),
+              Text(
+                'PROYECTOS',
+                style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+              ),
+              for (final work in works)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Row(
+                    children: [
+                      Icon(
+                        AppIcons.projects,
+                        size: AppIconSizes.compact,
+                        color: c.muted,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          '${work['name']}',
+                          style: AppTextStyles.body.copyWith(color: c.text),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
+
   Future<void> addClient() async {
     final done = await showAppFormDialog<bool>(
       context,
@@ -980,8 +1084,10 @@ String? emailError(String value) =>
     RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)
     ? null
     : 'Ingresá un correo válido.';
-String roleLabel(Object? role) => switch (role) {
-  'SUPERADMIN' => 'Administrador del sistema',
+
+/// Rol corto para el chip de la fila de usuario.
+String roleChipLabel(Object? role) => switch (role) {
+  'SUPERADMIN' => 'Admin',
   'READER' => 'Lector',
   _ => 'Miembro',
 };

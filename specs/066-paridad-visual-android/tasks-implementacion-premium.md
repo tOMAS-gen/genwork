@@ -422,9 +422,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 31: Configuración, Acceso, Usuarios y Clientes (P25–P27)
 
 **Criterios de aceptación:**
-- [ ] P25: tema como segmentado de 3 opciones de 32 dp, sin "Tema: Sistema".
-- [ ] P26: modo de acceso como chip con "Editar"; rol como chip; avatares de iniciales y cards del mismo alto.
-- [ ] P27: nombre 15/600 con chip "Sin ingresar"; "Agregar cliente" relleno junto al título.
+- [x] P25: tema como segmentado de 3 opciones de 32 dp, sin "Tema: Sistema".
+- [x] P26: modo de acceso como chip con "Editar"; rol como chip; avatares de iniciales y cards del mismo alto.
+- [x] P27: nombre 15/600 con chip "Sin ingresar"; "Agregar cliente" relleno junto al título.
 
 **Verificación:** `settings_parity_test` y `qa10_roles_a11y_test`. Capturas. · **Tamaño:** M
 

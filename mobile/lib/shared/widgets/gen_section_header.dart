@@ -22,7 +22,6 @@ class GenSectionHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.count,
-    this.titleVisible = true,
     this.breadcrumb,
     this.showBackButton = false,
     this.actions = const [],
@@ -35,9 +34,6 @@ class GenSectionHeader extends StatelessWidget {
   /// Cantidad junto al título, en gris y cifras mono («Vence hoy  0»).
   final int? count;
 
-  /// En falso no se dibuja el título: bajo las pestañas de Configuración la
-  /// pestaña activa ya lo dice (P23-M2, P24a-M3). El subtítulo queda.
-  final bool titleVisible;
   final Widget? breadcrumb;
   final bool showBackButton;
   final List<Widget> actions;
@@ -54,32 +50,29 @@ class GenSectionHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ?breadcrumb,
-              if (titleVisible)
-                Semantics(
-                  header: true,
-                  child: Text.rich(
-                    TextSpan(
-                      text: title,
-                      children: [
-                        if (count != null)
-                          TextSpan(
-                            text: '  $count',
-                            style: AppTextStyles.technical.copyWith(
-                              fontSize: AppTextStyles.screenTitle.fontSize,
-                              fontWeight: FontWeight.w500,
-                              color: c.muted,
-                            ),
+              Semantics(
+                header: true,
+                child: Text.rich(
+                  TextSpan(
+                    text: title,
+                    children: [
+                      if (count != null)
+                        TextSpan(
+                          text: '  $count',
+                          style: AppTextStyles.technical.copyWith(
+                            fontSize: AppTextStyles.screenTitle.fontSize,
+                            fontWeight: FontWeight.w500,
+                            color: c.muted,
                           ),
-                      ],
-                    ),
-                    style: AppTextStyles.screenTitle.copyWith(color: c.text),
+                        ),
+                    ],
                   ),
+                  style: AppTextStyles.screenTitle.copyWith(color: c.text),
                 ),
+              ),
               if (subtitle != null)
                 Padding(
-                  padding: EdgeInsets.only(
-                    top: titleVisible ? AppSpacing.xxs : 0,
-                  ),
+                  padding: const EdgeInsets.only(top: AppSpacing.xxs),
                   child: Text(
                     subtitle!,
                     style: AppTextStyles.body.copyWith(color: c.muted),

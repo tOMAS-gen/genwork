@@ -38,7 +38,6 @@ class MobileAppScreen extends ConsumerWidget {
         : server.toString().replaceAll(RegExp(r'/$'), '');
     return GenPageScaffold(
       title: 'App móvil',
-      titleVisible: false,
       subtitle:
           'Escaneá este código con la app de Genwork para conectarla a este sistema.',
       showBack: true,

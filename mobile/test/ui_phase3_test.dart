@@ -899,8 +899,8 @@ void main() {
     expect(tester.getSize(find.byType(QrImageView)), const Size(200, 200));
     expect(find.byKey(const ValueKey('mobile_app_qr')), findsOneWidget);
     expect(find.byKey(const ValueKey('mobile_app_step_3')), findsOneWidget);
-    // Bajo las pestañas no se repite el título (P24b-M3).
-    expect(find.text('App móvil'), findsOneWidget);
+    // Pestaña y título con el mismo nombre, como en toda Configuración.
+    expect(find.text('App móvil'), findsNWidgets(2));
   });
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,
