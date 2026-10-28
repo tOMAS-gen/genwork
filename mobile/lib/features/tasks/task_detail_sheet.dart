@@ -382,12 +382,12 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
             // fila, en lugar de filas con interruptor (decisión del usuario, P09).
             ChipTheme(
               data: _detailChipTheme(context),
-              child: Wrap(
+              child: TaskNotificationControls(
                 key: const ValueKey('task_chip_row'),
-                spacing: AppSpace.sm,
-                runSpacing: AppSpace.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
+                task: _task,
+                canEdit: canEditText,
+                fromSector: widget.fromSector,
+                leading: [
                   // El estado es un desplegable con el vigente a la vista
                   // (boceto P09): «● Pendiente ⌄».
                   _StatusMenu(
@@ -415,11 +415,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                               _task = _task.withMyDay(value);
                             }),
                     ),
-                  TaskNotificationControls(
-                    task: _task,
-                    canEdit: canEditText,
-                    fromSector: widget.fromSector,
-                  ),
                 ],
               ),
             ),
@@ -763,11 +758,24 @@ ChipThemeData _detailChipTheme(BuildContext context) {
     ),
     backgroundColor: c.surface,
     selectedColor: c.brandFill,
-    labelStyle: AppTextStyles.chip.copyWith(color: c.text),
-    secondaryLabelStyle: AppTextStyles.chip.copyWith(color: c.brand),
-    // Sin el «Material 3» por defecto de 32 + 8 de margen: 36 dp a la vista.
-    padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
-    labelPadding: const EdgeInsets.only(left: AppSpace.xs, right: AppSpace.xs),
+    // Activo, el rótulo va en la marca como el ícono (boceto P09).
+    labelStyle: AppTextStyles.chipCompact.copyWith(
+      color: WidgetStateColor.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? c.brand : c.text,
+      ),
+    ),
+    secondaryLabelStyle: AppTextStyles.chipCompact.copyWith(color: c.brand),
+    // Ícono de 16 sin la caja del alto del rótulo y márgenes cortos: así los
+    // cuatro chips entran en un renglón a 360 dp (boceto P09).
+    avatarBoxConstraints: const BoxConstraints.tightFor(
+      width: AppIconSizes.notice,
+      height: AppIconSizes.notice,
+    ),
+    padding: const EdgeInsets.only(
+      left: AppSpace.xs + AppSpace.xxs,
+      right: AppSpace.xxs,
+    ),
+    labelPadding: const EdgeInsets.only(left: AppSpace.xs, right: AppSpace.xxs),
   );
 }
 
@@ -826,9 +834,12 @@ class _StatusMenu extends StatelessWidget {
         child: Center(
           widthFactor: 1,
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpace.md,
-              vertical: AppSpace.sm,
+            // El chevron trae aire propio: el margen derecho es corto.
+            padding: const EdgeInsets.only(
+              left: AppSpace.xs + AppSpace.xxs,
+              right: AppSpace.xxs,
+              top: AppSpace.sm,
+              bottom: AppSpace.sm,
             ),
             decoration: BoxDecoration(
               color: c.surface,
@@ -839,13 +850,12 @@ class _StatusMenu extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ColorDot(hex: task.status.color),
-                const SizedBox(width: AppSpace.sm),
+                const SizedBox(width: AppSpace.xs),
                 Text(
                   task.status.name,
-                  style: AppTextStyles.chip.copyWith(color: c.text),
+                  style: AppTextStyles.chipCompact.copyWith(color: c.text),
                 ),
                 if (canEdit && options.length > 1) ...[
-                  const SizedBox(width: AppSpace.xs),
                   Icon(
                     AppIcons.expandMore,
                     size: AppIconSizes.notice,

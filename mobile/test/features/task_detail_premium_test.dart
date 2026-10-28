@@ -1,11 +1,14 @@
 // Piloto premium del detalle de tarea (spec 066, implementacion-premium, P09).
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/network/api_client.dart';
 import 'package:genwork_mobile/core/providers.dart';
+import 'package:genwork_mobile/core/theme/app_icons.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/data/models/json.dart';
@@ -578,6 +581,50 @@ void main() {
       // se ve elegido (sin efecto) y el resto queda deshabilitado (P09-M3).
       expect(await statusOptionEnabled(tester, 'open'), isTrue);
       expect(await statusOptionEnabled(tester, 'done'), isFalse);
+    });
+  });
+
+  // Va al final: la fuente cargada queda para el resto del archivo.
+  group('Tarea 6: chips como el boceto', () {
+    testWidgets('los cuatro chips entran en un renglón a 390 dp', (
+      tester,
+    ) async {
+      await (FontLoader(
+        'Montserrat',
+      )..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'))).load();
+      final task = taskJson();
+      await mountDetail(tester, detailApi(task), task);
+      final keys = [
+        'task_status',
+        'task_my_day',
+        'task_urgent',
+        'task_reminder',
+      ];
+      final tops = {
+        for (final key in keys)
+          key: tester.getRect(find.byKey(ValueKey(key))).center.dy,
+      };
+      expect(tops.values.toSet(), hasLength(1), reason: '$tops');
+      // Recordatorio con la campana del boceto, no el calendario.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('task_reminder')),
+          matching: find.byIcon(AppIcons.bell),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Mi día activo lleva el rótulo en la marca', (tester) async {
+      final task = {...taskJson(), 'myDayAt': '2026-10-28T12:00:00Z'};
+      await mountDetail(tester, detailApi(task), task);
+      final label = tester.renderObject<RenderParagraph>(
+        find.descendant(
+          of: find.byKey(const ValueKey('task_my_day')),
+          matching: find.text('Mi día'),
+        ),
+      );
+      expect(label.text.style?.color, GenColors.light.brand);
     });
   });
 }

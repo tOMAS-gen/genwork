@@ -91,6 +91,16 @@ abstract final class AppTextStyles {
     height: 1.5,
   );
 
+  /// Chip compacto de la fila del detalle de tarea: 11/500, para que estado,
+  /// Mi día, Urgente y Recordatorio compartan renglón (boceto P09).
+  static const chipCompact = TextStyle(
+    fontFamily: 'Montserrat',
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 0,
+    height: 1.5,
+  );
+
   /// Cifras, fechas numéricas y códigos (`AppTokens.code`), con números
   /// tabulares. Nunca para rótulos ni fechas escritas en palabras.
   static const technical = TextStyle(
