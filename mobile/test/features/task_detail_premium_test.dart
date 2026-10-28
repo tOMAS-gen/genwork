@@ -605,6 +605,11 @@ void main() {
           key: tester.getRect(find.byKey(ValueKey(key))).center.dy,
       };
       expect(tops.values.toSet(), hasLength(1), reason: '$tops');
+      // A 390 dp el último se ve entero sin desplazar (16 dp de margen).
+      expect(
+        tester.getRect(find.byKey(const ValueKey('task_reminder'))).right,
+        lessThanOrEqualTo(390 - 16),
+      );
       // Recordatorio con la campana del boceto, no el calendario.
       expect(
         find.descendant(
@@ -613,6 +618,35 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('la fila se desplaza en horizontal y el borde es el claro', (
+      tester,
+    ) async {
+      final task = taskJson();
+      await mountDetail(tester, detailApi(task), task);
+      final row = find.byKey(const ValueKey('task_chip_row'));
+      final scrollable = tester.widget<Scrollable>(
+        find.descendant(of: row, matching: find.byType(Scrollable)),
+      );
+      expect(scrollable.axisDirection, AxisDirection.right);
+      // Borde estructural claro, como el boceto, no el contorno `control`.
+      final status = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('task_status')),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      final decoration = status.decoration! as BoxDecoration;
+      expect((decoration.border! as Border).top.color, GenColors.light.border);
+      final side =
+          ChipTheme.of(
+                tester.element(find.byKey(const ValueKey('task_urgent'))),
+              ).side!
+              as WidgetStateBorderSide;
+      expect(side.resolve({})!.color, GenColors.light.border);
     });
 
     testWidgets('Mi día activo lleva el rótulo en la marca', (tester) async {

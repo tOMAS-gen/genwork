@@ -36,11 +36,14 @@ class _State extends ConsumerState<TaskNotificationControls> {
   @override
   Widget build(BuildContext context) {
     final info = ref.watch(taskNotificationInfoProvider(widget.task.id));
-    return Wrap(
-      spacing: AppSpace.xs,
-      runSpacing: AppSpace.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [...widget.leading, ..._chips(info)],
+    // Un solo renglón que se desplaza en horizontal cuando no entra (pantalla
+    // angosta o letra agrandada), en lugar de bajar a otro renglón.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        spacing: AppSpace.xs,
+        children: [...widget.leading, ..._chips(info)],
+      ),
     );
   }
 

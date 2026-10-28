@@ -745,15 +745,19 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   }
 }
 
-/// Chips del detalle con borde, como el boceto P09: contorno `control`, curva
-/// de control y, si está activo (Mi día, Urgente), el relleno de marca.
+/// Chips del detalle con borde, como el boceto P09: borde estructural claro,
+/// curva de control y, si está activo (Mi día, Urgente), el relleno de marca
+/// con la marca aclarada en el borde. El rótulo identifica al chip, así que
+/// el borde no necesita el 3:1 de `control` (pedido del usuario).
 ChipThemeData _detailChipTheme(BuildContext context) {
   final c = context.colors;
   return ChipTheme.of(context).copyWith(
     shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
     side: WidgetStateBorderSide.resolveWith(
       (states) => BorderSide(
-        color: states.contains(WidgetState.selected) ? c.brand : c.control,
+        color: states.contains(WidgetState.selected)
+            ? c.brand.withValues(alpha: .5)
+            : c.border,
       ),
     ),
     backgroundColor: c.surface,
@@ -843,7 +847,7 @@ class _StatusMenu extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: c.surface,
-              border: Border.all(color: c.control),
+              border: Border.all(color: c.border),
               borderRadius: AppGeometry.control,
             ),
             child: Row(
