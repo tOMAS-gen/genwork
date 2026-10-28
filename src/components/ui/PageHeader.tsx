@@ -1,30 +1,23 @@
 import type { ReactNode } from "react";
 import { PageHeader as GenPageHeader } from "@gen/ui";
-import {
-  AtSign,
-  Bell,
-  FileText,
-  Folder,
-  Layers,
-  LayoutDashboard,
-  Settings,
-  Sun,
-  Users,
-} from "@/components/ui/icons";
 
-const PAGE_ICONS = {
-  projects: Folder,
-  sectors: Layers,
-  groups: Users,
-  notes: FileText,
-  references: AtSign,
-  myDay: Sun,
-  reminders: Bell,
-  settings: Settings,
-  board: LayoutDashboard,
-};
+/** Secciones que antes llevaban ícono en la cabecera. */
+type PageIcon =
+  | "projects"
+  | "sectors"
+  | "groups"
+  | "notes"
+  | "references"
+  | "myDay"
+  | "reminders"
+  | "settings"
+  | "board";
 
-/** PageHeader de @gen/ui con los íconos de sección de genwork por nombre. */
+/**
+ * PageHeader de @gen/ui con la cabecera de raíz de la app Android (spec 066,
+ * T40): título 20/700, subtítulo de una línea y las acciones a la derecha,
+ * sin el ícono de sección. `icon` se acepta por compatibilidad y no se dibuja.
+ */
 export function PageHeader({
   title,
   description,
@@ -33,8 +26,9 @@ export function PageHeader({
 }: {
   title: string;
   description?: string;
-  icon?: keyof typeof PAGE_ICONS;
+  icon?: PageIcon;
   actions?: ReactNode;
 }) {
-  return <GenPageHeader title={title} description={description} icon={icon ? PAGE_ICONS[icon] : undefined} actions={actions} />;
+  void icon;
+  return <GenPageHeader title={title} description={description} actions={actions} />;
 }

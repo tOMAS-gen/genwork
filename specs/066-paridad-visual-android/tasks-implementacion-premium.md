@@ -523,7 +523,7 @@ Antes de tocar Next.js, leer `node_modules/next/dist/docs/` (AGENTS.md). El deta
 ## Tarea 40: Web — cabeceras de raíz, subpantalla y entidad
 
 **Criterios de aceptación:**
-- [ ] Las mismas tres cabeceras que en Android, con el contenido empezando a la misma altura.
+- [x] Las mismas tres cabeceras que en Android, con el contenido empezando a la misma altura.
 
 **Verificación:** capturas web de las raíces y las subpantallas. · **Tamaño:** M
 

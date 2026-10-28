@@ -234,12 +234,13 @@ export default function WorkPage({ params }: { params: Promise<{ id: string }> }
           <div className="work-overview-info">
             <div className="work-overview-header">
               <div className="work-identity">
+                {/* Punto de color, como la cabecera de entidad de la app
+                    (spec 066, T40). */}
                 <span
-                  className="work-symbol"
-                  style={projectColor ? { color: projectColor } : undefined}
-                >
-                  <Folder size={24} aria-hidden="true" />
-                </span>
+                  className="work-dot"
+                  aria-hidden="true"
+                  style={projectColor ? { background: projectColor } : undefined}
+                />
                 <div className="work-heading">
                   <div className="work-title-line">
                     <h1>{work.name}</h1>

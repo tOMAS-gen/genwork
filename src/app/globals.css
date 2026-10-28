@@ -4530,3 +4530,35 @@ a.my-day-source:hover {
     transition: none;
   }
 }
+
+/* ---- Spec 066, T40: cabeceras como la app Android ----
+   Raíz: título 20/700, subtítulo en 13 gris y las acciones arriba a la
+   derecha, sin ícono ni regla. Subpantalla: migas en 12/500 gris sobre el
+   título. Entidad: punto de color junto al nombre. */
+.page-header {
+  align-items: flex-start;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.page-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+.page-header p {
+  margin-top: 2px;
+}
+.breadcrumbs ol {
+  font-size: 12px;
+  font-weight: 500;
+}
+.work-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-top: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.work-title-line h1 {
+  font-size: 20px;
+}
