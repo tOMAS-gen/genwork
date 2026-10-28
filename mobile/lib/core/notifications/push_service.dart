@@ -53,11 +53,24 @@ class PushService {
   Stream<PushEvent> get events => _events.stream;
   PushEvent? initialEvent;
   bool available = false;
+
+  /// Se completa cuando [initialize] termina, con o sin Firebase: el aviso que
+  /// abrió la app ([initialEvent]) recién se conoce entonces.
+  Future<void> get ready => _ready.future;
+  final _ready = Completer<void>();
   bool _syncing = false;
   bool _syncAgain = false;
   static const _channel = MethodChannel('genwork/notifications');
 
   Future<void> initialize() async {
+    try {
+      await _initialize();
+    } finally {
+      if (!_ready.isCompleted) _ready.complete();
+    }
+  }
+
+  Future<void> _initialize() async {
     if (_project.isEmpty || !(Platform.isAndroid || Platform.isIOS)) return;
     try {
       await Firebase.initializeApp(options: pushFirebaseOptions);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'core/notifications/push_service.dart';
@@ -16,7 +17,9 @@ import 'core/providers.dart';
 Future<void> main() async {
   // Marionette (navegar y tocar la app desde un agente) solo en debug: en
   // release y en los tests queda el binding de siempre.
-  if (kDebugMode && !kIsWeb && !Platform.environment.containsKey('FLUTTER_TEST')) {
+  if (kDebugMode &&
+      !kIsWeb &&
+      !Platform.environment.containsKey('FLUTTER_TEST')) {
     MarionetteBinding.ensureInitialized();
   } else {
     WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +28,6 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
 
   final push = PushService(prefs, ServerRegistry(prefs), SecureTokenStore());
-  await push.initialize();
 
   runApp(
     ProviderScope(
@@ -39,4 +41,7 @@ Future<void> main() async {
       child: const GenworkApp(),
     ),
   );
+  // Firebase y el aviso inicial no demoran el primer cuadro (T13): el aviso
+  // se atiende cuando el servicio está listo (PushListener).
+  unawaited(push.initialize());
 }

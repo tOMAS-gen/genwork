@@ -41,14 +41,18 @@ class _State extends ConsumerState<PushListener> {
         _refresh();
       },
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final initial = service?.initialEvent;
-      if (initial != null) {
-        service!.initialEvent = null;
-        unawaited(_event(initial));
-      }
-    });
+    // El servicio se inicia después del primer cuadro: el aviso que abrió la
+    // app se atiende cuando termina.
+    unawaited(
+      service?.ready.then((_) {
+        if (!mounted) return;
+        final initial = service.initialEvent;
+        if (initial != null) {
+          service.initialEvent = null;
+          unawaited(_event(initial));
+        }
+      }),
+    );
   }
 
   void _refresh() {

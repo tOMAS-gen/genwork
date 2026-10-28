@@ -476,9 +476,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 36: Atrás predictivo y arranque (T5, T13)
 
 **Criterios de aceptación:**
-- [ ] En Android, el `pop` usa `PredictiveBackPageTransitionsBuilder` y el `push` conserva el fundido; con animaciones desactivadas, corte.
-- [ ] `enableOnBackInvokedCallback="true"` en el manifiesto; los `PopScope` con `canPop: false` siguen esperando el guardado.
-- [ ] `runApp` no espera a Firebase.
+- [x] En Android, el `pop` usa `PredictiveBackPageTransitionsBuilder` y el `push` conserva el fundido; con animaciones desactivadas, corte.
+- [x] `enableOnBackInvokedCallback="true"` en el manifiesto; los `PopScope` con `canPop: false` siguen esperando el guardado.
+- [x] `runApp` no espera a Firebase.
 
 **Verificación:** tests de `PopScope` existentes; manual en el emulador con el gesto atrás. · **Tamaño:** S
 

@@ -426,7 +426,7 @@ abstract final class AppTheme {
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: _AppTransition(),
+          TargetPlatform.android: _AppTransition(predictiveBack: true),
           TargetPlatform.iOS: _AppTransition(),
         },
       ),
@@ -434,8 +434,15 @@ abstract final class AppTheme {
   }
 }
 
+/// Transición de página (T5): fundido corto al abrir y, en Android, el
+/// atrás predictivo de Flutter mientras se arrastra el gesto. Con las
+/// animaciones del sistema desactivadas, corte.
 class _AppTransition extends PageTransitionsBuilder {
-  const _AppTransition();
+  const _AppTransition({this.predictiveBack = false});
+
+  /// Envuelve la página con el detector del gesto atrás predictivo.
+  final bool predictiveBack;
+
   @override
   Widget buildTransitions<T>(
     PageRoute<T> route,
@@ -443,7 +450,21 @@ class _AppTransition extends PageTransitionsBuilder {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
-  ) => MediaQuery.disableAnimationsOf(context)
-      ? child
-      : FadeTransition(opacity: animation, child: child);
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    if (!predictiveBack) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    // El builder de Flutter detecta el gesto. Fuera del gesto recibe
+    // animaciones quietas, así su transición de respaldo no se mueve y manda
+    // el fundido propio.
+    final gesture = route.popGestureInProgress;
+    return const PredictiveBackPageTransitionsBuilder().buildTransitions(
+      route,
+      context,
+      gesture ? animation : kAlwaysCompleteAnimation,
+      gesture ? secondaryAnimation : kAlwaysDismissedAnimation,
+      gesture ? child : FadeTransition(opacity: animation, child: child),
+    );
+  }
 }
