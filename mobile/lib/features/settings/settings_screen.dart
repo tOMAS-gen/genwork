@@ -31,6 +31,7 @@ import '../../shared/widgets/status_chip.dart';
 import '../../core/auth/session.dart';
 import '../../shared/widgets/labeled_field.dart';
 import '../../shared/widgets/app_dropdown_decoration.dart';
+import '../../shared/widgets/numbered_steps.dart';
 
 /// Portada de Configuración, como `/admin` de la web: los mismos destinos,
 /// agrupados en cards con rótulo y filas de 56 dp (PS4). Arriba van las
@@ -294,6 +295,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
       title: widget.section.title,
+      // Bajo las pestañas, la activa ya nombra la pantalla (P24a-M3).
+      titleVisible: widget.section != SettingsSection.mcp,
       showBack: true,
       top: SettingsTabs(current: widget.section.name),
       bodyPadding: EdgeInsets.zero,
@@ -569,22 +572,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             description:
                 'El token identifica a Claude como vos. Podés revocarlo cuando quieras; el acceso se corta en el momento.',
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton(
-                  key: const ValueKey('settings_add_mcp'),
-                  onPressed: _busy ? null : createMcp,
-                  child: const Text('Generar token'),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              if (connections.isEmpty)
-                const EmptyView(
-                  framed: false,
-                  icon: AppIcons.link,
-                  message:
-                      'Todavía no tenés tokens. Generá uno para vincular Claude.',
-                ),
               for (final c in connections)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
@@ -618,18 +605,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: const Text('Revocar'),
                         ),
                 ),
+              // Pie del grupo: el vacío en gris y «Generar token» a la
+              // derecha (P24a-M2).
+              Divider(height: AppSpacing.lg, color: context.colors.border),
+              Builder(
+                builder: (context) {
+                  final empty = connections.isEmpty
+                      ? Text(
+                          'Todavía no tenés tokens. Generá uno para vincular Claude.',
+                          key: const ValueKey('settings_mcp_empty'),
+                          style: AppTextStyles.body.copyWith(
+                            color: context.colors.muted,
+                          ),
+                        )
+                      : null;
+                  final button = FilledButton(
+                    key: const ValueKey('settings_add_mcp'),
+                    onPressed: _busy ? null : createMcp,
+                    child: const Text('Generar token'),
+                  );
+                  // Con texto grande no entran lado a lado: el botón baja.
+                  if (MediaQuery.textScalerOf(context).scale(1) > 1.2) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (empty != null) ...[
+                          empty,
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                        Align(alignment: Alignment.centerRight, child: button),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: empty ?? const SizedBox.shrink()),
+                      const SizedBox(width: AppSpacing.sm),
+                      button,
+                    ],
+                  );
+                },
+              ),
             ],
           ),
           PanelSection(
             title: 'Conectar en claude.ai',
             children: [
-              const Text(
-                '1. En claude.ai abrí Configuración → Conectores y tocá Agregar conector personalizado.\n'
-                '2. Nombre: genwork. URL: la dirección del servidor.\n'
-                '3. En autenticación elegí Sin inicio de sesión.\n'
-                '4. Tocá Agregar encabezado. Nombre: authorization. Valor: Bearer, un espacio y tu token.\n'
-                '5. Tocá Agregar.\n'
-                '6. En un chat, activá genwork desde el menú +.',
+              // Lista numerada con círculos de 20 dp (P24a-M4).
+              const NumberedSteps(
+                keyPrefix: 'settings_mcp_step',
+                steps: [
+                  'En claude.ai abrí Configuración → Conectores y tocá Agregar conector personalizado.',
+                  'Nombre: genwork. URL: la dirección del servidor.',
+                  'En autenticación elegí Sin inicio de sesión.',
+                  'Tocá Agregar encabezado. Nombre: authorization. Valor: Bearer, un espacio y tu token.',
+                  'Tocá Agregar.',
+                  'En un chat, activá genwork desde el menú +.',
+                ],
               ),
             ],
           ),

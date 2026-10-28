@@ -33,6 +33,8 @@ class AccountScreen extends ConsumerWidget {
 
     return GenPageScaffold(
       title: 'Mi cuenta',
+      // Bajo las pestañas, la activa ya dice «Mi cuenta» (P23-M2).
+      titleVisible: !user.isWriter,
       subtitle: 'Almacenamiento vinculado, versión y estado del sistema.',
       top: user.isWriter ? const SettingsTabs(current: 'account') : null,
       showThemeToggle: user.isClient || user.isReader,

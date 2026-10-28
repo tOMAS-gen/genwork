@@ -16,6 +16,7 @@ import '../../shared/widgets/auth_card.dart';
 import '../../shared/widgets/state_views.dart';
 import 'qr_scanner_view.dart';
 import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/numbered_steps.dart';
 
 /// Cómo mostrar el QR en la web, debajo del visor (P01-M4): divisor, rótulo
 /// y cada paso con su número en un círculo de 20 dp.
@@ -41,40 +42,8 @@ class _QrInstructions extends StatelessWidget {
           'CÓMO CONSEGUIR EL CÓDIGO',
           style: AppTextStyles.sectionLabel.copyWith(color: c.text),
         ),
-        for (var i = 0; i < _steps.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  key: ValueKey('setup_step_${i + 1}'),
-                  width: AppSpacing.ml,
-                  height: AppSpacing.ml,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: c.hover,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '${i + 1}',
-                    style: AppTextStyles.technical.copyWith(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: c.text,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    _steps[i],
-                    style: AppTextStyles.body.copyWith(color: c.muted),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        const SizedBox(height: AppSpacing.sm),
+        const NumberedSteps(steps: _steps, keyPrefix: 'setup_step'),
       ],
     );
   }

@@ -54,6 +54,9 @@ import 'package:genwork_mobile/shared/widgets/task_tile.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:genwork_mobile/core/servers/connect_payload.dart';
+import 'package:genwork_mobile/features/settings/mobile_app_screen.dart';
 
 final _task = Task.fromJson({
   'id': 't1',
@@ -869,6 +872,36 @@ void main() {
       },
     );
   }
+  testWidgets('P22 Vence hoy: una cabecera con el contador y sin bloque', (
+    tester,
+  ) async {
+    await _pump(tester, const RemindersScreen(deliveriesOnly: true));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Vence hoy  0'), findsOneWidget);
+    expect(find.text('Avisos pendientes'), findsNothing);
+    expect(find.text('Estás al día'), findsOneWidget);
+  });
+  testWidgets('P24b App móvil: el QR codifica la dirección del sistema', (
+    tester,
+  ) async {
+    await _pump(tester, const MobileAppScreen(), scale: 1);
+    expect(tester.takeException(), isNull);
+    final qr = tester.widget<ConnectQr>(find.byType(ConnectQr));
+    // El mismo enlace que arma la web, y la app lo vuelve a leer.
+    expect(
+      qr.payload,
+      'genwork://connect?server=https%3A%2F%2Fwork.empresa.com',
+    );
+    expect(
+      parseConnectPayload(qr.payload),
+      Uri.parse('https://work.empresa.com'),
+    );
+    expect(tester.getSize(find.byType(QrImageView)), const Size(200, 200));
+    expect(find.byKey(const ValueKey('mobile_app_qr')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile_app_step_3')), findsOneWidget);
+    // Bajo las pestañas no se repite el título (P24b-M3).
+    expect(find.text('App móvil'), findsOneWidget);
+  });
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,
   ) async {

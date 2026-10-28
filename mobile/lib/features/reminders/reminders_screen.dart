@@ -19,10 +19,10 @@ import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/state_views.dart';
 import 'reminders_providers.dart';
 
-/// Notificaciones pendientes (descartar / posponer) y próximas ocurrencias.
 /// Alto del botón «Nuevo» de la cabecera.
 const double _newButtonHeight = 36;
 
+/// Notificaciones pendientes (descartar / posponer) y próximas ocurrencias.
 class RemindersScreen extends ConsumerStatefulWidget {
   const RemindersScreen({super.key, this.deliveriesOnly = false});
   final bool deliveriesOnly;
@@ -82,6 +82,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
     return GenPageScaffold(
       title: deliveriesOnly ? 'Vence hoy' : 'Recordatorios',
+      // Una sola cabecera con el contador al lado (P22-M1).
+      count: deliveriesOnly ? deliveries.value?.length : null,
       subtitle: deliveriesOnly
           ? null
           : 'Fechas, avisos y compromisos del equipo.',
@@ -120,11 +122,7 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         children: [
           if (deliveriesOnly) ...[
-            section(
-              deliveriesOnly ? 'Avisos pendientes' : 'Notificaciones',
-              'Avisos que necesitan tu atención.',
-              AppIcons.bell,
-            ),
+            const SizedBox(height: AppSpacing.md),
             if (deliveries.isLoading && !deliveries.hasValue)
               const LoadingView(),
             if (deliveries.hasError)

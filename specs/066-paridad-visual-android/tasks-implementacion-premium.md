@@ -412,10 +412,10 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 30: Vence hoy, Cuenta, Vincular con Claude y App móvil (P22–P24b)
 
 **Criterios de aceptación:**
-- [ ] P22: una sola cabecera "Vence hoy · 0", sin el bloque "Avisos pendientes".
-- [ ] P23: perfil de 72 dp, columna de íconos fija y "Sistema · v1.0.0" en una fila.
-- [ ] P24a: "TUS TOKENS" con "Generar token" a la derecha del grupo; pasos numerados.
-- [ ] P24b: QR con `qr_flutter` en una card de 200 dp; dirección con copiar adentro; aviso ámbar con `app_inline_notice`.
+- [x] P22: una sola cabecera "Vence hoy · 0", sin el bloque "Avisos pendientes".
+- [x] P23: perfil de 72 dp, columna de íconos fija y "Sistema · v1.0.0" en una fila.
+- [x] P24a: "TUS TOKENS" con "Generar token" a la derecha del grupo; pasos numerados.
+- [x] P24b: QR con `qr_flutter` en una card de 200 dp; dirección con copiar adentro; aviso ámbar con `app_inline_notice`.
 
 **Verificación:** `connect_link_test` y test nuevo del QR (codifica la dirección del sistema). Capturas. · **Archivos extra:** `pubspec.yaml` (`qr_flutter`) · **Tamaño:** M
 
