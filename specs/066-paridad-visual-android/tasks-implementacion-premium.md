@@ -544,8 +544,8 @@ Antes de tocar Next.js, leer `node_modules/next/dist/docs/` (AGENTS.md). El deta
 ## Tarea 43: Cierre — banco de capturas y documentación
 
 **Criterios de aceptación:**
-- [ ] Par web/Android de las 41 pantallas en claro y oscuro (banco `comparativa`), revisado.
-- [ ] `inventario.md` y `auditoria-premium.md` actualizados; DESIGN.md con los tokens y la escala nuevos.
+- [x] Par web/Android de las 41 pantallas en claro y oscuro (banco `comparativa`), revisado.
+- [x] `inventario.md` y `auditoria-premium.md` actualizados; DESIGN.md con los tokens y la escala nuevos.
 
 **Verificación:** comparador regenerado; `flutter test`, `npx vitest run` y `npm run build` en verde. · **Tamaño:** M
 

@@ -202,6 +202,8 @@ Después de corregir, repetir la auditoría con un emulador (360 × 800, 800 × 
 
 Cada pantalla tiene sus hallazgos `Pxx-Mn` (prioridad P0–P3 y principio D) y el brief que se usó para su boceto. Las medidas están en dp lógicos (1 dp = 3 px de la captura). Las capturas oscuras de P03, P04, P07, P08 y P10 se rehicieron el 2026-10-26 porque eran copias de las claras; para esas pantallas el oscuro se revisó sobre la referencia web, que es igual.
 
+**Fases 4 y 5 (2026-10-28):** Android completó lo técnico (T2, T5, T7, T9, T10, T13 y la re-auditoría en 360 × 800, 800 × 360, tablet, letra al 130 y 200 % y navegación de 3 botones). La web adoptó lo común de estos hallazgos (tokens, cabeceras, filas, acciones, campo, vacío, cards, KPI, progreso, plazo y fila de tarea); las diferencias que quedan en la web están en `inventario.md`, «Banco final». La columna «Estado» describe Android.
+
 **Estado tras la fase 3 de `implementacion-premium` (2026-10-28):** cada tabla suma la columna «Estado». Hay 166 hallazgos con ID propio (169 filas: P19 tiene dos tablas que repiten M1–M3; el «152» del plan contaba antes de separar P07M, P24a/b, P26a/u, P28E/L y P31a/b). Quedan 148 resueltos, 16 en parte, 1 pendiente (P07M-M4) y 1 descartado (P10-M5, pide un cambio de API). Decisión para el usuario: P23-M2 y P24a-M3 piden quitar el título bajo las pestañas de Configuración, pero P27-M1 y los bocetos de P24b, P25, P26u y P27 lo conservan; se dejó visible en todas.
 
 ### P01 Acceso

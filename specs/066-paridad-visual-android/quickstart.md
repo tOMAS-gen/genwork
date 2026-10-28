@@ -80,3 +80,17 @@ open .context/paridad-visual/antes/index.html
 ```
 
 Después de cada tanda, actualizá el estado de las filas en `inventario.md`.
+
+## Banco final (implementacion-premium, tarea 43)
+
+Para rehacer las capturas web de las 41 pantallas con los nombres de Android, con el servidor en :3010 y Playwright en `.context/editor-qa`:
+
+```sh
+export PLAYWRIGHT_DIR=$PWD/.context/editor-qa/node_modules PARIDAD_DIR=.context/paridad-visual/despues
+node scripts/paridad-web.mjs P07-materiales /works/<id> admin "--click=sel:[role=tab]:has-text('Materiales')"
+node scripts/paridad-web.mjs P22-vence-hoy / admin "--click=Abrir menú,sel:.sidebar button[aria-label^='Recordatorios que vencen hoy']"
+node scripts/mobile-evidence.mjs .context/paridad-visual/despues
+```
+
+El resto de las rutas está en `inventario.md`. Cliente y lector se capturan con su rol (`cliente`, `lector`).
+

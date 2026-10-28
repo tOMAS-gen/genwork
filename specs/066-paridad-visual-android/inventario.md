@@ -125,3 +125,20 @@ Textos tomados del `EmptyState` de cada página web. La carga es el esqueleto co
 Pendiente: los pares de captura de vacío y error del resto de las pantallas. Necesitan recursos vacíos nuevos en la base QA y el servidor caído; los textos están cubiertos por tests de widgets.
 
 Diferencias que quedan: P14 muestra «Proyectos activos» con «No hay proyectos activos» (la web: «Proyectos (n)» con el vacío «Sin proyectos»); el vacío de Sectores no repite el botón «Nuevo sector» (está en la barra); la card de Genstock lleva el título «Servidor» (la web no).
+
+## Banco final (implementacion-premium, tarea 43, 2026-10-28)
+
+Las 41 pantallas tienen par web/Android en claro y oscuro, al lado de su boceto, en `.context/paridad-visual/despues` (comparador `index.html`, `node scripts/mobile-evidence.mjs .context/paridad-visual/despues`). Las capturas web se rehicieron después de la fase 5 con `scripts/paridad-web.mjs` (lote en el quickstart). Android sigue los bocetos (fases 1–4); la web adoptó lo común (fase 5):
+
+- Tokens de genwork alineados con `GenColors` (escalones oscuros, `--control` a 3:1, verde y ámbar) y margen de 16 en el teléfono.
+- Cabeceras de raíz, subpantalla y entidad; filas de ajuste agrupadas; acciones de fila en «⋯»; un campo y un vacío.
+- Cards de proyecto y del portal, franja de KPI, progreso y plazo con el mismo criterio, fila de tarea con una acción visible.
+
+Diferencias que quedan en la web (fuera del alcance de la fase 5, para otra iteración):
+
+- P07: la descripción va en un bloque con relleno y los metadatos fuera de la card; Android los agrupa en secciones con rótulo.
+- P10 y P35: el tablero web conserva su cabecera de sector y el punto por tarea; Android usa el anillo de estado y el chip.
+- P21: el calendario web mantiene la grilla con líneas; Android, celdas sin líneas y hoy en círculo.
+- P23, P24a y P24b: Mi cuenta, Vincular con Claude y App móvil web conservan su armado (P24b web ya tenía su QR en SVG; Android ahora también lo muestra).
+- P26: Usuarios web edita el rol con un desplegable en la fila; Android lo hace desde el «⋯».
+- P28: catálogos web con sus formularios en línea; Android, filas con «⋯» y chips de valores.
