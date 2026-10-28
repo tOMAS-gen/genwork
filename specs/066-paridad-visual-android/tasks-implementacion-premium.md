@@ -458,9 +458,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 
 ## Checkpoint 3: pantallas
 
-- [ ] `dart analyze` limpio y `flutter test` en verde.
-- [ ] Las 41 pantallas con captura `despues` en claro y oscuro, al lado de su boceto en el comparador.
-- [ ] Los 152 hallazgos marcados en `auditoria-premium.md` como resueltos, en parte o descartados con su motivo.
+- [x] `dart analyze` limpio y `flutter test` en verde.
+- [x] Las 41 pantallas con captura `despues` en claro y oscuro, al lado de su boceto en el comparador.
+- [x] Los 152 hallazgos marcados en `auditoria-premium.md` como resueltos, en parte o descartados con su motivo.
 - [ ] El usuario revisa en el comparador.
 
 ## Fase 4 — Técnico
