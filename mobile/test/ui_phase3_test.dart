@@ -393,6 +393,8 @@ void main() {
       scale: 1,
       size: const Size(1024, 768),
     );
+    // Lo escrito sobrevive al cruzar los umbrales de 600 y 840 dp.
+    await tester.enterText(find.byKey(const ValueKey('works_search')), 'señal');
     for (final size in const [
       Size(360, 800),
       Size(1024, 768),
@@ -401,7 +403,61 @@ void main() {
       tester.view.physicalSize = size;
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: '$size');
+      expect(find.text('señal'), findsOneWidget, reason: '$size');
     }
+  });
+  testWidgets('T7: girar no pierde el desplazamiento del detalle', (
+    tester,
+  ) async {
+    await _pump(tester, const WorkDetailScreen(workId: 'w1'), scale: 1);
+    final list = find
+        .descendant(
+          of: find.byKey(const ValueKey('work_detail_list')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    tester.state<ScrollableState>(list).position.jumpTo(200);
+    await tester.pumpAndSettle();
+    // A 800 dp se cruza el umbral de 600: el contenido se acota a 720.
+    tester.view.physicalSize = const Size(800, 360);
+    await tester.pumpAndSettle();
+    expect(tester.state<ScrollableState>(list).position.pixels, 200);
+  });
+  testWidgets('menú en horizontal: las secciones entran y Salir se alcanza', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      shell: true,
+      scale: 1,
+      size: const Size(800, 360),
+    );
+    await tester.tap(find.byKey(const ValueKey('drawer_open')));
+    await tester.pumpAndSettle();
+    final list = tester.getRect(find.byKey(const ValueKey('drawer_list')));
+    // La lista ocupa casi todo el alto: el pie se desplaza con ella.
+    expect(list.height, greaterThan(250));
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('nav_logout')),
+      100,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('drawer_list')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(find.byKey(const ValueKey('nav_logout')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('letra al 200 %: el orden de Proyectos se lee entero', (
+    tester,
+  ) async {
+    await _pump(tester, const WorksListScreen(), scale: 2);
+    expect(tester.takeException(), isNull);
+    final box = tester.getRect(find.byKey(const ValueKey('works_sort_box')));
+    // Va en su propio renglón, a todo el ancho.
+    expect(box.width, greaterThan(300));
+    expect(find.text('Más recientes'), findsOneWidget);
   });
   testWidgets('T7: a 360 dp el menú sigue siendo modal', (tester) async {
     await _pump(tester, const WorksListScreen(), shell: true, scale: 1);

@@ -29,6 +29,9 @@ import '../../shared/widgets/initials_avatar.dart';
 /// Ancho desde el que el menú queda fijo al costado (T7).
 const double _permanentDrawerAt = 840;
 
+/// Alto por debajo del cual el pie del menú se desplaza con la lista.
+const double _shortWindowAt = 560;
+
 /// Drawer compartido; las ramas siguen vivas al cambiar de sección.
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
@@ -154,13 +157,75 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
 
     final permanent = MediaQuery.sizeOf(context).width >= _permanentDrawerAt;
+    // Pie fijo, como `.sidebar-footer`. Con poca altura (horizontal) se
+    // desplaza con la lista: fijo, no dejaba lugar para las secciones.
+    final shortWindow = MediaQuery.sizeOf(context).height < _shortWindowAt;
+    final Widget footer = DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            top(
+              id: 'nav_due_today',
+              icon: AppIcons.bell,
+              label: 'Vence hoy',
+              selected: path == Routes.dueToday,
+              trailing: deliveries.value != null && deliveries.value!.isNotEmpty
+                  ? CountBadge(
+                      key: const ValueKey('nav_due_today_total'),
+                      count: deliveries.value!.length,
+                      singular: 'aviso pendiente',
+                      plural: 'avisos pendientes',
+                    )
+                  : deliveries.hasError
+                  ? const Icon(
+                      AppIcons.error,
+                      semanticLabel: 'No se pudieron actualizar los avisos',
+                    )
+                  : null,
+              onTap: () {
+                ref.invalidate(deliveriesProvider);
+                _route(Routes.dueToday);
+              },
+            ),
+            // Solo en la app: abre la lista sin cerrar la
+            // sesión de este servidor.
+            top(
+              id: 'drawer_switch_server',
+              icon: AppIcons.server,
+              label: 'Cambiar de servidor',
+              subtitle: session.serverUrl.host,
+              selected: false,
+              onTap: () {
+                _closeDrawer();
+                context.push(Routes.servers);
+              },
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+              child: LogoutTile(
+                actionKey: 'nav_logout',
+                label: 'Salir',
+                plain: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
     final Widget navigation = Drawer(
       key: const ValueKey('main_navigation'),
       // Fijo, es una columna más: sin sombra ni curva.
       elevation: permanent ? 0 : null,
       shape: permanent ? const RoundedRectangleBorder() : null,
+      // El margen lateral del sistema (horizontal) se suma: si no, se come el
+      // ancho de los rótulos.
       width: math.min(
-        AppGeometry.drawerWidth,
+        AppGeometry.drawerWidth + MediaQuery.paddingOf(context).left,
         MediaQuery.sizeOf(context).width - AppSpacing.xxxl,
       ),
       semanticLabel: 'Menú principal',
@@ -358,72 +423,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                       selected: path == Routes.account,
                       onTap: () => _route(Routes.account),
                     ),
+                    if (shortWindow) footer,
                   ],
                 ),
               ),
-              // Pie fijo, como `.sidebar-footer`.
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: colors.border)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      top(
-                        id: 'nav_due_today',
-                        icon: AppIcons.bell,
-                        label: 'Vence hoy',
-                        selected: path == Routes.dueToday,
-                        trailing:
-                            deliveries.value != null &&
-                                deliveries.value!.isNotEmpty
-                            ? CountBadge(
-                                key: const ValueKey('nav_due_today_total'),
-                                count: deliveries.value!.length,
-                                singular: 'aviso pendiente',
-                                plural: 'avisos pendientes',
-                              )
-                            : deliveries.hasError
-                            ? const Icon(
-                                AppIcons.error,
-                                semanticLabel:
-                                    'No se pudieron actualizar los avisos',
-                              )
-                            : null,
-                        onTap: () {
-                          ref.invalidate(deliveriesProvider);
-                          _route(Routes.dueToday);
-                        },
-                      ),
-                      // Solo en la app: abre la lista sin cerrar la
-                      // sesión de este servidor.
-                      top(
-                        id: 'drawer_switch_server',
-                        icon: AppIcons.server,
-                        label: 'Cambiar de servidor',
-                        subtitle: session.serverUrl.host,
-                        selected: false,
-                        onTap: () {
-                          _closeDrawer();
-                          context.push(Routes.servers);
-                        },
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                        ),
-                        child: LogoutTile(
-                          actionKey: 'nav_logout',
-                          label: 'Salir',
-                          plain: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              if (!shortWindow) footer,
             ],
           ),
         ),
@@ -449,14 +453,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               !path.startsWith('${Routes.reminders}/'),
           drawer: permanent ? null : navigation,
           // A partir de 840 dp el menú queda fijo al costado (T7).
-          body: permanent
-              ? Row(
-                  children: [
-                    navigation,
-                    Expanded(child: widget.navigationShell),
-                  ],
-                )
-              : widget.navigationShell,
+          // Siempre una fila, con la clave en el contenido: al cruzar el
+          // umbral las secciones conservan su estado.
+          body: Row(
+            children: [
+              if (permanent) navigation,
+              Expanded(
+                key: const ValueKey('shell_body'),
+                child: widget.navigationShell,
+              ),
+            ],
+          ),
         ),
       ),
     );

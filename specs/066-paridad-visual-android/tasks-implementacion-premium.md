@@ -500,7 +500,12 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 
 ## Checkpoint 4: Android completo
 
-- [ ] Re-auditoría técnica en el emulador: 360 × 800, 800 × 360, tablet de 1280 × 800, letra al 1,3 y al 2,0, navegación de 3 botones.
+- [x] Re-auditoría técnica en el emulador: 360 × 800, 800 × 360, tablet de 1280 × 800, letra al 1,3 y al 2,0, navegación de 3 botones. Capturas en `.context/paridad-visual/reauditoria/`. Se corrigió lo que apareció:
+  - Al girar se perdía el desplazamiento (y cualquier estado debajo de `ContentWidth`): el árbol cambiaba de forma al cruzar los 600 dp. Ahora tiene la misma forma en todo ancho.
+  - En horizontal el menú dejaba la lista de secciones en 0 dp: con menos de 560 dp de alto, el pie se desplaza con la lista. El ancho del menú suma el margen lateral del sistema.
+  - En horizontal el título y la lista no arrancaban en la misma línea: el `SafeArea` lateral envuelve encabezado y cuerpo.
+  - Al 200 % el orden de Proyectos quedaba sin texto: con letra grande va en su propio renglón.
+  - Quedan sin cambios: en horizontal la barra y el compositor dejan unos 200 dp de contenido (T8, fuera de esta fase); al 200 % algunos rótulos del menú se cortan con puntos suspensivos.
 - [ ] El usuario revisa Android antes de pasar a la web.
 
 ## Fase 5 — Web

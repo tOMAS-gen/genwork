@@ -110,39 +110,54 @@ class ListToolbar<S> extends StatelessWidget {
                   onChanged: onSearch,
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Row(
-                  children: [
-                    if (onToggleFilters != null) ...[
-                      _FiltersButton(
-                        key: ValueKey('${keyPrefix}_filters_toggle'),
-                        expanded: filtersExpanded,
-                        count: activeFilters.length,
-                        onPressed: onToggleFilters!,
-                      ),
-                      const SizedBox(
-                        width: AppSpacing.xxs + AppSpacing.hairline,
-                      ),
-                    ],
-                    Expanded(
-                      child: _SortSelect<S>(
-                        selectKey: ValueKey('${keyPrefix}_sort'),
-                        boxKey: ValueKey('${keyPrefix}_sort_box'),
-                        value: sort,
-                        options: sortOptions,
-                        onChanged: onSort,
-                      ),
-                    ),
-                    if (onGrid != null) ...[
-                      const SizedBox(
-                        width: AppSpacing.xxs + AppSpacing.hairline,
-                      ),
-                      _ViewSwitch(
-                        keyPrefix: keyPrefix,
-                        grid: grid ?? true,
-                        onChanged: onGrid!,
-                      ),
-                    ],
-                  ],
+                Builder(
+                  builder: (context) {
+                    final filters = onToggleFilters == null
+                        ? null
+                        : _FiltersButton(
+                            key: ValueKey('${keyPrefix}_filters_toggle'),
+                            expanded: filtersExpanded,
+                            count: activeFilters.length,
+                            onPressed: onToggleFilters!,
+                          );
+                    final sortSelect = _SortSelect<S>(
+                      selectKey: ValueKey('${keyPrefix}_sort'),
+                      boxKey: ValueKey('${keyPrefix}_sort_box'),
+                      value: sort,
+                      options: sortOptions,
+                      onChanged: onSort,
+                    );
+                    final view = onGrid == null
+                        ? null
+                        : _ViewSwitch(
+                            keyPrefix: keyPrefix,
+                            grid: grid ?? true,
+                            onChanged: onGrid!,
+                          );
+                    const gap = SizedBox(
+                      width: AppSpacing.xxs + AppSpacing.hairline,
+                    );
+                    // Con texto grande el orden no entra entre los otros dos
+                    // controles y quedaba vacío: va en su propio renglón.
+                    if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (filters != null || view != null)
+                            Row(children: [?filters, const Spacer(), ?view]),
+                          const SizedBox(height: AppSpacing.xs),
+                          sortSelect,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        if (filters != null) ...[filters, gap],
+                        Expanded(child: sortSelect),
+                        if (view != null) ...[gap, view],
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

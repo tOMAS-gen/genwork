@@ -18,14 +18,16 @@ class ContentWidth extends StatelessWidget {
   static bool isWide(BuildContext context) =>
       MediaQuery.sizeOf(context).width >= contentWideAt;
 
+  // La misma forma de árbol en todo ancho: al girar o redimensionar no se
+  // pierde el estado de lo que hay adentro (desplazamiento, borradores).
   @override
-  Widget build(BuildContext context) => isWide(context)
-      ? Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: contentMaxWidth),
-            child: child,
-          ),
-        )
-      : child;
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: isWide(context) ? contentMaxWidth : double.infinity,
+      ),
+      child: child,
+    ),
+  );
 }

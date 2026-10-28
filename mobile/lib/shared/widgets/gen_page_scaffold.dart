@@ -79,28 +79,36 @@ class GenPageScaffold extends StatelessWidget {
         ],
       ),
       floatingActionButton: fab,
-      body: ContentWidth(
-        child: NestedScrollView(
-          headerSliverBuilder: (context, _) => [
-            if (top != null) SliverToBoxAdapter(child: top),
-            SliverToBoxAdapter(
-              child: GenSectionHeader(
-                title: title,
-                subtitle: subtitle,
-                count: count,
-                breadcrumb: breadcrumb,
-                actions: actions,
-                bottom: headerBottom,
+      // Los márgenes laterales del sistema (recorte de cámara o barra en
+      // horizontal) para encabezado y cuerpo por igual (T6).
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: ContentWidth(
+          child: NestedScrollView(
+            headerSliverBuilder: (context, _) => [
+              if (top != null) SliverToBoxAdapter(child: top),
+              SliverToBoxAdapter(
+                child: GenSectionHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  count: count,
+                  breadcrumb: breadcrumb,
+                  actions: actions,
+                  bottom: headerBottom,
+                ),
               ),
+            ],
+            // Edge-to-edge (targetSdk 36): el contenido no queda bajo la barra de
+            // navegación ni bajo un recorte lateral (T6). El fondo sí pasa.
+            body: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              child: onRefresh == null
+                  ? content
+                  : RefreshIndicator(onRefresh: onRefresh!, child: content),
             ),
-          ],
-          // Edge-to-edge (targetSdk 36): el contenido no queda bajo la barra de
-          // navegación ni bajo un recorte lateral (T6). El fondo sí pasa.
-          body: SafeArea(
-            top: false,
-            child: onRefresh == null
-                ? content
-                : RefreshIndicator(onRefresh: onRefresh!, child: content),
           ),
         ),
       ),
