@@ -80,7 +80,21 @@ void main() {
       find.byKey(const ValueKey('x_sort_box')),
     );
     expect((sortBox.decoration! as BoxDecoration).color, isNotNull);
-    expect(t.getSize(find.byKey(const ValueKey('x_sort_box'))).height, 44);
+    // Buscador, filtros, orden y vista del mismo alto, de 48 dp como el área
+    // táctil (el selector de vista quedaba más alto que los demás).
+    for (final key in [
+      'x_search',
+      'x_sort_box',
+      'x_filters_toggle',
+      'x_view_switch',
+    ]) {
+      expect(t.getSize(find.byKey(ValueKey(key))).height, 48, reason: key);
+    }
+    for (final key in ['x_view_grid', 'x_view_list']) {
+      final size = t.getSize(find.byKey(ValueKey(key)));
+      expect(size.width, greaterThanOrEqualTo(48), reason: key);
+      expect(size.height, greaterThanOrEqualTo(48), reason: key);
+    }
     expect(find.text('panel'), findsNothing);
     // El contador del botón muestra cuántos filtros hay activos.
     expect(

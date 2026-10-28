@@ -7,8 +7,9 @@ import '../../core/theme/gen_colors.dart';
 import 'labeled_field.dart';
 import 'app_dropdown_decoration.dart';
 
-/// Alto de los controles de la barra (P05-M4).
-const double _controlHeight = 44;
+/// Alto de los controles de la barra (P05-M4): el del área táctil (T4), así
+/// buscador, filtros, orden y vista miden lo mismo.
+const double _controlHeight = kMinInteractiveDimension;
 
 /// Un filtro activo, con la acción que lo quita (`.toolbar-chips`).
 typedef ActiveFilter = ({String label, VoidCallback remove});
@@ -255,7 +256,7 @@ class _SearchField extends StatelessWidget {
       hintText: hint,
       prefixIcon: const Icon(AppIcons.search, size: AppIconSizes.action),
       isDense: true,
-      constraints: const BoxConstraints(minHeight: 44),
+      constraints: const BoxConstraints(minHeight: _controlHeight),
     ),
   );
 }
@@ -341,7 +342,7 @@ class _SortSelect<S> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    // Caja de campo de 44 dp, como el buscador y "Filtros" (P05-M4).
+    // Caja de campo del mismo alto que el buscador y "Filtros" (P05-M4).
     return Container(
       key: boxKey,
       height: _controlHeight,
@@ -395,39 +396,54 @@ class _ViewSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    // Cada opción ocupa 48 × 48 (T4) y el fondo de la seleccionada va más
+    // adentro: el marco mide lo mismo que los otros controles.
     Widget option(bool isGrid, IconData icon, String label) {
       final selected = grid == isGrid;
       return Semantics(
         selected: selected,
-        child: IconButton(
-          key: ValueKey('${keyPrefix}_view_${isGrid ? 'grid' : 'list'}'),
-          tooltip: label,
-          onPressed: () => onChanged(isGrid),
-          constraints: const BoxConstraints(minWidth: 40, minHeight: 36),
-          padding: EdgeInsets.zero,
-          style: IconButton.styleFrom(
-            backgroundColor: selected ? c.brandFill : Colors.transparent,
-            foregroundColor: selected ? c.brand : c.muted,
-            shape: const RoundedRectangleBorder(borderRadius: AppGeometry.chip),
+        button: true,
+        child: Tooltip(
+          message: label,
+          child: InkWell(
+            key: ValueKey('${keyPrefix}_view_${isGrid ? 'grid' : 'list'}'),
+            onTap: () => onChanged(isGrid),
+            borderRadius: AppGeometry.control,
+            child: SizedBox.square(
+              dimension: _controlHeight,
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xxs),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: selected ? c.brandFill : Colors.transparent,
+                    borderRadius: AppGeometry.chip,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: AppIconSizes.field,
+                    color: selected ? c.brand : c.muted,
+                  ),
+                ),
+              ),
+            ),
           ),
-          icon: Icon(icon, size: AppIconSizes.field),
         ),
       );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.hairline),
-      decoration: BoxDecoration(
-        color: c.field,
-        border: Border.all(color: c.control),
+    // El borde va por delante: no suma alto a las opciones.
+    return Material(
+      key: ValueKey('${keyPrefix}_view_switch'),
+      color: c.field,
+      shape: RoundedRectangleBorder(
         borderRadius: AppGeometry.control,
+        side: BorderSide(color: c.control),
       ),
-      constraints: const BoxConstraints(minHeight: _controlHeight),
+      clipBehavior: Clip.antiAlias,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           option(true, AppIcons.gridView, 'Ver como grilla'),
-          const SizedBox(width: AppSpacing.hairline),
           option(false, AppIcons.list, 'Ver como lista'),
         ],
       ),
