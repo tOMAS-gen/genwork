@@ -506,7 +506,7 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
   - En horizontal el título y la lista no arrancaban en la misma línea: el `SafeArea` lateral envuelve encabezado y cuerpo.
   - Al 200 % el orden de Proyectos quedaba sin texto: con letra grande va en su propio renglón.
   - Quedan sin cambios: en horizontal la barra y el compositor dejan unos 200 dp de contenido (T8, fuera de esta fase); al 200 % algunos rótulos del menú se cortan con puntos suspensivos.
-- [ ] El usuario revisa Android antes de pasar a la web.
+- [x] El usuario revisa Android antes de pasar a la web.
 
 ## Fase 5 — Web
 
@@ -515,8 +515,8 @@ Antes de tocar Next.js, leer `node_modules/next/dist/docs/` (AGENTS.md). El deta
 ## Tarea 39: Web — tokens oscuros, contorno a 3:1 y margen de 16
 
 **Criterios de aceptación:**
-- [ ] Los tokens de `@gen/ui` coinciden con los de `GenColors` (escalones oscuros, verde y ámbar, contorno).
-- [ ] `.main` usa 16 px de margen en móvil.
+- [x] Los tokens de `@gen/ui` coinciden con los de `GenColors` (escalones oscuros, verde y ámbar, contorno).
+- [x] `.main` usa 16 px de margen en móvil.
 
 **Verificación:** tests de tokens de la web; capturas web de P05, P07 y P25 en los dos temas. · **Tamaño:** M
 

@@ -3,6 +3,7 @@ import { Montserrat, Roboto_Mono } from "next/font/google";
 import { ThemeScript } from "@gen/ui";
 import "@gen/ui/styles.css";
 import "@gen/ui/themes/genwork.css";
+import "./genwork-tokens.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
