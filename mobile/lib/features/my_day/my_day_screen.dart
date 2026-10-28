@@ -105,43 +105,74 @@ class MyDayScreen extends ConsumerWidget {
                 : t.homeSector != null
                 ? Routes.sector(t.homeSector!.id)
                 : null;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _RowMeta(
-                  taskId: t.id,
-                  isReference: isRef,
-                  task: t,
-                  onSource: route == null ? null : () => context.push(route),
+            final hasSource = isRef || myDaySourceLabel(t) != null;
+            // Una card por tarea, con el origen arriba y una línea que lo
+            // separa de la fila (boceto P04).
+            return WorkspacePanel(
+              key: ValueKey('my_day_card_${t.id}'),
+              child: ClipRRect(
+                borderRadius: AppGeometry.card,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (hasSource) ...[
+                        _RowMeta(
+                          taskId: t.id,
+                          isReference: isRef,
+                          task: t,
+                          onSource: route == null
+                              ? null
+                              : () => context.push(route),
+                        ),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: context.colors.border,
+                        ),
+                      ],
+                      TaskTile(
+                        task: t,
+                        flat: true,
+                        inlineCounter: true,
+                        referenceIds: merged.referenceIds,
+                        showWork: false,
+                        onTap: () => showTaskDetail(
+                          context,
+                          t,
+                          canEdit: t.canToggle ?? false,
+                        ),
+                        onToggleDone: t.canToggle == true
+                            ? () => toggle(t)
+                            : null,
+                        onToggleMyDay: t.canManageMyDay == true
+                            ? () => toggleDay(t)
+                            : null,
+                        onSubtaskTap: (s) => showTaskDetail(
+                          context,
+                          s,
+                          canEdit: s.canToggle ?? false,
+                        ),
+                        onSubtaskToggle: (s) {
+                          if (s.canToggle == true) toggle(s);
+                        },
+                        onAddSubtask: t.canToggle == true && t.parentId == null
+                            ? () => promptSubtask(context, t)
+                            : null,
+                        onDelete: t.canToggle == true
+                            ? () => confirmDeleteTask(context, ref, t)
+                            : null,
+                        onSubtaskMyDay: (s) {
+                          if (s.canManageMyDay == true) toggleDay(s);
+                        },
+                        onSubtaskDelete: (s) =>
+                            confirmDeleteTask(context, ref, s),
+                      ),
+                    ],
+                  ),
                 ),
-                TaskTile(
-                  task: t,
-                  flat: true,
-                  referenceIds: merged.referenceIds,
-                  showWork: false,
-                  onTap: () =>
-                      showTaskDetail(context, t, canEdit: t.canToggle ?? false),
-                  onToggleDone: t.canToggle == true ? () => toggle(t) : null,
-                  onToggleMyDay: t.canManageMyDay == true
-                      ? () => toggleDay(t)
-                      : null,
-                  onSubtaskTap: (s) =>
-                      showTaskDetail(context, s, canEdit: s.canToggle ?? false),
-                  onSubtaskToggle: (s) {
-                    if (s.canToggle == true) toggle(s);
-                  },
-                  onAddSubtask: t.canToggle == true && t.parentId == null
-                      ? () => promptSubtask(context, t)
-                      : null,
-                  onDelete: t.canToggle == true
-                      ? () => confirmDeleteTask(context, ref, t)
-                      : null,
-                  onSubtaskMyDay: (s) {
-                    if (s.canManageMyDay == true) toggleDay(s);
-                  },
-                  onSubtaskDelete: (s) => confirmDeleteTask(context, ref, s),
-                ),
-              ],
+              ),
             );
           }
 
@@ -167,8 +198,10 @@ class MyDayScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpace.gutter,
                   ),
-                  sliver: SliverListPanel(
+                  sliver: SliverList.separated(
                     itemCount: open.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpace.md),
                     itemBuilder: (_, i) => tile(open[i]),
                   ),
                 ),
@@ -193,8 +226,15 @@ class MyDayScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpace.gutter,
                             ),
-                            child: WorkspaceListPanel(
-                              children: done.map(tile).toList(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (var i = 0; i < done.length; i++) ...[
+                                  if (i > 0)
+                                    const SizedBox(height: AppSpace.md),
+                                  tile(done[i]),
+                                ],
+                              ],
                             ),
                           ),
                         ],
@@ -254,16 +294,18 @@ class _ProgressText extends StatelessWidget {
         ),
         if (p != null) ...[
           const SizedBox(height: AppSpacing.xs),
-          ProgressBar(value: p.ratio),
+          // Resumen de la pantalla: más marcada que la de las cards.
+          ProgressBar(value: p.ratio, height: AppSpacing.xs),
         ],
       ],
     );
   }
 }
 
-/// Encabezado de cada tarea: de dónde viene, con el proyecto o sector en
-/// 13/600 y el resto («› Preparación y entrega») en gris (P04-M4). El título de
-/// la página ya dice «Mi día»; una referencia lleva «@ Referencia».
+/// Encabezado de cada card: de dónde viene, con el proyecto o sector en
+/// 15/600 y debajo el resto («› Preparación y entrega») en 13 gris (P04-M4 y
+/// boceto). El título de la página ya dice «Mi día»; una referencia lleva
+/// «@ Referencia».
 class _RowMeta extends StatelessWidget {
   const _RowMeta({
     required this.taskId,
@@ -285,26 +327,25 @@ class _RowMeta extends StatelessWidget {
       task.objectiveTitle,
       task.parentText,
     ].whereType<String>().where((s) => s.isNotEmpty).join(' › ');
-    final source = Text.rich(
-      TextSpan(
-        children: [
-          if (owner != null)
-            TextSpan(
-              text: owner,
-              style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w600,
-                color: c.text,
-              ),
-            ),
-          if (rest.isNotEmpty)
-            TextSpan(
-              text: '${owner == null ? '' : '  '}› $rest',
-              style: AppTextStyles.body.copyWith(color: c.muted),
-            ),
-        ],
-      ),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+    final source = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (owner != null)
+          Text(
+            owner,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.itemTitle.copyWith(color: c.text),
+          ),
+        if (rest.isNotEmpty)
+          Text(
+            '› $rest',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.body.copyWith(color: c.muted),
+          ),
+      ],
     );
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
@@ -327,7 +368,7 @@ class _RowMeta extends StatelessWidget {
               child: onSource == null
                   ? Padding(
                       padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.sm,
+                        vertical: AppSpace.md,
                       ),
                       child: source,
                     )
@@ -339,9 +380,14 @@ class _RowMeta extends StatelessWidget {
                         constraints: const BoxConstraints(
                           minHeight: kMinInteractiveDimension,
                         ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: source,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpace.md,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: source,
+                          ),
                         ),
                       ),
                     ),

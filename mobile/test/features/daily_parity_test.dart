@@ -222,9 +222,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    // Una sola card para Mi día + referencias, sin encabezados de sección;
-    // perezosa: solo construye las filas visibles (T2).
-    expect(find.byType(SliverListPanel), findsOneWidget);
+    // Una card por tarea, como el boceto (P04), sin encabezados de sección;
+    // la lista sigue siendo perezosa (T2).
+    expect(find.byKey(const ValueKey('my_day_card_hoy')), findsOneWidget);
+    expect(find.byKey(const ValueKey('my_day_card_ref')), findsOneWidget);
+    expect(find.byType(SliverList), findsOneWidget);
     expect(find.text('Pendientes'), findsNothing);
     // El grupo dice de dónde viene, sin repetir «Mi día» (P04-M4); la
     // referencia conserva su marca.
@@ -725,4 +727,77 @@ void main() {
       },
     );
   }
+
+  testWidgets('P04 Mi día como el boceto: card por tarea, origen en dos '
+      'líneas, avance de las hijas junto al nombre', (tester) async {
+    final root = Task.fromJson({
+      ...taskJson(
+        'root',
+        canToggle: true,
+        children: [
+          {
+            ...taskJson('a', canToggle: true),
+            'status': {'id': 'done', 'name': 'Hecha', 'type': 'FINAL'},
+          },
+          taskJson('b', canToggle: true),
+        ],
+      ),
+      'subtaskDone': 1,
+      'objectiveTitle': 'Preparación y entrega',
+      'work': {'id': 'w1', 'name': 'Cartelería del local'},
+    });
+    final container = ProviderContainer(
+      retry: (_, _) => null,
+      overrides: [
+        richEditorBuilderProvider.overrideWithValue(fakeRichEditor),
+        myDayProvider.overrideWith((ref) async => [root]),
+        openReferencesProvider.overrideWith((ref) async => []),
+        deliveriesProvider.overrideWith((ref) async => []),
+      ],
+    );
+    addTearDown(container.dispose);
+    await mount(tester, container, const MyDayScreen());
+
+    // Proyecto en 15/600 y la ruta en una segunda línea gris.
+    final owner = tester.widget<Text>(find.text('Cartelería del local'));
+    expect(owner.style?.fontSize, 15);
+    expect(owner.style?.fontWeight, FontWeight.w600);
+    expect(find.text('› Preparación y entrega'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('› Preparación y entrega')).dy,
+      greaterThan(
+        tester.getBottomLeft(find.text('Cartelería del local')).dy - 1,
+      ),
+    );
+
+    // La tarea con hijas muestra su avance en una casilla a medio marcar que
+    // no se toca (el estado lo dan las hijas) y «1/2» junto al nombre.
+    final box = tester.widget<Checkbox>(
+      find.byKey(const ValueKey('task_progress_box_root')),
+    );
+    expect(box.tristate, isTrue);
+    expect(box.value, isNull);
+    expect(find.byKey(const ValueKey('task_toggle_root')), findsNothing);
+    final counter = find.byKey(const ValueKey('task_counter_root'));
+    expect(counter, findsOneWidget);
+    expect(
+      (tester.getCenter(counter).dy -
+              tester.getCenter(find.text('Tarea root')).dy)
+          .abs(),
+      lessThan(4),
+    );
+
+    // Barra de avance del día más marcada que la de las cards.
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(
+            find.descendant(
+              of: find.byKey(const ValueKey('my_day_progress')),
+              matching: find.byType(LinearProgressIndicator),
+            ),
+          )
+          .minHeight,
+      8,
+    );
+  });
 }

@@ -34,6 +34,7 @@ class TaskTile extends StatefulWidget {
     this.onDelete,
     this.onSubtaskDelete,
     this.onSubtaskMyDay,
+    this.inlineCounter = false,
   });
   final Task task;
   final VoidCallback onTap;
@@ -58,6 +59,11 @@ class TaskTile extends StatefulWidget {
   /// ☀ de cada subtarea (la web lo muestra también en las hijas).
   final void Function(Task subtask)? onSubtaskMyDay;
 
+  /// Como el boceto de Mi día (P04): la tarea con hijas muestra su avance en
+  /// una casilla a medio marcar que no se toca y «1/2» como chip junto al
+  /// nombre, y las hijas van separadas por una línea.
+  final bool inlineCounter;
+
   @override
   State<TaskTile> createState() => _TaskTileState();
 }
@@ -78,6 +84,8 @@ class _TaskTileState extends State<TaskTile> {
     final canToggle =
         onToggleDone != null && !task.isContainer && task.canToggle != false;
     final canDay = onToggleMyDay != null && task.canManageMyDay != false;
+    final partial =
+        task.subtaskDone > 0 && task.subtaskDone < task.subtaskCount;
     final meta = <String>[
       if (widget.showWork && task.work != null) task.work!.name,
       if (widget.showSector && task.homeSector != null)
@@ -143,7 +151,7 @@ class _TaskTileState extends State<TaskTile> {
             children: [
               // Una tarea con subtareas no lleva casilla (su estado sale de las
               // hijas): en su lugar va la flecha que las pliega, como la web.
-              if (task.isContainer && widget.showSubtasks)
+              if (task.isContainer && widget.showSubtasks) ...[
                 IconButton(
                   key: ValueKey('task_expand_${task.id}'),
                   tooltip: _expanded
@@ -155,8 +163,48 @@ class _TaskTileState extends State<TaskTile> {
                     size: AppIconSizes.notice,
                     color: c.muted,
                   ),
-                )
-              else if (task.isContainer)
+                ),
+                // Solo muestra el avance: el estado lo dan las hijas, así que
+                // no se toca ni recibe foco (el chip «1/2» lo anuncia).
+                if (widget.inlineCounter)
+                  // Centrada con la primera línea, como las casillas de 48.
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpace.sm),
+                    child: ExcludeFocus(
+                      child: ExcludeSemantics(
+                        child: IgnorePointer(
+                          // Sin área táctil propia (no se toca): más angosta,
+                          // y a medio marcar con contorno y guion gris.
+                          child: Checkbox(
+                            key: ValueKey('task_progress_box_${task.id}'),
+                            tristate: true,
+                            value: partial
+                                ? null
+                                : task.subtaskDone >= task.subtaskCount,
+                            onChanged: (_) {},
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                            fillColor: partial
+                                ? const WidgetStatePropertyAll(
+                                    Colors.transparent,
+                                  )
+                                : null,
+                            checkColor: partial ? c.muted : null,
+                            side: partial
+                                ? WidgetStateBorderSide.resolveWith(
+                                    (_) => BorderSide(
+                                      color: c.control,
+                                      width: AppSpacing.hairline,
+                                    ),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ] else if (task.isContainer)
                 const SizedBox(width: AppSpace.touch)
               else
                 Semantics(
@@ -191,10 +239,27 @@ class _TaskTileState extends State<TaskTile> {
                               ),
                             ),
                           ),
+                          if (widget.inlineCounter &&
+                              task.subtaskCount > 0) ...[
+                            const SizedBox(width: AppSpace.sm),
+                            Semantics(
+                              label:
+                                  '${task.subtaskDone} de ${task.subtaskCount} subtareas hechas',
+                              excludeSemantics: true,
+                              child: StatusChip(
+                                key: ValueKey('task_counter_${task.id}'),
+                                label:
+                                    '${task.subtaskDone}/${task.subtaskCount}',
+                                color: c.muted,
+                                fill: c.field,
+                                mono: true,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       // "hechas/total" en 12 gris debajo del título.
-                      if (task.subtaskCount > 0)
+                      if (task.subtaskCount > 0 && !widget.inlineCounter)
                         Semantics(
                           label:
                               '${task.subtaskDone} de ${task.subtaskCount} subtareas hechas',
@@ -311,7 +376,14 @@ class _TaskTileState extends State<TaskTile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final sub in task.subtasks)
+                  for (final sub in task.subtasks) ...[
+                    if (widget.inlineCounter)
+                      Divider(
+                        height: 1,
+                        thickness: 1,
+                        indent: AppSpace.lg,
+                        color: c.border,
+                      ),
                     TaskTile(
                       task: sub,
                       flat: flat,
@@ -336,6 +408,7 @@ class _TaskTileState extends State<TaskTile> {
                           : () => widget.onSubtaskMyDay!(sub),
                       onSubtaskMyDay: widget.onSubtaskMyDay,
                     ),
+                  ],
                 ],
               ),
             ),
