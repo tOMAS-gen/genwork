@@ -649,6 +649,26 @@ void main() {
       expect(side.resolve({})!.color, GenColors.light.border);
     });
 
+    testWidgets('el campo de descripción es alto y con borde claro', (
+      tester,
+    ) async {
+      final task = taskJson();
+      await mountDetail(tester, detailApi(task), task);
+      final field = find.byKey(const ValueKey('task_description_field'));
+      final decoration = tester
+          .widget<InputDecorator>(
+            find.descendant(of: field, matching: find.byType(InputDecorator)),
+          )
+          .decoration;
+      // En reposo, el borde estructural claro del boceto; al enfocar, la marca.
+      expect(
+        decoration.enabledBorder?.borderSide.color,
+        GenColors.light.border,
+      );
+      expect(decoration.focusedBorder?.borderSide.color, GenColors.light.brand);
+      expect(tester.widget<TextField>(field).minLines, 7);
+    });
+
     testWidgets('Mi día activo lleva el rótulo en la marca', (tester) async {
       final task = {...taskJson(), 'myDayAt': '2026-10-28T12:00:00Z'};
       await mountDetail(tester, detailApi(task), task);

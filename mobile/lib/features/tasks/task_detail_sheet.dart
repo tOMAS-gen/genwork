@@ -590,10 +590,16 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     key: const ValueKey('task_description_field'),
                     controller: _descriptionController,
                     enabled: canEdit,
-                    minLines: 5,
+                    // Alto y con el borde claro del boceto: el contorno
+                    // `control` recargaba la card; al enfocar sigue la marca.
+                    minLines: 7,
                     maxLines: 12,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Agregá detalles, medidas o instrucciones…',
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: AppGeometry.control,
+                        borderSide: BorderSide(color: c.border),
+                      ),
                     ),
                   ),
                   ValueListenableBuilder<TextEditingValue>(
