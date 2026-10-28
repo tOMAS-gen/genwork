@@ -431,9 +431,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 32: Catálogos: Etapas, Etiquetas y Estados (P28, P29)
 
 **Criterios de aceptación:**
-- [ ] Desplegable de ámbito y botón "Agregar" separados; el botón deja de ir a todo el ancho.
-- [ ] Filas de 56 dp con punto de color y "⋯" en lugar de cuatro `IconButton`; subir y bajar dentro del menú o con el reordenar de siempre.
-- [ ] P29: secciones "EN CURSO" y "FINAL · 1" como explicación.
+- [x] Desplegable de ámbito y botón "Agregar" separados; el botón deja de ir a todo el ancho.
+- [x] Filas de 56 dp con punto de color y "⋯" en lugar de cuatro `IconButton`; subir y bajar dentro del menú o con el reordenar de siempre.
+- [x] P29: secciones "EN CURSO" y "FINAL · 1" como explicación.
 
 **Verificación:** tests de catálogos con el menú. Capturas con datos de ejemplo (excepción de la spec). · **Archivos:** `features/settings/catalog_settings_screen.dart`, tests · **Tamaño:** M
 

@@ -1,5 +1,8 @@
 import 'catalogs_providers.dart';
 import 'package:flutter/material.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/settings_rows.dart';
+import '../../shared/widgets/row_actions_menu.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers.dart';
 import '../../core/network/api_exception.dart';
@@ -20,7 +23,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_dropdown_decoration.dart';
-import '../../shared/widgets/labeled_field.dart';
+import '../../core/util/format.dart';
 
 class CatalogSettingsScreen extends ConsumerStatefulWidget {
   const CatalogSettingsScreen({
@@ -234,8 +237,17 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
         ? (json?['canWrite'] == true)
         : canManage;
     final inherited = json?['inherited'] == true;
+    final c = context.colors;
     return GenPageScaffold(
       title: widget.kind.title,
+      // Una línea en las tres, para que el campo empiece a la misma altura
+      // (P28L-M4, P29-M1).
+      subtitle: switch (widget.kind) {
+        CatalogKind.stages => 'Pasos por los que avanza un proyecto.',
+        CatalogKind.labels => 'Clasifican proyectos y tareas.',
+        CatalogKind.statuses =>
+          'Un estado final por ámbito; los sectores pueden tener el suyo.',
+      },
       top: SettingsTabs(current: widget.kind.name),
       showBack: true,
       bodyPadding: EdgeInsets.zero,
@@ -248,40 +260,57 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
         padding: AppSpace.page,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          if (widget.kind == CatalogKind.statuses)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Text(
-                'Conjunto general de estados: “en curso” (uno o más) y “final” (exactamente uno) por ámbito. '
-                'Los sectores pueden adaptar el suyo propio desde su configuración.',
-                style: AppTextStyles.body.copyWith(color: context.colors.muted),
-              ),
-            ),
-          LabeledField(
-            label: 'Ámbito',
-            child: DropdownButtonFormField<String>(
-              icon: const AppDropdownIcon(),
-              key: const ValueKey('catalog_scope'),
-              initialValue: scope,
-              isExpanded: true,
-              style: AppTextStyles.body.copyWith(color: context.colors.text),
-              items: choices.entries
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e.key,
-                      child: Text(
-                        e.value,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: busy
-                  ? null
-                  : (v) => setState(() => scope = v ?? 'personal'),
-            ),
+          // Rótulo «ÁMBITO» y, en una sola fila, el desplegable y «Agregar»
+          // compacto (P28E-M1, P28E-M2).
+          Text(
+            'ÁMBITO',
+            style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
           ),
+          const SizedBox(height: AppSpacing.xxs + AppSpacing.hairline),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  icon: const AppDropdownIcon(),
+                  key: const ValueKey('catalog_scope'),
+                  initialValue: scope,
+                  isExpanded: true,
+                  style: AppTextStyles.body.copyWith(color: c.text),
+                  decoration: const InputDecoration(),
+                  items: choices.entries
+                      .map(
+                        (e) => DropdownMenuItem(
+                          value: e.key,
+                          child: Text(
+                            e.value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: busy
+                      ? null
+                      : (v) => setState(() => scope = v ?? 'personal'),
+                ),
+              ),
+              if (response.hasValue && canWrite) ...[
+                const SizedBox(width: AppSpacing.xs),
+                FilledButton.icon(
+                  key: const ValueKey('catalog_add'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                    ),
+                  ),
+                  onPressed: busy ? null : () => edit(null),
+                  icon: const Icon(AppIcons.add, size: AppIconSizes.field),
+                  label: const Text('Agregar'),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
           if (groups.hasError)
             ErrorView(
               error: groups.error!,
@@ -308,35 +337,65 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
             ),
           if (response.hasValue) ...[
             if (!canWrite)
-              const Text(
-                'Solo lectura: no tenés permiso para administrar este ámbito.',
-              ),
-            if (canWrite)
-              FilledButton.icon(
-                key: const ValueKey('catalog_add'),
-                onPressed: busy ? null : () => edit(null),
-                icon: const Icon(AppIcons.add, size: AppIconSizes.field),
-                label: const Text('Agregar'),
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  'Solo lectura: no tenés permiso para administrar este ámbito.',
+                  style: AppTextStyles.body.copyWith(color: c.muted),
+                ),
               ),
             if (items.isEmpty)
-              const EmptyView(
-                icon: AppIcons.label,
+              EmptyView(
+                icon: widget.kind == CatalogKind.labels
+                    ? AppIcons.label
+                    : AppIcons.list,
                 message: 'No hay elementos en este ámbito.',
+              )
+            else if (widget.kind == CatalogKind.labels)
+              for (final item in items)
+                if (scope != 'global' || item['scope'] == 'global')
+                  labelCard(
+                    item,
+                    item['scope'] == 'global'
+                        ? user?.isSuperAdmin == true
+                        : canWrite,
+                  )
+                else
+                  const SizedBox.shrink()
+            else if (widget.kind == CatalogKind.statuses) ...[
+              // Las dos secciones explican la regla (P29-M1, P29-M2).
+              for (final finalType in [false, true])
+                if (items.any((e) => (e['type'] == 'FINAL') == finalType)) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: AppSpacing.xs,
+                      bottom: AppSpacing.xs,
+                    ),
+                    child: Text(
+                      finalType
+                          ? 'FINAL · ${items.where((e) => e['type'] == 'FINAL').length}'
+                          : 'EN CURSO',
+                      style: AppTextStyles.sectionLabel.copyWith(
+                        color: c.muted,
+                      ),
+                    ),
+                  ),
+                  WorkspaceListPanel(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        if ((items[i]['type'] == 'FINAL') == finalType)
+                          row(items[i], i, items, canWrite),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+            ] else
+              WorkspaceListPanel(
+                children: [
+                  for (var i = 0; i < items.length; i++)
+                    row(items[i], i, items, canWrite),
+                ],
               ),
-            for (var i = 0; i < items.length; i++)
-              if (scope != 'global' ||
-                  widget.kind != CatalogKind.labels ||
-                  items[i]['scope'] == 'global')
-                card(
-                  items[i],
-                  i,
-                  items,
-                  widget.kind == CatalogKind.labels
-                      ? (items[i]['scope'] == 'global'
-                            ? user?.isSuperAdmin == true
-                            : canWrite)
-                      : canWrite,
-                ),
           ],
           const SizedBox(height: AppSpacing.xxxl),
         ],
@@ -344,99 +403,201 @@ class _CatalogSettingsScreenState extends ConsumerState<CatalogSettingsScreen> {
     );
   }
 
-  Widget card(Json item, int index, List<Json> items, bool writable) => Padding(
-    padding: const EdgeInsets.only(top: AppSpacing.sm),
-    child: WorkspacePanel(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  /// Fila de 56 dp de etapa o estado: punto de color, nombre y su posición;
+  /// editar, subir, bajar y eliminar en el «⋯» (P28E-M5).
+  Widget row(Json item, int index, List<Json> items, bool writable) {
+    final c = context.colors;
+    final isFinal = item['type'] == 'FINAL';
+    return SettingsRow(
+      key: ValueKey('catalog_item_${item['id']}'),
+      leading: Center(
+        widthFactor: 1,
+        child: ColorDot(hex: item['color'] as String?, size: _dot),
+      ),
+      title: item['name'],
+      subtitle: widget.kind == CatalogKind.stages ? 'Etapa ${index + 1}' : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(item['name']),
-            subtitle: Text(
-              widget.kind == CatalogKind.labels
-                  ? item['scope'] == 'global'
-                        ? 'Global'
-                        : item['scope'] == 'group'
-                        ? 'Grupo'
-                        : 'Personal'
-                  : widget.kind == CatalogKind.statuses
-                  ? (item['type'] == 'FINAL' ? 'Final' : 'En curso')
-                  : 'Etapa ${index + 1}',
+          if (isFinal)
+            Icon(
+              AppIcons.success,
+              size: AppIconSizes.action,
+              color: c.muted,
+              semanticLabel: 'Estado final',
             ),
-            leading: widget.kind == CatalogKind.labels
-                ? const Icon(AppIcons.label)
-                : ColorDot(hex: item['color'] as String?),
-          ),
           if (writable)
-            Wrap(
-              spacing: AppSpacing.xs,
-              children: [
-                IconButton(
-                  key: ValueKey('catalog_edit_${item['id']}'),
-                  tooltip: 'Editar ${item['name']}',
-                  onPressed: busy ? null : () => edit(item),
-                  icon: const Icon(AppIcons.edit),
+            RowActionsMenu(
+              key: ValueKey('catalog_menu_${item['id']}'),
+              tooltip: 'Acciones de ${item['name']}',
+              enabled: !busy,
+              actions: [
+                RowAction(
+                  key: 'catalog_edit_${item['id']}',
+                  label: 'Editar',
+                  onSelected: () => edit(item),
                 ),
-                IconButton(
-                  key: ValueKey('catalog_delete_${item['id']}'),
-                  tooltip: 'Eliminar ${item['name']}',
-                  onPressed: busy ? null : () => remove(item),
-                  icon: const Icon(AppIcons.delete),
+                if (index > 0)
+                  RowAction(
+                    key: 'catalog_up_${item['id']}',
+                    label: 'Subir',
+                    onSelected: () => move(items, index, -1),
+                  ),
+                if (index < items.length - 1)
+                  RowAction(
+                    key: 'catalog_down_${item['id']}',
+                    label: 'Bajar',
+                    onSelected: () => move(items, index, 1),
+                  ),
+                RowAction(
+                  key: 'catalog_delete_${item['id']}',
+                  label: 'Eliminar',
+                  destructive: true,
+                  onSelected: () => remove(item),
                 ),
-                if (widget.kind != CatalogKind.labels) ...[
-                  IconButton(
-                    key: ValueKey('catalog_up_${item['id']}'),
-                    tooltip: 'Subir',
-                    onPressed: busy || index == 0
-                        ? null
-                        : () => move(items, index, -1),
-                    icon: const Icon(AppIcons.sortAsc),
-                  ),
-                  IconButton(
-                    key: ValueKey('catalog_down_${item['id']}'),
-                    tooltip: 'Bajar',
-                    onPressed: busy || index == items.length - 1
-                        ? null
-                        : () => move(items, index, 1),
-                    icon: const Icon(AppIcons.sortDesc),
-                  ),
-                ],
               ],
-            ),
-          if (widget.kind == CatalogKind.labels) ...[
-            for (final value in parseList(item['values'], (v) => v))
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: ColorDot(hex: value['color'] as String?),
-                title: Text(value['name']),
-                onTap: writable && !busy
-                    ? () => edit(value, value: true)
-                    : null,
-                trailing: writable
-                    ? IconButton(
-                        key: ValueKey('catalog_delete_value_${value['id']}'),
-                        tooltip: 'Eliminar valor ${value['name']}',
-                        onPressed: busy
-                            ? null
-                            : () => remove(value, value: true),
-                        icon: const Icon(AppIcons.delete),
-                      )
-                    : null,
-              ),
-            if (writable)
-              TextButton.icon(
-                key: ValueKey('catalog_add_value_${item['id']}'),
-                onPressed: busy
-                    ? null
-                    : () => edit(null, keyId: item['id'], value: true),
-                icon: const Icon(AppIcons.add),
-                label: const Text('Agregar valor'),
-              ),
-          ],
+            )
+          else
+            const SizedBox(width: kMinInteractiveDimension),
         ],
       ),
+    );
+  }
+
+  /// Etiqueta: el nombre como encabezado y sus valores como chips con su
+  /// color; tocar un chip abre editar o eliminar (P28L-M3).
+  Widget labelCard(Json item, bool writable) {
+    final c = context.colors;
+    final values = parseList(item['values'], (v) => v);
+    return Padding(
+      key: ValueKey('catalog_item_${item['id']}'),
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: WorkspacePanel(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xxs,
+          AppSpacing.xxs,
+          AppSpacing.md,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      text: item['name'],
+                      children: [
+                        if (item['scope'] != 'personal')
+                          TextSpan(
+                            text: item['scope'] == 'global'
+                                ? '  Global'
+                                : '  Grupo',
+                            style: AppTextStyles.supporting.copyWith(
+                              color: c.muted,
+                            ),
+                          ),
+                      ],
+                    ),
+                    style: AppTextStyles.cardTitle.copyWith(color: c.text),
+                  ),
+                ),
+                if (writable)
+                  RowActionsMenu(
+                    key: ValueKey('catalog_menu_${item['id']}'),
+                    tooltip: 'Acciones de ${item['name']}',
+                    enabled: !busy,
+                    actions: [
+                      RowAction(
+                        key: 'catalog_edit_${item['id']}',
+                        label: 'Editar',
+                        onSelected: () => edit(item),
+                      ),
+                      RowAction(
+                        key: 'catalog_delete_${item['id']}',
+                        label: 'Eliminar',
+                        destructive: true,
+                        onSelected: () => remove(item),
+                      ),
+                    ],
+                  )
+                else
+                  const SizedBox(height: kMinInteractiveDimension),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (final value in values)
+                    writable
+                        ? PopupMenuButton<String>(
+                            key: ValueKey('catalog_value_${value['id']}'),
+                            tooltip: 'Valor ${value['name']}',
+                            enabled: !busy,
+                            onSelected: (a) => a == 'edit'
+                                ? edit(value, value: true)
+                                : remove(value, value: true),
+                            itemBuilder: (_) => [
+                              PopupMenuItem(
+                                key: ValueKey(
+                                  'catalog_edit_value_${value['id']}',
+                                ),
+                                value: 'edit',
+                                child: const Text('Editar'),
+                              ),
+                              PopupMenuItem(
+                                key: ValueKey(
+                                  'catalog_delete_value_${value['id']}',
+                                ),
+                                value: 'delete',
+                                child: Text(
+                                  'Eliminar',
+                                  style: TextStyle(color: c.danger),
+                                ),
+                              ),
+                            ],
+                            child: _valueChip(value),
+                          )
+                        : _valueChip(value),
+                  if (writable)
+                    ActionChip(
+                      key: ValueKey('catalog_add_value_${item['id']}'),
+                      onPressed: busy
+                          ? null
+                          : () => edit(null, keyId: item['id'], value: true),
+                      label: const Text('+ valor'),
+                      labelStyle: AppTextStyles.chip.copyWith(color: c.muted),
+                      side: BorderSide(color: c.outline),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: AppGeometry.chip,
+                      ),
+                      backgroundColor: c.surface,
+                      materialTapTargetSize: MaterialTapTargetSize.padded,
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _valueChip(Json value) => Padding(
+    // Área táctil de 48 dp alrededor del chip.
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+    child: StatusChip(
+      label: value['name'],
+      color: colorFromHex(value['color'] as String?),
+      fill: colorFromHex(value['color'] as String?).withValues(alpha: .12),
     ),
   );
 }
+
+/// Punto de color de las filas de catálogo (P28E-M5).
+const double _dot = 10;

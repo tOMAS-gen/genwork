@@ -517,11 +517,12 @@ void main() {
   ) async {
     final f = Fixture(admin: false);
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.labels));
-    expect(find.byKey(const ValueKey('catalog_edit_global')), findsNothing);
-    expect(find.byKey(const ValueKey('catalog_edit_local')), findsOneWidget);
+    // Editar y eliminar viven en el «⋯» de cada etiqueta (P28E-M5).
+    expect(find.byKey(const ValueKey('catalog_menu_global')), findsNothing);
+    expect(find.byKey(const ValueKey('catalog_menu_local')), findsOneWidget);
     await select(t, 'catalog_scope', 'Grupo: Solo miembro');
     expect(find.byKey(const ValueKey('catalog_add')), findsNothing);
-    expect(find.byKey(const ValueKey('catalog_edit_local')), findsNothing);
+    expect(find.byKey(const ValueKey('catalog_menu_local')), findsNothing);
     await select(t, 'catalog_scope', 'Grupo: Administrado');
     await tap(t, 'catalog_add');
     await enter(t, 'settings_field_name', 'Campaña');
@@ -553,6 +554,7 @@ void main() {
     final f = Fixture();
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.labels));
     f.conflict = true;
+    await tap(t, 'catalog_menu_local');
     await tap(t, 'catalog_delete_local');
     await t.tap(find.byKey(const ValueKey('settings_confirm_accept')));
     await t.pump();
@@ -568,6 +570,12 @@ void main() {
   ) async {
     final f = Fixture();
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.stages));
+    // Filas de 56 dp con «⋯»; sin la fila de cuatro botones (P28E-M5).
+    expect(find.byTooltip('Eliminar Inicio'), findsNothing);
+    expect(find.byKey(const ValueKey('catalog_up_st1')), findsNothing);
+    await tap(t, 'catalog_menu_st1');
+    // La primera etapa no ofrece «Subir».
+    expect(find.byKey(const ValueKey('catalog_up_st1')), findsNothing);
     await tap(t, 'catalog_down_st1');
     expect(f.writes.single.path, '/api/stages/reorder');
     expect(f.writes.single.data, {
@@ -587,6 +595,9 @@ void main() {
       expect(find.byKey(const ValueKey('catalog_add')), findsNothing);
       f.canWrite = true;
       await select(t, 'catalog_scope', 'Sector: Diseño');
+      // P29-M1: las secciones explican la regla.
+      expect(find.text('EN CURSO'), findsOneWidget);
+      await tap(t, 'catalog_menu_ts1');
       await tap(t, 'catalog_edit_ts1');
       await enter(t, 'settings_field_name', 'En marcha');
       await tap(t, 'settings_form_save');
