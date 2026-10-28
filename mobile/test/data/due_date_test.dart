@@ -79,7 +79,7 @@ void main() {
     expect(dueUrgency(due, DateTime(2026, 10, 29, 22)).label, 'Vence hoy');
     expect(
       dueUrgency(due, DateTime(2026, 10, 28, 9)).label,
-      '1 días restantes',
+      '1 día restante',
     );
   });
 

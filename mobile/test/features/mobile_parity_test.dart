@@ -25,6 +25,7 @@ import 'package:genwork_mobile/features/works/works_filter.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/features/works/works_filters_panel.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
+import 'package:genwork_mobile/shared/widgets/status_chip.dart';
 
 AppUser identity(String role) => AppUser.fromJson({
   'id': 'me',
@@ -290,6 +291,32 @@ void main() {
       );
     },
   );
+  testWidgets('P34 proyecto del portal: sin miga, Ver más y resumen', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, path: Routes.portalWork('w'));
+    expect(find.byKey(const ValueKey('portal_back')), findsNothing);
+    expect(find.byKey(const ValueKey('portal_summary')), findsOneWidget);
+    expect(find.text('AVANCE'), findsOneWidget);
+    final text = t.widget<Text>(
+      find.byKey(const ValueKey('portal_description')),
+    );
+    expect(text.maxLines, 3);
+    await t.ensureVisible(
+      find.byKey(const ValueKey('portal_description_more')),
+    );
+    await t.tap(find.byKey(const ValueKey('portal_description_more')));
+    await t.pumpAndSettle();
+    expect(
+      t.widget<Text>(find.byKey(const ValueKey('portal_description'))).maxLines,
+      isNull,
+    );
+    // Un solo objetivo: la sección no repite la barra del resumen.
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    // El estado de la tarea como chip, igual que en todas las pantallas.
+    expect(find.widgetWithText(TaskStatusChip, 'En curso'), findsOneWidget);
+  });
   testWidgets('portal pagina actividad y refresca por SSE', (t) async {
     final f = Fixture();
     await mount(t, f, path: Routes.portalWork('w'));

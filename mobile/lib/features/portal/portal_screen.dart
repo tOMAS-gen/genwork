@@ -19,6 +19,8 @@ import '../../shared/widgets/entity_card_title.dart';
 import '../../shared/widgets/gen_tab_bar.dart';
 import '../works/works_dashboard.dart';
 import '../../shared/widgets/progress_bar.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/workspace_panel.dart';
 
 /// Portal del cliente, como `/portal` de la web: una card por proyecto con el
 /// nombre, el avance, las tareas y la entrega.
@@ -27,7 +29,8 @@ class PortalScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) => GenPageScaffold(
     title: 'Mis proyectos',
-    subtitle: 'Seguimiento del avance y las entregas de tus proyectos.',
+    // Una línea (P33-M4).
+    subtitle: 'Avance y entregas de tus proyectos.',
     showThemeToggle: true,
     onRefresh: () => ref.refresh(portalWorksProvider.future),
     body: AsyncValueView(
@@ -106,22 +109,24 @@ class _PortalWorkCard extends StatelessWidget {
                   total: work.progress.total,
                 ),
               ],
+              // Pie: la fecha en mono y el plazo como chip (P33-M3).
               if (due != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                const SizedBox(height: AppSpacing.sm),
+                Row(
                   children: [
-                    Text(
-                      'Entrega: ${formatDueDate(work.dueDate!)}',
-                      style: AppTextStyles.body.copyWith(color: c.muted),
+                    Icon(
+                      AppIcons.calendarToday,
+                      size: AppIconSizes.compact,
+                      color: c.muted,
                     ),
-                    Text(
-                      due.label,
-                      style: AppTextStyles.body.copyWith(
-                        color: dueToneColor(c, due.tone),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        formatDueDate(work.dueDate!),
+                        style: AppTextStyles.technical.copyWith(color: c.muted),
                       ),
                     ),
+                    DueChip(dueDate: work.dueDate!),
                   ],
                 ),
               ],
@@ -150,28 +155,10 @@ class _PortalWorkScreenState extends ConsumerState<PortalWorkScreen> {
   Widget build(BuildContext context) {
     final id = widget.id;
     final value = ref.watch(portalWorkProvider(id));
-    final c = context.colors;
     return GenPageScaffold(
       title: value.value?.name ?? 'Proyecto',
       showBack: true,
-      top: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xxs,
-          AppSpacing.sm,
-          AppSpacing.sm,
-          0,
-        ),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            key: const ValueKey('portal_back'),
-            style: TextButton.styleFrom(foregroundColor: c.text),
-            onPressed: () => context.pop(),
-            icon: const Icon(AppIcons.back, size: AppIconSizes.notice),
-            label: const Text('Mis proyectos'),
-          ),
-        ),
-      ),
+      // Sin miga: la flecha ya vuelve a «Mis proyectos» (P34-M1).
       onRefresh: () async {
         ref.invalidate(portalActivityProvider);
         ref.invalidate(portalWorkProvider(id));
@@ -191,43 +178,11 @@ class _PortalWorkScreenState extends ConsumerState<PortalWorkScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (work.description?.isNotEmpty == true) ...[
-                  Text(
-                    work.description!,
-                    key: const ValueKey('portal_description'),
-                    style: AppTextStyles.body.copyWith(color: c.muted),
-                  ),
+                  _Description(text: work.description!),
                   const SizedBox(height: AppSpacing.sm),
                 ],
-                if (work.dueDate != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
-                    decoration: BoxDecoration(
-                      color: c.surface,
-                      border: Border.all(color: c.border),
-                      borderRadius: AppGeometry.card,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          AppIcons.calendarToday,
-                          size: AppIconSizes.compact,
-                          color: c.muted,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          'Entrega: ${formatDueDate(work.dueDate!)}',
-                          style: AppTextStyles.body.copyWith(color: c.muted),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                ],
-                _ProgressRow(
-                  done: work.progress.done,
-                  total: work.progress.total,
-                  pct: pct,
-                ),
+                // Entrega y avance en una card de dos columnas (P34-M3).
+                _Summary(work: work, pct: pct),
                 const SizedBox(height: AppSpacing.sm),
                 GenTabBar(
                   showIcons: true,
@@ -251,6 +206,7 @@ class _PortalWorkScreenState extends ConsumerState<PortalWorkScreen> {
                 if (_tab == 0) ...[
                   if (work.tasks.isNotEmpty)
                     _Section(
+                      single: work.objectives.isEmpty,
                       title: 'Tareas generales',
                       done: work.tasks.where(_isDone).length,
                       total: work.tasks.length,
@@ -258,6 +214,7 @@ class _PortalWorkScreenState extends ConsumerState<PortalWorkScreen> {
                     ),
                   for (final objective in work.objectives)
                     _Section(
+                      single: work.objectives.length == 1 && work.tasks.isEmpty,
                       title: objective.title,
                       description: objective.description,
                       done: objective.progress.done,
@@ -285,8 +242,12 @@ class _ProgressRow extends StatelessWidget {
     required this.done,
     required this.total,
     required this.pct,
+    this.compact = false,
   });
   final int done, total, pct;
+
+  /// Solo «1/3»: el porcentaje ya está arriba.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -299,8 +260,11 @@ class _ProgressRow extends StatelessWidget {
           Expanded(child: ProgressBar(value: total == 0 ? 0 : done / total)),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            '$done/$total · $pct%',
-            style: AppTextStyles.supporting.copyWith(color: c.muted),
+            compact ? '$done/$total' : '$done/$total · $pct%',
+            style: AppTextStyles.technical.copyWith(
+              color: c.muted,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
       ),
@@ -317,7 +281,11 @@ class _Section extends StatelessWidget {
     required this.total,
     required this.tasks,
     this.description,
+    this.single = false,
   });
+
+  /// Única sección: sin su barra, que repetiría el resumen (P34-M3).
+  final bool single;
   final String title;
   final String? description;
   final int done, total;
@@ -331,13 +299,29 @@ class _Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: AppTextStyles.dialogTitle.copyWith(color: c.text)),
-          const SizedBox(height: AppSpacing.xxs),
-          _ProgressRow(
-            done: done,
-            total: total,
-            pct: total == 0 ? 0 : (done * 100 / total).round(),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTextStyles.dialogTitle.copyWith(color: c.text),
+                ),
+              ),
+              if (single)
+                Text(
+                  '$done/$total · ${total == 0 ? 0 : (done * 100 / total).round()}%',
+                  style: AppTextStyles.technical.copyWith(color: c.muted),
+                ),
+            ],
           ),
+          if (!single) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            _ProgressRow(
+              done: done,
+              total: total,
+              pct: total == 0 ? 0 : (done * 100 / total).round(),
+            ),
+          ],
           if (description?.isNotEmpty == true) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -346,20 +330,26 @@ class _Section extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.sm),
-          for (final task in tasks)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: _TaskCard(task: task),
-            ),
+          // Una superficie con filas; las subtareas, con sangría (P34-M4).
+          WorkspaceListPanel(
+            children: [
+              for (final task in tasks) ...[
+                _TaskRow(task: task),
+                for (final child in task.subtasks)
+                  _TaskRow(task: child, nested: true),
+              ],
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-/// Tarea del portal en una card; sus subtareas, en una card anidada.
-class _TaskCard extends StatelessWidget {
-  const _TaskCard({required this.task, this.nested = false});
+/// Tarea del portal como fila: texto, su detalle y el estado como chip a la
+/// derecha (P34-M4, P34-M5).
+class _TaskRow extends StatelessWidget {
+  const _TaskRow({required this.task, this.nested = false});
   final PortalTask task;
   final bool nested;
 
@@ -367,61 +357,211 @@ class _TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final done = _isDone(task);
-    return Container(
+    return Padding(
       key: ValueKey('portal_task_${task.id}'),
-      padding: const EdgeInsets.all(AppSpacing.sm),
+      padding: EdgeInsets.fromLTRB(
+        nested ? AppSpacing.md + AppSpacing.md : AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.text,
+                  style: AppTextStyles.body.copyWith(
+                    color: done ? c.muted : c.text,
+                    decoration: done ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (task.labels.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xxs,
+                    children: [
+                      for (final l in task.labels)
+                        ColorPill(label: l.valueName, hex: l.color),
+                    ],
+                  ),
+                ],
+                if (task.description?.isNotEmpty == true) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    task.description!,
+                    style: AppTextStyles.supporting.copyWith(color: c.muted),
+                  ),
+                ],
+                if (task.dueDate != null) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    formatDueDate(task.dueDate!),
+                    style: AppTextStyles.technical.copyWith(color: c.muted),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          TaskStatusChip(
+            name: task.status['name'] as String? ?? '',
+            done: done,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Descripción en tres líneas con «Ver más» (P34-M2).
+class _Description extends StatefulWidget {
+  const _Description({required this.text});
+  final String text;
+  @override
+  State<_Description> createState() => _DescriptionState();
+}
+
+class _DescriptionState extends State<_Description> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final style = AppTextStyles.body.copyWith(color: c.muted);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: style),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 3,
+        )..layout(maxWidth: constraints.maxWidth);
+        final long = painter.didExceedMaxLines;
+        painter.dispose();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.text,
+              key: const ValueKey('portal_description'),
+              maxLines: _open ? null : 3,
+              overflow: _open ? null : TextOverflow.ellipsis,
+              style: style,
+            ),
+            if (long)
+              TextButton(
+                key: const ValueKey('portal_description_more'),
+                style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                onPressed: () => setState(() => _open = !_open),
+                child: Text(_open ? 'Ver menos' : 'Ver más'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Resumen del proyecto: ENTREGA (fecha en mono y el plazo) y AVANCE
+/// (porcentaje en mono 20 y la barra), separados por un divisor (P34-M3).
+class _Summary extends StatelessWidget {
+  const _Summary({required this.work, required this.pct});
+  final PortalWork work;
+  final int pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final label = AppTextStyles.sectionLabel.copyWith(color: c.muted);
+    final progress = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('AVANCE', style: label),
+        const SizedBox(height: AppSpacing.xxs),
+        Text(
+          '$pct%',
+          style: AppTextStyles.technical.copyWith(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: c.text,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        _ProgressRow(
+          done: work.progress.done,
+          total: work.progress.total,
+          pct: pct,
+          compact: true,
+        ),
+      ],
+    );
+    return Container(
+      key: const ValueKey('portal_summary'),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: c.surface,
         border: Border.all(color: c.border),
         borderRadius: AppGeometry.card,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                task.text,
-                style: AppTextStyles.body.copyWith(
-                  color: done ? c.muted : c.text,
-                  decoration: done ? TextDecoration.lineThrough : null,
-                ),
+      child: work.dueDate == null
+          ? progress
+          : IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('ENTREGA', style: label),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          formatDueDate(work.dueDate!),
+                          style: AppTextStyles.technical.copyWith(
+                            fontSize: 15,
+                            color: c.text,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        DueChip(dueDate: work.dueDate!),
+                      ],
+                    ),
+                  ),
+                  VerticalDivider(
+                    width: AppSpacing.lg,
+                    thickness: 1,
+                    color: c.border,
+                  ),
+                  Expanded(child: progress),
+                ],
               ),
-              ColorPill(
-                label: task.status['name'] as String? ?? '',
-                hex: task.status['color'] as String?,
-              ),
-              for (final l in task.labels)
-                ColorPill(label: l.valueName, hex: l.color),
-            ],
-          ),
-          if (task.description?.isNotEmpty == true) ...[
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              task.description!,
-              style: AppTextStyles.body.copyWith(color: c.muted),
             ),
-          ],
-          if (task.dueDate != null) ...[
-            const SizedBox(height: AppSpacing.xxs),
-            Text(
-              'Entrega: ${formatDueDate(task.dueDate!)}',
-              style: AppTextStyles.supporting.copyWith(color: c.muted),
-            ),
-          ],
-          if (task.subtasks.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            for (final child in task.subtasks)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: _TaskCard(task: child, nested: true),
-              ),
-          ],
-        ],
-      ),
+    );
+  }
+}
+
+/// Plazo como chip: neutro, ámbar o rojo al 12 % (P33-M2).
+class DueChip extends StatelessWidget {
+  const DueChip({super.key, required this.dueDate});
+  final DateTime dueDate;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final due = dueUrgency(dueDate, DateTime.now());
+    final color = dueToneColor(c, due.tone);
+    return StatusChip(
+      key: const ValueKey('due_chip'),
+      label: due.label,
+      color: color,
+      fill: due.tone == DueTone.neutral
+          ? c.hover
+          : color.withValues(alpha: .12),
     );
   }
 }

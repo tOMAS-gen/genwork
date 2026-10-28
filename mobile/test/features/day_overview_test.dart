@@ -30,6 +30,7 @@ import 'daily_parity_test.dart' show taskJson;
 import 'resource_operations_test.dart' show user, tap, Json;
 import 'package:genwork_mobile/shared/widgets/stat_cards.dart';
 import 'package:genwork_mobile/features/board/board_screen.dart';
+import 'package:genwork_mobile/shared/widgets/status_chip.dart';
 
 Json boardTask(
   String id, {
@@ -400,8 +401,15 @@ void main() {
       expect(_stat('Sectores'), '2');
       expect(find.byKey(const ValueKey('board_task_s_parent')), findsOneWidget);
       expect(find.byKey(const ValueKey('board_task_s_b')), findsNothing);
-      // Una sola línea de metadatos: avance de subtareas y estado (P10-M2).
-      expect(find.text('1/2 subtareas · En curso'), findsOneWidget);
+      // El avance de subtareas en mono y el estado como chip (P35-M1, M2).
+      expect(find.text('1/2'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('board_task_s_parent')),
+          matching: find.widgetWithText(TaskStatusChip, 'En curso'),
+        ),
+        findsOneWidget,
+      );
       // La ruta va una vez por sector, como encabezado del grupo.
       expect(find.text('PROYECTO EJEMPLO · ENTREGA'), findsNWidgets(2));
       // Un anillo por tarea pendiente (dos por sector).
@@ -449,12 +457,16 @@ void main() {
       // Resumen como franja de 3 valores (P35-M4), sin barra global.
       expect(find.byKey(const ValueKey('board_summary')), findsOneWidget);
       expect(_stat('Finalizadas'), '1/3');
-      // La barra dice cuántas se finalizaron; arriba, el contador y el %.
+      // Una sola cifra de pendientes en la meta, sin contador (P35-M3).
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('board_sector_s')),
           matching: find.byType(CountBadge),
         ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('board_pending_s')),
         findsOneWidget,
       );
       // Card por sector con acento, conteo y avance.

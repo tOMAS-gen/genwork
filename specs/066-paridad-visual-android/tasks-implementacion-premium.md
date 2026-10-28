@@ -450,9 +450,9 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 34: Portal y TV (P33–P35)
 
 **Criterios de aceptación:**
-- [ ] P33: un solo ícono de tema y "Mis proyectos" sin tile; pie con fecha mono y chip de plazo.
-- [ ] P34: sin miga; descripción de 3 líneas con "Ver más"; resumen de dos columnas ENTREGA y AVANCE; subtareas con sangría y divisores.
-- [ ] P35: agrupada por proyecto con subencabezado una vez; chips de estado iguales en los dos temas.
+- [x] P33: un solo ícono de tema y "Mis proyectos" sin tile; pie con fecha mono y chip de plazo.
+- [x] P34: sin miga; descripción de 3 líneas con "Ver más"; resumen de dos columnas ENTREGA y AVANCE; subtareas con sangría y divisores.
+- [x] P35: agrupada por proyecto con subencabezado una vez; chips de estado iguales en los dos temas.
 
 **Verificación:** tests del portal y de TV. Capturas con los roles `cliente` y `lector`. · **Tamaño:** M
 

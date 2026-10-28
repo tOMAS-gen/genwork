@@ -21,50 +21,31 @@ String _labelFor(ThemeMode mode) => switch (mode) {
   ThemeMode.system => 'Sistema',
 };
 
-/// Control segmentado de tres opciones: sistema · claro · oscuro.
-///
-/// Sin fondo propio. La opción activa se distingue por el color de marca del
-/// ícono; las demás quedan en `muted`. Cada opción mide al menos
-/// [kMinInteractiveDimension] (objetivo táctil móvil).
-class ThemeToggle extends ConsumerWidget {
-  const ThemeToggle({super.key});
+/// Un solo ícono de tema para la barra (P33-M4): muestra el modo actual en
+/// gris y al tocarlo pasa al siguiente (sistema → claro → oscuro).
+class ThemeCycleButton extends ConsumerWidget {
+  const ThemeCycleButton({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final current = ref.watch(themePreferenceProvider);
-    final c = context.colors;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final mode in ThemeMode.values)
-          SizedBox.square(
-            dimension: kMinInteractiveDimension,
-            child: IconButton(
-              key: ValueKey('theme_${mode.name}'),
-              tooltip: _labelFor(mode),
-              isSelected: mode == current,
-              onPressed: () async {
-                try {
-                  await ref
-                      .read(themePreferenceProvider.notifier)
-                      .setMode(mode);
-                } catch (e) {
-                  if (context.mounted) showErrorSnack(context, e);
-                }
-              },
-              style: IconButton.styleFrom(
-                minimumSize: const Size.square(kMinInteractiveDimension),
-                maximumSize: const Size.square(kMinInteractiveDimension),
-                padding: EdgeInsets.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              icon: Icon(
-                _iconFor(mode),
-                color: mode == current ? c.brand : c.muted,
-              ),
-            ),
-          ),
-      ],
+    final next =
+        ThemeMode.values[(current.index + 1) % ThemeMode.values.length];
+    return IconButton(
+      key: const ValueKey('theme_cycle'),
+      tooltip: 'Tema: ${_labelFor(current)}. Cambiar a ${_labelFor(next)}',
+      onPressed: () async {
+        try {
+          await ref.read(themePreferenceProvider.notifier).setMode(next);
+        } catch (e) {
+          if (context.mounted) showErrorSnack(context, e);
+        }
+      },
+      icon: Icon(
+        _iconFor(current),
+        size: AppIconSizes.action,
+        color: context.colors.muted,
+      ),
     );
   }
 }

@@ -72,7 +72,10 @@ class GenPageScaffold extends StatelessWidget {
       appBar: AppBar(
         leading: showBack ? const BackButton() : const AppDrawerButton(),
         title: const BrandName(size: 16),
-        actions: [...appBarActions, if (showThemeToggle) const ThemeToggle()],
+        actions: [
+          ...appBarActions,
+          if (showThemeToggle) const ThemeCycleButton(),
+        ],
       ),
       floatingActionButton: fab,
       body: NestedScrollView(

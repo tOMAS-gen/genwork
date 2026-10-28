@@ -18,7 +18,7 @@ import '../../shared/widgets/state_views.dart';
 import 'board_providers.dart';
 import '../../shared/widgets/progress_bar.dart';
 import '../../shared/widgets/stat_cards.dart';
-import '../../shared/widgets/count_badge.dart';
+import '../../shared/widgets/status_chip.dart';
 
 /// Vista de tareas: avance y pendientes de cada sector, como `/board` de la web.
 class BoardScreen extends ConsumerWidget {
@@ -114,8 +114,9 @@ class _SectorCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Encabezado sobre la misma superficie de la card (P35-M5).
             Material(
-              color: c.field,
+              color: c.surface,
               child: InkWell(
                 key: ValueKey('board_open_sector_${column.sector.id}'),
                 onTap: readOnly
@@ -140,20 +141,45 @@ class _SectorCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               column.sector.name,
-                              style: AppTextStyles.itemTitle.copyWith(
-                                fontWeight: FontWeight.w700,
+                              style: AppTextStyles.cardTitle.copyWith(
                                 color: c.text,
                               ),
                             ),
                           ),
-                          // El mismo contador que en Sectores (P10-M4).
-                          CountBadge(
-                            count: progress.pending,
-                            singular: 'pendiente',
-                            plural: 'pendientes',
+                          const SizedBox(width: AppSpacing.xs),
+                          if (!readOnly)
+                            Icon(
+                              AppIcons.chevronRight,
+                              size: AppIconSizes.field,
+                              color: c.muted,
+                            ),
+                        ],
+                      ),
+                      // Una sola cifra de pendientes y el porcentaje, sin
+                      // contador aparte (P35-M3).
+                      const SizedBox(height: AppSpacing.xs),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              column.tasks.isEmpty
+                                  ? 'Sin tareas asignadas'
+                                  : progress.total == 0
+                                  ? 'Avance en las subtareas'
+                                  : countLabel(
+                                      progress.pending,
+                                      'pendiente',
+                                      'pendientes',
+                                    ),
+                              key: ValueKey(
+                                'board_pending_${column.sector.id}',
+                              ),
+                              style: AppTextStyles.supporting.copyWith(
+                                color: c.muted,
+                              ),
+                            ),
                           ),
-                          if (progress.total > 0) ...[
-                            const SizedBox(width: AppSpacing.sm),
+                          if (progress.total > 0)
                             Text(
                               '${(progress.ratio * 100).round()}%',
                               style: AppTextStyles.technical.copyWith(
@@ -164,31 +190,9 @@ class _SectorCard extends StatelessWidget {
                                 ],
                               ),
                             ),
-                          ],
-                          const SizedBox(width: AppSpacing.xs),
-                          if (!readOnly)
-                            Icon(
-                              AppIcons.chevronRight,
-                              size: AppIconSizes.field,
-                              color: c.muted,
-                            ),
                         ],
                       ),
-                      // La barra ya dice cuántas se finalizaron; el texto solo
-                      // queda cuando no hay barra (P10-M4).
-                      if (progress.total == 0) ...[
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          column.tasks.isEmpty
-                              ? 'Sin tareas asignadas'
-                              : 'Avance en las subtareas',
-                          style: AppTextStyles.supporting.copyWith(
-                            color: c.muted,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: AppSpacing.sm),
-                      const SizedBox(height: AppSpacing.xxs),
+                      const SizedBox(height: AppSpacing.xs),
                       Semantics(
                         label:
                             '${progress.done} de ${progress.total} finalizadas',
@@ -272,11 +276,6 @@ class _TaskRow extends StatelessWidget {
     final c = context.colors;
     final supporting = AppTextStyles.supporting.copyWith(color: c.muted);
     final status = task.isContainer ? 'En curso' : task.status.name;
-    final meta = [
-      if (task.isContainer)
-        '${task.subtaskDone}/${task.subtaskCount} subtareas',
-      status,
-    ].join(' · ');
     return Padding(
       key: ValueKey('board_task_${column.sector.id}_${task.id}'),
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -311,14 +310,24 @@ class _TaskRow extends StatelessWidget {
                 Text(
                   task.text,
                   style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: c.text,
                   ),
                 ),
-                Text(meta, style: supporting),
+                if (task.isContainer)
+                  Text(
+                    '${task.subtaskDone}/${task.subtaskCount}',
+                    style: AppTextStyles.technical.copyWith(
+                      color: c.muted,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
               ],
             ),
           ),
+          const SizedBox(width: AppSpacing.sm),
+          // El estado como chip, con los colores de siempre (P35-M2).
+          TaskStatusChip(name: status, done: task.isDone),
         ],
       ),
     );

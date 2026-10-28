@@ -68,6 +68,9 @@ enum DueTone { neutral, warning, danger }
       ? 'Vencido'
       : days == 0
       ? 'Vence hoy'
+      : days == 1
+      // La web dice «1 días restantes»; acá con su singular (fase 5: web).
+      ? '1 día restante'
       : '$days días restantes';
   // Para una línea de meta («29 oct · 3 días», P05-M3).
   final short = days < 0
