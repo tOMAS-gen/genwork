@@ -181,6 +181,11 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
     final all = works.value;
     final list = all == null ? null : _visible(all, userId);
 
+    // Las cards se arman de a una, con slivers; la tabla y los vacíos van
+    // como bloque.
+    final loaded = works.hasError ? null : works.value;
+    final shown = loaded == null ? null : _visible(loaded, userId);
+    final lazyCards = _grid && shown != null && shown.isNotEmpty ? shown : null;
     return GenPageScaffold(
       title: switch (_view) {
         WorksView.all => 'Todos los Proyectos',
@@ -199,129 +204,152 @@ class _WorksListScreenState extends ConsumerState<WorksListScreen> {
       ],
       onRefresh: () => ref.refresh(worksListProvider(_archived).future),
       bodyPadding: EdgeInsets.zero,
-      body: ListView(
+      // Slivers perezosos: solo se construyen las cards visibles (T2).
+      body: CustomScrollView(
         key: const ValueKey('works_list'),
-        padding: AppSpace.page,
         physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          // Sin proyectos no hay franja: el vacío queda arriba (P08-M1).
-          if (list != null && list.isNotEmpty) ...[
-            _Stats(
-              key: const ValueKey('works_stats'),
-              stats: WorksStats.of(list),
-            ),
-            const SizedBox(height: AppSpace.md),
-          ],
-          ListToolbar<WorksSort>(
-            key: const ValueKey('works_toolbar'),
-            keyPrefix: 'works',
-            searchHint: 'Buscar proyectos…',
-            searchController: _search,
-            onSearch: (v) => setState(() => _query = v),
-            filtersExpanded: _filtersOpen,
-            onToggleFilters: () => setState(() => _filtersOpen = !_filtersOpen),
-            filtersPanel: WorksFiltersPanel(
-              works: all ?? const [],
-              sectors: {
-                for (final s
-                    in ref.watch(sectorsProvider).value ?? <SectorSummary>[])
-                  s.id: s.name,
-              },
-              filters: _filters,
-              onChanged: (f) => setState(() => _filters = f),
-            ),
-            activeFilters: _activeFilterChips(all ?? const []),
-            onClear: _query.isNotEmpty || _activeFilters > 0
-                ? _clearFilters
-                : null,
-            sort: _filters.sort,
-            sortOptions: worksSortOptions,
-            onSort: (sort) => setState(
-              () => _filters = (
-                groups: _filters.groups,
-                sector: _filters.sector,
-                label: _filters.label,
-                status: _filters.status,
-                sort: sort,
-              ),
-            ),
-            grid: _grid,
-            onGrid: (grid) => setState(() => _grid = grid),
-            count: list == null
-                ? 'Cargando proyectos…'
-                : countLabel(list.length, 'proyecto', 'proyectos'),
-          ),
-          const SizedBox(height: AppSpace.md),
-          AsyncValueView(
-            value: works,
-            onRetry: () => ref.invalidate(worksListProvider(_archived)),
-            errorTitle: 'No se pudieron cargar los proyectos',
-            data: (all) {
-              final visible = _visible(all, userId);
-              if (visible.isEmpty) {
-                // Sin proyectos en la vista: el EmptyState de la web. Con
-                // proyectos que no pasan el filtro: el aviso corto.
-                if (_visible(all, userId, filtered: false).isEmpty) {
-                  return EmptyView(
-                    icon: AppIcons.projectOpen,
-                    title: switch (_view) {
-                      WorksView.favorites => 'Sin favoritos',
-                      WorksView.mine => 'Sin proyectos propios',
-                      WorksView.archived => 'Sin proyectos archivados',
-                      WorksView.all => 'Todavía no tenés proyectos',
-                    },
-                    message: switch (_view) {
-                      WorksView.favorites =>
-                        'Marcá proyectos como favoritos para verlos acá.',
-                      WorksView.mine =>
-                        'Los proyectos que vos creaste aparecen acá.',
-                      WorksView.archived =>
-                        'Los proyectos archivados aparecen acá.',
-                      WorksView.all =>
-                        'Creá tu primer proyecto para empezar a organizar tareas y sectores.',
-                    },
-                    actionLabel: _view == WorksView.all
-                        ? 'Nuevo proyecto'
-                        : null,
-                    onAction: _view == WorksView.all ? _create : null,
-                  );
-                }
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                  child: Text(
-                    'Sin proyectos que coincidan con el filtro.',
-                    style: AppTextStyles.body.copyWith(
-                      color: context.colors.muted,
-                    ),
-                  ),
-                );
-              }
-              if (!_grid) {
-                return WorkTable(
-                  works: visible,
-                  onOpen: (work) =>
-                      context.push(Routes.work(work.id, view: _view)),
-                  onArchive: _toggleArchived,
-                );
-              }
-              return Column(
+        slivers: [
+          SliverPadding(
+            padding: AppSpace.page.copyWith(bottom: 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final work in visible)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpace.md),
-                      child: WorkCard(
-                        work: work,
-                        onTap: () =>
-                            context.push(Routes.work(work.id, view: _view)),
-                        onFavorite: () => _toggleFavorite(work),
-                        onArchive: () => _toggleArchived(work),
+                  // Sin proyectos no hay franja: el vacío queda arriba (P08-M1).
+                  if (list != null && list.isNotEmpty) ...[
+                    _Stats(
+                      key: const ValueKey('works_stats'),
+                      stats: WorksStats.of(list),
+                    ),
+                    const SizedBox(height: AppSpace.md),
+                  ],
+                  ListToolbar<WorksSort>(
+                    key: const ValueKey('works_toolbar'),
+                    keyPrefix: 'works',
+                    searchHint: 'Buscar proyectos…',
+                    searchController: _search,
+                    onSearch: (v) => setState(() => _query = v),
+                    filtersExpanded: _filtersOpen,
+                    onToggleFilters: () =>
+                        setState(() => _filtersOpen = !_filtersOpen),
+                    filtersPanel: WorksFiltersPanel(
+                      works: all ?? const [],
+                      sectors: {
+                        for (final s
+                            in ref.watch(sectorsProvider).value ??
+                                <SectorSummary>[])
+                          s.id: s.name,
+                      },
+                      filters: _filters,
+                      onChanged: (f) => setState(() => _filters = f),
+                    ),
+                    activeFilters: _activeFilterChips(all ?? const []),
+                    onClear: _query.isNotEmpty || _activeFilters > 0
+                        ? _clearFilters
+                        : null,
+                    sort: _filters.sort,
+                    sortOptions: worksSortOptions,
+                    onSort: (sort) => setState(
+                      () => _filters = (
+                        groups: _filters.groups,
+                        sector: _filters.sector,
+                        label: _filters.label,
+                        status: _filters.status,
+                        sort: sort,
                       ),
                     ),
+                    grid: _grid,
+                    onGrid: (grid) => setState(() => _grid = grid),
+                    count: list == null
+                        ? 'Cargando proyectos…'
+                        : countLabel(list.length, 'proyecto', 'proyectos'),
+                  ),
+                  const SizedBox(height: AppSpace.md),
                 ],
-              );
-            },
+              ),
+            ),
           ),
-          const SizedBox(height: AppSpace.xxl),
+          if (lazyCards != null)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+              sliver: SliverList.builder(
+                itemCount: lazyCards.length,
+                itemBuilder: (context, i) {
+                  final work = lazyCards[i];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpace.md),
+                    child: WorkCard(
+                      work: work,
+                      onTap: () =>
+                          context.push(Routes.work(work.id, view: _view)),
+                      onFavorite: () => _toggleFavorite(work),
+                      onArchive: () => _toggleArchived(work),
+                    ),
+                  );
+                },
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+              sliver: SliverToBoxAdapter(
+                child: AsyncValueView(
+                  value: works,
+                  onRetry: () => ref.invalidate(worksListProvider(_archived)),
+                  errorTitle: 'No se pudieron cargar los proyectos',
+                  data: (all) {
+                    final visible = _visible(all, userId);
+                    if (visible.isEmpty) {
+                      // Sin proyectos en la vista: el EmptyState de la web. Con
+                      // proyectos que no pasan el filtro: el aviso corto.
+                      if (_visible(all, userId, filtered: false).isEmpty) {
+                        return EmptyView(
+                          icon: AppIcons.projectOpen,
+                          title: switch (_view) {
+                            WorksView.favorites => 'Sin favoritos',
+                            WorksView.mine => 'Sin proyectos propios',
+                            WorksView.archived => 'Sin proyectos archivados',
+                            WorksView.all => 'Todavía no tenés proyectos',
+                          },
+                          message: switch (_view) {
+                            WorksView.favorites =>
+                              'Marcá proyectos como favoritos para verlos acá.',
+                            WorksView.mine =>
+                              'Los proyectos que vos creaste aparecen acá.',
+                            WorksView.archived =>
+                              'Los proyectos archivados aparecen acá.',
+                            WorksView.all =>
+                              'Creá tu primer proyecto para empezar a organizar tareas y sectores.',
+                          },
+                          actionLabel: _view == WorksView.all
+                              ? 'Nuevo proyecto'
+                              : null,
+                          onAction: _view == WorksView.all ? _create : null,
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
+                        child: Text(
+                          'Sin proyectos que coincidan con el filtro.',
+                          style: AppTextStyles.body.copyWith(
+                            color: context.colors.muted,
+                          ),
+                        ),
+                      );
+                    }
+                    return WorkTable(
+                      works: visible,
+                      onOpen: (work) =>
+                          context.push(Routes.work(work.id, view: _view)),
+                      onArchive: _toggleArchived,
+                    );
+                  },
+                ),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpace.xxl)),
         ],
       ),
     );

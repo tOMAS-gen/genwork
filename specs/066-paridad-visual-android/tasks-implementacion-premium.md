@@ -461,17 +461,17 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 - [x] `dart analyze` limpio y `flutter test` en verde.
 - [x] Las 41 pantallas con captura `despues` en claro y oscuro, al lado de su boceto en el comparador.
 - [x] Los 152 hallazgos marcados en `auditoria-premium.md` como resueltos, en parte o descartados con su motivo.
-- [ ] El usuario revisa en el comparador.
+- [x] El usuario revisa en el comparador.
 
 ## Fase 4 — Técnico
 
 ## Tarea 35: Listas virtualizadas (T2)
 
 **Criterios de aceptación:**
-- [ ] Proyectos, tareas del proyecto, tareas del sector y Mi día se arman con slivers perezosos, con el marco de panel dibujado con `DecoratedSliver`.
-- [ ] La tabla de proyectos no usa `IntrinsicColumnWidth`.
+- [x] Proyectos, tareas del proyecto, tareas del sector y Mi día se arman con slivers perezosos, con el marco de panel dibujado con `DecoratedSliver`.
+- [x] La tabla de proyectos no usa `IntrinsicColumnWidth`.
 
-**Verificación:** test con 300 tareas: solo se construyen las filas visibles. Medición en `--profile` antes y después con un proyecto de 200 tareas. · **Archivos:** `shared/widgets/workspace_panel.dart`, `features/works/works_list_screen.dart`, `features/works/work_table.dart`, `features/works/work_detail_screen.dart`, `features/sectors/sector_detail_screen.dart` · **Tamaño:** L (si no entra en una sesión, se parte en panel + proyectos y detalle + sector)
+**Verificación:** test con 300 tareas: solo se construyen las filas visibles (`sliver_list_panel_test`, T2 de Proyectos y de sector en `ui_phase3_test`). *Pendiente: la medición en `--profile` con 200 tareas, en dispositivo.* Medición en `--profile` antes y después con un proyecto de 200 tareas. · **Archivos:** `shared/widgets/workspace_panel.dart`, `features/works/works_list_screen.dart`, `features/works/work_table.dart`, `features/works/work_detail_screen.dart`, `features/sectors/sector_detail_screen.dart` · **Tamaño:** L (si no entra en una sesión, se parte en panel + proyectos y detalle + sector)
 
 ## Tarea 36: Atrás predictivo y arranque (T5, T13)
 

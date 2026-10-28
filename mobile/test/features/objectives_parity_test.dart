@@ -11,6 +11,7 @@ import 'package:genwork_mobile/features/works/works_providers.dart';
 import 'day_overview_test.dart' as overview;
 import 'daily_parity_test.dart' show taskJson;
 import 'resource_operations_test.dart' show tap, Json;
+import 'package:genwork_mobile/core/theme/app_icons.dart';
 
 Json root(
   String id, {
@@ -211,6 +212,8 @@ Future<void> enter(WidgetTester t, String key, String text) async {
 Future<void> label(WidgetTester t, String text) async {
   final f = find.text(text).last;
   await t.ensureVisible(f);
+  // El desplazamiento se ve recién en el cuadro siguiente.
+  await t.pumpAndSettle();
   await t.tap(f);
   await t.pumpAndSettle();
 }
@@ -285,14 +288,29 @@ void main() {
   ) async {
     final f = Fixture();
     final app = await overview.mount(t, f, path: Routes.work('w'));
-    final tile = find.byKey(const PageStorageKey('work_section_o1'));
-    final controller = t.widget<ExpansionTile>(tile).controller!;
-    controller.collapse();
+    // El encabezado del objetivo pliega y despliega la sección: la flecha
+    // dice si está abierta.
+    final header = find.byKey(
+      const ValueKey('work_section_o1'),
+      skipOffstage: false,
+    );
+    bool expanded() => find
+        .descendant(
+          of: header,
+          matching: find.byIcon(AppIcons.expandMore, skipOffstage: false),
+          skipOffstage: false,
+        )
+        .evaluate()
+        .isNotEmpty;
+    expect(expanded(), isTrue);
+    await t.ensureVisible(header);
     await t.pumpAndSettle();
-    expect(controller.isExpanded, isFalse);
+    await t.tap(header);
+    await t.pumpAndSettle();
+    expect(expanded(), isFalse);
     app.router.go('/works/w?objectiveId=o1');
     await t.pumpAndSettle();
-    expect(controller.isExpanded, isTrue);
+    expect(expanded(), isTrue);
     expect(t.takeException(), isNull);
   });
 

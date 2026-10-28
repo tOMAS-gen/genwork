@@ -130,18 +130,18 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                 ? (s) => confirmDeleteTask(context, ref, s)
                 : null,
           );
+          // Filas perezosas: solo se construyen las visibles (T2).
           Widget rows(
             List<Task> tasks, {
             required bool editable,
             bool showWork = false,
-          }) => Column(
-            children: [
-              for (var i = 0; i < tasks.length; i++) ...[
-                if (i > 0) Divider(height: 1, color: c.border),
+          }) => SliverList.separated(
+            itemCount: tasks.length,
+            separatorBuilder: (_, _) => Divider(height: 1, color: c.border),
+            itemBuilder: (_, i) =>
                 tile(tasks[i], editable: editable, showWork: showWork),
-              ],
-            ],
           );
+          Widget header(Widget child) => SliverToBoxAdapter(child: child);
           final menu = SectorActionsMenu(
             id: b.id,
             name: b.name,
@@ -168,151 +168,193 @@ class _SectorDetailScreenState extends ConsumerState<SectorDetailScreen> {
                 child: RefreshIndicator(
                   onRefresh: () =>
                       ref.refresh(sectorBoardProvider(_query).future),
-                  child: ListView(
+                  child: CustomScrollView(
                     key: const ValueKey('sector_board_list'),
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppSpace.page,
-                    children: [
-                      Breadcrumb(
-                        rootLabel: 'Sectores',
-                        onRoot: () => context.go(Routes.sectors),
-                      ),
-                      const SizedBox(height: AppSpace.md),
-                      SectorSummaryPanel(board: b, menu: menu),
-                      const SizedBox(height: AppSpace.md),
-                      WorkspacePanel(
-                        child: Padding(
-                          padding: const EdgeInsets.all(AppSpacing.sm),
+                    slivers: [
+                      SliverPadding(
+                        padding: AppSpace.page.copyWith(bottom: 0),
+                        sliver: SliverToBoxAdapter(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Semantics(
-                                          header: true,
-                                          child: Text(
-                                            'Tareas',
-                                            style: AppTextStyles.dialogTitle
-                                                .copyWith(color: c.text),
-                                          ),
-                                        ),
-                                        Text(
-                                          '$pending ${pending == 1 ? 'pendiente' : 'pendientes'}',
-                                          style: AppTextStyles.supporting
-                                              .copyWith(color: c.muted),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  TaskViewToggle(
-                                    padding: EdgeInsets.zero,
-                                    iconsOnly: true,
-                                    board: _board,
-                                    onChanged: (v) =>
-                                        setState(() => _board = v),
-                                  ),
-                                ],
+                              Breadcrumb(
+                                rootLabel: 'Sectores',
+                                onRoot: () => context.go(Routes.sectors),
                               ),
-                              const SizedBox(height: AppSpacing.sm),
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: SegmentedButton<bool?>(
-                                  key: const ValueKey('sector_filter'),
-                                  segments: const [
-                                    ButtonSegment(
-                                      value: false,
-                                      label: Text('Pendientes'),
-                                    ),
-                                    ButtonSegment(
-                                      value: true,
-                                      label: Text('Hechas'),
-                                    ),
-                                    ButtonSegment(
-                                      value: null,
-                                      label: Text('Todas'),
-                                    ),
-                                  ],
-                                  showSelectedIcon: false,
-                                  selected: {_done},
-                                  onSelectionChanged: (s) =>
-                                      setState(() => _done = s.first),
-                                ),
-                              ),
-                              const SizedBox(height: AppSpacing.sm),
-                              if (_board)
-                                TaskBoard(
-                                  tasks: [
-                                    ...b.loose,
-                                    ...b.byWork.expand((g) => g.tasks),
-                                    ...b.refs,
-                                  ],
-                                  itemBuilder: (t) => tile(
-                                    t,
-                                    editable: b.canOperate,
-                                    showWork: true,
-                                  ),
-                                ),
-                              if (!_board) ...[
-                                if (b.loose.isEmpty &&
-                                    b.byWork.isEmpty &&
-                                    b.refs.isEmpty)
-                                  EmptyView(
-                                    icon: AppIcons.check,
-                                    title: 'Sin tareas todavía',
-                                    // La web dice "arriba": acá el campo está abajo.
-                                    message: b.canOperate
-                                        ? 'Escribí la primera tarea abajo para empezar a organizar el sector.'
-                                        : 'Todavía no hay tareas en este sector.',
-                                  ),
-                                if (b.loose.isNotEmpty) ...[
-                                  const _Header('Sueltas'),
-                                  rows(b.loose, editable: b.canOperate),
-                                ],
-                                for (final group in b.byWork) ...[
-                                  _Header(
-                                    group.work.name,
-                                    onTap: () => context.push(
-                                      Routes.work(group.work.id),
-                                    ),
-                                  ),
-                                  rows(group.tasks, editable: b.canOperate),
-                                ],
-                                if (b.refs.isNotEmpty) ...[
-                                  const _Header('Menciones'),
-                                  for (final entry in refsByOrigin.entries) ...[
-                                    _Header(
-                                      entry.value.first.work?.name ??
-                                          entry.value.first.homeSector?.name ??
-                                          'Otras referencias',
-                                      onTap: entry.value.first.work != null
-                                          ? () => context.push(
-                                              Routes.work(entry.key),
-                                            )
-                                          : entry.value.first.homeSector != null
-                                          ? () => context.push(
-                                              Routes.sector(entry.key),
-                                            )
-                                          : null,
-                                    ),
-                                    rows(
-                                      entry.value,
-                                      editable: b.canOperate,
-                                      showWork: true,
-                                    ),
-                                  ],
-                                ],
-                              ],
+                              const SizedBox(height: AppSpace.md),
+                              SectorSummaryPanel(board: b, menu: menu),
+                              const SizedBox(height: AppSpace.md),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpace.xl),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.gutter,
+                        ),
+                        sliver: PanelSliver(
+                          sliver: SliverPadding(
+                            padding: const EdgeInsets.all(AppSpacing.sm),
+                            sliver: SliverMainAxisGroup(
+                              slivers: [
+                                SliverToBoxAdapter(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Semantics(
+                                                  header: true,
+                                                  child: Text(
+                                                    'Tareas',
+                                                    style: AppTextStyles
+                                                        .dialogTitle
+                                                        .copyWith(
+                                                          color: c.text,
+                                                        ),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '$pending ${pending == 1 ? 'pendiente' : 'pendientes'}',
+                                                  style: AppTextStyles
+                                                      .supporting
+                                                      .copyWith(color: c.muted),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          TaskViewToggle(
+                                            padding: EdgeInsets.zero,
+                                            iconsOnly: true,
+                                            board: _board,
+                                            onChanged: (v) =>
+                                                setState(() => _board = v),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: SegmentedButton<bool?>(
+                                          key: const ValueKey('sector_filter'),
+                                          segments: const [
+                                            ButtonSegment(
+                                              value: false,
+                                              label: Text('Pendientes'),
+                                            ),
+                                            ButtonSegment(
+                                              value: true,
+                                              label: Text('Hechas'),
+                                            ),
+                                            ButtonSegment(
+                                              value: null,
+                                              label: Text('Todas'),
+                                            ),
+                                          ],
+                                          showSelectedIcon: false,
+                                          selected: {_done},
+                                          onSelectionChanged: (s) =>
+                                              setState(() => _done = s.first),
+                                        ),
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                    ],
+                                  ),
+                                ),
+                                if (_board)
+                                  SliverToBoxAdapter(
+                                    child: TaskBoard(
+                                      tasks: [
+                                        ...b.loose,
+                                        ...b.byWork.expand((g) => g.tasks),
+                                        ...b.refs,
+                                      ],
+                                      itemBuilder: (t) => tile(
+                                        t,
+                                        editable: b.canOperate,
+                                        showWork: true,
+                                      ),
+                                    ),
+                                  ),
+                                if (!_board) ...[
+                                  if (b.loose.isEmpty &&
+                                      b.byWork.isEmpty &&
+                                      b.refs.isEmpty)
+                                    header(
+                                      EmptyView(
+                                        icon: AppIcons.check,
+                                        title: 'Sin tareas todavía',
+                                        // La web dice "arriba": acá el campo está abajo.
+                                        message: b.canOperate
+                                            ? 'Escribí la primera tarea abajo para empezar a organizar el sector.'
+                                            : 'Todavía no hay tareas en este sector.',
+                                      ),
+                                    ),
+                                  if (b.loose.isNotEmpty) ...[
+                                    header(const _Header('Sueltas')),
+                                    rows(b.loose, editable: b.canOperate),
+                                  ],
+                                  for (final group in b.byWork) ...[
+                                    header(
+                                      _Header(
+                                        group.work.name,
+                                        onTap: () => context.push(
+                                          Routes.work(group.work.id),
+                                        ),
+                                      ),
+                                    ),
+                                    rows(group.tasks, editable: b.canOperate),
+                                  ],
+                                  if (b.refs.isNotEmpty) ...[
+                                    header(const _Header('Menciones')),
+                                    for (final entry
+                                        in refsByOrigin.entries) ...[
+                                      header(
+                                        _Header(
+                                          entry.value.first.work?.name ??
+                                              entry
+                                                  .value
+                                                  .first
+                                                  .homeSector
+                                                  ?.name ??
+                                              'Otras referencias',
+                                          onTap: entry.value.first.work != null
+                                              ? () => context.push(
+                                                  Routes.work(entry.key),
+                                                )
+                                              : entry.value.first.homeSector !=
+                                                    null
+                                              ? () => context.push(
+                                                  Routes.sector(entry.key),
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                      rows(
+                                        entry.value,
+                                        editable: b.canOperate,
+                                        showWork: true,
+                                      ),
+                                    ],
+                                  ],
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: AppSpace.xl),
+                      ),
                     ],
                   ),
                 ),

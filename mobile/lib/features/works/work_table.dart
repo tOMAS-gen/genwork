@@ -32,15 +32,17 @@ class WorkTable extends StatelessWidget {
   /// Reloj para el cálculo de urgencia (los tests lo fijan).
   final DateTime? now;
 
-  static const _columns = [
-    'Proyecto',
-    'Grupo',
-    'Etiquetas',
-    'Progreso',
-    'Entrega',
-    'Días restantes',
-    'Estado',
-    '',
+  /// Columnas con su ancho fijo: sin medidas intrínsecas, cada celda se mide
+  /// una sola vez (T2).
+  static const _columns = <(String, double)>[
+    ('Proyecto', 220),
+    ('Grupo', 140),
+    ('Etiquetas', 200),
+    ('Progreso', 140),
+    ('Entrega', 112),
+    ('Días restantes', 144),
+    ('Estado', 128),
+    ('', kMinInteractiveDimension),
   ];
 
   @override
@@ -78,51 +80,48 @@ class WorkTable extends StatelessWidget {
         children: [
           tap(
             Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 if (work.color != null) ...[
                   ColorDot(hex: work.color),
                   const SizedBox(width: AppSpacing.xs),
                 ],
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      work.name,
-                      style: cell.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    if (due != null)
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        'Entrega: ${formatDueDate(due, dayMonth: true)}',
-                        style: cell.copyWith(color: c.muted),
+                        work.name,
+                        style: cell.copyWith(fontWeight: FontWeight.w700),
                       ),
-                  ],
+                      if (due != null)
+                        Text(
+                          'Entrega: ${formatDueDate(due, dayMonth: true)}',
+                          style: cell.copyWith(color: c.muted),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
           tap(Text(work.groupName ?? 'Personal', style: cell)),
           tap(
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 200),
-              child: Wrap(
-                spacing: AppSpacing.xxs,
-                runSpacing: AppSpacing.xxs,
-                children: [
-                  for (final l in work.labels)
-                    ColorPill(label: l.valueName, hex: l.color),
-                  if (work.stageName != null)
-                    ColorPill(label: work.stageName!, hex: work.stageColor),
-                ],
-              ),
+            Wrap(
+              spacing: AppSpacing.xxs,
+              runSpacing: AppSpacing.xxs,
+              children: [
+                for (final l in work.labels)
+                  ColorPill(label: l.valueName, hex: l.color),
+                if (work.stageName != null)
+                  ColorPill(label: work.stageName!, hex: work.stageColor),
+              ],
             ),
           ),
           tap(
             pct == null
                 ? const SizedBox.shrink()
                 : Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
                         width: AppSpacing.xl,
@@ -134,10 +133,7 @@ class WorkTable extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: AppSpacing.xs),
-                      SizedBox(
-                        width: AppSpacing.xxl * 2,
-                        child: ProgressBar(value: pct / 100),
-                      ),
+                      Expanded(child: ProgressBar(value: pct / 100)),
                     ],
                   ),
           ),
@@ -188,7 +184,10 @@ class WorkTable extends StatelessWidget {
       key: const ValueKey('works_table'),
       scrollDirection: Axis.horizontal,
       child: Table(
-        defaultColumnWidth: const IntrinsicColumnWidth(),
+        columnWidths: {
+          for (var i = 0; i < _columns.length; i++)
+            i: FixedColumnWidth(_columns[i].$2),
+        },
         defaultVerticalAlignment: TableCellVerticalAlignment.middle,
         children: [
           TableRow(
@@ -200,7 +199,7 @@ class WorkTable extends StatelessWidget {
               for (final column in _columns)
                 Padding(
                   padding: padding,
-                  child: Text(column.toUpperCase(), style: header),
+                  child: Text(column.$1.toUpperCase(), style: header),
                 ),
             ],
           ),

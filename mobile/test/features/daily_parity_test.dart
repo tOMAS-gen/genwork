@@ -222,9 +222,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    // Una sola card (WorkspaceListPanel) para Mi día + referencias, sin
-    // encabezados de sección.
-    expect(find.byType(WorkspaceListPanel), findsOneWidget);
+    // Una sola card para Mi día + referencias, sin encabezados de sección;
+    // perezosa: solo construye las filas visibles (T2).
+    expect(find.byType(SliverListPanel), findsOneWidget);
     expect(find.text('Pendientes'), findsNothing);
     // El grupo dice de dónde viene, sin repetir «Mi día» (P04-M4); la
     // referencia conserva su marca.
@@ -258,7 +258,7 @@ void main() {
       find.textContaining('No tenés tareas para hoy ni referencias pendientes'),
       findsOneWidget,
     );
-    expect(find.byType(WorkspaceListPanel), findsNothing);
+    expect(find.byType(SliverListPanel), findsNothing);
   });
 
   for (final level in ['operate', 'read']) {

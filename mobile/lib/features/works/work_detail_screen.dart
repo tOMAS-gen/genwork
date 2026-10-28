@@ -58,16 +58,10 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   String? _targetObjectiveId;
   bool _board = false;
   final _objectiveKeys = <String, GlobalKey>{};
-  final _objectiveControllers = <String, ExpansibleController>{};
-  bool _revealedObjective = false;
 
-  @override
-  void dispose() {
-    for (final controller in _objectiveControllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
+  /// Objetivos plegados (por id).
+  final _collapsed = <String>{};
+  bool _revealedObjective = false;
 
   @override
   void didUpdateWidget(covariant WorkDetailScreen oldWidget) {
@@ -156,7 +150,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
               final target =
                   _objectiveKeys[widget.initialObjectiveId]?.currentContext;
               if (target != null) {
-                _objectiveControllers[widget.initialObjectiveId]?.expand();
+                setState(() => _collapsed.remove(widget.initialObjectiveId));
                 _revealedObjective = true;
                 Scrollable.ensureVisible(target, alignment: 0);
               }
@@ -218,199 +212,267 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                 child: RefreshIndicator(
                   onRefresh: () =>
                       ref.refresh(workDetailProvider(widget.workId).future),
-                  child: ListView(
+                  // Slivers perezosos: solo se construyen las tareas
+                  // visibles (T2).
+                  child: CustomScrollView(
                     key: const ValueKey('work_detail_list'),
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: AppSpace.page,
-                    children: [
-                      Breadcrumb(
-                        rootKey: const ValueKey('work_breadcrumb_root'),
-                        rootLabel: work.isTemplate
-                            ? 'Plantillas de objetivo'
-                            : 'Todos los proyectos',
-                        onRoot: () => context.go(
-                          work.isTemplate ? Routes.templates : Routes.works,
+                    slivers: [
+                      SliverPadding(
+                        padding: AppSpace.page.copyWith(bottom: 0),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Breadcrumb(
+                                rootKey: const ValueKey('work_breadcrumb_root'),
+                                rootLabel: work.isTemplate
+                                    ? 'Plantillas de objetivo'
+                                    : 'Todos los proyectos',
+                                onRoot: () => context.go(
+                                  work.isTemplate
+                                      ? Routes.templates
+                                      : Routes.works,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpace.md),
+                              WorkSummaryPanel(
+                                work: work,
+                                menu: menu,
+                                onPickDue: work.canOperate && !work.isArchived
+                                    ? () => _pickDue(work)
+                                    : null,
+                                onClearDue: work.canOperate && !work.isArchived
+                                    ? () => _saveDue(work, null)
+                                    : null,
+                                onEditLabels:
+                                    work.canOperate && !work.isArchived
+                                    ? () => showWorkMetadata(
+                                        context,
+                                        work,
+                                        labels: true,
+                                      )
+                                    : null,
+                              ),
+                              const SizedBox(height: AppSpace.md),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: AppSpace.md),
-                      WorkSummaryPanel(
-                        work: work,
-                        menu: menu,
-                        onPickDue: work.canOperate && !work.isArchived
-                            ? () => _pickDue(work)
-                            : null,
-                        onClearDue: work.canOperate && !work.isArchived
-                            ? () => _saveDue(work, null)
-                            : null,
-                        onEditLabels: work.canOperate && !work.isArchived
-                            ? () =>
-                                  showWorkMetadata(context, work, labels: true)
-                            : null,
-                      ),
-                      const SizedBox(height: AppSpace.md),
-                      WorkspacePanel(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            ColoredBox(
-                              color: context.colors.field,
-                              child: GenTabBar(
-                                showIcons: true,
-                                activeIndex: 0,
-                                tabs: [
-                                  GenTabItem(
-                                    label: 'Tareas',
-                                    icon: AppIcons.check,
-                                  ),
-                                  const GenTabItem(
-                                    label: 'Materiales',
-                                    icon: AppIcons.materials,
-                                  ),
-                                  GenTabItem(
-                                    label: 'Documentos',
-                                    icon: AppIcons.document,
-                                  ),
-                                  GenTabItem(
-                                    label: 'Archivos',
-                                    icon: AppIcons.projects,
-                                  ),
-                                  const GenTabItem(
-                                    label: 'Actividad',
-                                    icon: AppIcons.schedule,
-                                  ),
-                                  if (work.canManageClients)
-                                    const GenTabItem(
-                                      label: 'Acceso cliente',
-                                      icon: AppIcons.view,
-                                    ),
-                                ],
-                                // Documentos y Archivos son pantallas propias.
-                                onSelect: (i) {
-                                  const pages = [
-                                    null,
-                                    'materials',
-                                    'document',
-                                    'files',
-                                    'activity',
-                                    'clients',
-                                  ];
-                                  final page = pages[i];
-                                  if (page != null) {
-                                    context.push('/works/${work.id}/$page');
-                                  }
-                                },
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(AppSpacing.sm),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Semantics(
-                                    header: true,
-                                    child: Text(
-                                      'Tareas',
-                                      style: AppTextStyles.dialogTitle.copyWith(
-                                        color: context.colors.text,
+
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpace.gutter,
+                        ),
+                        sliver: PanelSliver(
+                          sliver: SliverMainAxisGroup(
+                            slivers: [
+                              SliverToBoxAdapter(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.vertical(
+                                        top: AppGeometry.card.topLeft,
                                       ),
-                                    ),
-                                  ),
-                                  Text(
-                                    '${work.progress.pending} ${work.progress.pending == 1 ? 'pendiente' : 'pendientes'}',
-                                    style: AppTextStyles.supporting.copyWith(
-                                      color: context.colors.muted,
-                                    ),
-                                  ),
-                                  // Una sola fila: Lista | Tablero y, a la
-                                  // derecha, "+ Objetivo" y "⋯" con Insertar
-                                  // plantilla (P07-M4).
-                                  const SizedBox(height: AppSpacing.sm),
-                                  Wrap(
-                                    alignment: WrapAlignment.spaceBetween,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    spacing: AppSpacing.xs,
-                                    runSpacing: AppSpacing.xs,
-                                    children: [
-                                      TaskViewToggle(
-                                        padding: EdgeInsets.zero,
-                                        compact: true,
-                                        board: _board,
-                                        onChanged: (v) =>
-                                            setState(() => _board = v),
-                                      ),
-                                      if (work.canManageObjectives)
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            OutlinedButton.icon(
-                                              key: const ValueKey(
-                                                'objective_create',
-                                              ),
-                                              onPressed: () =>
-                                                  showObjectiveDialog(
-                                                    context,
-                                                    work.id,
-                                                  ),
-                                              icon: const Icon(
-                                                AppIcons.add,
-                                                size: AppIconSizes.field,
-                                              ),
-                                              label: const Text('Objetivo'),
+                                      child: ColoredBox(
+                                        color: context.colors.field,
+                                        child: GenTabBar(
+                                          showIcons: true,
+                                          activeIndex: 0,
+                                          tabs: [
+                                            GenTabItem(
+                                              label: 'Tareas',
+                                              icon: AppIcons.check,
                                             ),
-                                            RowActionsMenu(
-                                              key: const ValueKey(
-                                                'work_tasks_more',
-                                              ),
-                                              tooltip: 'Más acciones de tareas',
-                                              actions: [
-                                                RowAction(
-                                                  key:
-                                                      'objective_insert_template',
-                                                  label: 'Insertar plantilla',
-                                                  onSelected: () =>
-                                                      showObjectiveDialog(
-                                                        context,
-                                                        work.id,
-                                                        fromTemplate: true,
-                                                      ),
-                                                ),
-                                              ],
+                                            const GenTabItem(
+                                              label: 'Materiales',
+                                              icon: AppIcons.materials,
                                             ),
+                                            GenTabItem(
+                                              label: 'Documentos',
+                                              icon: AppIcons.document,
+                                            ),
+                                            GenTabItem(
+                                              label: 'Archivos',
+                                              icon: AppIcons.projects,
+                                            ),
+                                            const GenTabItem(
+                                              label: 'Actividad',
+                                              icon: AppIcons.schedule,
+                                            ),
+                                            if (work.canManageClients)
+                                              const GenTabItem(
+                                                label: 'Acceso cliente',
+                                                icon: AppIcons.view,
+                                              ),
                                           ],
+                                          // Documentos y Archivos son pantallas propias.
+                                          onSelect: (i) {
+                                            const pages = [
+                                              null,
+                                              'materials',
+                                              'document',
+                                              'files',
+                                              'activity',
+                                              'clients',
+                                            ];
+                                            final page = pages[i];
+                                            if (page != null) {
+                                              context.push(
+                                                '/works/${work.id}/$page',
+                                              );
+                                            }
+                                          },
                                         ),
-                                    ],
-                                  ),
-                                  for (final section in work.sections)
-                                    if (section.objective == null ||
-                                        section.tasks.isNotEmpty ||
-                                        canEdit)
-                                      _WorkSectionView(
-                                        key: section.objective == null
-                                            ? null
-                                            : _objectiveKeys.putIfAbsent(
-                                                section.objective!.id,
-                                                GlobalKey.new,
-                                              ),
-                                        work: work,
-                                        controller: section.objective == null
-                                            ? null
-                                            : _objectiveControllers.putIfAbsent(
-                                                section.objective!.id,
-                                                ExpansibleController.new,
-                                              ),
-                                        section: section,
-                                        canEdit: canEdit,
-                                        board: _board,
-                                        taskTile: taskTile,
                                       ),
-                                ],
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        AppSpacing.sm,
+                                        AppSpacing.sm,
+                                        AppSpacing.sm,
+                                        0,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Semantics(
+                                            header: true,
+                                            child: Text(
+                                              'Tareas',
+                                              style: AppTextStyles.dialogTitle
+                                                  .copyWith(
+                                                    color: context.colors.text,
+                                                  ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${work.progress.pending} ${work.progress.pending == 1 ? 'pendiente' : 'pendientes'}',
+                                            style: AppTextStyles.supporting
+                                                .copyWith(
+                                                  color: context.colors.muted,
+                                                ),
+                                          ),
+                                          // Una sola fila: Lista | Tablero y, a la
+                                          // derecha, "+ Objetivo" y "⋯" con Insertar
+                                          // plantilla (P07-M4).
+                                          const SizedBox(height: AppSpacing.sm),
+                                          Wrap(
+                                            alignment:
+                                                WrapAlignment.spaceBetween,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            spacing: AppSpacing.xs,
+                                            runSpacing: AppSpacing.xs,
+                                            children: [
+                                              TaskViewToggle(
+                                                padding: EdgeInsets.zero,
+                                                compact: true,
+                                                board: _board,
+                                                onChanged: (v) =>
+                                                    setState(() => _board = v),
+                                              ),
+                                              if (work.canManageObjectives)
+                                                Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    OutlinedButton.icon(
+                                                      key: const ValueKey(
+                                                        'objective_create',
+                                                      ),
+                                                      onPressed: () =>
+                                                          showObjectiveDialog(
+                                                            context,
+                                                            work.id,
+                                                          ),
+                                                      icon: const Icon(
+                                                        AppIcons.add,
+                                                        size:
+                                                            AppIconSizes.field,
+                                                      ),
+                                                      label: const Text(
+                                                        'Objetivo',
+                                                      ),
+                                                    ),
+                                                    RowActionsMenu(
+                                                      key: const ValueKey(
+                                                        'work_tasks_more',
+                                                      ),
+                                                      tooltip:
+                                                          'Más acciones de tareas',
+                                                      actions: [
+                                                        RowAction(
+                                                          key:
+                                                              'objective_insert_template',
+                                                          label:
+                                                              'Insertar plantilla',
+                                                          onSelected: () =>
+                                                              showObjectiveDialog(
+                                                                context,
+                                                                work.id,
+                                                                fromTemplate:
+                                                                    true,
+                                                              ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              for (final section in work.sections)
+                                if (section.objective == null ||
+                                    section.tasks.isNotEmpty ||
+                                    canEdit)
+                                  SliverPadding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.sm,
+                                    ),
+                                    sliver: _WorkSectionView(
+                                      headerKey: section.objective == null
+                                          ? null
+                                          : _objectiveKeys.putIfAbsent(
+                                              section.objective!.id,
+                                              GlobalKey.new,
+                                            ),
+                                      work: work,
+                                      section: section,
+                                      expanded: !_collapsed.contains(
+                                        section.objective?.id,
+                                      ),
+                                      onToggle: section.objective == null
+                                          ? null
+                                          : () => setState(() {
+                                              final id = section.objective!.id;
+                                              if (!_collapsed.remove(id)) {
+                                                _collapsed.add(id);
+                                              }
+                                            }),
+                                      canEdit: canEdit,
+                                      board: _board,
+                                      taskTile: taskTile,
+                                    ),
+                                  ),
+                              const SliverToBoxAdapter(
+                                child: SizedBox(height: AppSpacing.sm),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: AppSpace.xl),
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: AppSpace.xl),
+                      ),
                     ],
                   ),
                 ),
@@ -451,23 +513,27 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   }
 }
 
-/// Sección de tareas: «TAREAS GENERALES» (rótulo) o un objetivo con acento a la
-/// izquierda, estado «Completo», acciones y avance.
+/// Sección de tareas como grupo de slivers: «TAREAS GENERALES» (rótulo) o un
+/// objetivo con acento a la izquierda, estado «Completo», acciones y avance.
+/// Las tareas se construyen de a una, solo las visibles (T2).
 class _WorkSectionView extends ConsumerWidget {
   const _WorkSectionView({
-    super.key,
-    this.controller,
+    this.headerKey,
     required this.work,
     required this.section,
+    required this.expanded,
+    required this.onToggle,
     required this.canEdit,
     required this.board,
     required this.taskTile,
   });
 
+  /// Para llevar el encabezado del objetivo a la vista desde un enlace.
+  final GlobalKey? headerKey;
   final WorkDetail work;
-  final ExpansibleController? controller;
   final WorkSection section;
-  final bool canEdit, board;
+  final bool expanded, canEdit, board;
+  final VoidCallback? onToggle;
   final Widget Function(Task) taskTile;
 
   @override
@@ -481,7 +547,7 @@ class _WorkSectionView extends ConsumerWidget {
     final complete = total > 0 && done == total;
     final accent = complete ? c.ok : c.brand;
 
-    final body = <Widget>[
+    final intro = <Widget>[
       if (canEdit && tasks.length > 1)
         Align(
           alignment: Alignment.centerRight,
@@ -529,124 +595,175 @@ class _WorkSectionView extends ConsumerWidget {
             ),
           ),
         ),
+    ];
+
+    final body = <Widget>[
+      if (intro.isNotEmpty)
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: intro,
+          ),
+        ),
       if (board)
-        TaskBoard(tasks: tasks, itemBuilder: taskTile)
+        SliverToBoxAdapter(
+          child: TaskBoard(tasks: tasks, itemBuilder: taskTile),
+        )
       else
-        for (var i = 0; i < tasks.length; i++) ...[
-          if (i > 0) Divider(height: 1, color: c.border),
-          taskTile(tasks[i]),
-        ],
+        SliverList.separated(
+          itemCount: tasks.length,
+          separatorBuilder: (_, _) => Divider(height: 1, color: c.border),
+          itemBuilder: (_, i) => taskTile(tasks[i]),
+        ),
     ];
 
     if (objective == null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: AppSpacing.sm),
-        child: Column(
-          key: const PageStorageKey('work_section_general'),
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xs,
+      return SliverMainAxisGroup(
+        key: const PageStorageKey('work_section_general'),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xs,
+                AppSpacing.md,
+                AppSpacing.xs,
+                AppSpacing.xs,
               ),
               child: Text(
                 'TAREAS GENERALES',
                 style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
               ),
             ),
-            ...body,
-          ],
-        ),
+          ),
+          ...body,
+        ],
       );
     }
 
-    return Padding(
+    final header = Semantics(
+      expanded: expanded,
+      child: InkWell(
+        key: ValueKey('work_section_${objective.id}'),
+        onTap: onToggle,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              // La flecha a la izquierda, como el encabezado de objetivo web.
+              Icon(
+                expanded ? AppIcons.expandMore : AppIcons.chevronRight,
+                size: AppIconSizes.action,
+                color: c.muted,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            objective.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.itemTitle.copyWith(
+                              color: c.text,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        CountBadge(
+                          count: tasks.length,
+                          singular: 'tarea',
+                          plural: 'tareas',
+                        ),
+                        if (complete) ...[
+                          const SizedBox(width: AppSpacing.xs),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                              vertical: AppSpacing.hairline,
+                            ),
+                            decoration: BoxDecoration(
+                              color: c.successFill,
+                              borderRadius: AppGeometry.chip,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  AppIcons.success,
+                                  size: AppIconSizes.compact,
+                                  color: c.successText,
+                                ),
+                                const SizedBox(width: AppSpacing.xxs),
+                                Text(
+                                  'Completo',
+                                  style: AppTextStyles.supporting.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: c.successText,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ProgressBar(
+                            value: total == 0 ? 0 : done / total,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          total == 0
+                              ? '0 tareas'
+                              : '$done/$total · ${(done / total * 100).round()}%',
+                          style: AppTextStyles.supporting.copyWith(
+                            color: c.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              if (work.canManageObjectives)
+                ObjectiveActionsMenu(work: work, objective: objective),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return SliverPadding(
       padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: DecoratedBox(
+      sliver: DecoratedSliver(
         decoration: BoxDecoration(
           border: Border(
             left: BorderSide(color: accent, width: kActiveTickWidth),
           ),
         ),
-        child: ExpansionTile(
-          controller: controller,
-          key: PageStorageKey('work_section_${objective.id}'),
-          initiallyExpanded: true,
-          // La flecha a la izquierda, como el encabezado de objetivo web.
-          controlAffinity: ListTileControlAffinity.leading,
-          tilePadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          childrenPadding: const EdgeInsets.only(left: AppSpacing.xs),
-          title: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  objective.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.itemTitle.copyWith(color: c.text),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              CountBadge(
-                count: tasks.length,
-                singular: 'tarea',
-                plural: 'tareas',
-              ),
-              if (complete) ...[
-                const SizedBox(width: AppSpacing.xs),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.hairline,
-                  ),
-                  decoration: BoxDecoration(
-                    color: c.successFill,
-                    borderRadius: AppGeometry.chip,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        AppIcons.success,
-                        size: AppIconSizes.compact,
-                        color: c.successText,
-                      ),
-                      const SizedBox(width: AppSpacing.xxs),
-                      Text(
-                        'Completo',
-                        style: AppTextStyles.supporting.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: c.successText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xxs),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ProgressBar(value: total == 0 ? 0 : done / total),
-                ),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  total == 0
-                      ? '0 tareas'
-                      : '$done/$total · ${(done / total * 100).round()}%',
-                  style: AppTextStyles.supporting.copyWith(color: c.muted),
-                ),
-              ],
+        sliver: SliverMainAxisGroup(
+          key: PageStorageKey('work_section_group_${objective.id}'),
+          slivers: [
+            SliverToBoxAdapter(
+              child: KeyedSubtree(key: headerKey, child: header),
             ),
-          ),
-          trailing: work.canManageObjectives
-              ? ObjectiveActionsMenu(work: work, objective: objective)
-              : null,
-          children: body,
+            if (expanded)
+              SliverPadding(
+                padding: const EdgeInsets.only(left: AppSpacing.xs),
+                sliver: SliverMainAxisGroup(slivers: body),
+              ),
+          ],
         ),
       ),
     );

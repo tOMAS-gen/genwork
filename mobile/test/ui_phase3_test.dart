@@ -57,6 +57,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:genwork_mobile/core/servers/connect_payload.dart';
 import 'package:genwork_mobile/features/settings/mobile_app_screen.dart';
+import 'package:genwork_mobile/features/works/work_card.dart';
 
 final _task = Task.fromJson({
   'id': 't1',
@@ -141,6 +142,8 @@ Future<void> _pump(
   bool readOnly = false,
   TaskActions? actions,
   NotesRepository? notesRepository,
+  List<WorkSummary>? works,
+  SectorBoard? board,
 }) async {
   tester.view.physicalSize = const Size(360, 800);
   tester.view.devicePixelRatio = 1;
@@ -222,7 +225,9 @@ Future<void> _pump(
         ),
         myDayProvider.overrideWith((ref) async => [_task]),
         openReferencesProvider.overrideWith((ref) async => []),
-        worksListProvider.overrideWith((ref, archived) async => _works),
+        worksListProvider.overrideWith(
+          (ref, archived) async => works ?? _works,
+        ),
         workDetailProvider.overrideWith(
           (ref, id) async => readOnly
               ? WorkDetail.fromJson({'id': 'w1', 'name': 'Lectura'})
@@ -230,7 +235,7 @@ Future<void> _pump(
         ),
         groupsProvider.overrideWith((ref) async => []),
         sectorsProvider.overrideWith((ref) async => [_sector]),
-        sectorBoardProvider.overrideWith((ref, q) async => _board),
+        sectorBoardProvider.overrideWith((ref, q) async => board ?? _board),
         notesProvider.overrideWith((ref) async => [_note]),
         noteProvider.overrideWith((ref, id) async => _note),
         deliveriesProvider.overrideWith((ref) async => []),
@@ -901,6 +906,57 @@ void main() {
     expect(find.byKey(const ValueKey('mobile_app_step_3')), findsOneWidget);
     // Pestaña y título con el mismo nombre, como en toda Configuración.
     expect(find.text('App móvil'), findsNWidgets(2));
+  });
+  testWidgets('T2 Proyectos: con 300 proyectos solo arma las cards visibles', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      scale: 1,
+      works: [
+        for (var i = 0; i < 300; i++)
+          WorkSummary.fromJson({
+            'id': 'many$i',
+            'name': 'Proyecto $i',
+            'taskCounts': {'done': 0, 'total': 1},
+          }),
+      ],
+    );
+    expect(tester.takeException(), isNull);
+    final built = find.byType(WorkCard, skipOffstage: false).evaluate().length;
+    expect(built, greaterThan(0));
+    expect(built, lessThan(20));
+  });
+  testWidgets('T2 sector: con 300 tareas solo arma las filas visibles', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const SectorDetailScreen(sectorId: 's1'),
+      scale: 1,
+      board: SectorBoard.fromJson({
+        'sector': {'id': 's1', 'name': 'Impresión'},
+        'level': 'operate',
+        'loose': [
+          for (var i = 0; i < 300; i++)
+            {
+              'id': 'many$i',
+              'displayText': 'Tarea $i',
+              'rawText': 'Tarea $i',
+              'status': {
+                'id': 'open',
+                'name': 'En curso',
+                'type': 'IN_PROGRESS',
+              },
+            },
+        ],
+      }),
+    );
+    expect(tester.takeException(), isNull);
+    final built = find.byType(TaskTile, skipOffstage: false).evaluate().length;
+    expect(built, greaterThan(0));
+    expect(built, lessThan(30));
   });
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,

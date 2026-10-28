@@ -145,51 +145,64 @@ class MyDayScreen extends ConsumerWidget {
             );
           }
 
-          return ListView(
+          final open = [...pending, ...refs];
+          // Slivers perezosos: solo se construyen las filas visibles (T2).
+          return CustomScrollView(
             key: const ValueKey('my_day_list'),
             physics: const AlwaysScrollableScrollPhysics(),
-            children: [
+            slivers: [
               // Fecha y avance en una línea, con la barra debajo (P04-M3).
-              Padding(
-                key: const ValueKey('my_day_progress'),
-                padding: AppSpace.page,
-                child: _ProgressText(
-                  today: today,
-                  progress: tasks.isEmpty ? null : progress,
+              SliverToBoxAdapter(
+                child: Padding(
+                  key: const ValueKey('my_day_progress'),
+                  padding: AppSpace.page,
+                  child: _ProgressText(
+                    today: today,
+                    progress: tasks.isEmpty ? null : progress,
+                  ),
                 ),
               ),
-              if (pending.isNotEmpty || refs.isNotEmpty)
-                Padding(
+              if (open.isNotEmpty)
+                SliverPadding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpace.gutter,
                   ),
-                  child: WorkspaceListPanel(
-                    children: [...pending.map(tile), ...refs.map(tile)],
+                  sliver: SliverListPanel(
+                    itemCount: open.length,
+                    itemBuilder: (_, i) => tile(open[i]),
                   ),
                 ),
-              if (references.isLoading && !references.hasValue)
-                const LoadingView(),
-              if (references.hasError)
-                ErrorView(
-                  error: references.error!,
-                  onRetry: () => ref.invalidate(openReferencesProvider),
-                ),
-              if (done.isNotEmpty)
-                ExpansionTile(
-                  key: const ValueKey('my_day_completed'),
-                  title: Text('Completadas hoy (${done.length})'),
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.gutter,
+                    if (references.isLoading && !references.hasValue)
+                      const LoadingView(),
+                    if (references.hasError)
+                      ErrorView(
+                        error: references.error!,
+                        onRetry: () => ref.invalidate(openReferencesProvider),
                       ),
-                      child: WorkspaceListPanel(
-                        children: done.map(tile).toList(),
+                    // Las completadas del día son pocas: van en su panel.
+                    if (done.isNotEmpty)
+                      ExpansionTile(
+                        key: const ValueKey('my_day_completed'),
+                        title: Text('Completadas hoy (${done.length})'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpace.gutter,
+                            ),
+                            child: WorkspaceListPanel(
+                              children: done.map(tile).toList(),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    const SizedBox(height: AppSpace.xxl),
                   ],
                 ),
-              const SizedBox(height: AppSpace.xxl),
+              ),
             ],
           );
         },
