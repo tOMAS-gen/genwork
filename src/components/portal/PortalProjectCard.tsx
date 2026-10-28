@@ -80,7 +80,7 @@ export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
             <Calendar size={14} />
             Entrega: {formatDueDate(due)}
           </span>
-          <span className={`pc-due-remaining due-${urgency.color}`} style={{ fontStyle: "italic" }}>
+          <span className={`pc-due-remaining due-${urgency.tone}`} style={{ fontStyle: "italic" }}>
             {urgency.label}
           </span>
         </div>

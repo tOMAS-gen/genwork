@@ -537,7 +537,7 @@ Antes de tocar Next.js, leer `node_modules/next/dist/docs/` (AGENTS.md). El deta
 ## Tarea 42: Web — cards de entidad, color, KPI, fila de tarea y pestañas
 
 **Criterios de aceptación:**
-- [ ] Nombre como título, progreso y plazo con el mismo criterio, franja de KPI, fila de tarea con una acción visible y pestañas legibles.
+- [x] Nombre como título, progreso y plazo con el mismo criterio, franja de KPI, fila de tarea con una acción visible y pestañas legibles.
 
 **Verificación:** tests de la web en verde; capturas de P05, P07 y P11. · **Tamaño:** M
 

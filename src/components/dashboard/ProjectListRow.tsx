@@ -91,7 +91,7 @@ export function ProjectListRow({
       <td>{parsedDue ? formatDueDate(parsedDue) : ""}</td>
       <td>
         {urgency && (
-          <span className={`due-${urgency.color}`}>{urgency.label}</span>
+          <span className={`due-${urgency.tone}`}>{urgency.label}</span>
         )}
       </td>
       <td>

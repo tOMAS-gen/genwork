@@ -1406,15 +1406,16 @@
   font-weight: 500;
 }
 
-.due-green {
-  color: var(--color-success-text);
+/* Plazo con el criterio de la app (spec 066, T42): neutro, ámbar o rojo. */
+.due-neutral {
+  color: var(--muted);
 }
 
-.due-orange {
+.due-warning {
   color: var(--color-warning-text);
 }
 
-.due-red {
+.due-danger {
   color: var(--color-danger-text);
 }
 
@@ -4667,3 +4668,80 @@ a.settings-row:hover {
 .empty-state-description {
   font-size: 13px;
 }
+
+/* ---- Spec 066, T42: cards de entidad, progreso, plazo y KPI como la app ---- */
+.pc-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pc-name-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.pc-due {
+  gap: 4px;
+  font-size: 13px;
+}
+.pc-due-remaining {
+  font-weight: 500;
+}
+/* Progreso: barra de 4 px en la marca (verde solo al 100 %) y la cifra en
+   mono tabular en la misma fila. */
+.pc-progress-track {
+  height: 4px;
+}
+.pc-progress-fill {
+  background: var(--accent);
+}
+.pc-progress-fill.is-complete {
+  background: var(--ok);
+}
+.pc-progress-pct {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stats-strip {
+  display: flex;
+  min-height: 72px;
+  padding: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.stats-strip-item {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+}
+.stats-strip-item + .stats-strip-item {
+  border-left: 1px solid var(--border);
+}
+.stats-strip .stat-number {
+  font-family: var(--font-mono-stack);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.stats-strip-label {
+  overflow: hidden;
+  /* Como la app: si «Completados» no entra, se achican todos por igual. */
+  font-size: clamp(9px, 2.5vw, 11px);
+  font-weight: 600;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

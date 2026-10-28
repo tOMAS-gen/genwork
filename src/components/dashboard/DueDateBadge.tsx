@@ -17,7 +17,7 @@ export function DueDateBadge({ dueDate }: { dueDate: string | null }) {
   if (!urgency) return null;
 
   return (
-    <span className={`due-badge due-${urgency.color}`}>
+    <span className={`due-badge due-${urgency.tone}`}>
       <Calendar size={14} />
       {formatDueDate(parsed, "short")} · {urgency.label}
     </span>

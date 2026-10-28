@@ -69,7 +69,7 @@ export function StatusBar({
                 : "Sin fecha"}
             </span>
           )}
-          {urgency && <span className={`due-${urgency.color}`}>{urgency.label}</span>}
+          {urgency && <span className={`due-${urgency.tone}`}>{urgency.label}</span>}
         </div>
       </div>
       {stageProps?.currentStage && (

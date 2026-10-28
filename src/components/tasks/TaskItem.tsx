@@ -6,7 +6,7 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
-import { X, Calendar, GripVertical, Plus, ChevronDown, ChevronRight, Sun } from "@/components/ui/icons";
+import { Calendar, GripVertical, ChevronDown, ChevronRight, Sun, MoreHorizontal } from "@/components/ui/icons";
 import { Menu, type MenuItem } from "@/components/ui/Menu";
 import { canEditTaskText } from "@/lib/domain/tasks/ownership";
 import { shouldShowAutoWorkTag, shouldShowObjectiveChip } from "@/lib/domain/tasks/workTagVisibility";
@@ -25,6 +25,24 @@ import { TaskMoveDialog } from "./TaskMoveDialog";
 import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { ObjectiveChip } from "@/components/objectives/ObjectiveChip";
 import { MoveToObjectiveDialog } from "@/components/objectives/MoveToObjectiveDialog";
+
+
+/**
+ * Acciones de la fila de tarea que van en su «⋯» (spec 066, T42): como la fila
+ * de la app, a la vista queda solo Mi día.
+ */
+export function taskRowActions({
+  canAddSubtask,
+  canDelete,
+}: {
+  canAddSubtask: boolean;
+  canDelete: boolean;
+}): { id: "addSubtask" | "delete"; label: string }[] {
+  return [
+    ...(canAddSubtask ? [{ id: "addSubtask" as const, label: "Agregar subtarea" }] : []),
+    ...(canDelete ? [{ id: "delete" as const, label: "Eliminar tarea" }] : []),
+  ];
+}
 
 export interface TaskDto {
   id: string;
@@ -455,6 +473,20 @@ export function TaskItem({
     : task.status.type === "FINAL"
       ? "Marcar como no terminada"
       : "Marcar como terminada";
+  // Agregar subtarea y eliminar, dentro del «⋯» de la fila (spec 066, T42).
+  const rowItems = taskRowActions({ canAddSubtask: showsSubtasks && canToggle, canDelete: canToggle }).map(
+    (action) =>
+      action.id === "addSubtask"
+        ? {
+            label: action.label,
+            onSelect: () => {
+              setSubtasksOpen(true);
+              setAddingSubtask(true);
+            },
+          }
+        : { label: action.label, danger: true, onSelect: () => void remove() },
+  );
+
   // 062-subtareas (Tarea 13): reorganizar la jerarquía desde el menú — colgar
   // una tarea raíz de otra ("Mover bajo otra tarea…") o sacar una subtarea de
   // la suya ("Sacar de …"). Mismo permiso base que el resto de las acciones de
@@ -675,22 +707,6 @@ export function TaskItem({
             </span>
           )
         )}
-        {showsSubtasks && canToggle && (
-          <button
-            type="button"
-            className="icon-btn task-add-subtask"
-            style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
-            onClick={() => {
-              setSubtasksOpen(true);
-              setAddingSubtask(true);
-            }}
-            aria-label={`Agregar subtarea a "${task.displayText}"`}
-            title="Agregar subtarea"
-            tabIndex={editing ? -1 : 0}
-          >
-            <Plus size={15} />
-          </button>
-        )}
         {/* Selector de estado: solo si hay más de 2 estados en el conjunto (si son
             solo Pendiente/Hecha, la casilla ya alcanza). En el tablero la columna ya
             indica el estado — ahí se ofrece un menú para mover a otro en vez de selector. */}
@@ -746,19 +762,20 @@ export function TaskItem({
               ...reparentItems,
               ...objectiveItems,
               ...myDayItems,
+              ...rowItems,
             ]}
           />
         )}
-        {canToggle && (
-          <button
-            className="icon-btn task-delete"
-            style={{ width: 28, height: 28, visibility: editing ? "hidden" : "visible" }}
-            onClick={() => void remove()}
-            aria-label="Eliminar tarea"
-            tabIndex={editing ? -1 : 0}
-          >
-            <X size={15} />
-          </button>
+        {/* Lista: una sola acción visible (Mi día) y el resto en el «⋯», como
+            la fila de tarea de la app (spec 066, T42). */}
+        {variant === "list" && rowItems.length > 0 && (
+          <span style={{ visibility: editing ? "hidden" : "visible" }}>
+            <Menu
+              label={`Acciones de "${task.displayText}"`}
+              trigger={<MoreHorizontal size={16} />}
+              items={rowItems}
+            />
+          </span>
         )}
       </div>
       {/* 062-subtareas (Tarea 12): hijas anidadas — solo en variant "list" (el

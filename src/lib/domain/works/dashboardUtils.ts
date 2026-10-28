@@ -19,18 +19,23 @@ export function getProjectStatus(
   return 'in_progress';
 }
 
-/** Urgencia calculada para una fecha límite, con etiqueta legible y color asociado. */
+/**
+ * Urgencia de una fecha límite, con el mismo criterio que la app Android
+ * (`dueUrgency`, spec 066 T42): etiqueta larga, forma corta para una línea de
+ * meta («29 oct · 3 días») y tono.
+ */
 export interface DueDateUrgency {
   label: string;
-  color: 'green' | 'orange' | 'red';
+  short: string;
+  tone: 'neutral' | 'warning' | 'danger';
 }
 
 /**
  * Calcula la urgencia de una fecha límite en base a los días restantes hasta hoy.
  * - Sin fecha: null.
- * - Más de 7 días restantes: verde.
- * - Entre 1 y 7 días restantes: naranja.
- * - Hoy o vencido (<= 0 días): rojo.
+ * - Más de 3 días restantes: neutro.
+ * - De hoy a 3 días: ámbar.
+ * - Vencido: rojo.
  *
  * La entrega es un día de calendario guardado a medianoche UTC (ver
  * `formatDueDate`): se toma su día en UTC y se compara con el día de hoy en la
@@ -48,23 +53,24 @@ export function getDueDateUrgency(dueDate: Date | null): DueDateUrgency | null {
   const msPerDay = 24 * 60 * 60 * 1000;
   const daysRemaining = Math.round((due - today) / msPerDay);
 
-  let label: string;
-  if (daysRemaining < 0) {
-    label = 'Vencido';
-  } else if (daysRemaining === 0) {
-    label = 'Vence hoy';
-  } else {
-    label = `${daysRemaining} días restantes`;
-  }
+  const label =
+    daysRemaining < 0
+      ? 'Vencido'
+      : daysRemaining === 0
+        ? 'Vence hoy'
+        : daysRemaining === 1
+          ? '1 día restante'
+          : `${daysRemaining} días restantes`;
+  const short =
+    daysRemaining < 0
+      ? 'Vencido'
+      : daysRemaining === 0
+        ? 'Hoy'
+        : daysRemaining === 1
+          ? '1 día'
+          : `${daysRemaining} días`;
+  // Con más de 3 días, neutro; de hoy a 3 días, ámbar; vencido, rojo.
+  const tone = daysRemaining > 3 ? 'neutral' : daysRemaining >= 0 ? 'warning' : 'danger';
 
-  let color: 'green' | 'orange' | 'red';
-  if (daysRemaining > 7) {
-    color = 'green';
-  } else if (daysRemaining >= 1) {
-    color = 'orange';
-  } else {
-    color = 'red';
-  }
-
-  return { label, color };
+  return { label, short, tone };
 }
