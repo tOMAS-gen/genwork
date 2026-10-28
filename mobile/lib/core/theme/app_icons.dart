@@ -104,6 +104,9 @@ abstract final class AppIcons {
   static const help = Icons.help_outline;
   static const offline = Icons.wifi_off_outlined;
   static const server = Icons.dns_outlined;
+
+  /// Trabajos de almacenamiento (P31a-M3).
+  static const storage = Icons.storage_outlined;
   static const login = Icons.login_outlined;
   static const logout = Icons.logout_outlined;
 

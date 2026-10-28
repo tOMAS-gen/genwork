@@ -82,7 +82,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('URL del server Genstock'), findsOneWidget);
+    // P31b: rótulo 11/700, chip de estado y la verificación verde.
+    expect(find.text('URL DEL SERVIDOR'), findsOneWidget);
+    expect(find.text('Configurado'), findsOneWidget);
     expect(find.text('Usando configuración guardada'), findsOneWidget);
     await t.enterText(
       find.byKey(const ValueKey('genstock_url')),

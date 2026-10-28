@@ -605,6 +605,47 @@ void main() {
       expect(f.writes.single.data['name'], 'En marcha');
     },
   );
+  testWidgets('P31a almacenamiento: chip Activo, pares y acciones juntas', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.storage));
+    expect(
+      find.byKey(const ValueKey('settings_storage_active')),
+      findsOneWidget,
+    );
+    expect(find.text('SERVIDOR'), findsOneWidget);
+    expect(find.text('USUARIO'), findsOneWidget);
+    // «Editar» y «Probar conexión» en la misma fila.
+    expect(
+      t.getTopLeft(find.byKey(const ValueKey('settings_edit_storage'))).dy,
+      t.getTopLeft(find.byKey(const ValueKey('settings_test_connection'))).dy,
+    );
+    expect(find.byKey(const ValueKey('settings_open_jobs')), findsOneWidget);
+  });
+  testWidgets('P30 recordatorios: zona con «Cambiar» y Gmail con su estado', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.reminders));
+    expect(find.text('ZONA HORARIA'), findsOneWidget);
+    expect(
+      t.widget(find.byKey(const ValueKey('settings_timezone'))),
+      isA<TextButton>(),
+    );
+    expect(find.byKey(const ValueKey('settings_gmail_state')), findsOneWidget);
+  });
+  testWidgets('P32 errores: segmentado y filas con las veces como chip', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.errors));
+    expect(find.byKey(const ValueKey('settings_error_filter')), findsOneWidget);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    expect(find.text('×2'), findsOneWidget);
+    await tap(t, 'settings_error_filter_ALL');
+    expect(f.requests.last.queryParameters.containsKey('status'), isFalse);
+  });
   testWidgets('ADM-04 editar Nextcloud omite contraseña vacía', (t) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.storage));

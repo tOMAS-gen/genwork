@@ -30,9 +30,10 @@ import '../../shared/widgets/settings_rows.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../core/auth/session.dart';
 import '../../shared/widgets/labeled_field.dart';
-import '../../shared/widgets/app_dropdown_decoration.dart';
 import '../../shared/widgets/numbered_steps.dart';
 import '../../shared/widgets/initials_avatar.dart';
+import '../../shared/widgets/app_segmented.dart';
+import '../../core/util/format.dart';
 
 /// Portada de Configuración, como `/admin` de la web: los mismos destinos,
 /// agrupados en cards con rótulo y filas de 56 dp (PS4). Arriba van las
@@ -292,6 +293,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         widget.section == SettingsSection.users ||
         widget.section == SettingsSection.clients ||
         widget.section == SettingsSection.mcp ||
+        widget.section == SettingsSection.storage ||
         widget.section == SettingsSection.reminders;
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
@@ -320,20 +322,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           if (_busy) const LinearProgressIndicator(),
           if (widget.section == SettingsSection.errors) ...[
-            LabeledField(
-              label: 'Estado',
-              child: DropdownButtonFormField<String>(
-                icon: const AppDropdownIcon(),
-                key: const ValueKey('settings_error_filter'),
-                initialValue: _filter ?? 'ALL',
-                items: const [
-                  DropdownMenuItem(value: 'ALL', child: Text('Todos')),
-                  DropdownMenuItem(value: 'PENDING', child: Text('Abiertos')),
-                  DropdownMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
-                ],
-                onChanged: (v) =>
-                    setState(() => _filter = v == 'ALL' ? null : v),
-              ),
+            // Segmentado en lugar del desplegable (P32-M1).
+            AppSegmented<String>(
+              key: const ValueKey('settings_error_filter'),
+              keyPrefix: 'settings_error_filter',
+              options: const {
+                'PENDING': 'Abiertos',
+                'RESOLVED': 'Resueltos',
+                'ALL': 'Todos',
+              },
+              selected: _filter ?? 'ALL',
+              onChanged: (v) => setState(() => _filter = v == 'ALL' ? null : v),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -540,23 +539,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case SettingsSection.errors:
         return [
           if (list.isEmpty)
-            // Dentro de la card de la sección: sin marco propio.
+            // Estado positivo: check y una línea (P32-M2).
             EmptyView(
               framed: false,
-              icon: AppIcons.check,
-              message: _filter == null
-                  ? 'No hay errores registrados.'
+              icon: AppIcons.success,
+              title: _filter == 'PENDING'
+                  ? 'Sin errores abiertos'
+                  : 'Sin errores',
+              message: _filter == 'PENDING'
+                  ? 'Todo funciona como se espera.'
                   : 'No hay errores en este estado.',
             ),
-          for (final raw in list)
-            tile(
-              '${raw['message']}',
-              '${raw['route'] ?? 'Sin ruta'} · ${raw['occurrences']} veces\n${raw['lastSeenAt']}',
-              key: 'settings_error_${raw['id']}',
-              titleLines: 3,
-              trailing: const Icon(AppIcons.chevronRight),
-              onTap: () => context.push(Routes.settingsError(raw['id'])),
-            ),
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: context.colors.border),
+            errorRow(Json.from(list[i] as Map)),
+          ],
         ];
       case SettingsSection.mcp:
         final connections = (json['connections'] as List?) ?? [];
@@ -712,19 +709,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ];
       case SettingsSection.storage:
         return [
-          SystemStoragePanel(config: json, onChanged: refresh),
-          button(
-            'test_connection',
-            'Probar conexión guardada',
-            () => run(testConnection),
-            icon: AppIcons.retry,
+          WorkspacePanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: SystemStoragePanel(
+              config: json,
+              onChanged: refresh,
+              onTest: _busy ? null : () => run(testConnection),
+            ),
           ),
-          tile(
-            'Trabajos de almacenamiento',
-            'Pendientes, fallidos y reintentos',
-            key: 'settings_open_jobs',
-            trailing: const Icon(AppIcons.chevronRight),
-            onTap: () => context.push(Routes.setting('jobs')),
+          const SizedBox(height: AppSpacing.sm),
+          // Los trabajos, en una card aparte con su fila (P31a-M3).
+          WorkspaceListPanel(
+            children: [
+              SettingsRow(
+                key: const ValueKey('settings_open_jobs'),
+                icon: AppIcons.storage,
+                title: 'Trabajos de almacenamiento',
+                subtitle: 'Pendientes, fallidos y reintentos',
+                onTap: () => context.push(Routes.setting('jobs')),
+              ),
+            ],
           ),
         ];
       case SettingsSection.jobs:
@@ -749,74 +753,215 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ];
       case SettingsSection.reminders:
         // Dos bloques, como la web: zona horaria y correo de avisos.
+        final c = context.colors;
+        final timezone = '${json['timezone'] ?? ''}';
+        final connected = json['emailConnected'] == true;
         return [
-          PanelSection(
-            title: 'Zona horaria del sistema',
-            description:
-                'Una sola zona horaria para todos los horarios de recordatorios. Se muestra en el calendario.',
-            children: [
-              tile('Zona horaria del sistema', '${json['timezone']}'),
-              button(
-                'timezone',
-                'Cambiar zona horaria',
-                () => edit(
-                  'Zona horaria',
-                  [
-                    SettingsField(
-                      'timezone',
-                      'Zona IANA',
-                      initial: json['timezone'] ?? '',
-                      maxLength: 64,
+          // Rótulo, ciudad y «Cambiar» en una fila; la explicación debajo
+          // (P30-M1, P30-M3).
+          WorkspacePanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'ZONA HORARIA',
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            timezone.split('/').last.replaceAll('_', ' '),
+                            key: const ValueKey('settings_timezone_city'),
+                            style: AppTextStyles.cardTitle.copyWith(
+                              color: c.text,
+                            ),
+                          ),
+                          Text(
+                            timezone,
+                            style: AppTextStyles.technical.copyWith(
+                              color: c.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      key: const ValueKey('settings_timezone'),
+                      onPressed: _busy
+                          ? null
+                          : () => edit(
+                              'Zona horaria',
+                              [
+                                SettingsField(
+                                  'timezone',
+                                  'Zona IANA',
+                                  initial: json['timezone'] ?? '',
+                                  maxLength: 64,
+                                ),
+                              ],
+                              (v) => repo.saveReminders(v),
+                              description:
+                                  'La zona rige los días y horarios de todos los recordatorios.',
+                            ),
+                      icon: const Icon(AppIcons.edit, size: AppIconSizes.field),
+                      label: const Text('Cambiar'),
                     ),
                   ],
-                  (v) => repo.saveReminders(v),
-                  description:
-                      'La zona rige los días y horarios de todos los recordatorios.',
                 ),
-              ),
-            ],
+                Divider(height: AppSpacing.lg, color: c.border),
+                Text(
+                  'Una sola zona horaria para todos los horarios de recordatorios. Se muestra en el calendario.',
+                  style: AppTextStyles.supporting.copyWith(color: c.muted),
+                ),
+              ],
+            ),
           ),
-          PanelSection(
-            title: 'Email (Gmail)',
-            description:
-                'Los avisos por email se envían con la cuenta de Google conectada (scope gmail.send).',
-            children: [
-              GoogleIntegrationButton(
-                purpose: 'gmail',
-                label: json['emailConnected'] == true
-                    ? 'Reconectar Gmail'
-                    : 'Conectar Gmail',
-                onChanged: refresh,
-              ),
-              tile(
-                'Correo de avisos',
-                json['emailConnected'] == true
-                    ? 'Conectado${json['emailFrom'] == null ? '' : ' · ${json['emailFrom']}'}'
-                    : 'Sin conectar',
-              ),
-              if (json['emailConnected'] == true)
-                button(
-                  'disconnect_gmail',
-                  'Desconectar Gmail',
-                  () async {
-                    if (await settingsConfirm(
-                      context,
-                      '¿Desconectar Gmail?',
-                      'Se dejarán de enviar los avisos por correo.',
-                      action: 'Desconectar',
-                    )) {
-                      await run(
-                        () => repo.saveReminders({'disconnectEmail': true}),
-                      );
-                    }
-                  },
-                  icon: AppIcons.unlink,
-                  destructive: true,
+          const SizedBox(height: AppSpacing.sm),
+          // Encabezado con el estado como chip y la acción pendiente
+          // rellena, al pie (P30-M2).
+          WorkspacePanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Email (Gmail)',
+                          style: AppTextStyles.cardTitle.copyWith(
+                            color: c.text,
+                          ),
+                        ),
+                      ),
+                    ),
+                    StatusChip(
+                      key: const ValueKey('settings_gmail_state'),
+                      label: connected ? 'Conectado' : 'Sin conectar',
+                      color: connected ? c.ok : c.muted,
+                      fill: connected ? c.ok.withValues(alpha: .12) : c.hover,
+                    ),
+                  ],
                 ),
-            ],
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Avisos con tu cuenta de Google conectada.',
+                  style: AppTextStyles.body.copyWith(color: c.muted),
+                ),
+                Text(
+                  connected && json['emailFrom'] != null
+                      ? '${json['emailFrom']}'
+                      : 'scope gmail.send',
+                  style: AppTextStyles.technical.copyWith(color: c.muted),
+                ),
+                Divider(height: AppSpacing.lg, color: c.border),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    if (connected)
+                      TextButton(
+                        key: const ValueKey('settings_disconnect_gmail'),
+                        style: TextButton.styleFrom(foregroundColor: c.danger),
+                        onPressed: _busy
+                            ? null
+                            : () async {
+                                if (await settingsConfirm(
+                                  context,
+                                  '¿Desconectar Gmail?',
+                                  'Se dejarán de enviar los avisos por correo.',
+                                  action: 'Desconectar',
+                                )) {
+                                  await run(
+                                    () => repo.saveReminders({
+                                      'disconnectEmail': true,
+                                    }),
+                                  );
+                                }
+                              },
+                        child: const Text('Desconectar'),
+                      ),
+                    GoogleIntegrationButton(
+                      purpose: 'gmail',
+                      filled: !connected,
+                      label: connected ? 'Reconectar Gmail' : 'Conectar Gmail',
+                      onChanged: refresh,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ];
     }
+  }
+
+  /// Error en una fila de 64–72 dp: mensaje 13/600 en dos líneas, la ruta en
+  /// mono gris, las veces como chip «×12» y la fecha relativa (P32-M3).
+  Widget errorRow(Json raw) {
+    final c = context.colors;
+    final seen = DateTime.tryParse('${raw['lastSeenAt']}');
+    return InkWell(
+      key: ValueKey('settings_error_${raw['id']}'),
+      onTap: () => context.push(Routes.settingsError(raw['id'])),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _errorRowHeight),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${raw['message']}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.action.copyWith(color: c.text),
+                    ),
+                    const SizedBox(height: AppSpacing.hairline),
+                    Text(
+                      '${raw['route'] ?? 'Sin ruta'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.technical.copyWith(color: c.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  StatusChip(
+                    label: '×${raw['occurrences'] ?? 1}',
+                    color: c.muted,
+                    fill: c.hover,
+                    mono: true,
+                  ),
+                  if (seen != null) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      formatAgo(seen),
+                      style: AppTextStyles.supporting.copyWith(color: c.muted),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> testConnection() async {
@@ -1079,6 +1224,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 }
+
+/// Alto mínimo de la fila de error (P32-M3).
+const double _errorRowHeight = 64;
 
 String? emailError(String value) =>
     RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)

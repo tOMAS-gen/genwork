@@ -440,10 +440,10 @@ Cada tarea aplica lo que le queda a cada pantalla después de las fases 1 y 2, c
 ## Tarea 33: Sistema: Recordatorios, Almacenamiento, Genstock y Errores (P30–P32)
 
 **Criterios de aceptación:**
-- [ ] P30: "ZONA HORARIA" con "Cambiar" en la misma fila; Gmail con chip "Sin conectar" y botón relleno.
-- [ ] P31a: chip "Activo", pares SERVIDOR y USUARIO, y "Probar conexión" y "Editar" lado a lado.
-- [ ] P31b: chip "Sin configurar", "Probar conexión" y "Guardar" alineados a la derecha.
-- [ ] P32: segmentado "Abiertos · Resueltos · Todos" y filas de 64–72 dp.
+- [x] P30: "ZONA HORARIA" con "Cambiar" en la misma fila; Gmail con chip "Sin conectar" y botón relleno.
+- [x] P31a: chip "Activo", pares SERVIDOR y USUARIO, y "Probar conexión" y "Editar" lado a lado.
+- [x] P31b: chip "Sin configurar", "Probar conexión" y "Guardar" alineados a la derecha.
+- [x] P32: segmentado "Abiertos · Resueltos · Todos" y filas de 64–72 dp.
 
 **Verificación:** `genstock_settings_test` y `settings_parity_test`. Capturas. · **Tamaño:** M
 
