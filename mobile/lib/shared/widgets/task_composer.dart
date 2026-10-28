@@ -27,6 +27,7 @@ class TaskComposer extends ConsumerStatefulWidget {
     this.parentId,
     this.objectiveId,
     this.destination,
+    this.inline = false,
   });
 
   /// Compatibilidad con compositores sin contexto. El alta contextual usa TaskActions.
@@ -37,6 +38,11 @@ class TaskComposer extends ConsumerStatefulWidget {
   /// Selector del destino (p. ej. "Generales" u un objetivo), como chip dentro
   /// del campo (P07-M1).
   final Widget? destination;
+
+  /// Fila «+ Nueva subtarea…» dentro de una card (boceto P09): el + al frente,
+  /// sin ayuda y con el envío dentro del campo solo cuando hay texto; Enter
+  /// también crea.
+  final bool inline;
   @override
   ConsumerState<TaskComposer> createState() => _TaskComposerState();
 }
@@ -196,141 +202,209 @@ class _TaskComposerState extends ConsumerState<TaskComposer> {
   }
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: _availableHeight(context) * .42),
-      child: SingleChildScrollView(
-        child: Padding(
-          // Una sola barra de 56 dp (P07-M1).
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpace.md,
-            vertical: AppSpace.xxs,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: TaskTextField(
-                      fieldKey: 'task_composer_field',
-                      controller: _controller,
-                      enabled: !_sending && _needsDescription == null,
-                      workId: widget.workId,
-                      sectorId: widget.sectorId,
-                      decoration: InputDecoration(
-                        hintText: widget.hint,
-                        hintMaxLines: 1,
-                        prefixIcon: widget.destination == null
-                            ? null
-                            : Padding(
-                                padding: const EdgeInsets.only(
-                                  left: AppSpace.xs,
-                                  right: AppSpace.xxs,
-                                ),
-                                child: widget.destination,
-                              ),
-                        prefixIconConstraints: const BoxConstraints(),
-                        // Descripción y ayuda, como "?" dentro del campo.
-                        suffixIcon: _managed
-                            ? IconButton(
-                                key: const ValueKey('task_composer_details'),
-                                tooltip: 'Descripción y ayuda',
-                                onPressed: _sending
-                                    ? null
-                                    : () => setState(
-                                        () => _showDescription =
-                                            !_showDescription,
+  Widget build(BuildContext context) => widget.inline
+      ? _inlineField(context)
+      : SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: _availableHeight(context) * .42,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                // Una sola barra de 56 dp (P07-M1).
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.md,
+                  vertical: AppSpace.xxs,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TaskTextField(
+                            fieldKey: 'task_composer_field',
+                            controller: _controller,
+                            enabled: !_sending && _needsDescription == null,
+                            workId: widget.workId,
+                            sectorId: widget.sectorId,
+                            decoration: InputDecoration(
+                              hintText: widget.hint,
+                              hintMaxLines: 1,
+                              prefixIcon: widget.destination == null
+                                  ? null
+                                  : Padding(
+                                      padding: const EdgeInsets.only(
+                                        left: AppSpace.xs,
+                                        right: AppSpace.xxs,
                                       ),
-                                icon: Icon(
-                                  AppIcons.help,
-                                  size: AppIconSizes.action,
-                                  color: _showDescription
-                                      ? context.colors.brand
-                                      : context.colors.muted,
-                                ),
-                              )
-                            : null,
-                      ),
-                      onSubmitted: (_) => _submit(),
-                    ),
-                  ),
-                  const SizedBox(width: AppSpace.xs),
-                  IconButton.filled(
-                    key: const ValueKey('task_composer_send'),
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size.square(AppSpacing.xxl),
-                    ),
-                    tooltip: _needsDescription == null
-                        ? 'Crear tarea'
-                        : 'Guardar descripción pendiente',
-                    onPressed: _sending ? null : _submit,
-                    icon: _sending
-                        ? SizedBox.square(
-                            dimension: AppIconSizes.field,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: context.colors.brand,
+                                      child: widget.destination,
+                                    ),
+                              prefixIconConstraints: const BoxConstraints(),
+                              // Descripción y ayuda, como "?" dentro del campo.
+                              suffixIcon: _managed
+                                  ? IconButton(
+                                      key: const ValueKey(
+                                        'task_composer_details',
+                                      ),
+                                      tooltip: 'Descripción y ayuda',
+                                      onPressed: _sending
+                                          ? null
+                                          : () => setState(
+                                              () => _showDescription =
+                                                  !_showDescription,
+                                            ),
+                                      icon: Icon(
+                                        AppIcons.help,
+                                        size: AppIconSizes.action,
+                                        color: _showDescription
+                                            ? context.colors.brand
+                                            : context.colors.muted,
+                                      ),
+                                    )
+                                  : null,
                             ),
-                          )
-                        : const Icon(AppIcons.send),
-                  ),
-                ],
-              ),
-              if (_showDescription) ...[
-                const Text(
-                  r'Una tarea por línea. Usá /proyecto, #sector, @referencia, $etiqueta y fechas DD/MM/AAAA.',
-                ),
-                LabeledField(
-                  label: 'Descripción para las tareas nuevas',
-                  child: TextField(
-                    key: const ValueKey('task_composer_description'),
-                    controller: _description,
-                    enabled: !_sending,
-                    maxLength: 2000,
-                    minLines: 1,
-                    maxLines: 3,
-                  ),
-                ),
-              ],
-              if (_needsDescription != null)
-                const Text(
-                  'La tarea ya se creó. Falta guardar la descripción; reintentá para completarla.',
-                ),
-              if (_error != null) ErrorText(errorMessage(_error!)),
-              for (final tag in _unresolved)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpace.sm),
-                  child: Column(
-                    children: [
-                      Text(
-                        '${tag.symbol}${tag.name}: no se pudo resolver. ${tag.symbol == r'$' ? 'Elegí un valor con nombre único entre las claves del ámbito o corregí el texto.' : 'Corregí el nombre o creá el recurso.'}',
-                      ),
-                      if (tag.symbol != r'$')
-                        TextButton(
-                          key: ValueKey(
-                            'task_create_missing_${tag.symbol}_${tag.name}',
-                          ),
-                          onPressed: _sending
-                              ? null
-                              : () => _createMissing(tag.symbol, tag.name),
-                          child: Text(
-                            tag.symbol == '/'
-                                ? 'Crear proyecto «${tag.name}»'
-                                : 'Crear sector «${tag.name}»',
+                            onSubmitted: (_) => _submit(),
                           ),
                         ),
+                        const SizedBox(width: AppSpace.xs),
+                        IconButton.filled(
+                          key: const ValueKey('task_composer_send'),
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size.square(AppSpacing.xxl),
+                          ),
+                          tooltip: _needsDescription == null
+                              ? 'Crear tarea'
+                              : 'Guardar descripción pendiente',
+                          onPressed: _sending ? null : _submit,
+                          icon: _sending
+                              ? SizedBox.square(
+                                  dimension: AppIconSizes.field,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: context.colors.brand,
+                                  ),
+                                )
+                              : const Icon(AppIcons.send),
+                        ),
+                      ],
+                    ),
+                    if (_showDescription) ...[
+                      const Text(
+                        r'Una tarea por línea. Usá /proyecto, #sector, @referencia, $etiqueta y fechas DD/MM/AAAA.',
+                      ),
+                      LabeledField(
+                        label: 'Descripción para las tareas nuevas',
+                        child: TextField(
+                          key: const ValueKey('task_composer_description'),
+                          controller: _description,
+                          enabled: !_sending,
+                          maxLength: 2000,
+                          minLines: 1,
+                          maxLines: 3,
+                        ),
+                      ),
                     ],
-                  ),
+                    if (_needsDescription != null)
+                      const Text(
+                        'La tarea ya se creó. Falta guardar la descripción; reintentá para completarla.',
+                      ),
+                    if (_error != null) ErrorText(errorMessage(_error!)),
+                    for (final tag in _unresolved)
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpace.sm),
+                        child: Column(
+                          children: [
+                            Text(
+                              '${tag.symbol}${tag.name}: no se pudo resolver. ${tag.symbol == r'$' ? 'Elegí un valor con nombre único entre las claves del ámbito o corregí el texto.' : 'Corregí el nombre o creá el recurso.'}',
+                            ),
+                            if (tag.symbol != r'$')
+                              TextButton(
+                                key: ValueKey(
+                                  'task_create_missing_${tag.symbol}_${tag.name}',
+                                ),
+                                onPressed: _sending
+                                    ? null
+                                    : () =>
+                                          _createMissing(tag.symbol, tag.name),
+                                child: Text(
+                                  tag.symbol == '/'
+                                      ? 'Crear proyecto «${tag.name}»'
+                                      : 'Crear sector «${tag.name}»',
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
-            ],
+              ),
+            ),
+          ),
+        );
+
+  Widget _inlineField(BuildContext context) {
+    final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _controller,
+          builder: (context, value, _) => TaskTextField(
+            fieldKey: 'task_composer_field',
+            controller: _controller,
+            enabled: !_sending && _needsDescription == null,
+            workId: widget.workId,
+            sectorId: widget.sectorId,
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              hintMaxLines: 1,
+              prefixIcon: Icon(
+                AppIcons.add,
+                size: AppIconSizes.action,
+                color: c.muted,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              suffixIcon: value.text.trim().isEmpty && !_sending
+                  ? null
+                  : IconButton(
+                      key: const ValueKey('task_composer_send'),
+                      tooltip: 'Crear subtarea',
+                      onPressed: _sending ? null : _submit,
+                      icon: _sending
+                          ? SizedBox.square(
+                              dimension: AppIconSizes.field,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: c.brand,
+                              ),
+                            )
+                          : Icon(AppIcons.send, color: c.brand),
+                    ),
+            ),
+            onSubmitted: (_) => _submit(),
           ),
         ),
-      ),
-    ),
-  );
+        if (_needsDescription != null)
+          const Text(
+            'La tarea ya se creó. Falta guardar la descripción; reintentá para completarla.',
+          ),
+        if (_error != null) ErrorText(errorMessage(_error!)),
+        for (final tag in _unresolved)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpace.sm),
+            child: Text(
+              '${tag.symbol}${tag.name}: no se pudo resolver. Corregí el nombre o creá el recurso.',
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 /// Destino del compositor como chip dentro del campo (P07-M1): "Generales" o

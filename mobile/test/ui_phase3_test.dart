@@ -58,6 +58,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:genwork_mobile/core/servers/connect_payload.dart';
 import 'package:genwork_mobile/features/settings/mobile_app_screen.dart';
 import 'package:genwork_mobile/features/works/work_card.dart';
+import 'task_status_menu.dart';
 
 final _task = Task.fromJson({
   'id': 't1',
@@ -554,7 +555,7 @@ void main() {
       await tester.pumpAndSettle();
       // El estado vigente se ve habilitado (no atenuado).
       await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('task_status_open')),
+        find.byKey(const ValueKey('task_status')),
         -200,
         scrollable: find
             .descendant(
@@ -563,12 +564,7 @@ void main() {
             )
             .first,
       );
-      expect(
-        tester
-            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_open')))
-            .onSelected,
-        isNotNull,
-      );
+      expect(await statusOptionEnabled(tester, 'open'), isTrue);
       // Cerrar vuelve a la pantalla de origen.
       await tester.tap(find.byKey(const ValueKey('task_close')));
       await tester.pumpAndSettle();

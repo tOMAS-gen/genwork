@@ -72,6 +72,9 @@ abstract final class AppIcons {
   /// Reordenar
   static const reorder = Icons.swap_vert_outlined;
 
+  /// Manija para arrastrar una fila (subtareas del detalle, P09).
+  static const dragHandle = Icons.drag_indicator;
+
   /// "← Mis proyectos" del portal (`ArrowLeft` de la web).
   static const back = Icons.arrow_back;
 

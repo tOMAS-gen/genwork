@@ -30,6 +30,7 @@ import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:genwork_mobile/shared/widgets/progress_bar.dart';
+import '../task_status_menu.dart';
 
 Json taskJson(String id, {List<Json> children = const [], bool? canToggle}) => {
   'id': id,
@@ -320,12 +321,7 @@ void main() {
         isFalse,
       );
       expect(
-        tester
-                .widget<ChoiceChip>(
-                  find.byKey(const ValueKey('task_status_done')),
-                )
-                .onSelected !=
-            null,
+        await statusOptionEnabled(tester, 'done'),
         level == 'operate',
       );
       expect(
@@ -605,20 +601,19 @@ void main() {
         find.byKey(const ValueKey('task_composer_field')),
         'Nueva hija',
       );
+      // El envío aparece en el campo cuando hay texto (boceto P09).
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('task_composer_send')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('task_subtask_child')), findsOneWidget);
       expect(find.text('Borrador sin guardar'), findsOneWidget);
-      expect(
-        tester
-            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_done')))
-            .onSelected,
-        isNull,
-      );
+      expect(await statusOptionEnabled(tester, 'done'), isFalse);
       await tester.enterText(
         find.byKey(const ValueKey('task_text_field')),
         'Tarea actualizada',
       );
+      // El tilde aparece al cambiar el texto (boceto P09).
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('task_text_save')));
       await tester.pumpAndSettle();
       expect(find.text('Prioridad: Urgente'), findsOneWidget);

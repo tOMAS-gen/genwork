@@ -473,9 +473,16 @@ void main() {
     await sheetTap(t, 'task_promote');
     expect(f.mutations.last.data, {'parentId': null});
     await openTask(t, 'c');
-    await sheetTap(t, 'subtasks_reorder');
-    await tap(t, 'order_down_c1');
-    await tap(t, 'order_save');
+    // Se ordena arrastrando la manija (boceto P09): c1 baja debajo de c2.
+    final handle = find.byKey(const ValueKey('subtask_handle_c1'));
+    await t.ensureVisible(handle);
+    await t.pumpAndSettle();
+    await t.timedDrag(
+      handle,
+      const Offset(0, 80),
+      const Duration(milliseconds: 400),
+    );
+    await t.pumpAndSettle();
     expect(f.mutations.last.path, '/api/tasks/c/subtasks/reorder');
     expect(f.mutations.last.data, {
       'orderedTaskIds': ['c2', 'c1'],
@@ -486,7 +493,10 @@ void main() {
     await overview.mount(t, f, path: Routes.work('w'));
     await label(t, 'Tablero');
     await openTask(t, 'a');
-    expect(find.byKey(const ValueKey('task_text_save')), findsOneWidget);
+    expect(
+      t.widget<TextField>(find.byKey(const ValueKey('task_text_field'))).enabled,
+      isTrue,
+    );
   });
   test('vencimiento hereda fecha más próxima solo de hijas pendientes', () {
     final task = Task.fromJson(

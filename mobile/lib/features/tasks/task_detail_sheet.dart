@@ -5,7 +5,6 @@ import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/task_text_field.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/router/routes.dart';
-import '../../shared/widgets/reorder_dialog.dart';
 import '../works/works_providers.dart';
 import 'task_move_dialog.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +19,7 @@ import '../../core/util/format.dart';
 import '../../data/models/task.dart';
 import '../../shared/widgets/app_button_styles.dart';
 import '../../shared/widgets/app_work_box.dart';
+import '../../shared/widgets/brand_name.dart';
 import '../../shared/widgets/dashed_border.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../shared/widgets/color_dot.dart';
@@ -95,6 +95,11 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
   bool _busy = false;
   Task? _receivedTask;
 
+  /// Orden de las subtareas mientras se guarda el que se arrastró.
+  List<Task>? _subtaskOrder;
+
+  List<Task> get _subtasks => _subtaskOrder ?? _task.subtasks;
+
   TaskDetailQuery get _query =>
       (id: widget.task.id, workId: widget.workId, sectorId: widget.sectorId);
 
@@ -109,6 +114,25 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
       _descriptionController.text = task.description ?? '';
     }
     _task = task;
+    _subtaskOrder = null;
+  }
+
+  /// Soltar una subtarea en otro lugar guarda el orden nuevo (manijas del
+  /// boceto P09); si falla, vuelve el anterior.
+  Future<void> _reorderSubtasks(int from, int to) async {
+    final list = [..._subtasks];
+    final moved = list.removeAt(from);
+    list.insert(to, moved);
+    setState(() => _subtaskOrder = list);
+    try {
+      await ref.read(taskActionsProvider).reorderSubtasks(_task, [
+        for (final t in list) t.id,
+      ]);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _subtaskOrder = null);
+      showErrorSnack(context, e);
+    }
   }
 
   @override
@@ -249,16 +273,23 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(AppIcons.close),
         ),
-        // La barra dice de dónde es la tarea; el título va en el cuerpo (D1).
-        title: contextLabel == null
-            ? null
-            : Text(
+        // La marca y, debajo, de dónde es la tarea; el título va en el
+        // cuerpo (D1, boceto P09).
+        centerTitle: true,
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const BrandName(),
+            if (contextLabel != null)
+              Text(
                 contextLabel,
                 key: const ValueKey('task_context'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.supporting.copyWith(color: c.muted),
               ),
+          ],
+        ),
         actions: [
           _MoreMenu(
             canMoveToObjective:
@@ -321,78 +352,73 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                     ),
                   ),
                 ),
+                // El tilde aparece al cambiar el texto (boceto P09).
                 if (canEditText)
-                  IconButton(
-                    key: const ValueKey('task_text_save'),
-                    tooltip: 'Guardar tarea',
-                    onPressed: () => _run(
-                      (a) => a.updateText(
-                        _task,
-                        _textController.text.trim(),
-                        fromSector: widget.fromSector,
-                      ),
-                    ),
-                    icon: Icon(AppIcons.check, color: c.brand),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _textController,
+                    builder: (context, value, _) =>
+                        value.text.trim() == _task.rawText.trim()
+                        ? const SizedBox.shrink()
+                        : IconButton(
+                            key: const ValueKey('task_text_save'),
+                            tooltip: 'Guardar tarea',
+                            onPressed: () => _run(
+                              (a) => a.updateText(
+                                _task,
+                                _textController.text.trim(),
+                                fromSector: widget.fromSector,
+                              ),
+                            ),
+                            icon: Icon(AppIcons.check, color: c.brand),
+                          ),
                   ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
             // Estado, Mi día, Urgente y Recordatorio como chips chicos en una
             // fila, en lugar de filas con interruptor (decisión del usuario, P09).
-            Wrap(
-              key: const ValueKey('task_chip_row'),
-              spacing: AppSpace.sm,
-              runSpacing: AppSpace.sm,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                for (final option
-                    in _task.statusOptions.isEmpty
-                        ? [_task.status]
-                        : _task.statusOptions)
-                  ChoiceChip(
-                    key: ValueKey('task_status_${option.id}'),
-                    avatar: ColorDot(hex: option.color),
-                    // El fondo de acento ya marca el elegido; el tilde taparía
-                    // el punto de color del estado.
-                    showCheckmark: false,
-                    label: Text(option.name),
-                    selected: option.id == _task.status.id,
-                    onSelected: option.id == _task.status.id
-                        // El estado vigente no se vuelve a elegir, pero tampoco
-                        // se pinta como deshabilitado (P09-M3), aunque salga
-                        // de las subtareas.
-                        ? (_) {}
-                        : !canEdit || _task.isContainer
-                        ? null
-                        : (_) => _run(
-                            (a) => a.setStatus(_task, option.id),
-                            close: true,
-                          ),
+            ChipTheme(
+              data: _detailChipTheme(context),
+              child: Wrap(
+                key: const ValueKey('task_chip_row'),
+                spacing: AppSpace.sm,
+                runSpacing: AppSpace.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  // El estado es un desplegable con el vigente a la vista
+                  // (boceto P09): «● Pendiente ⌄».
+                  _StatusMenu(
+                    task: _task,
+                    canEdit: canEdit,
+                    onSelected: (id) =>
+                        _run((a) => a.setStatus(_task, id), close: true),
                   ),
-                if (canManageMyDay)
-                  FilterChip(
-                    key: const ValueKey('task_my_day'),
-                    avatar: Icon(
-                      _task.isInMyDay ? AppIcons.myDayFilled : AppIcons.myDay,
-                      size: AppIconSizes.notice,
+                  if (canManageMyDay)
+                    FilterChip(
+                      key: const ValueKey('task_my_day'),
+                      avatar: Icon(
+                        _task.isInMyDay ? AppIcons.myDayFilled : AppIcons.myDay,
+                        size: AppIconSizes.notice,
+                        color: _task.isInMyDay ? c.brand : c.text,
+                      ),
+                      showCheckmark: false,
+                      label: const Text('Mi día'),
+                      tooltip: 'Tenela a mano para hoy',
+                      selected: _task.isInMyDay,
+                      onSelected: _busy
+                          ? null
+                          : (value) => _run((a) async {
+                              await a.setMyDay(_task, value);
+                              _task = _task.withMyDay(value);
+                            }),
                     ),
-                    showCheckmark: false,
-                    label: const Text('Mi día'),
-                    tooltip: 'Tenela a mano para hoy',
-                    selected: _task.isInMyDay,
-                    onSelected: _busy
-                        ? null
-                        : (value) => _run((a) async {
-                            await a.setMyDay(_task, value);
-                            _task = _task.withMyDay(value);
-                          }),
+                  TaskNotificationControls(
+                    task: _task,
+                    canEdit: canEditText,
+                    fromSector: widget.fromSector,
                   ),
-                TaskNotificationControls(
-                  task: _task,
-                  canEdit: canEditText,
-                  fromSector: widget.fromSector,
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: AppSpace.md),
             // Asignación: proyecto, sector, personas, objetivo, vencimiento y
@@ -407,21 +433,6 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                 children: [
                   // Con los colores de las etiquetas de la web: /proyecto en
                   // `tag-work`, #sector en `tag-exec`, @persona en `tag-user`.
-                  if (_task.work != null)
-                    ActionChip(
-                      key: const ValueKey('task_origin_work'),
-                      backgroundColor: c.tagWorkFill,
-                      side: BorderSide.none,
-                      labelStyle: AppTextStyles.chip.copyWith(
-                        color: c.tagWorkText,
-                      ),
-                      label: Text('/${_task.work!.name}'),
-                      onPressed: () {
-                        final router = GoRouter.of(context);
-                        Navigator.pop(context);
-                        router.push(Routes.work(_task.work!.id));
-                      },
-                    ),
                   if (_task.homeSector != null)
                     ActionChip(
                       key: const ValueKey('task_origin_sector'),
@@ -437,12 +448,22 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                         router.push(Routes.sector(_task.homeSector!.id));
                       },
                     ),
-                  if (_task.objectiveTitle != null)
-                    StatusChip(
-                      label: _task.objectiveTitle!,
-                      color: c.tagWorkText,
-                      fill: c.tagWorkFill,
+                  if (_task.work != null)
+                    ActionChip(
+                      key: const ValueKey('task_origin_work'),
+                      backgroundColor: c.tagWorkFill,
+                      side: BorderSide.none,
+                      labelStyle: AppTextStyles.chip.copyWith(
+                        color: c.tagWorkText,
+                      ),
+                      label: Text('/${_task.work!.name}'),
+                      onPressed: () {
+                        final router = GoRouter.of(context);
+                        Navigator.pop(context);
+                        router.push(Routes.work(_task.work!.id));
+                      },
                     ),
+                  // El objetivo ya va en la miga de la barra (boceto P09).
                   if (_task.effectiveDueDate != null)
                     StatusChip(
                       label:
@@ -484,20 +505,52 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                       hex: label.color,
                     ),
                   if (canEditText)
-                    DashedBorder(
-                      color: c.border,
-                      radius: AppGeometry.chip,
-                      child: ActionChip(
-                        key: const ValueKey('task_assign'),
-                        avatar: const Icon(
-                          AppIcons.add,
-                          size: AppIconSizes.notice,
+                    // El borde punteado va en lo visible y el área táctil de
+                    // 48 alrededor: queda del alto de los otros chips.
+                    Tooltip(
+                      message: 'Asignar a un sector o una persona',
+                      child: Semantics(
+                        button: true,
+                        child: InkWell(
+                          key: const ValueKey('task_assign'),
+                          onTap: _assign,
+                          borderRadius: AppGeometry.chip,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(
+                              minHeight: AppSpace.touch,
+                            ),
+                            child: Center(
+                              widthFactor: 1,
+                              child: DashedBorder(
+                                color: c.border,
+                                radius: AppGeometry.chip,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpace.sm,
+                                    vertical: AppSpace.xs,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        AppIcons.add,
+                                        size: AppIconSizes.notice,
+                                        color: c.muted,
+                                      ),
+                                      const SizedBox(width: AppSpace.xs),
+                                      Text(
+                                        'Asignar',
+                                        style: AppTextStyles.chip.copyWith(
+                                          color: c.text,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        label: const Text('Asignar'),
-                        backgroundColor: c.surface,
-                        side: BorderSide.none,
-                        tooltip: 'Asignar a un sector o una persona',
-                        onPressed: _assign,
                       ),
                     ),
                 ],
@@ -579,75 +632,88 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               _DetailCard(
                 key: const ValueKey('task_subtasks'),
                 label: 'Subtareas',
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_task.subtasks.isNotEmpty)
-                      Text(
-                        '${_task.subtasks.where((s) => s.isDone).length}/${_task.subtasks.length}',
+                trailing: _subtasks.isEmpty
+                    ? null
+                    : Text(
+                        '${_subtasks.where((s) => s.isDone).length}/${_subtasks.length}',
                         style: AppTextStyles.technical.copyWith(color: c.muted),
                       ),
-                    if (canEdit && _task.subtasks.length > 1)
-                      IconButton(
-                        key: const ValueKey('subtasks_reorder'),
-                        tooltip: 'Ordenar subtareas',
-                        icon: const Icon(AppIcons.reorder),
-                        onPressed: () => showReorderDialog(
-                          context,
-                          title: 'Ordenar subtareas',
-                          load: () async {
-                            final current = widget.notificationContext
-                                ? await ref.refresh(
-                                    notificationTaskDetailProvider(
-                                      widget.task.id,
-                                    ).future,
-                                  )
-                                : await ref.refresh(
-                                    taskDetailProvider(_query).future,
-                                  );
-                            if (current.task == null || !current.canOperate) {
-                              throw StateError(
-                                'La tarea no está disponible para editar.',
-                              );
-                            }
-                            return current.task!.subtasks
-                                .map((t) => (id: t.id, label: t.displayText))
-                                .toList();
-                          },
-                          save: (ids) => ref
-                              .read(taskActionsProvider)
-                              .reorderSubtasks(_task, ids),
-                        ),
-                      ),
-                  ],
-                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final (i, sub) in _task.subtasks.indexed) ...[
-                      if (i > 0) Divider(height: 1, color: c.border),
-                      CheckboxListTile(
-                        key: ValueKey('task_subtask_${sub.id}'),
-                        contentPadding: EdgeInsets.zero,
-                        controlAffinity: ListTileControlAffinity.leading,
-                        value: sub.isDone,
-                        title: Text(
-                          sub.displayText,
-                          style: AppTextStyles.body.copyWith(
-                            color: sub.isDone ? c.muted : c.text,
-                            decoration: sub.isDone
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                        onChanged:
-                            canEdit &&
-                                sub.canToggle != false &&
-                                !sub.isContainer
-                            ? (_) => _run((a) => a.toggleDone(sub))
-                            : null,
+                    // Cada fila con su manija: se ordena arrastrando (boceto
+                    // P09); TalkBack ofrece mover arriba y abajo.
+                    if (_subtasks.isNotEmpty)
+                      ReorderableListView(
+                        key: const ValueKey('subtask_list'),
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        buildDefaultDragHandles: false,
+                        padding: EdgeInsets.zero,
+                        onReorderItem: _reorderSubtasks,
+                        children: [
+                          for (final (i, sub) in _subtasks.indexed)
+                            Column(
+                              key: ValueKey('subtask_item_${sub.id}'),
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (i > 0) Divider(height: 1, color: c.border),
+                                Row(
+                                  children: [
+                                    if (canEdit && _subtasks.length > 1)
+                                      ReorderableDragStartListener(
+                                        index: i,
+                                        child: Tooltip(
+                                          message: 'Arrastrar para ordenar',
+                                          child: SizedBox(
+                                            key: ValueKey(
+                                              'subtask_handle_${sub.id}',
+                                            ),
+                                            width: AppSpace.xxl,
+                                            height: AppSpace.touch,
+                                            child: Icon(
+                                              AppIcons.dragHandle,
+                                              size: AppIconSizes.action,
+                                              color: c.muted,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    Expanded(
+                                      child: CheckboxListTile(
+                                        key: ValueKey('task_subtask_${sub.id}'),
+                                        contentPadding: EdgeInsets.zero,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        value: sub.isDone,
+                                        title: Text(
+                                          sub.displayText,
+                                          style: AppTextStyles.body.copyWith(
+                                            color: sub.isDone
+                                                ? c.muted
+                                                : c.text,
+                                            decoration: sub.isDone
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                          ),
+                                        ),
+                                        onChanged:
+                                            canEdit &&
+                                                sub.canToggle != false &&
+                                                !sub.isContainer
+                                            ? (_) =>
+                                                  _run((a) => a.toggleDone(sub))
+                                            : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                        ],
                       ),
-                    ],
+                    if (canEdit && _subtasks.isNotEmpty)
+                      Divider(height: 1, color: c.border),
                     if (canEdit)
                       TaskComposer(
                         key: const ValueKey('subtask_composer'),
@@ -657,6 +723,7 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
                             ? _task.homeSector?.id
                             : null,
                         hint: 'Nueva subtarea…',
+                        inline: true,
                         onSubmit: (text) async {
                           try {
                             await ref
@@ -674,6 +741,117 @@ class _TaskDetailSheetState extends ConsumerState<TaskDetailSheet> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Chips del detalle con borde, como el boceto P09: contorno `control`, curva
+/// de control y, si está activo (Mi día, Urgente), el relleno de marca.
+ChipThemeData _detailChipTheme(BuildContext context) {
+  final c = context.colors;
+  return ChipTheme.of(context).copyWith(
+    shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
+    side: WidgetStateBorderSide.resolveWith(
+      (states) => BorderSide(
+        color: states.contains(WidgetState.selected) ? c.brand : c.control,
+      ),
+    ),
+    backgroundColor: c.surface,
+    selectedColor: c.brandFill,
+    labelStyle: AppTextStyles.chip.copyWith(color: c.text),
+    secondaryLabelStyle: AppTextStyles.chip.copyWith(color: c.brand),
+    // Sin el «Material 3» por defecto de 32 + 8 de margen: 36 dp a la vista.
+    padding: const EdgeInsets.symmetric(horizontal: AppSpace.xs),
+    labelPadding: const EdgeInsets.only(left: AppSpace.xs, right: AppSpace.xs),
+  );
+}
+
+/// «● Pendiente ⌄»: el estado vigente y, al tocarlo, los demás. En una tarea
+/// con subtareas el estado sale de las hijas: el menú se abre pero solo el
+/// vigente queda habilitado (P09-M3).
+class _StatusMenu extends StatelessWidget {
+  const _StatusMenu({
+    required this.task,
+    required this.canEdit,
+    required this.onSelected,
+  });
+
+  final Task task;
+  final bool canEdit;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final options = task.statusOptions.isEmpty
+        ? [task.status]
+        : task.statusOptions;
+    return PopupMenuButton<String>(
+      key: const ValueKey('task_status'),
+      tooltip: 'Cambiar estado',
+      enabled: canEdit && options.length > 1,
+      position: PopupMenuPosition.under,
+      onSelected: (id) {
+        if (id != task.status.id) onSelected(id);
+      },
+      itemBuilder: (_) => [
+        for (final option in options)
+          PopupMenuItem(
+            key: ValueKey('task_status_${option.id}'),
+            value: option.id,
+            enabled: option.id == task.status.id || !task.isContainer,
+            child: Row(
+              children: [
+                ColorDot(hex: option.color),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(child: Text(option.name)),
+                if (option.id == task.status.id)
+                  Icon(
+                    AppIcons.check,
+                    size: AppIconSizes.notice,
+                    color: c.brand,
+                  ),
+              ],
+            ),
+          ),
+      ],
+      // Se ve igual con o sin permiso: el estado se lee siempre.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSpace.touch),
+        child: Center(
+          widthFactor: 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpace.md,
+              vertical: AppSpace.sm,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              border: Border.all(color: c.control),
+              borderRadius: AppGeometry.control,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ColorDot(hex: task.status.color),
+                const SizedBox(width: AppSpace.sm),
+                Text(
+                  task.status.name,
+                  style: AppTextStyles.chip.copyWith(color: c.text),
+                ),
+                if (canEdit && options.length > 1) ...[
+                  const SizedBox(width: AppSpace.xs),
+                  Icon(
+                    AppIcons.expandMore,
+                    size: AppIconSizes.notice,
+                    color: c.muted,
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );

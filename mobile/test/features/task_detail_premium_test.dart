@@ -13,6 +13,8 @@ import 'package:genwork_mobile/data/models/task.dart';
 import 'package:genwork_mobile/features/tasks/task_assign_dialog.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import '../task_status_menu.dart';
+import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 
 Json taskJson({
   String id = 't',
@@ -179,7 +181,19 @@ void main() {
       );
       expect(title.controller!.text, 'Preparar los originales');
       expect(title.style!.fontSize, 20);
+      // El tilde aparece al cambiar el texto (boceto P09).
+      expect(find.byKey(const ValueKey('task_text_save')), findsNothing);
+      await tester.enterText(
+        find.byKey(const ValueKey('task_text_field')),
+        'Preparar los originales finales',
+      );
+      await tester.pump();
       expect(find.byKey(const ValueKey('task_text_save')), findsOneWidget);
+      // La marca encabeza la barra, con la miga debajo.
+      expect(
+        find.descendant(of: appBar, matching: find.byType(BrandName)),
+        findsOneWidget,
+      );
     });
 
     testWidgets('tarea de sector: la miga es el sector', (tester) async {
@@ -256,8 +270,7 @@ void main() {
       expect(find.byType(Switch), findsNothing);
       final row = find.byKey(const ValueKey('task_chip_row'));
       for (final key in [
-        'task_status_open',
-        'task_status_done',
+        'task_status',
         'task_my_day',
         'task_urgent',
         'task_reminder',
@@ -274,6 +287,16 @@ void main() {
             .selected,
         isFalse,
       );
+      // El estado es un desplegable con el vigente a la vista y los demás
+      // adentro (boceto P09).
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('task_status')),
+          matching: find.text('Pendiente'),
+        ),
+        findsOneWidget,
+      );
+      expect(await statusOptionEnabled(tester, 'done'), isTrue);
     });
 
     testWidgets('Mi día y Urgente llaman a su acción', (tester) async {
@@ -529,7 +552,9 @@ void main() {
       for (final key in [
         'task_subtask_a',
         'task_subtask_b',
-        'subtasks_reorder',
+        // Se ordena arrastrando la manija de cada fila (boceto P09).
+        'subtask_handle_a',
+        'subtask_handle_b',
         'subtask_composer',
       ]) {
         expect(
@@ -551,18 +576,8 @@ void main() {
       await mountDetail(tester, detailApi(task), task);
       // El estado de una tarea con subtareas sale de sus hijas: el vigente
       // se ve elegido (sin efecto) y el resto queda deshabilitado (P09-M3).
-      expect(
-        tester
-            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_open')))
-            .onSelected,
-        isNotNull,
-      );
-      expect(
-        tester
-            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_done')))
-            .onSelected,
-        isNull,
-      );
+      expect(await statusOptionEnabled(tester, 'open'), isTrue);
+      expect(await statusOptionEnabled(tester, 'done'), isFalse);
     });
   });
 }
