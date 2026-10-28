@@ -4745,3 +4745,23 @@ a.settings-row:hover {
   white-space: nowrap;
 }
 
+/* Portal (spec 066, P33): pie con la fecha en mono y el plazo como chip. */
+.pc-due-footer {
+  justify-content: space-between;
+}
+.pc-due-mono {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  color: var(--muted);
+}
+.pc-due-chip {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+}
+.pc-due-chip.due-neutral {
+  background: var(--hover-soft);
+}
+
