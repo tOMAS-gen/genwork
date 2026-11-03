@@ -1406,15 +1406,16 @@
   font-weight: 500;
 }
 
-.due-green {
-  color: var(--color-success-text);
+/* Plazo con el criterio de la app (spec 066, T42): neutro, ámbar o rojo. */
+.due-neutral {
+  color: var(--muted);
 }
 
-.due-orange {
+.due-warning {
   color: var(--color-warning-text);
 }
 
-.due-red {
+.due-danger {
   color: var(--color-danger-text);
 }
 
@@ -4530,3 +4531,237 @@ a.my-day-source:hover {
     transition: none;
   }
 }
+
+/* ---- Spec 066, T40: cabeceras como la app Android ----
+   Raíz: título 20/700, subtítulo en 13 gris y las acciones arriba a la
+   derecha, sin ícono ni regla. Subpantalla: migas en 12/500 gris sobre el
+   título. Entidad: punto de color junto al nombre. */
+.page-header {
+  align-items: flex-start;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.page-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+}
+.page-header p {
+  margin-top: 2px;
+}
+.breadcrumbs ol {
+  font-size: 12px;
+  font-weight: 500;
+}
+.work-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-top: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.work-title-line h1 {
+  font-size: 20px;
+}
+
+/* Las pantallas que arman su cabecera a mano siguen la misma escala. */
+.sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+.sheet-desc {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Spec 066, T41: filas de ajuste agrupadas, como la app ----
+   Rótulo 11/700 en mayúsculas, una card por grupo y filas de 56 px con ícono
+   de 20 gris, título 15/600, una línea de descripción y chevron. */
+.settings-group + .settings-group {
+  margin-top: 16px;
+}
+.settings-group-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.settings-group-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 12px 8px 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+.settings-row + .settings-row {
+  border-top: 1px solid var(--border);
+}
+a.settings-row:hover {
+  background: var(--hover-soft);
+}
+.settings-row-icon,
+.settings-row-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.settings-row-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.settings-row-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+.settings-row-subtitle {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+/* Spec 066, T41: una receta de campo, como `LabeledField` de la app:
+   rótulo arriba en 12/600 gris, 6 px hasta el campo. */
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Spec 066, T41: un solo estado vacío, como `EmptyView` de la app: card con
+   borde, ícono de 32 en una caja de 48 sobre el acento suave, título 15/600 y
+   el texto en 13 gris. */
+.empty-state {
+  min-height: 0;
+  margin: 0;
+  padding: 24px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.empty-state-icon {
+  box-sizing: border-box;
+  padding: 8px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.empty-state-title {
+  font-size: 15px;
+  line-height: 1.35;
+}
+.empty-state-description {
+  font-size: 13px;
+}
+
+/* ---- Spec 066, T42: cards de entidad, progreso, plazo y KPI como la app ---- */
+.pc-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pc-name-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.pc-due {
+  gap: 4px;
+  font-size: 13px;
+}
+.pc-due-remaining {
+  font-weight: 500;
+}
+/* Progreso: barra de 4 px en la marca (verde solo al 100 %) y la cifra en
+   mono tabular en la misma fila. */
+.pc-progress-track {
+  height: 4px;
+}
+.pc-progress-fill {
+  background: var(--accent);
+}
+.pc-progress-fill.is-complete {
+  background: var(--ok);
+}
+.pc-progress-pct {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stats-strip {
+  display: flex;
+  min-height: 72px;
+  padding: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.stats-strip-item {
+  flex: 1;
+  min-width: 0;
+  padding: 0 6px;
+}
+.stats-strip-item + .stats-strip-item {
+  border-left: 1px solid var(--border);
+}
+.stats-strip .stat-number {
+  font-family: var(--font-mono-stack);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.stats-strip-label {
+  overflow: hidden;
+  /* Como la app: si «Completados» no entra, se achican todos por igual. */
+  font-size: clamp(9px, 2.5vw, 11px);
+  font-weight: 600;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Portal (spec 066, P33): pie con la fecha en mono y el plazo como chip. */
+.pc-due-footer {
+  justify-content: space-between;
+}
+.pc-due-mono {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  color: var(--muted);
+}
+.pc-due-chip {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+}
+.pc-due-chip.due-neutral {
+  background: var(--hover-soft);
+}
+

@@ -23,6 +23,11 @@ String formatDay(DateTime date, {DateTime? now}) {
   return DateFormat(pattern, 'es').format(day);
 }
 
+/// Fecha de entrega como la web (`formatDueDate`): "29/10/2026", o "29/10" con
+/// [dayMonth]. La fecha ya es el día de calendario (`parseDay`).
+String formatDueDate(DateTime date, {bool dayMonth = false}) =>
+    DateFormat(dayMonth ? 'dd/MM' : 'dd/MM/yyyy', 'es').format(date);
+
 /// "1 proyecto", "3 proyectos".
 String countLabel(int n, String singular, String plural) =>
     '$n ${n == 1 ? singular : plural}';
@@ -33,3 +38,14 @@ String formatMinuteOfDay(int minute) =>
 
 String formatDateTime(DateTime date) =>
     DateFormat('d MMM y · HH:mm', 'es').format(date.toLocal());
+
+/// Tiempo transcurrido corto: "recién", "hace 5 min", "hace 2 h", "hace 3 d"
+/// y, desde la semana, el día ("12 oct").
+String formatAgo(DateTime date, {DateTime? now}) {
+  final diff = (now ?? DateTime.now()).difference(date);
+  if (diff.inMinutes < 1) return 'recién';
+  if (diff.inHours < 1) return 'hace ${diff.inMinutes} min';
+  if (diff.inDays < 1) return 'hace ${diff.inHours} h';
+  if (diff.inDays < 7) return 'hace ${diff.inDays} d';
+  return formatDay(date.toLocal(), now: now);
+}

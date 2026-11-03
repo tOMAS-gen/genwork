@@ -19,7 +19,6 @@ class MoreScreen extends StatelessWidget {
     return GenPageScaffold(
       title: 'Todo en su lugar',
       subtitle: 'Tus avisos y los datos de tu cuenta.',
-      icon: AppIcons.settings,
       bodyPadding: EdgeInsets.zero,
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),

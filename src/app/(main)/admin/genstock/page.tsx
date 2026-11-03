@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/components/ui/useApi";
-import { CheckCircle, Globe } from "@/components/ui/icons";
+import { CheckCircle } from "@/components/ui/icons";
 import { usePageTitle } from "@/lib/usePageTitle";
 
 interface GenstockConfig {
@@ -71,7 +71,6 @@ export default function GenstockAdminPage() {
       <div className="sheet-header">
         <div>
           <div className="sheet-title-row">
-            <Globe size={24} className="muted" />
             <h1 className="sheet-title">Integración con Genstock</h1>
           </div>
           <p className="sheet-desc">

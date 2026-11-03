@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Calendar } from "@/components/ui/icons";
 import { progress } from "@/lib/domain/works/progress";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
 import type { PortalWorkSummary } from "./types";
 
@@ -14,12 +15,6 @@ import type { PortalWorkSummary } from "./types";
  * interna: acá nada de eso existe.
  */
 
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
-
 export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
   const primary = work.labels.find((l) => l.isPrimary) ?? null;
   const prog = progress(work.taskCounts.done, work.taskCounts.total);
@@ -29,15 +24,12 @@ export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
   return (
     <Link href={`/portal/works/${work.id}`} className="card-interactive">
       <div className="card-header">
-        <span
-          className={`pc-name-pill ${primary ? "color-chip" : "pc-name-pill-default"}`}
-          style={
-            primary
-              ? ({ "--c": primary.color, color: "var(--text)" } as React.CSSProperties)
-              : undefined
-          }
-        >
-          {work.name.toUpperCase()}
+        {/* El nombre como título, como la app (spec 066, P33). */}
+        <span className="pc-name">
+          {primary && (
+            <span className="pc-name-dot" style={{ background: primary.color }} aria-hidden="true" />
+          )}
+          {work.name}
         </span>
       </div>
 
@@ -67,27 +59,25 @@ export function PortalProjectCard({ work }: { work: PortalWorkSummary }) {
             aria-label={`Avance del proyecto: ${prog.pct}%`}
             className="pc-progress-track"
           >
-            <div className="pc-progress-fill" style={{ width: `${prog.pct}%` }} />
+            <div
+              className={`pc-progress-fill${prog.pct === 100 ? " is-complete" : ""}`}
+              style={{ width: `${prog.pct}%` }}
+            />
           </div>
-          <span className="pc-progress-pct">{prog.pct}%</span>
+          <span className="pc-progress-pct">
+            {work.taskCounts.done}/{work.taskCounts.total} · {prog.pct}%
+          </span>
         </div>
       )}
 
-      {work.taskCounts.total > 0 && (
-        <span className="pc-task-count">
-          {work.taskCounts.done}/{work.taskCounts.total} tareas
-        </span>
-      )}
-
+      {/* Pie: la fecha en mono y el plazo como chip (P33-M2, P33-M3). */}
       {due && urgency && (
-        <div className="pc-due">
-          <span className="pc-due-date">
-            <Calendar size={14} />
-            Entrega: {dueDateFormatter.format(due)}
+        <div className="pc-due pc-due-footer">
+          <span className="pc-due-date pc-due-mono">
+            <Calendar size={16} />
+            {formatDueDate(due)}
           </span>
-          <span className={`pc-due-remaining due-${urgency.color}`} style={{ fontStyle: "italic" }}>
-            {urgency.label}
-          </span>
+          <span className={`pc-due-chip due-${urgency.tone}`}>{urgency.label}</span>
         </div>
       )}
     </Link>

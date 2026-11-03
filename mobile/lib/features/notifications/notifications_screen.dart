@@ -29,7 +29,8 @@ Future<void> openNotification(
     return;
   }
   await repo.action(id, 'READ');
-  if (!context.mounted || !identical(session, ref.read(sessionProvider).value)) {
+  if (!context.mounted ||
+      !identical(session, ref.read(sessionProvider).value)) {
     return;
   }
   ref.invalidate(notificationsProvider);
@@ -121,7 +122,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     final page = ref.watch(notificationsProvider(_kind));
     return GenPageScaffold(
       title: 'Notificaciones',
-      icon: AppIcons.reminders,
       onRefresh: _refresh,
       actions: [
         IconButton(
@@ -168,10 +168,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 return ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
+                    // Con la forma del estado vacío de la web (decisión 2).
                     if (items.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(AppSpacing.lg),
-                        child: Text('No tenés avisos pendientes.'),
+                      const EmptyView(
+                        icon: AppIcons.bell,
+                        title: 'Estás al día',
+                        message: 'No tenés avisos pendientes.',
                       ),
                     for (final n in items)
                       Card(

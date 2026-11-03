@@ -7,11 +7,23 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/settings_rows.dart';
 import '../../shared/widgets/state_views.dart';
 
 class LogoutTile extends ConsumerStatefulWidget {
-  const LogoutTile({super.key, required this.actionKey});
+  const LogoutTile({
+    super.key,
+    required this.actionKey,
+    this.label = 'Cerrar sesión',
+    this.plain = false,
+  });
   final String actionKey;
+
+  /// "Salir" en el drawer, como la web.
+  final String label;
+
+  /// Como un ítem más del drawer: ícono `muted` y texto 14/500.
+  final bool plain;
   @override
   ConsumerState<LogoutTile> createState() => _LogoutTileState();
 }
@@ -19,39 +31,53 @@ class LogoutTile extends ConsumerStatefulWidget {
 class _LogoutTileState extends ConsumerState<LogoutTile> {
   bool _busy = false;
   @override
-  Widget build(BuildContext context) => ListTile(
-    key: ValueKey(widget.actionKey),
-    contentPadding: const EdgeInsets.only(
-      left: AppSpacing.md,
-      right: AppSpacing.xs,
-    ),
-    minLeadingWidth: AppSpacing.md,
-    horizontalTitleGap: AppSpacing.sm,
-    leading: Icon(
-      AppIcons.logout,
-      size: AppIconSizes.drawer,
-      color: context.colors.danger,
-    ),
-    title: Text(
-      _busy ? 'Cerrando sesión…' : 'Cerrar sesión',
-      style: AppTextStyles.itemTitle.copyWith(color: context.colors.text),
-    ),
-    onTap: _busy
-        ? null
-        : () async {
-            final notifier = ref.read(sessionProvider.notifier);
-            final messenger = ScaffoldMessenger.maybeOf(context);
-            setState(() => _busy = true);
-            // Primero a la lista de servidores: con la sesión cerrada, /servers
-            // sigue accesible y no se pasa por el login nativo.
-            context.go(Routes.servers);
-            try {
-              await notifier.logout();
-            } catch (e) {
-              messenger?.showSnackBar(SnackBar(content: Text(errorMessage(e))));
-            } finally {
-              if (mounted) setState(() => _busy = false);
-            }
-          },
-  );
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final label = _busy ? 'Cerrando sesión…' : widget.label;
+    final onTap = _busy ? null : _logout;
+    // Fuera del drawer, una fila de ajuste más (PS4).
+    if (!widget.plain) {
+      return SettingsRow(
+        key: ValueKey(widget.actionKey),
+        leading: Icon(
+          AppIcons.logout,
+          size: AppIconSizes.action,
+          color: c.danger,
+        ),
+        title: label,
+        navigates: false,
+        onTap: onTap,
+      );
+    }
+    // En el drawer, sobre el mismo eje que los demás ítems (P03-M2).
+    return ListTile(
+      key: ValueKey(widget.actionKey),
+      contentPadding: const EdgeInsets.only(
+        left: AppSpacing.xs,
+        right: AppSpacing.xs,
+      ),
+      minTileHeight: kMinInteractiveDimension,
+      minLeadingWidth: AppIconSizes.action,
+      horizontalTitleGap: AppSpacing.sm,
+      leading: Icon(AppIcons.logout, size: AppIconSizes.action, color: c.muted),
+      title: Text(label, style: AppTextStyles.nav.copyWith(color: c.text)),
+      onTap: onTap,
+    );
+  }
+
+  Future<void> _logout() async {
+    final notifier = ref.read(sessionProvider.notifier);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    setState(() => _busy = true);
+    // Primero a la lista de servidores: con la sesión cerrada, /servers
+    // sigue accesible y no se pasa por el login nativo.
+    context.go(Routes.servers);
+    try {
+      await notifier.logout();
+    } catch (e) {
+      messenger?.showSnackBar(SnackBar(content: Text(errorMessage(e))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 }

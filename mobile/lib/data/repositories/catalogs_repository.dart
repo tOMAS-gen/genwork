@@ -2,8 +2,8 @@ import '../../core/network/api_client.dart';
 import '../models/json.dart';
 
 enum CatalogKind {
-  labels('Etiquetas y colores', '/api/labels'),
-  stages('Etapas de producción', '/api/stages'),
+  labels('Etiquetas', '/api/labels'),
+  stages('Estados de producción', '/api/stages'),
   statuses('Estados de tarea', '/api/task-statuses');
 
   const CatalogKind(this.title, this.path);

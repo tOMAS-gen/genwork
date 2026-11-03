@@ -19,7 +19,7 @@ import { Dialog } from "@/components/ui/Dialog";
 import { RenameDialog } from "@/components/ui/RenameDialog";
 import { ColorField } from "@/components/ui/ColorField";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Trash2, Settings, Pencil, CheckSquare, Layers, AlertCircle } from "@/components/ui/icons";
+import { Trash2, Settings, Pencil, CheckSquare, AlertCircle } from "@/components/ui/icons";
 import { TaskStatusSettings } from "@/components/admin/TaskStatusSettings";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 import { TaskViewToggle } from "@/components/tasks/TaskViewToggle";
@@ -178,12 +178,12 @@ export default function SectorPage({ params }: { params: Promise<{ id: string }>
           <div className="work-overview-info">
             <div className="work-overview-header">
               <div className="work-identity">
+                {/* Punto de color, como la app (spec 066, T40). */}
                 <span
-                  className="work-symbol"
-                  style={view.sector.color ? { color: view.sector.color } : undefined}
-                >
-                  <Layers size={24} aria-hidden="true" />
-                </span>
+                  className="work-dot"
+                  aria-hidden="true"
+                  style={view.sector.color ? { background: view.sector.color } : undefined}
+                />
                 <div className="work-heading">
                   <div className="work-title-line">
                     <h1>{view.sector.name}</h1>

@@ -13,6 +13,7 @@ import '../../data/models/common.dart';
 import '../../data/models/task.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
+import '../../shared/widgets/progress_bar.dart';
 import '../../shared/widgets/state_views.dart';
 import '../../shared/widgets/task_tile.dart';
 import '../../shared/widgets/workspace_panel.dart';
@@ -22,6 +23,7 @@ import '../tasks/task_detail_sheet.dart';
 import 'merge_my_day_and_references.dart';
 import 'my_day_progress.dart';
 import 'my_day_providers.dart';
+import '../tasks/task_row_actions.dart';
 
 /// Mi día: tareas marcadas para hoy (pendientes y completadas hoy) y las
 /// menciones abiertas.
@@ -63,7 +65,6 @@ class MyDayScreen extends ConsumerWidget {
       title: 'Mi día y referencias',
       subtitle:
           'Primero lo que hay que hacer hoy, después las tareas que necesitan tu aporte.',
-      icon: AppIcons.myDay,
       appBarActions: const [DeliveriesButton()],
       onRefresh: refresh,
       bodyPadding: EdgeInsets.zero,
@@ -89,106 +90,159 @@ class MyDayScreen extends ConsumerWidget {
               children: const [
                 EmptyView(
                   icon: AppIcons.myDay,
+                  title: 'No tenés tareas para hoy ni referencias pendientes',
                   message:
-                      'No tenés tareas para hoy ni referencias pendientes.\nLas tareas que agreguen a Mi día y las que te mencionen con @ aparecerán juntas acá.',
+                      'Las tareas que agreguen a Mi día y las que te mencionen con @ aparecerán juntas acá.',
                 ),
               ],
             );
           }
 
           Widget tile(Task t) {
-            final source = myDaySourceLabel(t);
             final isRef = merged.referenceIds.contains(t.id);
             final route = t.work != null
                 ? Routes.work(t.work!.id)
                 : t.homeSector != null
                 ? Routes.sector(t.homeSector!.id)
                 : null;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _RowMeta(
-                  taskId: t.id,
-                  isMyDay: t.isInMyDay,
-                  isReference: isRef,
-                  source: source,
-                  onSource: route == null ? null : () => context.push(route),
-                ),
-                TaskTile(
-                  task: t,
-                  flat: true,
-                  referenceIds: merged.referenceIds,
-                  showWork: false,
-                  onTap: () =>
-                      showTaskDetail(context, t, canEdit: t.canToggle ?? false),
-                  onToggleDone: t.canToggle == true ? () => toggle(t) : null,
-                  onToggleMyDay: t.canManageMyDay == true
-                      ? () => toggleDay(t)
-                      : null,
-                  onSubtaskTap: (s) =>
-                      showTaskDetail(context, s, canEdit: s.canToggle ?? false),
-                  onSubtaskToggle: (s) {
-                    if (s.canToggle == true) toggle(s);
-                  },
-                ),
-              ],
-            );
-          }
-
-          return ListView(
-            key: const ValueKey('my_day_list'),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpace.lg,
-                  AppSpace.lg,
-                  AppSpace.lg,
-                  0,
-                ),
-                child: Text(
-                  DateFormat("EEEE d 'de' MMMM", 'es').format(today),
-                  style: AppTextStyles.technical.copyWith(
-                    color: context.colors.muted,
+            final hasSource = isRef || myDaySourceLabel(t) != null;
+            // Una card por tarea, con el origen arriba y una línea que lo
+            // separa de la fila (boceto P04).
+            return WorkspacePanel(
+              key: ValueKey('my_day_card_${t.id}'),
+              child: ClipRRect(
+                borderRadius: AppGeometry.card,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (hasSource) ...[
+                        _RowMeta(
+                          taskId: t.id,
+                          isReference: isRef,
+                          task: t,
+                          onSource: route == null
+                              ? null
+                              : () => context.push(route),
+                        ),
+                        Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: context.colors.border,
+                        ),
+                      ],
+                      TaskTile(
+                        task: t,
+                        flat: true,
+                        inlineCounter: true,
+                        referenceIds: merged.referenceIds,
+                        showWork: false,
+                        onTap: () => showTaskDetail(
+                          context,
+                          t,
+                          canEdit: t.canToggle ?? false,
+                        ),
+                        onToggleDone: t.canToggle == true
+                            ? () => toggle(t)
+                            : null,
+                        onToggleMyDay: t.canManageMyDay == true
+                            ? () => toggleDay(t)
+                            : null,
+                        onSubtaskTap: (s) => showTaskDetail(
+                          context,
+                          s,
+                          canEdit: s.canToggle ?? false,
+                        ),
+                        onSubtaskToggle: (s) {
+                          if (s.canToggle == true) toggle(s);
+                        },
+                        onAddSubtask: t.canToggle == true && t.parentId == null
+                            ? () => promptSubtask(context, t)
+                            : null,
+                        onDelete: t.canToggle == true
+                            ? () => confirmDeleteTask(context, ref, t)
+                            : null,
+                        onSubtaskMyDay: (s) {
+                          if (s.canManageMyDay == true) toggleDay(s);
+                        },
+                        onSubtaskDelete: (s) =>
+                            confirmDeleteTask(context, ref, s),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              if (tasks.isNotEmpty)
-                Padding(
+            );
+          }
+
+          final open = [...pending, ...refs];
+          // Slivers perezosos: solo se construyen las filas visibles (T2).
+          return CustomScrollView(
+            key: const ValueKey('my_day_list'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // Fecha y avance en una línea, con la barra debajo (P04-M3).
+              SliverToBoxAdapter(
+                child: Padding(
                   key: const ValueKey('my_day_progress'),
                   padding: AppSpace.page,
-                  child: _ProgressText(progress: progress),
-                ),
-              if (pending.isNotEmpty || refs.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-                  child: WorkspaceListPanel(
-                    children: [...pending.map(tile), ...refs.map(tile)],
+                  child: _ProgressText(
+                    today: today,
+                    progress: tasks.isEmpty ? null : progress,
                   ),
                 ),
-              if (references.isLoading && !references.hasValue)
-                const LoadingView(),
-              if (references.hasError)
-                ErrorView(
-                  error: references.error!,
-                  onRetry: () => ref.invalidate(openReferencesProvider),
+              ),
+              if (open.isNotEmpty)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpace.gutter,
+                  ),
+                  sliver: SliverList.separated(
+                    itemCount: open.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(height: AppSpace.md),
+                    itemBuilder: (_, i) => tile(open[i]),
+                  ),
                 ),
-              if (done.isNotEmpty)
-                ExpansionTile(
-                  key: const ValueKey('my_day_completed'),
-                  title: Text('Completadas hoy (${done.length})'),
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpace.lg,
+                    if (references.isLoading && !references.hasValue)
+                      const LoadingView(),
+                    if (references.hasError)
+                      ErrorView(
+                        error: references.error!,
+                        onRetry: () => ref.invalidate(openReferencesProvider),
                       ),
-                      child: WorkspaceListPanel(
-                        children: done.map(tile).toList(),
+                    // Las completadas del día son pocas: van en su panel.
+                    if (done.isNotEmpty)
+                      ExpansionTile(
+                        key: const ValueKey('my_day_completed'),
+                        title: Text('Completadas hoy (${done.length})'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpace.gutter,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                for (var i = 0; i < done.length; i++) ...[
+                                  if (i > 0)
+                                    const SizedBox(height: AppSpace.md),
+                                  tile(done[i]),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    const SizedBox(height: AppSpace.xxl),
                   ],
                 ),
-              const SizedBox(height: AppSpace.xxl),
+              ),
             ],
           );
         },
@@ -197,105 +251,147 @@ class MyDayScreen extends ConsumerWidget {
   }
 }
 
-/// «☼ Mi día: **0 de 1** completadas hoy», como la línea de progreso de la web
-/// (sin barra).
+/// «Lunes 26 de octubre · **3 de 9** completadas» en 13/500 con las cifras en
+/// mono tabular y, debajo, la barra de avance (P04-M3).
 class _ProgressText extends StatelessWidget {
-  const _ProgressText({required this.progress});
+  const _ProgressText({required this.today, required this.progress});
 
-  final Progress progress;
+  final DateTime today;
+  final Progress? progress;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final base = AppTextStyles.body.copyWith(color: c.muted);
-    return Row(
+    final base = AppTextStyles.body.copyWith(
+      color: c.muted,
+      fontWeight: FontWeight.w500,
+    );
+    final date = DateFormat("EEEE d 'de' MMMM", 'es').format(today);
+    final digits = AppTextStyles.technical.copyWith(
+      fontWeight: FontWeight.w700,
+      color: c.text,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final p = progress;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(AppIcons.myDay, size: AppIconSizes.compact, color: c.muted),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              style: base,
-              children: [
-                const TextSpan(text: 'Mi día: '),
-                TextSpan(
-                  text: '${progress.done} de ${progress.total}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const TextSpan(text: ' completadas hoy'),
+        Text.rich(
+          TextSpan(
+            style: base,
+            children: [
+              TextSpan(text: date[0].toUpperCase() + date.substring(1)),
+              if (p != null) ...[
+                const TextSpan(text: ' · '),
+                // Solo las cifras en mono: el espacio mono separa de más.
+                TextSpan(text: '${p.done}', style: digits),
+                const TextSpan(text: ' de '),
+                TextSpan(text: '${p.total}', style: digits),
+                const TextSpan(text: ' completadas'),
               ],
-            ),
+            ],
           ),
         ),
+        if (p != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          // Resumen de la pantalla: más marcada que la de las cards.
+          ProgressBar(value: p.ratio, height: AppSpacing.xs),
+        ],
       ],
     );
   }
 }
 
-/// Línea sobre cada tarea: «☼ Mi día» o «@ Referencia» (+ «· Referencia» si es
-/// ambas) y el origen como enlace `muted`.
+/// Encabezado de cada card: de dónde viene, con el proyecto o sector en
+/// 15/600 y debajo el resto («› Preparación y entrega») en 13 gris (P04-M4 y
+/// boceto). El título de la página ya dice «Mi día»; una referencia lleva
+/// «@ Referencia».
 class _RowMeta extends StatelessWidget {
   const _RowMeta({
     required this.taskId,
-    required this.isMyDay,
     required this.isReference,
-    required this.source,
+    required this.task,
     required this.onSource,
   });
 
   final String taskId;
-  final bool isMyDay, isReference;
-  final String? source;
+  final bool isReference;
+  final Task task;
   final VoidCallback? onSource;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final label = AppTextStyles.supporting.copyWith(
-      fontWeight: FontWeight.w600,
-      color: c.text,
+    final owner = task.work?.name ?? task.homeSector?.name;
+    final rest = [
+      task.objectiveTitle,
+      task.parentText,
+    ].whereType<String>().where((s) => s.isNotEmpty).join(' › ');
+    final source = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (owner != null)
+          Text(
+            owner,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.itemTitle.copyWith(color: c.text),
+          ),
+        if (rest.isNotEmpty)
+          Text(
+            '› $rest',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.body.copyWith(color: c.muted),
+          ),
+      ],
     );
-    final muted = AppTextStyles.supporting.copyWith(color: c.muted);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.md,
-        AppSpace.sm,
-        AppSpace.md,
-        0,
-      ),
-      child: Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: AppSpacing.sm,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+      child: Row(
         children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isMyDay ? AppIcons.myDay : AppIcons.mention,
-                size: AppIconSizes.compact,
+          if (isReference) ...[
+            Icon(AppIcons.mention, size: AppIconSizes.compact, color: c.text),
+            const SizedBox(width: AppSpacing.xxs),
+            Text(
+              'Referencia',
+              style: AppTextStyles.supporting.copyWith(
+                fontWeight: FontWeight.w600,
                 color: c.text,
               ),
-              const SizedBox(width: AppSpacing.xxs),
-              Text(isMyDay ? 'Mi día' : 'Referencia', style: label),
-              if (isMyDay && isReference) ...[
-                const SizedBox(width: AppSpacing.xxs),
-                Text('· Referencia', style: muted),
-              ],
-            ],
-          ),
-          if (source != null)
-            onSource == null
-                ? Text(source!, style: muted)
-                : InkWell(
-                    key: ValueKey('my_day_source_$taskId'),
-                    onTap: onSource,
-                    child: Padding(
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          if (owner != null || rest.isNotEmpty)
+            Expanded(
+              child: onSource == null
+                  ? Padding(
                       padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.xs,
+                        vertical: AppSpace.md,
                       ),
-                      child: Text(source!, style: muted),
+                      child: source,
+                    )
+                  // El origen se toca: 48 dp (T4).
+                  : InkWell(
+                      key: ValueKey('my_day_source_$taskId'),
+                      onTap: onSource,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minHeight: kMinInteractiveDimension,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpace.md,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: source,
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+            ),
         ],
       ),
     );

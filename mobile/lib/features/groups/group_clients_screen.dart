@@ -19,6 +19,7 @@ import 'group_admin_scaffold.dart';
 import 'groups_providers.dart';
 import '../../shared/widgets/error_text.dart';
 import '../../core/theme/app_geometry.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 class GroupClientsScreen extends ConsumerWidget {
   const GroupClientsScreen({super.key, required this.groupId});
@@ -279,29 +280,33 @@ class _ClientDialogState extends ConsumerState<_ClientDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (widget.client == null) ...[
-                TextFormField(
-                  key: const ValueKey('client_name'),
-                  controller: _name,
-                  maxLength: 120,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(labelText: 'Nombre'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Ingresá un nombre'
-                      : null,
+                LabeledField(
+                  label: 'Nombre',
+                  child: TextFormField(
+                    key: const ValueKey('client_name'),
+                    controller: _name,
+                    maxLength: 120,
+                    enabled: !_busy,
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Ingresá un nombre'
+                        : null,
+                  ),
                 ),
-                TextFormField(
-                  key: const ValueKey('client_email'),
-                  controller: _email,
-                  enabled: !_busy,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Correo'),
-                  validator: (v) =>
-                      v == null ||
-                          !RegExp(
-                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                          ).hasMatch(v.trim())
-                      ? 'Ingresá un correo válido'
-                      : null,
+                LabeledField(
+                  label: 'Correo',
+                  child: TextFormField(
+                    key: const ValueKey('client_email'),
+                    controller: _email,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) =>
+                        v == null ||
+                            !RegExp(
+                              r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                            ).hasMatch(v.trim())
+                        ? 'Ingresá un correo válido'
+                        : null,
+                  ),
                 ),
               ] else
                 Text('${widget.client!.name}\n${widget.client!.email}'),

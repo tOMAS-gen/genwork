@@ -16,8 +16,13 @@ abstract final class AppSpace {
       dotLarge = 14;
   static const double xs = 4, sm = 8, md = 12, lg = 16, xl = 24, xxl = 32;
   static const double touch = 48, icon = 20, hero = 64, contentMax = 480;
-  static const page = EdgeInsets.all(lg);
-  static const list = EdgeInsets.fromLTRB(lg, sm, lg, 96);
+
+  /// Margen lateral de página: todo arranca en la misma línea de 16 dp (D8,
+  /// PS2 de la auditoría premium; antes 12, el `.main` de la web).
+  static const double gutter = lg;
+
+  static const page = EdgeInsets.symmetric(horizontal: gutter, vertical: lg);
+  static const list = EdgeInsets.fromLTRB(gutter, sm, gutter, 96);
 }
 
 /// Fachada sobre [GenColors] y [AppGeometry] para el código que ya usaba
@@ -97,7 +102,8 @@ abstract final class AppTheme {
       surface: c.surface,
       onSurface: c.text,
       onSurfaceVariant: c.muted,
-      outline: c.outline,
+      // Contorno de controles de Material (switch, radio, chips): ≥3:1 (T11).
+      outline: c.control,
       outlineVariant: c.border,
       surfaceContainerLowest: c.page,
       surfaceContainerLow: c.page,
@@ -188,6 +194,9 @@ abstract final class AppTheme {
         elevation: AppGeometry.elevation,
         scrolledUnderElevation: AppGeometry.elevation,
         centerTitle: false,
+        // Flecha en 16 dp y título 16 dp después (x = 56), sin el hueco de
+        // 16 que agrega Material (P02-M2).
+        titleSpacing: 0,
         titleTextStyle: typography.titleLarge,
         toolbarHeight: 48,
         shape: Border(bottom: BorderSide(color: c.border)),
@@ -204,7 +213,7 @@ abstract final class AppTheme {
       listTileTheme: ListTileThemeData(
         contentPadding: AppSpace.page,
         minVerticalPadding: AppSpace.md,
-        minTileHeight: 44,
+        minTileHeight: kMinInteractiveDimension,
         shape: controlShape,
         titleTextStyle: typography.titleMedium,
         subtitleTextStyle: typography.bodySmall,
@@ -225,8 +234,8 @@ abstract final class AppTheme {
         labelStyle: AppTextStyles.body.copyWith(color: c.muted),
         floatingLabelStyle: AppTextStyles.supporting.copyWith(color: c.muted),
         errorStyle: AppTextStyles.supporting.copyWith(color: c.danger),
-        border: inputBorder(c.outline),
-        enabledBorder: inputBorder(c.outline),
+        border: inputBorder(c.control),
+        enabledBorder: inputBorder(c.control),
         disabledBorder: inputBorder(c.outline),
         focusedBorder: inputBorder(c.brand, AppGeometry.focusRingWidth),
         errorBorder: inputBorder(c.danger),
@@ -246,7 +255,7 @@ abstract final class AppTheme {
           foregroundColor: c.text,
           minimumSize: const Size(48, 40),
           shape: controlShape,
-          side: BorderSide(color: c.border),
+          side: BorderSide(color: c.control),
           textStyle: AppTextStyles.action,
         ),
       ),
@@ -288,6 +297,24 @@ abstract final class AppTheme {
               : BorderSide(color: c.muted, width: 1.5),
         ),
       ),
+      // PS15: sin tema, en oscuro el thumb elegido sale de `onPrimary` (casi
+      // negro) sobre el azul. El thumb va siempre claro y el track apagado
+      // lleva el contorno de control.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? (dark ? c.text : c.surface)
+              : c.muted,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected) ? c.brand : c.field,
+        ),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : c.control,
+        ),
+      ),
       chipTheme: ChipThemeData(
         shape: const RoundedRectangleBorder(borderRadius: AppGeometry.chip),
         side: BorderSide.none,
@@ -304,15 +331,16 @@ abstract final class AppTheme {
           shape: WidgetStatePropertyAll(controlShape),
           minimumSize: const WidgetStatePropertyAll(Size(48, 40)),
           textStyle: const WidgetStatePropertyAll(AppTextStyles.action),
-          side: WidgetStatePropertyAll(BorderSide(color: c.border)),
+          side: WidgetStatePropertyAll(BorderSide(color: c.control)),
           backgroundColor: WidgetStateProperty.resolveWith(
             (states) => states.contains(WidgetState.selected)
                 ? c.brandFill
                 : Colors.transparent,
           ),
+          // `.segmented-btn` de la web: el no elegido va en `muted`.
           foregroundColor: WidgetStateProperty.resolveWith(
             (states) =>
-                states.contains(WidgetState.selected) ? c.brand : c.text,
+                states.contains(WidgetState.selected) ? c.brand : c.muted,
           ),
         ),
       ),
@@ -336,6 +364,9 @@ abstract final class AppTheme {
       ),
       dividerTheme: DividerThemeData(color: c.border, space: 1),
       dialogTheme: DialogThemeData(
+        // Velo negro al 60 % en los dos temas: en oscuro, uno del color de la
+        // página no tapaba lo de atrás (P06-M1).
+        barrierColor: Colors.black.withValues(alpha: .6),
         backgroundColor: c.floating,
         surfaceTintColor: Colors.transparent,
         shadowColor: floatingShadowColor,
@@ -395,7 +426,7 @@ abstract final class AppTheme {
       ),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: _AppTransition(),
+          TargetPlatform.android: _AppTransition(predictiveBack: true),
           TargetPlatform.iOS: _AppTransition(),
         },
       ),
@@ -403,8 +434,15 @@ abstract final class AppTheme {
   }
 }
 
+/// Transición de página (T5): fundido corto al abrir y, en Android, el
+/// atrás predictivo de Flutter mientras se arrastra el gesto. Con las
+/// animaciones del sistema desactivadas, corte.
 class _AppTransition extends PageTransitionsBuilder {
-  const _AppTransition();
+  const _AppTransition({this.predictiveBack = false});
+
+  /// Envuelve la página con el detector del gesto atrás predictivo.
+  final bool predictiveBack;
+
   @override
   Widget buildTransitions<T>(
     PageRoute<T> route,
@@ -412,7 +450,21 @@ class _AppTransition extends PageTransitionsBuilder {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
     Widget child,
-  ) => MediaQuery.disableAnimationsOf(context)
-      ? child
-      : FadeTransition(opacity: animation, child: child);
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) return child;
+    if (!predictiveBack) {
+      return FadeTransition(opacity: animation, child: child);
+    }
+    // El builder de Flutter detecta el gesto. Fuera del gesto recibe
+    // animaciones quietas, así su transición de respaldo no se mueve y manda
+    // el fundido propio.
+    final gesture = route.popGestureInProgress;
+    return const PredictiveBackPageTransitionsBuilder().buildTransitions(
+      route,
+      context,
+      gesture ? animation : kAlwaysCompleteAnimation,
+      gesture ? secondaryAnimation : kAlwaysDismissedAnimation,
+      gesture ? child : FadeTransition(opacity: animation, child: child),
+    );
+  }
 }

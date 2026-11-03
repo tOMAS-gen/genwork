@@ -6,8 +6,9 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 
-/// Cabecera compartida de las ventanas de trabajo: franja `field`, título,
-/// subtítulo opcional y cierre con objetivo táctil de 48. El dueño de la
+/// Cabecera compartida de las ventanas de trabajo, como `.dialog-header` de la
+/// web: título 16/600, subtítulo opcional y cierre con objetivo táctil de 48,
+/// sin franja. El dueño de la
 /// ventana decide cómo cerrar y cuándo deshabilitar el cierre.
 class AppWorkHeader extends StatelessWidget {
   const AppWorkHeader({
@@ -17,9 +18,11 @@ class AppWorkHeader extends StatelessWidget {
     required this.onClose,
     this.subtitle,
     this.actions = const [],
-    this.padding = const EdgeInsets.symmetric(
-      horizontal: AppSpacing.md,
-      vertical: AppSpacing.xxs,
+    this.padding = const EdgeInsets.fromLTRB(
+      AppSpacing.md,
+      AppSpacing.xs,
+      AppSpacing.xs,
+      0,
     ),
   });
 
@@ -77,9 +80,6 @@ class AppWorkHeader extends StatelessWidget {
         ),
       ],
     );
-    return ColoredBox(
-      color: c.field,
-      child: Padding(padding: padding, child: content),
-    );
+    return Padding(padding: padding, child: content);
   }
 }

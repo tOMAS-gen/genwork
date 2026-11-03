@@ -10,6 +10,7 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import 'objectives_providers.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 Future<void> showObjectiveDialog(
   BuildContext context,
@@ -163,27 +164,27 @@ class _ObjectiveDialogState extends ConsumerState<_ObjectiveDialog> {
                       : () => setState(() => _templateId = item.id),
                 ),
             ],
-            TextField(
-              key: const ValueKey('objective_title'),
-              controller: _title,
-              enabled: !_saving,
-              maxLength: 120,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: widget.fromTemplate ? 'Título (opcional)' : 'Título',
+            LabeledField(
+              label: widget.fromTemplate ? 'Título (opcional)' : 'Título',
+              child: TextField(
+                key: const ValueKey('objective_title'),
+                controller: _title,
+                enabled: !_saving,
+                maxLength: 120,
+                onChanged: (_) => setState(() {}),
               ),
             ),
             if (!widget.fromTemplate) ...[
               const SizedBox(height: AppSpace.md),
-              TextField(
-                key: const ValueKey('objective_description'),
-                controller: _description,
-                enabled: !_saving,
-                maxLength: 2000,
-                minLines: 2,
-                maxLines: 5,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción (opcional)',
+              LabeledField(
+                label: 'Descripción (opcional)',
+                child: TextField(
+                  key: const ValueKey('objective_description'),
+                  controller: _description,
+                  enabled: !_saving,
+                  maxLength: 2000,
+                  minLines: 2,
+                  maxLines: 5,
                 ),
               ),
             ],

@@ -11,6 +11,7 @@ import '../../shared/widgets/async_value_view.dart';
 import '../works/works_providers.dart';
 import 'files_providers.dart';
 import 'files_screen.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 class FileSharesScreen extends ConsumerStatefulWidget {
   const FileSharesScreen({super.key, required this.workId, required this.file});
@@ -90,23 +91,23 @@ class _FileSharesScreenState extends ConsumerState<FileSharesScreen> {
                 onChanged: _busy ? null : (v) => setState(() => _internal = v),
               ),
               if (_internal)
-                TextField(
-                  key: const ValueKey('share_email'),
-                  controller: _email,
-                  enabled: !_busy,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo del destinatario',
+                LabeledField(
+                  label: 'Correo del destinatario',
+                  child: TextField(
+                    key: const ValueKey('share_email'),
+                    controller: _email,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
                   ),
                 )
               else ...[
-                TextField(
-                  key: const ValueKey('share_password'),
-                  controller: _password,
-                  enabled: !_busy,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Contraseña opcional',
+                LabeledField(
+                  label: 'Contraseña opcional',
+                  child: TextField(
+                    key: const ValueKey('share_password'),
+                    controller: _password,
+                    enabled: !_busy,
+                    obscureText: true,
                   ),
                 ),
                 Wrap(

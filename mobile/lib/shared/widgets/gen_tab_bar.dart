@@ -54,6 +54,8 @@ class GenTabBar extends StatefulWidget {
     this.height = kMinInteractiveDimension,
     this.showBottomBorder = true,
     this.showIcons = false,
+    this.centerActive = false,
+    this.edgeFadeColor,
   });
 
   final List<GenTabItem> tabs;
@@ -72,6 +74,14 @@ class GenTabBar extends StatefulWidget {
 
   /// Muestra el ícono de cada pestaña también en el estilo `quiet`.
   final bool showIcons;
+
+  /// Lleva la pestaña activa al centro (barras largas, P27-M2) en lugar de
+  /// moverla solo lo necesario.
+  final bool centerActive;
+
+  /// Con color, un degradado de 24 dp de ese color marca el lado que tiene
+  /// más pestañas.
+  final Color? edgeFadeColor;
 
   @override
   State<GenTabBar> createState() => _GenTabBarState();
@@ -150,7 +160,9 @@ class _GenTabBarState extends State<GenTabBar> {
       final end = viewport.getOffsetToReveal(target, 1).offset;
       // Solo mover lo necesario y únicamente por selección o geometría: los
       // rebuilds de datos y el desplazamiento manual no reubican la fila.
-      final offset = start < position.pixels
+      final offset = widget.centerActive
+          ? (start + end) / 2
+          : start < position.pixels
           ? start
           : end > position.pixels
           ? (start < end ? start : end)
@@ -209,7 +221,56 @@ class _GenTabBarState extends State<GenTabBar> {
                   _viewportWidth = constraints.maxWidth;
                   _scheduleReveal();
                 }
-                return tabRow;
+                final fade = widget.edgeFadeColor;
+                if (fade == null) return tabRow;
+                return Stack(
+                  children: [
+                    tabRow,
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: ListenableBuilder(
+                          listenable: _scrollController,
+                          builder: (context, _) {
+                            if (!_scrollController.hasClients ||
+                                !_scrollController
+                                    .position
+                                    .hasContentDimensions) {
+                              return const SizedBox.shrink();
+                            }
+                            final p = _scrollController.position;
+                            Widget edge(String key, bool start) => SizedBox(
+                              key: ValueKey(key),
+                              width: AppSpacing.lg,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: start
+                                        ? Alignment.centerLeft
+                                        : Alignment.centerRight,
+                                    end: start
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    colors: [fade, fade.withValues(alpha: 0)],
+                                  ),
+                                ),
+                              ),
+                            );
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (p.pixels > p.minScrollExtent + .5)
+                                  edge('tabs_fade_start', true),
+                                const Spacer(),
+                                if (p.pixels < p.maxScrollExtent - .5)
+                                  edge('tabs_fade_end', false),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                );
               },
             ),
           ),

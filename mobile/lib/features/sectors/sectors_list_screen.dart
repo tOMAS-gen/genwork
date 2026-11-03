@@ -13,13 +13,15 @@ import '../../core/util/format.dart';
 import '../../data/models/sector.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/card_progress.dart';
+import '../../shared/widgets/count_badge.dart';
 import '../../shared/widgets/gen_page_scaffold.dart';
-import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/list_toolbar.dart';
+import '../../shared/widgets/entity_card_title.dart';
 import '../../shared/widgets/state_views.dart';
-import '../../shared/widgets/workspace_panel.dart';
 import 'sector_form_dialog.dart';
 import 'sector_sections.dart';
 import 'sectors_providers.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 class SectorsListScreen extends ConsumerStatefulWidget {
   const SectorsListScreen({super.key});
@@ -31,6 +33,7 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
   final _search = TextEditingController();
   String _scope = '';
   SectorSort _sort = SectorSort.name;
+  bool _filtersOpen = false;
   final _collapsed = <String>{};
   final _filteredCollapsed = <String>{};
   bool get _filtering => _search.text.trim().isNotEmpty || _scope.isNotEmpty;
@@ -48,7 +51,6 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
     return GenPageScaffold(
       title: 'Sectores',
       subtitle: 'Tareas y proyectos organizados por área de trabajo.',
-      icon: AppIcons.sectors,
       actions: [
         if (canCreateSector(ref.watch(currentUserProvider)))
           IconButton.filled(
@@ -88,120 +90,110 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
             padding: AppSpace.page,
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
-              WorkspacePanel(
-                padding: const EdgeInsets.all(AppSpacing.xs),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      key: const ValueKey('sectors_search'),
-                      controller: _search,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(AppIcons.search),
-                        hintText: 'Buscar sectores…',
-                      ),
-                      onChanged: (_) => setState(_filteredCollapsed.clear),
+              // Sin card contenedora: la lista empieza antes (P11-M3).
+              ListToolbar<SectorSort>(
+                framed: false,
+                keyPrefix: 'sectors',
+                searchHint: 'Buscar sectores…',
+                searchController: _search,
+                onSearch: (_) => setState(_filteredCollapsed.clear),
+                filtersExpanded: _filtersOpen,
+                onToggleFilters: () =>
+                    setState(() => _filtersOpen = !_filtersOpen),
+                filtersPanel: ToolbarFilterField(
+                  label: 'Grupo o ámbito',
+                  child: DropdownButtonFormField<String>(
+                    icon: const AppDropdownIcon(),
+                    key: ValueKey('sectors_scope_$_scope'),
+                    isExpanded: true,
+                    initialValue: _scope,
+                    style: AppTextStyles.body.copyWith(color: c.text),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: c.surface,
                     ),
-                    const SizedBox(height: AppSpace.sm),
-                    DropdownButtonFormField<String>(
-                      key: ValueKey('sectors_scope_$_scope'),
-                      isExpanded: true,
-                      initialValue: _scope,
-                      decoration: const InputDecoration(
-                        labelText: 'Grupo o ámbito',
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Todos los sectores'),
                       ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: '',
-                          child: Text('Todos los sectores'),
+                      if (_scope.isNotEmpty &&
+                          !scopes.any((s) => s.key == _scope))
+                        DropdownMenuItem(
+                          value: _scope,
+                          child: const Text('Ámbito no disponible'),
                         ),
-                        if (_scope.isNotEmpty &&
-                            !scopes.any((s) => s.key == _scope))
-                          DropdownMenuItem(
-                            value: _scope,
-                            child: const Text('Ámbito no disponible'),
+                      for (final scope in scopes)
+                        DropdownMenuItem(
+                          value: scope.key,
+                          child: Text(
+                            scope.title,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        for (final scope in scopes)
-                          DropdownMenuItem(
-                            value: scope.key,
-                            child: Text(
-                              scope.title,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() {
-                        _scope = value!;
+                        ),
+                    ],
+                    onChanged: (value) => setState(() {
+                      _scope = value!;
+                      _filteredCollapsed.clear();
+                    }),
+                  ),
+                ),
+                activeFilters: [
+                  if (_scope.isNotEmpty)
+                    (
+                      label:
+                          'Ámbito: ${scopes.where((s) => s.key == _scope).firstOrNull?.title ?? 'Seleccionado'}',
+                      remove: () => setState(() {
+                        _scope = '';
                         _filteredCollapsed.clear();
                       }),
                     ),
-                    const SizedBox(height: AppSpace.sm),
-                    DropdownButtonFormField<SectorSort>(
-                      key: const ValueKey('sectors_sort'),
-                      isExpanded: true,
-                      initialValue: _sort,
-                      decoration: const InputDecoration(labelText: 'Ordenar'),
-                      items: [
-                        for (final sort in SectorSort.values)
-                          DropdownMenuItem(
-                            value: sort,
-                            child: Text(sort.label),
-                          ),
-                      ],
-                      onChanged: (value) => setState(() => _sort = value!),
-                    ),
-                    const Divider(height: AppSpace.lg),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                      ),
-                      child: Text(
-                        '$resultCount ${resultCount == 1 ? 'sector' : 'sectores'}',
-                        key: const ValueKey('sectors_count'),
-                        style: AppTextStyles.supporting.copyWith(
-                          color: c.muted,
+                ],
+                clearKey: const ValueKey('sectors_clear'),
+                onClear: _filtering
+                    ? () => setState(() {
+                        _search.clear();
+                        _scope = '';
+                        _filteredCollapsed.clear();
+                      })
+                    : null,
+                sort: _sort,
+                sortOptions: {for (final s in SectorSort.values) s: s.label},
+                onSort: (value) => setState(() => _sort = value),
+                countKey: const ValueKey('sectors_count'),
+                count:
+                    '$resultCount ${resultCount == 1 ? 'sector' : 'sectores'}',
+                summaryTrailing: sections.isEmpty
+                    ? null
+                    : TextButton(
+                        key: const ValueKey('sectors_toggle_all'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: c.muted,
+                          textStyle: AppTextStyles.supporting,
+                        ),
+                        onPressed: () => setState(() {
+                          if (allClosed) {
+                            _closed.clear();
+                          } else {
+                            _closed.addAll(sections.map((s) => s.key));
+                          }
+                        }),
+                        child: Text(
+                          allClosed ? 'Expandir todo' : 'Contraer todo',
                         ),
                       ),
-                    ),
-                    Wrap(
-                      spacing: AppSpace.sm,
-                      children: [
-                        if (_filtering)
-                          TextButton(
-                            key: const ValueKey('sectors_clear'),
-                            onPressed: () => setState(() {
-                              _search.clear();
-                              _scope = '';
-                              _filteredCollapsed.clear();
-                            }),
-                            child: const Text('Limpiar filtros'),
-                          ),
-                        if (sections.isNotEmpty)
-                          TextButton(
-                            key: const ValueKey('sectors_toggle_all'),
-                            onPressed: () => setState(() {
-                              if (allClosed) {
-                                _closed.clear();
-                              } else {
-                                _closed.addAll(sections.map((s) => s.key));
-                              }
-                            }),
-                            child: Text(
-                              allClosed ? 'Expandir todo' : 'Contraer todo',
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
               const SizedBox(height: AppSpace.md),
               if (sections.isEmpty)
-                EmptyView(
-                  message: list.isEmpty
-                      ? 'No hay sectores visibles'
-                      : 'No hay sectores que coincidan con el filtro.',
-                ),
+                list.isEmpty
+                    ? const EmptyView(
+                        title: 'Sin sectores todavía',
+                        message:
+                            'Creá tu primer sector para agrupar tareas y proyectos por área de trabajo.',
+                      )
+                    : const EmptyView(
+                        message: 'No hay sectores que coincidan con el filtro.',
+                      ),
               for (final section in sections) ...[
                 _SectionHeader(
                   section: section,
@@ -232,8 +224,8 @@ class _SectorsListScreenState extends ConsumerState<SectorsListScreen> {
   }
 }
 
-/// Encabezado de ámbito, como el de la web: acento de 3 px `brand` a la
-/// izquierda, chevron, ícono, «PERSONAL (n)» en `sectionLabel`.
+/// Encabezado de ámbito como rótulo, sin card (P11-M4): chevron de 20 dp, el
+/// nombre en 11/700 y, a la derecha, «1 sector · 2 pendientes» en 12 gris.
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.section,
@@ -248,58 +240,53 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final icon = switch (section.scope.kind) {
-      ScopeKind.personal => AppIcons.person,
-      ScopeKind.group => AppIcons.groups,
-      ScopeKind.global => AppIcons.gridView,
-    };
-    return Material(
-      color: c.surface,
-      clipBehavior: Clip.antiAlias,
-      shape: LeadingTickBorder(
-        tickColor: c.brand,
-        side: BorderSide(color: c.border),
-      ),
-      child: ListTile(
+    final count = section.sectors.length;
+    final summary = [
+      '$count ${count == 1 ? 'sector' : 'sectores'}',
+      if (section.pending > 0)
+        '${section.pending} ${section.pending == 1 ? 'pendiente' : 'pendientes'}',
+    ].join(' · ');
+    return Semantics(
+      expanded: !closed,
+      button: true,
+      child: InkWell(
         key: ValueKey('sectors_section_${section.key}'),
-        dense: true,
-        minTileHeight: AppSpacing.xxl,
-        minVerticalPadding: 0,
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-        horizontalTitleGap: AppSpacing.xs,
-        minLeadingWidth: AppSpacing.md,
-        shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
-        leading: Icon(
-          closed ? AppIcons.chevronRight : AppIcons.expandMore,
-          size: AppIconSizes.field,
-          color: c.muted,
-        ),
-        title: Row(
-          children: [
-            Icon(icon, size: AppIconSizes.compact, color: c.muted),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                section.title.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.sectionLabel.copyWith(color: c.text),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              '(${section.sectors.length})',
-              style: AppTextStyles.supporting.copyWith(color: c.muted),
-            ),
-          ],
-        ),
-        subtitle: section.pending > 0
-            ? Text(
-                '${section.pending} ${section.pending == 1 ? 'pendiente' : 'pendientes'}',
-                style: AppTextStyles.supporting.copyWith(color: c.muted),
-              )
-            : null,
         onTap: onTap,
+        borderRadius: AppGeometry.control,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            minHeight: kMinInteractiveDimension,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                closed ? AppIcons.chevronRight : AppIcons.expandMore,
+                size: AppIconSizes.action,
+                color: c.muted,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: Text(
+                  section.title.toUpperCase(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.text),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              // Con texto grande se trunca antes que el nombre.
+              Flexible(
+                child: Text(
+                  summary,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: AppTextStyles.supporting.copyWith(color: c.muted),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -315,7 +302,6 @@ class _SectorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     final color = sector.color == null ? null : colorFromHex(sector.color);
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -332,20 +318,11 @@ class _SectorCard extends StatelessWidget {
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: NamePill(name: sector.name, color: color),
+                      child: EntityCardTitle(name: sector.name, color: color),
                     ),
                   ),
-                  Icon(
-                    AppIcons.chevronRight,
-                    size: AppIconSizes.action,
-                    color: c.muted,
-                  ),
+                  CountBadge(count: sector.pending),
                 ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '${sector.pending} ${sector.pending == 1 ? 'pendiente' : 'pendientes'} · ${sector.total} ${sector.total == 1 ? 'tarea' : 'tareas'}',
-                style: AppTextStyles.body.copyWith(color: c.muted),
               ),
               const SizedBox(height: AppSpacing.sm),
               CardProgress(done: sector.done, total: sector.total),

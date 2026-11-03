@@ -125,17 +125,25 @@ void main() {
         ),
       ),
     );
-    expect(find.textContaining('Sin destinatarios'), findsOneWidget);
+    // El chip Urgente explica la ausencia de destinatarios en su tooltip y en
+    // el aviso al activarlo (piloto premium P09).
+    expect(
+      tester
+          .widget<FilterChip>(find.byKey(const ValueKey('task_urgent')))
+          .tooltip,
+      contains('Sin destinatarios'),
+    );
     await tester.tap(find.byKey(const ValueKey('task_urgent')));
     await tester.pumpAndSettle();
     expect(api.requests.where((r) => r.method == 'PATCH').single.data, {
       'isUrgent': true,
       'editContext': 'sector',
     });
+    expect(find.textContaining('Sin destinatarios'), findsOneWidget);
     expect(
       tester
-          .widget<SwitchListTile>(find.byKey(const ValueKey('task_urgent')))
-          .value,
+          .widget<FilterChip>(find.byKey(const ValueKey('task_urgent')))
+          .selected,
       isTrue,
     );
   });
@@ -161,8 +169,8 @@ void main() {
     );
     expect(
       tester
-          .widget<SwitchListTile>(find.byKey(const ValueKey('task_urgent')))
-          .onChanged,
+          .widget<FilterChip>(find.byKey(const ValueKey('task_urgent')))
+          .onSelected,
       isNull,
     );
   });

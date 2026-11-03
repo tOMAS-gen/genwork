@@ -24,6 +24,12 @@ import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
 import 'groups_providers.dart';
 import 'member_dialog.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/entity_header.dart';
+import '../../shared/widgets/settings_rows.dart';
+import '../../shared/widgets/row_actions_menu.dart';
+import '../../shared/widgets/initials_avatar.dart';
+import '../../shared/widgets/app_button_styles.dart';
 
 class GroupDetailScreen extends ConsumerWidget {
   const GroupDetailScreen({super.key, required this.groupId});
@@ -37,11 +43,34 @@ class GroupDetailScreen extends ConsumerWidget {
     final repository = ref.read(groupsRepositoryProvider);
     final c = context.colors;
 
-    Widget panelTitle(String text) => Semantics(
-      header: true,
-      child: Text(
-        text,
-        style: AppTextStyles.dialogTitle.copyWith(color: c.text),
+    // Rótulo de sección 11/700 con la cantidad y, a la derecha, la acción
+    // (P14-M4).
+    Widget sectionLabel(String text, int count, {Widget? action}) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text.rich(
+                TextSpan(
+                  text: text.toUpperCase(),
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+                  children: [
+                    TextSpan(
+                      text: '  $count',
+                      style: AppTextStyles.technical.copyWith(
+                        fontSize: 11,
+                        color: c.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          ?action,
+        ],
       ),
     );
     Widget muted(String text) =>
@@ -107,7 +136,9 @@ class GroupDetailScreen extends ConsumerWidget {
         data: (group) {
           if (group == null) {
             return const EmptyView(
-              message: 'El grupo ya no está disponible o no tenés acceso.',
+              icon: AppIcons.groups,
+              title: 'Grupo no disponible',
+              message: 'No existe o no tenés acceso a este grupo.',
             );
           }
           return RefreshIndicator(
@@ -124,50 +155,39 @@ class GroupDetailScreen extends ConsumerWidget {
                   rootKey: const ValueKey('group_breadcrumb_root'),
                   rootLabel: 'Grupos',
                   onRoot: () => context.go(Routes.groups),
-                  current: group.name,
                 ),
                 const SizedBox(height: AppSpace.sm),
-                Row(
-                  children: [
-                    ColorDot(hex: group.color, size: AppSpace.dotLarge),
-                    const SizedBox(width: AppSpacing.xs),
-                    Expanded(
-                      child: Semantics(
-                        header: true,
-                        child: Text(
-                          group.name,
-                          style: AppTextStyles.screenTitle.copyWith(
-                            color: c.text,
-                          ),
-                        ),
-                      ),
+                // El mismo encabezado de entidad que sector y proyecto: en una
+                // card (P14-M1).
+                WorkspacePanel(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: EntityHeader(
+                    title: group.name,
+                    colorHex: group.color,
+                    trailing: menu,
+                    meta: Text(
+                      '${countLabel(group.members.length, 'miembro', 'miembros')} · ${countLabel(group.workCount, 'proyecto', 'proyectos')} · ${countLabel(group.pendingCount, 'pendiente', 'pendientes')}',
                     ),
-                    ?menu,
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                muted(
-                  '${countLabel(group.members.length, 'miembro', 'miembros')} · ${countLabel(group.workCount, 'proyecto', 'proyectos')} · ${countLabel(group.pendingCount, 'pendiente', 'pendientes')}',
+                  ),
                 ),
                 const SizedBox(height: AppSpace.md),
-                WorkspacePanel(
-                  child: Material(
-                    type: MaterialType.transparency,
-                    child: ListTile(
+                WorkspaceListPanel(
+                  children: [
+                    SettingsRow(
                       key: const ValueKey('group_public_read'),
-                      leading: Icon(
-                        group.publicRead ? AppIcons.view : AppIcons.lock,
-                        color: c.muted,
-                      ),
-                      title: Text(
-                        group.publicRead
-                            ? 'Lectura para no miembros activada'
-                            : 'Lectura solo para miembros',
-                      ),
-                      subtitle: const Text(
-                        'Permite consultar el grupo a otros usuarios del sistema y en el televisor.',
-                      ),
-                      trailing: canManage ? const Icon(AppIcons.edit) : null,
+                      icon: group.publicRead ? AppIcons.view : AppIcons.lock,
+                      title: group.publicRead
+                          ? 'Lectura para no miembros activada'
+                          : 'Lectura solo para miembros',
+                      subtitle:
+                          'Permite consultar el grupo a otros usuarios del sistema y en el televisor.',
+                      trailing: canManage
+                          ? Icon(
+                              AppIcons.edit,
+                              size: AppIconSizes.action,
+                              color: c.muted,
+                            )
+                          : null,
                       onTap: !canManage
                           ? null
                           : () async {
@@ -192,186 +212,179 @@ class GroupDetailScreen extends ConsumerWidget {
                               }
                             },
                     ),
-                  ),
-                ),
-                const SizedBox(height: AppSpace.md),
-                WorkspacePanel(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      panelTitle('Miembros'),
-                      if (canManage)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            key: const ValueKey('group_add_member'),
-                            icon: const Icon(
-                              AppIcons.personAdd,
-                              size: AppIconSizes.field,
-                            ),
-                            label: const Text('Agregar miembro'),
-                            onPressed: () => showMemberDialog(context, group),
-                          ),
-                        ),
-                      Material(
-                        type: MaterialType.transparency,
-                        child: Column(
-                          children: [
-                            for (final member in group.members) ...[
-                              Divider(height: 1, color: c.border),
-                              ListTile(
-                                key: ValueKey('group_member_${member.id}'),
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  member.name.isEmpty
-                                      ? member.email
-                                      : member.name,
-                                ),
-                                subtitle: Text(
-                                  '${member.email}\n${member.id == group.ownerId ? 'Administrador principal' : member.roleLabel}',
-                                ),
-                                trailing:
-                                    !canManage || member.id == group.ownerId
-                                    ? null
-                                    : PopupMenuButton<String>(
-                                        key: ValueKey(
-                                          'member_actions_${member.id}',
-                                        ),
-                                        tooltip: 'Acciones de ${member.name}',
-                                        itemBuilder: (_) => [
-                                          const PopupMenuItem(
-                                            value: 'role',
-                                            child: Text('Cambiar rol'),
-                                          ),
-                                          const PopupMenuDivider(),
-                                          PopupMenuItem(
-                                            value: 'remove',
-                                            child: Text(
-                                              'Quitar miembro',
-                                              style: AppTextStyles.body
-                                                  .copyWith(color: c.danger),
-                                            ),
-                                          ),
-                                        ],
-                                        onSelected: (action) async {
-                                          if (action == 'role') {
-                                            await showMemberDialog(
-                                              context,
-                                              group,
-                                              member: member,
-                                            );
-                                          } else {
-                                            final removed = await confirmAction(
-                                              context,
-                                              title: 'Quitar miembro',
-                                              message:
-                                                  '«${member.name}» dejará de pertenecer a este grupo.',
-                                              confirmLabel: 'Quitar miembro',
-                                              danger: true,
-                                              onConfirm: () =>
-                                                  repository.removeMember(
-                                                    groupId,
-                                                    member.id,
-                                                  ),
-                                            );
-                                            if (removed && context.mounted) {
-                                              refreshGroups(ref);
-                                            }
-                                          }
-                                        },
-                                      ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (canManage) ...[
-                  const SizedBox(height: AppSpace.md),
-                  WorkspaceListPanel(
-                    children: [
-                      ListTile(
+                    if (canManage) ...[
+                      // Filas de 56–64 dp con una línea de descripción
+                      // (P14-M2).
+                      SettingsRow(
                         key: const ValueKey('group_clients'),
-                        title: const Text('Clientes del grupo'),
-                        subtitle: const Text(
-                          'Elegí los proyectos que puede consultar cada cliente',
-                        ),
-                        trailing: const Icon(AppIcons.chevronRight),
+                        icon: AppIcons.view,
+                        title: 'Clientes del grupo',
+                        subtitle:
+                            'Elegí los proyectos que puede consultar cada cliente',
                         onTap: () =>
                             context.push('${Routes.group(groupId)}/clients'),
                       ),
-                      ListTile(
+                      SettingsRow(
                         key: const ValueKey('group_labels'),
-                        title: const Text('Etiquetas del grupo'),
-                        subtitle: const Text('Nombres, valores y colores'),
-                        trailing: const Icon(AppIcons.chevronRight),
+                        icon: AppIcons.label,
+                        title: 'Etiquetas del grupo',
+                        subtitle: 'Nombres, valores y colores',
                         onTap: () =>
                             context.push('${Routes.group(groupId)}/labels'),
                       ),
                     ],
-                  ),
-                ],
-                const SizedBox(height: AppSpace.md),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.lg),
+                sectionLabel(
+                  'Miembros',
+                  group.members.length,
+                  action: canManage
+                      ? FilledButton.tonalIcon(
+                          key: const ValueKey('group_add_member'),
+                          style: AppButtonStyles.tonal(context).copyWith(
+                            minimumSize: const WidgetStatePropertyAll(
+                              Size(0, AppSpacing.xl),
+                            ),
+                          ),
+                          icon: const Icon(
+                            AppIcons.personAdd,
+                            size: AppIconSizes.field,
+                          ),
+                          label: const Text('Agregar'),
+                          onPressed: () => showMemberDialog(context, group),
+                        )
+                      : null,
+                ),
+                WorkspaceListPanel(
+                  children: [
+                    for (final member in group.members)
+                      SettingsRow(
+                        key: ValueKey('group_member_${member.id}'),
+                        leading: InitialsAvatar(
+                          name: member.name.isEmpty
+                              ? member.email
+                              : member.name,
+                        ),
+                        title: member.name.isEmpty ? member.email : member.name,
+                        subtitle: member.email,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Rol como chip neutro; el admin principal con
+                            // estrella, sin color propio (P14-M3).
+                            if (member.id == group.ownerId ||
+                                member.role == 'ADMIN')
+                              // Acotado: con texto grande, el nombre conserva
+                              // el ancho y el chip se trunca.
+                              ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth:
+                                      MediaQuery.sizeOf(context).width * .28,
+                                ),
+                                child: StatusChip(
+                                  label: member.id == group.ownerId
+                                      ? '★ admin principal'
+                                      : 'admin',
+                                  color: c.muted,
+                                  fill: c.hover,
+                                ),
+                              ),
+                            // La columna del "⋯" se reserva en todas las
+                            // filas.
+                            if (!canManage || member.id == group.ownerId)
+                              const SizedBox(width: kMinInteractiveDimension)
+                            else
+                              RowActionsMenu(
+                                key: ValueKey('member_actions_${member.id}'),
+                                tooltip: 'Acciones de ${member.name}',
+                                actions: [
+                                  RowAction(
+                                    key: 'member_role_${member.id}',
+                                    label: 'Cambiar rol',
+                                    onSelected: () => showMemberDialog(
+                                      context,
+                                      group,
+                                      member: member,
+                                    ),
+                                  ),
+                                  RowAction(
+                                    key: 'member_remove_${member.id}',
+                                    label: 'Quitar miembro',
+                                    destructive: true,
+                                    onSelected: () async {
+                                      final removed = await confirmAction(
+                                        context,
+                                        title: 'Quitar miembro',
+                                        message:
+                                            '«${member.name}» dejará de pertenecer a este grupo.',
+                                        confirmLabel: 'Quitar miembro',
+                                        danger: true,
+                                        onConfirm: () => repository
+                                            .removeMember(groupId, member.id),
+                                      );
+                                      if (removed && context.mounted) {
+                                        refreshGroups(ref);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.lg),
                 AsyncValueView(
                   value: ref.watch(groupWorksProvider(groupId)),
                   onRetry: () => ref.invalidate(groupWorksProvider(groupId)),
                   data: (works) {
                     final active = works.where((w) => !w.isTemplate).toList();
-                    return WorkspacePanel(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          panelTitle('Proyectos activos (${active.length})'),
-                          if (active.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.sm,
-                              ),
-                              child: muted('No hay proyectos activos'),
-                            ),
-                          Material(
-                            type: MaterialType.transparency,
-                            child: Column(
-                              children: [
-                                for (final work in active) ...[
-                                  Divider(height: 1, color: c.border),
-                                  ListTile(
-                                    key: ValueKey('group_work_${work.id}'),
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: ColorDot(hex: work.color),
-                                    title: Text(work.name),
-                                    subtitle: Padding(
-                                      padding: const EdgeInsets.only(
-                                        top: AppSpacing.xxs,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          if (work.stageName != null)
-                                            Text(work.stageName!),
-                                          ProgressLine(progress: work.progress),
-                                        ],
-                                      ),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        sectionLabel('Proyectos activos', active.length),
+                        if (active.isEmpty)
+                          muted('No hay proyectos activos')
+                        else
+                          WorkspaceListPanel(
+                            children: [
+                              for (final work in active)
+                                ListTile(
+                                  key: ValueKey('group_work_${work.id}'),
+                                  leading: ColorDot(hex: work.color),
+                                  minLeadingWidth: AppSpacing.lg,
+                                  title: Text(work.name),
+                                  subtitle: Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: AppSpacing.xxs,
                                     ),
-                                    trailing: const Icon(AppIcons.chevronRight),
-                                    onTap: () =>
-                                        context.push(Routes.work(work.id)),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (work.stageName != null)
+                                          Text(work.stageName!),
+                                        ProgressLine(progress: work.progress),
+                                      ],
+                                    ),
                                   ),
-                                ],
-                              ],
-                            ),
+                                  trailing: Icon(
+                                    AppIcons.chevronRight,
+                                    size: AppIconSizes.action,
+                                    color: c.muted,
+                                  ),
+                                  onTap: () =>
+                                      context.push(Routes.work(work.id)),
+                                ),
+                            ],
                           ),
-                        ],
-                      ),
+                      ],
                     );
                   },
                 ),
-                const SizedBox(height: AppSpace.md),
+                const SizedBox(height: AppSpace.lg),
                 AsyncValueView(
                   value: ref.watch(sectorsProvider),
                   onRetry: () => ref.invalidate(sectorsProvider),
@@ -379,49 +392,37 @@ class GroupDetailScreen extends ConsumerWidget {
                     final owned = sectors
                         .where((s) => s.scope.groupId == groupId)
                         .toList();
-                    return WorkspacePanel(
-                      padding: const EdgeInsets.all(AppSpacing.sm),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          panelTitle('Sectores del grupo (${owned.length})'),
-                          if (owned.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: AppSpacing.sm,
-                              ),
-                              child: muted(
-                                'No hay sectores visibles del grupo',
-                              ),
-                            ),
-                          Material(
-                            type: MaterialType.transparency,
-                            child: Column(
-                              children: [
-                                for (final sector in owned) ...[
-                                  Divider(height: 1, color: c.border),
-                                  ListTile(
-                                    key: ValueKey('group_sector_${sector.id}'),
-                                    contentPadding: EdgeInsets.zero,
-                                    leading: ColorDot(hex: sector.color),
-                                    title: Text(sector.name),
-                                    subtitle: Text(
-                                      countLabel(
-                                        sector.pending,
-                                        'pendiente',
-                                        'pendientes',
-                                      ),
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        sectionLabel('Sectores del grupo', owned.length),
+                        if (owned.isEmpty)
+                          muted('No hay sectores visibles del grupo')
+                        else
+                          WorkspaceListPanel(
+                            children: [
+                              for (final sector in owned)
+                                SettingsRow(
+                                  key: ValueKey('group_sector_${sector.id}'),
+                                  leading: Center(
+                                    widthFactor: 1,
+                                    child: ColorDot(
+                                      hex: sector.color,
+                                      size: AppSpacing.xs,
                                     ),
-                                    trailing: const Icon(AppIcons.chevronRight),
-                                    onTap: () =>
-                                        context.push(Routes.sector(sector.id)),
                                   ),
-                                ],
-                              ],
-                            ),
+                                  title: sector.name,
+                                  subtitle: countLabel(
+                                    sector.pending,
+                                    'pendiente',
+                                    'pendientes',
+                                  ),
+                                  onTap: () =>
+                                      context.push(Routes.sector(sector.id)),
+                                ),
+                            ],
                           ),
-                        ],
-                      ),
+                      ],
                     );
                   },
                 ),

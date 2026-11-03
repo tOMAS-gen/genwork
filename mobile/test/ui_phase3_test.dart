@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/data/models/task.dart';
@@ -51,11 +50,15 @@ import 'package:genwork_mobile/features/reminders/reminders_screen.dart';
 import 'package:genwork_mobile/features/reminders/reminder_form_screen.dart';
 import 'package:genwork_mobile/features/reminders/reminders_providers.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
-import 'package:genwork_mobile/shared/widgets/app_work_section.dart';
 import 'package:genwork_mobile/shared/widgets/task_tile.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
 import 'package:genwork_mobile/shared/widgets/brand_name.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:genwork_mobile/core/servers/connect_payload.dart';
+import 'package:genwork_mobile/features/settings/mobile_app_screen.dart';
+import 'package:genwork_mobile/features/works/work_card.dart';
+import 'task_status_menu.dart';
 
 final _task = Task.fromJson({
   'id': 't1',
@@ -140,8 +143,11 @@ Future<void> _pump(
   bool readOnly = false,
   TaskActions? actions,
   NotesRepository? notesRepository,
+  List<WorkSummary>? works,
+  SectorBoard? board,
+  Size size = const Size(360, 800),
 }) async {
-  tester.view.physicalSize = const Size(360, 800);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -221,7 +227,9 @@ Future<void> _pump(
         ),
         myDayProvider.overrideWith((ref) async => [_task]),
         openReferencesProvider.overrideWith((ref) async => []),
-        worksListProvider.overrideWith((ref, archived) async => _works),
+        worksListProvider.overrideWith(
+          (ref, archived) async => works ?? _works,
+        ),
         workDetailProvider.overrideWith(
           (ref, id) async => readOnly
               ? WorkDetail.fromJson({'id': 'w1', 'name': 'Lectura'})
@@ -229,7 +237,7 @@ Future<void> _pump(
         ),
         groupsProvider.overrideWith((ref) async => []),
         sectorsProvider.overrideWith((ref) async => [_sector]),
-        sectorBoardProvider.overrideWith((ref, q) async => _board),
+        sectorBoardProvider.overrideWith((ref, q) async => board ?? _board),
         notesProvider.overrideWith((ref) async => [_note]),
         noteProvider.overrideWith((ref, id) async => _note),
         deliveriesProvider.overrideWith((ref) async => []),
@@ -330,6 +338,133 @@ void main() {
       },
     );
   }
+  // T7: horizontal y tablet, también sin desborde.
+  for (final size in const [Size(800, 360), Size(1024, 768)]) {
+    testWidgets('pantallas a ${size.width.round()} × ${size.height.round()} '
+        'sin overflow', (tester) async {
+      for (final screen in <Widget>[
+        const MyDayScreen(),
+        const AccountScreen(),
+        const WorksListScreen(),
+        const WorkDetailScreen(workId: 'w1'),
+        const SectorsListScreen(),
+        const SectorDetailScreen(sectorId: 's1'),
+        const NotesListScreen(),
+        const NoteDetailScreen(noteId: 'n1'),
+        const RemindersScreen(),
+        const ReminderFormScreen(),
+      ]) {
+        await _pump(tester, screen, size: size, scale: 1.3);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: '${screen.runtimeType} a $size',
+        );
+      }
+    });
+  }
+  testWidgets('T7: a 1024 dp el menú queda fijo y el contenido mide 720', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      shell: true,
+      scale: 1,
+      size: const Size(1024, 768),
+    );
+    expect(tester.takeException(), isNull);
+    // Menú permanente, sin botón para abrirlo.
+    expect(find.byKey(const ValueKey('main_navigation')), findsOneWidget);
+    expect(find.byKey(const ValueKey('drawer_open')), findsNothing);
+    expect(find.byKey(const ValueKey('drawer_close')), findsNothing);
+    // Contenido centrado y acotado.
+    final list = tester.getRect(find.byKey(const ValueKey('works_list')));
+    expect(list.width, lessThanOrEqualTo(720));
+    // Cards de proyecto en dos columnas.
+    final a = tester.getRect(find.byKey(const ValueKey('work_w1')));
+    final b = tester.getRect(find.byKey(const ValueKey('work_w2')));
+    expect(a.top, b.top);
+  });
+  testWidgets('T7: cambiar de ancho en uso no rompe el shell', (tester) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      shell: true,
+      scale: 1,
+      size: const Size(1024, 768),
+    );
+    // Lo escrito sobrevive al cruzar los umbrales de 600 y 840 dp.
+    await tester.enterText(find.byKey(const ValueKey('works_search')), 'señal');
+    for (final size in const [
+      Size(360, 800),
+      Size(1024, 768),
+      Size(800, 360),
+    ]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: '$size');
+      expect(find.text('señal'), findsOneWidget, reason: '$size');
+    }
+  });
+  testWidgets('T7: girar no pierde el desplazamiento del detalle', (
+    tester,
+  ) async {
+    await _pump(tester, const WorkDetailScreen(workId: 'w1'), scale: 1);
+    final list = find
+        .descendant(
+          of: find.byKey(const ValueKey('work_detail_list')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    tester.state<ScrollableState>(list).position.jumpTo(200);
+    await tester.pumpAndSettle();
+    // A 800 dp se cruza el umbral de 600: el contenido se acota a 720.
+    tester.view.physicalSize = const Size(800, 360);
+    await tester.pumpAndSettle();
+    expect(tester.state<ScrollableState>(list).position.pixels, 200);
+  });
+  testWidgets('menú en horizontal: las secciones entran y Salir se alcanza', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      shell: true,
+      scale: 1,
+      size: const Size(800, 360),
+    );
+    await tester.tap(find.byKey(const ValueKey('drawer_open')));
+    await tester.pumpAndSettle();
+    final list = tester.getRect(find.byKey(const ValueKey('drawer_list')));
+    // La lista ocupa casi todo el alto: el pie se desplaza con ella.
+    expect(list.height, greaterThan(250));
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('nav_logout')),
+      100,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('drawer_list')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    expect(find.byKey(const ValueKey('nav_logout')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('letra al 200 %: el orden de Proyectos se lee entero', (
+    tester,
+  ) async {
+    await _pump(tester, const WorksListScreen(), scale: 2);
+    expect(tester.takeException(), isNull);
+    final box = tester.getRect(find.byKey(const ValueKey('works_sort_box')));
+    // Va en su propio renglón, a todo el ancho.
+    expect(box.width, greaterThan(300));
+    expect(find.text('Más recientes'), findsOneWidget);
+  });
+  testWidgets('T7: a 360 dp el menú sigue siendo modal', (tester) async {
+    await _pump(tester, const WorksListScreen(), shell: true, scale: 1);
+    expect(find.byKey(const ValueKey('main_navigation')), findsNothing);
+    expect(find.byKey(const ValueKey('drawer_open')), findsOneWidget);
+  });
   for (final dark in [false, true]) {
     testWidgets('detalle de tarea en pantalla completa, sin bottom sheet '
         '(${dark ? "oscuro" : "claro"})', (tester) async {
@@ -361,7 +496,7 @@ void main() {
       )!;
       expect(route, isA<MaterialPageRoute<void>>());
       expect((route as MaterialPageRoute<void>).fullscreenDialog, isTrue);
-      // AppBar de 48 con el cierre y la tarea como título.
+      // AppBar de 64 con el cierre, la marca y la miga (boceto P09).
       expect(
         tester
             .getSize(
@@ -371,18 +506,27 @@ void main() {
               ),
             )
             .height,
-        48,
+        64,
       );
+      // La barra dice de dónde es la tarea; el título va en el cuerpo
+      // (piloto premium P09).
       expect(
         find.descendant(
           of: find.byType(AppBar),
-          matching: find.text('Preparar originales para impresión'),
+          matching: find.text('Señalética · Local Mendoza'),
         ),
         findsOneWidget,
       );
-      // Secciones con AppWorkSection y borrar con estilo destructivo.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('task_text_field')))
+            .controller!
+            .text,
+        'Preparar originales para impresión',
+      );
+      // Subtareas como sección; historial y borrar (en `danger`) en el menú ⋯.
       await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('task_delete')),
+        find.text('SUBTAREAS'),
         200,
         scrollable: find
             .descendant(
@@ -391,22 +535,27 @@ void main() {
             )
             .first,
       );
-      // Secciones: la lista es perezosa, el historial aparece al llegar al final.
+      await tester.tap(find.byKey(const ValueKey('task_more')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('task_history')), findsOneWidget);
+      final danger = (dark ? GenColors.dark : GenColors.light).danger;
       expect(
         tester
-            .widgetList<AppWorkSection>(find.byType(AppWorkSection))
-            .map((w) => w.title)
-            .toSet(),
-        containsAll(['Subtareas', 'Historial']),
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const ValueKey('task_delete')),
+                matching: find.text('Borrar tarea'),
+              ),
+            )
+            .style
+            ?.color,
+        danger,
       );
-      final delete = tester.widget<OutlinedButton>(
-        find.byKey(const ValueKey('task_delete')),
-      );
-      final danger = (dark ? GenColors.dark : GenColors.light).danger;
-      expect(delete.style!.foregroundColor!.resolve({}), danger);
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
       // El estado vigente se ve habilitado (no atenuado).
       await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('task_status_open')),
+        find.byKey(const ValueKey('task_status')),
         -200,
         scrollable: find
             .descendant(
@@ -415,12 +564,7 @@ void main() {
             )
             .first,
       );
-      expect(
-        tester
-            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_open')))
-            .onSelected,
-        isNotNull,
-      );
+      expect(await statusOptionEnabled(tester, 'open'), isTrue);
       // Cerrar vuelve a la pantalla de origen.
       await tester.tap(find.byKey(const ValueKey('task_close')));
       await tester.pumpAndSettle();
@@ -430,14 +574,27 @@ void main() {
   }
   testWidgets('búsqueda y grupo combinan filtros de proyectos', (tester) async {
     await _pump(tester, const WorksListScreen());
+    // El grupo se elige en el panel de Filtros, como en la web.
     await _scrollWorks(
       tester,
-      find.byKey(const ValueKey('works_group_filter')),
+      find.byKey(const ValueKey('works_filters_toggle')),
     );
-    await tester.tap(find.byKey(const ValueKey('works_group_filter')));
+    await tester.tap(find.byKey(const ValueKey('works_filters_toggle')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Diseño').last);
+    final group = find.descendant(
+      of: find.byKey(const ValueKey('works_toolbar')),
+      matching: find.text('Diseño'),
+    );
+    await _scrollWorks(tester, group);
+    await tester.tap(group);
     await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('works_toolbar')),
+        matching: find.text('Grupo: Diseño'),
+      ),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('work_w1')), findsNothing);
     expect(find.byKey(const ValueKey('work_w2')), findsOneWidget);
     await tester.enterText(
@@ -446,7 +603,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(
-      find.text('No hay resultados. Probá otra búsqueda o grupo.'),
+      find.text('Sin proyectos que coincidan con el filtro.'),
       findsOneWidget,
     );
   });
@@ -559,9 +716,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('drawer_open')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+      // "Proyectos" es un rótulo de sección (como la web): el ítem
+      // seleccionado es "Todos los proyectos".
       expect(
         tester
-            .widget<ListTile>(find.byKey(const ValueKey('nav_works')))
+            .widget<ListTile>(find.byKey(const ValueKey('nav_works_all')))
             .selected,
         true,
       );
@@ -612,11 +771,12 @@ void main() {
           ),
           findsOneWidget,
         );
+        // Rótulos de sección en 11/700 mayúsculas (P07-M3).
         for (final label in [
-          'Avance',
-          'Fecha límite',
-          'Etiquetas',
-          'Código / carpeta',
+          'AVANCE',
+          'FECHA LÍMITE',
+          'ETIQUETAS',
+          'CÓDIGO / CARPETA',
         ]) {
           expect(find.text(label), findsOneWidget, reason: label);
         }
@@ -720,20 +880,28 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(const ValueKey('sectors_search')), findsOneWidget);
-      expect(find.text('1 sector'), findsOneWidget);
+      // El contador es el rótulo de la lista (P05-M4).
+      expect(find.text('1 SECTOR'), findsOneWidget);
       // Encabezado de ámbito en `sectionLabel` mayúsculas con su conteo.
       expect(find.text('PERSONAL'), findsOneWidget);
-      expect(find.text('(1)'), findsOneWidget);
-      final head = tester.widget<Material>(
-        find
-            .ancestor(
-              of: find.byKey(const ValueKey('sectors_section_scope:personal')),
-              matching: find.byType(Material),
-            )
-            .first,
+      // P11-M4: rótulo sin card, con la cantidad y los pendientes a la
+      // derecha.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('sectors_section_scope:personal')),
+          matching: find.textContaining('1 sector · 8 pendientes'),
+        ),
+        findsOneWidget,
       );
-      expect(head.color, c.surface);
-      expect(head.shape, isA<LeadingTickBorder>());
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('sectors_section_scope:personal')),
+          matching: find.byWidgetPredicate(
+            (w) => w is Material && w.color == c.field,
+          ),
+        ),
+        findsNothing,
+      );
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('sector_s1')).hitTestable(),
         200,
@@ -744,9 +912,11 @@ void main() {
             )
             .first,
       );
-      expect(find.text('IMPRESIÓN Y TERMINACIONES'), findsOneWidget);
-      expect(find.text('8 pendientes · 12 tareas'), findsOneWidget);
-      expect(find.text('33%'), findsOneWidget);
+      expect(find.text('Impresión y terminaciones'), findsOneWidget);
+      // Como la web: los pendientes van en el contador de la card.
+      expect(find.text('8 pendientes · 12 tareas'), findsNothing);
+      expect(find.text('8'), findsWidgets);
+      expect(find.textContaining('· 33%'), findsOneWidget);
     });
   }
   testWidgets('DS-18 detalle de sector como la web: migas, resumen y tareas', (
@@ -758,8 +928,10 @@ void main() {
     expect(find.byType(Breadcrumb), findsOneWidget);
     expect(find.text('Sectores'), findsOneWidget);
     expect(find.byType(SectorSummaryPanel), findsOneWidget);
-    expect(find.text('Avance del sector'), findsOneWidget);
-    expect(find.text('Color del sector'), findsOneWidget);
+    // P12-M3: rótulo 11/700; el color va como punto junto al título, sin
+    // la banda «Color del sector».
+    expect(find.text('AVANCE'), findsOneWidget);
+    expect(find.text('Color del sector'), findsNothing);
     expect(find.text('0 proyectos vinculados'), findsOneWidget);
     expect(find.text('Espacio personal'), findsOneWidget); // ámbito personal
     expect(find.byKey(const ValueKey('sector_filter')), findsOneWidget);
@@ -800,16 +972,116 @@ void main() {
         );
         expect(preview.maxLines, 2);
         expect(preview.style!.color, c.muted);
-        // La fecha va en Mono.
-        final mono = tester
-            .widgetList<Text>(
-              find.descendant(of: card, matching: find.byType(Text)),
+        // P15-M1: la fecha va en el renglón del título, en 12 gris; Mono
+        // solo si lleva cifras.
+        final row = find
+            .ancestor(
+              of: find.text('Reunión de producción'),
+              matching: find.byType(Row),
             )
-            .where((t) => t.style?.fontFamily == 'RobotoMono');
-        expect(mono, hasLength(1));
+            .first;
+        final texts = tester
+            .widgetList<Text>(
+              find.descendant(of: row, matching: find.byType(Text)),
+            )
+            .toList();
+        expect(texts, hasLength(2));
+        final date = texts.last;
+        expect(date.style!.fontSize, 12);
+        expect(date.style!.color, c.muted);
+        expect(
+          date.style!.fontFamily == 'RobotoMono',
+          date.data!.contains(RegExp(r'\d')),
+        );
+        // P15-M2: sin ícono en la card.
+        expect(
+          find.descendant(of: card, matching: find.byType(Icon)),
+          findsNothing,
+        );
       },
     );
   }
+  testWidgets('P22 Vence hoy: una cabecera con el contador y sin bloque', (
+    tester,
+  ) async {
+    await _pump(tester, const RemindersScreen(deliveriesOnly: true));
+    expect(tester.takeException(), isNull);
+    expect(find.text('Vence hoy  0'), findsOneWidget);
+    expect(find.text('Avisos pendientes'), findsNothing);
+    expect(find.text('Estás al día'), findsOneWidget);
+  });
+  testWidgets('P24b App móvil: el QR codifica la dirección del sistema', (
+    tester,
+  ) async {
+    await _pump(tester, const MobileAppScreen(), scale: 1);
+    expect(tester.takeException(), isNull);
+    final qr = tester.widget<ConnectQr>(find.byType(ConnectQr));
+    // El mismo enlace que arma la web, y la app lo vuelve a leer.
+    expect(
+      qr.payload,
+      'genwork://connect?server=https%3A%2F%2Fwork.empresa.com',
+    );
+    expect(
+      parseConnectPayload(qr.payload),
+      Uri.parse('https://work.empresa.com'),
+    );
+    expect(tester.getSize(find.byType(QrImageView)), const Size(200, 200));
+    expect(find.byKey(const ValueKey('mobile_app_qr')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mobile_app_step_3')), findsOneWidget);
+    // Pestaña y título con el mismo nombre, como en toda Configuración.
+    expect(find.text('App móvil'), findsNWidgets(2));
+  });
+  testWidgets('T2 Proyectos: con 300 proyectos solo arma las cards visibles', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const WorksListScreen(),
+      scale: 1,
+      works: [
+        for (var i = 0; i < 300; i++)
+          WorkSummary.fromJson({
+            'id': 'many$i',
+            'name': 'Proyecto $i',
+            'taskCounts': {'done': 0, 'total': 1},
+          }),
+      ],
+    );
+    expect(tester.takeException(), isNull);
+    final built = find.byType(WorkCard, skipOffstage: false).evaluate().length;
+    expect(built, greaterThan(0));
+    expect(built, lessThan(20));
+  });
+  testWidgets('T2 sector: con 300 tareas solo arma las filas visibles', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      const SectorDetailScreen(sectorId: 's1'),
+      scale: 1,
+      board: SectorBoard.fromJson({
+        'sector': {'id': 's1', 'name': 'Impresión'},
+        'level': 'operate',
+        'loose': [
+          for (var i = 0; i < 300; i++)
+            {
+              'id': 'many$i',
+              'displayText': 'Tarea $i',
+              'rawText': 'Tarea $i',
+              'status': {
+                'id': 'open',
+                'name': 'En curso',
+                'type': 'IN_PROGRESS',
+              },
+            },
+        ],
+      }),
+    );
+    expect(tester.takeException(), isNull);
+    final built = find.byType(TaskTile, skipOffstage: false).evaluate().length;
+    expect(built, greaterThan(0));
+    expect(built, lessThan(30));
+  });
   testWidgets('volver a Proyectos conserva el detalle y su retroceso', (
     tester,
   ) async {
@@ -880,7 +1152,7 @@ void main() {
             .enabled,
         false,
       );
-      expect(find.byKey(const ValueKey('task_my_day_switch')), findsNothing);
+      expect(find.byKey(const ValueKey('task_my_day')), findsNothing);
     },
   );
   testWidgets(

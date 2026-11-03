@@ -1,0 +1,48 @@
+/* Tokens de genwork alineados con la app Android (`GenColors`, spec 066,
+   tarea 39). Se cargan después de @gen/ui y su tema, y sólo afectan a
+   genwork: la librería compartida queda igual para las otras plataformas. */
+
+:root {
+  /* Contorno de los campos: 3:1 contra el fondo (WCAG 1.4.11). */
+  --control: #7d8494;
+}
+
+[data-theme="dark"] {
+  /* Escalones oscuros: la card se separa del pozo de los campos. */
+  --surface: #151515;
+  --field: #1c1c1c;
+  --control: #707070;
+  /* Verde, ámbar y favorito menos saturados sobre negro. */
+  --ok: #45b583;
+  --color-success: #5bbf86;
+  --color-warning: #e0a83a;
+  --color-warning-text: #e8c46e;
+  --color-favorite: #e3b341;
+  --tag-date: #e0a83a;
+  --tag-date-bg: rgba(224, 168, 58, 0.15);
+}
+
+/* Campos, buscador y controles de la barra con el contorno a 3:1. */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea,
+.search-input,
+.toolbar-filter-trigger,
+.view-switch {
+  border-color: var(--control);
+}
+
+/* El foco conserva el borde de marca (el selector de arriba pesa más que el
+   de @gen/ui). */
+input:not([type="checkbox"]):not([type="radio"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+}
+
+/* Margen de página de 16 px en el teléfono, como la app (DESIGN.md). */
+@media (max-width: 767px) {
+  .main {
+    padding: 16px;
+  }
+}

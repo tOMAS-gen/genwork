@@ -17,6 +17,8 @@ import 'package:genwork_mobile/data/repositories/catalogs_repository.dart';
 import 'package:genwork_mobile/features/settings/settings_screen.dart';
 import 'package:genwork_mobile/features/settings/catalog_settings_screen.dart';
 import 'package:genwork_mobile/features/settings/storage_settings.dart';
+import 'package:genwork_mobile/shared/widgets/initials_avatar.dart';
+import 'package:genwork_mobile/shared/widgets/gen_section_header.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -412,6 +414,12 @@ void main() {
   ) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.access));
+    // P26a-M1: el modo como chip y «Editar» como botón de texto.
+    expect(find.byKey(const ValueKey('settings_access_mode')), findsOneWidget);
+    expect(
+      t.widget(find.byKey(const ValueKey('settings_edit_access'))),
+      isA<TextButton>(),
+    );
     await tap(t, 'settings_edit_access');
     await select(t, 'settings_field_mode', 'Dominio');
     await tap(t, 'settings_form_save');
@@ -439,7 +447,24 @@ void main() {
     (t) async {
       final f = Fixture();
       await mount(t, f, const SettingsScreen(section: SettingsSection.users));
-      expect(find.byKey(const ValueKey('settings_role_me')), findsNothing);
+      // PS5: las acciones de cada usuario van en su "⋯", sin botones
+      // contorneados a todo el ancho.
+      expect(find.byKey(const ValueKey('settings_user_menu_me')), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+      // P26u-M2/M3: avatar de iniciales y el rol como chip.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('settings_user_u')),
+          matching: find.byType(InitialsAvatar),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('settings_user_role_u')),
+        findsOneWidget,
+      );
+      await tap(t, 'settings_user_menu_u');
+      expect(find.byKey(const ValueKey('settings_role_u')), findsOneWidget);
       await tap(t, 'settings_grants_u');
       await tap(t, 'settings_reader_g2');
       expect(f.writes.single.data, {
@@ -449,6 +474,30 @@ void main() {
       });
     },
   );
+  testWidgets('ADM-02 dar de baja un cliente desde su "⋯"', (t) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.clients));
+    // P27-M5: «Agregar cliente» relleno en la cabecera, junto al título.
+    expect(
+      find.descendant(
+        of: find.byType(GenSectionHeader),
+        matching: find.byKey(const ValueKey('settings_add_client')),
+      ),
+      findsOneWidget,
+    );
+    // La única acción a la vista es "Agregar cliente" (P27-M4).
+    expect(
+      find.byKey(const ValueKey('settings_delete_client_c')),
+      findsNothing,
+    );
+    await tap(t, 'settings_client_menu_c');
+    await tap(t, 'settings_delete_client_c');
+    await tap(t, 'settings_confirm_accept');
+    expect(
+      f.requests.where((r) => r.method == 'DELETE').single.path,
+      contains('/clients/c'),
+    );
+  });
   testWidgets('ADM-02 alta cliente envía proyectos elegidos', (t) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.clients));
@@ -468,11 +517,12 @@ void main() {
   ) async {
     final f = Fixture(admin: false);
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.labels));
-    expect(find.byKey(const ValueKey('catalog_edit_global')), findsNothing);
-    expect(find.byKey(const ValueKey('catalog_edit_local')), findsOneWidget);
+    // Editar y eliminar viven en el «⋯» de cada etiqueta (P28E-M5).
+    expect(find.byKey(const ValueKey('catalog_menu_global')), findsNothing);
+    expect(find.byKey(const ValueKey('catalog_menu_local')), findsOneWidget);
     await select(t, 'catalog_scope', 'Grupo: Solo miembro');
     expect(find.byKey(const ValueKey('catalog_add')), findsNothing);
-    expect(find.byKey(const ValueKey('catalog_edit_local')), findsNothing);
+    expect(find.byKey(const ValueKey('catalog_menu_local')), findsNothing);
     await select(t, 'catalog_scope', 'Grupo: Administrado');
     await tap(t, 'catalog_add');
     await enter(t, 'settings_field_name', 'Campaña');
@@ -504,6 +554,7 @@ void main() {
     final f = Fixture();
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.labels));
     f.conflict = true;
+    await tap(t, 'catalog_menu_local');
     await tap(t, 'catalog_delete_local');
     await t.tap(find.byKey(const ValueKey('settings_confirm_accept')));
     await t.pump();
@@ -519,6 +570,12 @@ void main() {
   ) async {
     final f = Fixture();
     await mount(t, f, const CatalogSettingsScreen(kind: CatalogKind.stages));
+    // Filas de 56 dp con «⋯»; sin la fila de cuatro botones (P28E-M5).
+    expect(find.byTooltip('Eliminar Inicio'), findsNothing);
+    expect(find.byKey(const ValueKey('catalog_up_st1')), findsNothing);
+    await tap(t, 'catalog_menu_st1');
+    // La primera etapa no ofrece «Subir».
+    expect(find.byKey(const ValueKey('catalog_up_st1')), findsNothing);
     await tap(t, 'catalog_down_st1');
     expect(f.writes.single.path, '/api/stages/reorder');
     expect(f.writes.single.data, {
@@ -538,6 +595,9 @@ void main() {
       expect(find.byKey(const ValueKey('catalog_add')), findsNothing);
       f.canWrite = true;
       await select(t, 'catalog_scope', 'Sector: Diseño');
+      // P29-M1: las secciones explican la regla.
+      expect(find.text('EN CURSO'), findsOneWidget);
+      await tap(t, 'catalog_menu_ts1');
       await tap(t, 'catalog_edit_ts1');
       await enter(t, 'settings_field_name', 'En marcha');
       await tap(t, 'settings_form_save');
@@ -545,6 +605,47 @@ void main() {
       expect(f.writes.single.data['name'], 'En marcha');
     },
   );
+  testWidgets('P31a almacenamiento: chip Activo, pares y acciones juntas', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.storage));
+    expect(
+      find.byKey(const ValueKey('settings_storage_active')),
+      findsOneWidget,
+    );
+    expect(find.text('SERVIDOR'), findsOneWidget);
+    expect(find.text('USUARIO'), findsOneWidget);
+    // «Editar» y «Probar conexión» en la misma fila.
+    expect(
+      t.getTopLeft(find.byKey(const ValueKey('settings_edit_storage'))).dy,
+      t.getTopLeft(find.byKey(const ValueKey('settings_test_connection'))).dy,
+    );
+    expect(find.byKey(const ValueKey('settings_open_jobs')), findsOneWidget);
+  });
+  testWidgets('P30 recordatorios: zona con «Cambiar» y Gmail con su estado', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.reminders));
+    expect(find.text('ZONA HORARIA'), findsOneWidget);
+    expect(
+      t.widget(find.byKey(const ValueKey('settings_timezone'))),
+      isA<TextButton>(),
+    );
+    expect(find.byKey(const ValueKey('settings_gmail_state')), findsOneWidget);
+  });
+  testWidgets('P32 errores: segmentado y filas con las veces como chip', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, const SettingsScreen(section: SettingsSection.errors));
+    expect(find.byKey(const ValueKey('settings_error_filter')), findsOneWidget);
+    expect(find.byType(DropdownButtonFormField<String>), findsNothing);
+    expect(find.text('×2'), findsOneWidget);
+    await tap(t, 'settings_error_filter_ALL');
+    expect(f.requests.last.queryParameters.containsKey('status'), isFalse);
+  });
   testWidgets('ADM-04 editar Nextcloud omite contraseña vacía', (t) async {
     final f = Fixture();
     await mount(t, f, const SettingsScreen(section: SettingsSection.storage));

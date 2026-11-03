@@ -10,6 +10,7 @@ import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../shared/widgets/labeled_field.dart';
 
 Future<void> showEditWorkDialog(BuildContext context, WorkDetail work) =>
     showAppFormDialog<void>(
@@ -98,25 +99,29 @@ class _EditWorkDialogState extends ConsumerState<_EditWorkDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
-              key: const ValueKey('edit_work_name'),
-              controller: _name,
-              enabled: !_saving,
-              maxLength: 120,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+            LabeledField(
+              label: 'Nombre',
+              child: TextFormField(
+                key: const ValueKey('edit_work_name'),
+                controller: _name,
+                enabled: !_saving,
+                maxLength: 120,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+              ),
             ),
             if (!widget.work.isArchived) ...[
               const SizedBox(height: AppSpace.md),
-              TextFormField(
-                key: const ValueKey('edit_work_description'),
-                controller: _description,
-                enabled: !_saving,
-                maxLength: 2000,
-                minLines: 2,
-                maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Descripción'),
+              LabeledField(
+                label: 'Descripción',
+                child: TextFormField(
+                  key: const ValueKey('edit_work_description'),
+                  controller: _description,
+                  enabled: !_saving,
+                  maxLength: 2000,
+                  minLines: 2,
+                  maxLines: 5,
+                ),
               ),
               const SizedBox(height: AppSpace.md),
               ListTile(

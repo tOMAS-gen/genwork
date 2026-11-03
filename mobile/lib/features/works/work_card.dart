@@ -8,7 +8,7 @@ import '../../core/util/format.dart';
 import '../../data/models/work.dart';
 import '../../shared/widgets/card_progress.dart';
 import '../../shared/widgets/color_dot.dart';
-import '../../shared/widgets/name_pill.dart';
+import '../../shared/widgets/entity_card_title.dart';
 import 'works_dashboard.dart';
 
 /// Card de proyecto, como `ProjectCard.tsx` de la web: píldora con el nombre
@@ -20,12 +20,17 @@ class WorkCard extends StatelessWidget {
     required this.work,
     required this.onTap,
     required this.onFavorite,
+    this.onArchive,
     this.now,
   });
 
   final WorkSummary work;
   final VoidCallback onTap;
   final VoidCallback onFavorite;
+
+  /// Archivar o desarchivar desde el menú ⋯ (la web lo ofrece en la card).
+  /// Sin callback no hay menú.
+  final VoidCallback? onArchive;
 
   /// Reloj para el cálculo de urgencia (los tests lo fijan).
   final DateTime? now;
@@ -39,12 +44,7 @@ class WorkCard extends StatelessWidget {
     final due = work.dueDate == null
         ? null
         : dueUrgency(work.dueDate!, now ?? DateTime.now());
-    final dueColor = switch (due?.tone) {
-      DueTone.green => c.ok,
-      DueTone.orange => c.warning,
-      DueTone.red => c.danger,
-      null => c.muted,
-    };
+    final dueColor = due == null ? c.muted : dueToneColor(c, due.tone);
     final labels = work.labels.where((l) => l.isPrimary).toList();
 
     return Card(
@@ -62,7 +62,7 @@ class WorkCard extends StatelessWidget {
                   Flexible(
                     child: Align(
                       alignment: Alignment.centerLeft,
-                      child: NamePill(name: work.name, color: color),
+                      child: EntityCardTitle(name: work.name, color: color),
                     ),
                   ),
                   IconButton(
@@ -79,6 +79,30 @@ class WorkCard extends StatelessWidget {
                     ),
                     onPressed: onFavorite,
                   ),
+                  if (onArchive != null)
+                    PopupMenuButton<String>(
+                      key: ValueKey('work_menu_${work.id}'),
+                      tooltip: 'Acciones del proyecto',
+                      icon: Icon(
+                        AppIcons.moreHorizontal,
+                        size: AppIconSizes.action,
+                        color: c.muted,
+                      ),
+                      onSelected: (action) =>
+                          action == 'open' ? onTap() : onArchive!(),
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(
+                          value: 'open',
+                          child: Text('Abrir proyecto'),
+                        ),
+                        PopupMenuItem(
+                          value: 'archive',
+                          child: Text(
+                            work.isArchived ? 'Desarchivar' : 'Archivar',
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
@@ -99,34 +123,28 @@ class WorkCard extends StatelessWidget {
                   ],
                 ),
               ],
+              // «29 oct · 3 días», con el plazo en su color (P05-M3).
               if (work.dueDate != null && due != null) ...[
                 const SizedBox(height: AppSpacing.xs),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.xxs,
+                Row(
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          AppIcons.calendarToday,
-                          size: AppIconSizes.compact,
-                          color: c.muted,
-                        ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          'Entrega: ${formatDay(work.dueDate!)}',
-                          style: muted,
-                        ),
-                      ],
+                    Icon(
+                      AppIcons.calendarToday,
+                      size: AppIconSizes.compact,
+                      color: c.muted,
                     ),
+                    const SizedBox(width: AppSpacing.xs),
                     Text(
-                      due.label,
-                      style: AppTextStyles.body.copyWith(
-                        color: dueColor,
-                        fontStyle: FontStyle.italic,
-                        fontWeight: FontWeight.w500,
+                      '${formatDay(work.dueDate!, now: now)} · ',
+                      style: muted,
+                    ),
+                    Flexible(
+                      child: Text(
+                        due.short,
+                        style: AppTextStyles.body.copyWith(
+                          color: dueColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],

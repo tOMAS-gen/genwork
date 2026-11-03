@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { api } from "@/components/ui/useApi";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { useLiveRefresh } from "@/components/live/useLiveRefresh";
 import { usePageTitle } from "@/lib/usePageTitle";
 import { ProjectTabs } from "@/components/works/ProjectTabs";
@@ -22,12 +23,6 @@ import type { PortalActivityEntry, PortalWorkDetail } from "@/components/portal/
  * de producto se hace cumplir en el servidor (las rutas de archivos están cerradas
  * para un cliente), no solo ocultando la pestaña.
  */
-
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
 
 type TabKey = "tasks" | "doc" | "activity";
 
@@ -103,7 +98,7 @@ export default function PortalWorkPage({ params }: { params: Promise<{ id: strin
         {due && (
           <span className="portal-work-due">
             <Calendar size={14} aria-hidden="true" />
-            Entrega: {dueDateFormatter.format(due)}
+            Entrega: {formatDueDate(due)}
           </span>
         )}
         {work.labels.map((l) => (

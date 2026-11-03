@@ -4,20 +4,14 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import '../../data/models/common.dart';
+import 'progress_bar.dart';
 
-/// Barra de progreso con "3/5": track `outline`, relleno `ok` (o `brand` con
-/// [emphasis]), 4 px de alto y radio completo; el conteo va en Mono 12 `muted`.
+/// Barra de progreso con "3/5": la [ProgressBar] común y el conteo en Mono 12
+/// `muted`.
 class ProgressLine extends StatelessWidget {
-  const ProgressLine({
-    super.key,
-    required this.progress,
-    this.emphasis = false,
-  });
+  const ProgressLine({super.key, required this.progress});
 
   final Progress progress;
-
-  /// Rellena con `brand` en vez de `ok`.
-  final bool emphasis;
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +22,7 @@ class ProgressLine extends StatelessWidget {
       excludeSemantics: true,
       child: Row(
         children: [
-          Expanded(
-            child: LinearProgressIndicator(
-              value: progress.ratio,
-              minHeight: 4,
-              color: emphasis ? c.brand : c.ok,
-              backgroundColor: c.outline,
-              borderRadius: AppGeometry.pill,
-            ),
-          ),
+          Expanded(child: ProgressBar(value: progress.ratio)),
           const SizedBox(width: AppSpacing.sm),
           Text(
             '${progress.done}/${progress.total}',

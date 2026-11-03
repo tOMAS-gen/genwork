@@ -28,6 +28,9 @@ import 'package:genwork_mobile/features/sectors/sector_actions_menu.dart';
 import 'package:genwork_mobile/features/works/work_actions_menu.dart';
 import 'daily_parity_test.dart' show taskJson;
 import 'resource_operations_test.dart' show user, tap, Json;
+import 'package:genwork_mobile/shared/widgets/stat_cards.dart';
+import 'package:genwork_mobile/features/board/board_screen.dart';
+import 'package:genwork_mobile/shared/widgets/status_chip.dart';
 
 Json boardTask(
   String id, {
@@ -394,10 +397,23 @@ void main() {
     'panorama muestra contexto y estado, oculta finalizadas y no expone edición',
     (t) async {
       await mount(t, Fixture());
-      expect(find.text('2 tareas pendientes · 2 sectores'), findsOneWidget);
+      expect(_stat('Pendientes'), '2');
+      expect(_stat('Sectores'), '2');
       expect(find.byKey(const ValueKey('board_task_s_parent')), findsOneWidget);
       expect(find.byKey(const ValueKey('board_task_s_b')), findsNothing);
-      expect(find.text('1/2 subtareas'), findsOneWidget);
+      // El avance de subtareas en mono y el estado como chip (P35-M1, M2).
+      expect(find.text('1/2'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('board_task_s_parent')),
+          matching: find.widgetWithText(TaskStatusChip, 'En curso'),
+        ),
+        findsOneWidget,
+      );
+      // La ruta va una vez por sector, como encabezado del grupo.
+      expect(find.text('PROYECTO EJEMPLO · ENTREGA'), findsNWidgets(2));
+      // Un anillo por tarea pendiente (dos por sector).
+      expect(find.byType(StatusRing), findsNWidgets(4));
       expect(find.text('Subtarea de: Tarea principal'), findsOneWidget);
       expect(find.byType(Checkbox), findsNothing);
       expect(find.byType(TextField), findsNothing);
@@ -438,9 +454,21 @@ void main() {
       await mount(t, f);
       expect(find.text('Vista de tareas'), findsOneWidget);
       expect(find.text('Avance y pendientes de cada sector.'), findsOneWidget);
-      // Resumen en una línea + «D de T finalizadas» (sin barra global).
+      // Resumen como franja de 3 valores (P35-M4), sin barra global.
       expect(find.byKey(const ValueKey('board_summary')), findsOneWidget);
-      expect(find.textContaining('finalizadas'), findsWidgets);
+      expect(_stat('Finalizadas'), '1/3');
+      // Una sola cifra de pendientes en la meta, sin contador (P35-M3).
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('board_sector_s')),
+          matching: find.byType(CountBadge),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('board_pending_s')),
+        findsOneWidget,
+      );
       // Card por sector con acento, conteo y avance.
       final card = find.byKey(const ValueKey('board_sector_s'));
       expect(card, findsOneWidget);
@@ -471,7 +499,8 @@ void main() {
         ];
       await mount(t, f);
       expect(find.text('Avance en las subtareas'), findsOneWidget);
-      expect(find.text('0 tareas pendientes · 1 sector'), findsOneWidget);
+      expect(_stat('Pendientes'), '0');
+      expect(_stat('Sector'), '1');
       expect(find.text('Tarea p'), findsOneWidget);
     },
   );
@@ -533,7 +562,7 @@ void main() {
     (t) async {
       final f = Fixture();
       final app = await mount(t, f, path: Routes.myDay);
-      expect(find.text('Mi día: 1 de 3 completadas hoy'), findsOneWidget);
+      expect(find.textContaining(' · 1 de 3 completadas'), findsOneWidget);
       expect(find.byKey(const ValueKey('task_a')), findsOneWidget);
       expect(
         t
@@ -550,7 +579,7 @@ void main() {
           .first;
       t.state<ScrollableState>(scroll).position.jumpTo(0);
       await t.pumpAndSettle();
-      expect(find.text('Mi día: 2 de 3 completadas hoy'), findsOneWidget);
+      expect(find.textContaining(' · 2 de 3 completadas'), findsOneWidget);
       await tap(t, 'my_day_source_root');
       expect(find.text('Proyecto ejemplo'), findsWidgets);
       app.router.pop();
@@ -722,7 +751,10 @@ void main() {
       expect(f.logoutCalls, 1);
       expect(app.container.read(sessionProvider).value, isA<SignedIn>());
       // El logout navega primero a la lista de servidores, aunque falle.
-      expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
+      expect(
+        app.router.routeInformationProvider.value.uri.path,
+        Routes.servers,
+      );
       f.failLogout = false;
       f.gate = Completer<void>();
       app.router.go(Routes.myDay);
@@ -732,41 +764,62 @@ void main() {
       expect(f.logoutCalls, 2);
       f.gate!.complete();
       await t.pumpAndSettle();
-      expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
+      expect(
+        app.router.routeInformationProvider.value.uri.path,
+        Routes.servers,
+      );
     },
   );
-  testWidgets('cerrar sesión con el shell montado no rompe (sin pantalla roja)', (
-    t,
-  ) async {
-    final f = Fixture();
-    final app = await mount(t, f, path: Routes.myDay, realSessionGuards: true);
-    final errors = await captureFlutterErrors(() async {
-      await drawer(t, 'nav_logout');
-      await t.pumpAndSettle();
-    });
-    expect(errors.map((e) => e.exceptionAsString()), isEmpty);
-    expect(t.takeException(), isNull);
-    expect(app.container.read(sessionProvider).value, isA<SignedOut>());
-    expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
-  });
+  testWidgets(
+    'cerrar sesión con el shell montado no rompe (sin pantalla roja)',
+    (t) async {
+      final f = Fixture();
+      final app = await mount(
+        t,
+        f,
+        path: Routes.myDay,
+        realSessionGuards: true,
+      );
+      final errors = await captureFlutterErrors(() async {
+        await drawer(t, 'nav_logout');
+        await t.pumpAndSettle();
+      });
+      expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+      expect(t.takeException(), isNull);
+      expect(app.container.read(sessionProvider).value, isA<SignedOut>());
+      expect(
+        app.router.routeInformationProvider.value.uri.path,
+        Routes.servers,
+      );
+    },
+  );
 
-  testWidgets('un 401 con el shell montado lleva a la lista sin pantalla roja', (
-    t,
-  ) async {
-    final f = Fixture();
-    final app = await mount(t, f, path: Routes.myDay, realSessionGuards: true);
-    final errors = await captureFlutterErrors(() async {
-      await app.container
-          .read(sessionProvider.notifier)
-          .handleUnauthorized('test');
-      await t.pump();
-      await t.pumpAndSettle();
-    });
-    expect(errors.map((e) => e.exceptionAsString()), isEmpty);
-    expect(t.takeException(), isNull);
-    expect(app.container.read(sessionProvider).value, isA<SignedOut>());
-    expect(app.router.routeInformationProvider.value.uri.path, Routes.servers);
-  });
+  testWidgets(
+    'un 401 con el shell montado lleva a la lista sin pantalla roja',
+    (t) async {
+      final f = Fixture();
+      final app = await mount(
+        t,
+        f,
+        path: Routes.myDay,
+        realSessionGuards: true,
+      );
+      final errors = await captureFlutterErrors(() async {
+        await app.container
+            .read(sessionProvider.notifier)
+            .handleUnauthorized('test');
+        await t.pump();
+        await t.pumpAndSettle();
+      });
+      expect(errors.map((e) => e.exceptionAsString()), isEmpty);
+      expect(t.takeException(), isNull);
+      expect(app.container.read(sessionProvider).value, isA<SignedOut>());
+      expect(
+        app.router.routeInformationProvider.value.uri.path,
+        Routes.servers,
+      );
+    },
+  );
 
   for (final dark in [false, true]) {
     testWidgets('panorama, Mi día y Vence hoy 360dp / 1.5x tema $dark', (
@@ -784,4 +837,17 @@ void main() {
       expect(t.takeException(), isNull);
     });
   }
+}
+
+/// Valor de la columna [label] de la franja de resumen del tablero.
+String? _stat(String label) {
+  final card = find.ancestor(
+    of: find.text(label),
+    matching: find.byType(StatCard),
+  );
+  final value = find.descendant(
+    of: card,
+    matching: find.byKey(const ValueKey('stat_value')),
+  );
+  return (value.evaluate().single.widget as Text).data;
 }

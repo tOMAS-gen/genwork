@@ -29,6 +29,8 @@ import 'package:genwork_mobile/features/sectors/sector_detail_screen.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/tasks/task_detail_sheet.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:genwork_mobile/shared/widgets/progress_bar.dart';
+import '../task_status_menu.dart';
 
 Json taskJson(String id, {List<Json> children = const [], bool? canToggle}) => {
   'id': id,
@@ -176,7 +178,9 @@ void main() {
     );
     addTearDown(container.dispose);
     await mount(tester, container, const MyDayScreen());
-    expect(find.text('viernes 5 de marzo'), findsOneWidget);
+    // Misma verificación del día del sistema; ahora encabeza la línea de
+    // avance (P04-M3).
+    expect(find.textContaining('Viernes 5 de marzo · '), findsOneWidget);
   });
 
   testWidgets('DS-15 Mi día como la web: header, progreso y una sola card', (
@@ -210,12 +214,24 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Mi día: 0 de 1 completadas hoy'), findsOneWidget);
-    // Una sola card (WorkspaceListPanel) para Mi día + referencias, sin
-    // encabezados de sección.
-    expect(find.byType(WorkspaceListPanel), findsOneWidget);
+    // Fecha y avance en una línea con barra (P04-M3).
+    expect(find.textContaining(' · 0 de 1 completadas'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('my_day_progress')),
+        matching: find.byType(ProgressBar),
+      ),
+      findsOneWidget,
+    );
+    // Una card por tarea, como el boceto (P04), sin encabezados de sección;
+    // la lista sigue siendo perezosa (T2).
+    expect(find.byKey(const ValueKey('my_day_card_hoy')), findsOneWidget);
+    expect(find.byKey(const ValueKey('my_day_card_ref')), findsOneWidget);
+    expect(find.byType(SliverList), findsOneWidget);
     expect(find.text('Pendientes'), findsNothing);
-    expect(find.text('Mi día'), findsOneWidget);
+    // El grupo dice de dónde viene, sin repetir «Mi día» (P04-M4); la
+    // referencia conserva su marca.
+    expect(find.text('Mi día'), findsNothing);
     expect(find.text('Referencia'), findsOneWidget);
     expect(find.byKey(const ValueKey('my_day_source_hoy')), findsOneWidget);
     expect(find.byKey(const ValueKey('task_toggle_hoy')), findsOneWidget);
@@ -245,7 +261,7 @@ void main() {
       find.textContaining('No tenés tareas para hoy ni referencias pendientes'),
       findsOneWidget,
     );
-    expect(find.byType(WorkspaceListPanel), findsNothing);
+    expect(find.byType(SliverListPanel), findsNothing);
   });
 
   for (final level in ['operate', 'read']) {
@@ -305,12 +321,7 @@ void main() {
         isFalse,
       );
       expect(
-        tester
-                .widget<ChoiceChip>(
-                  find.byKey(const ValueKey('task_status_done')),
-                )
-                .onSelected !=
-            null,
+        await statusOptionEnabled(tester, 'done'),
         level == 'operate',
       );
       expect(
@@ -419,6 +430,9 @@ void main() {
     await mount(tester, container, const RemindersScreen());
     fail = false;
     await tester.tap(find.text('Reintentar'));
+    await tester.pumpAndSettle();
+    // Abre en el calendario, como la web: la agenda está en "Próximos".
+    await tester.tap(find.text('Próximos'));
     await tester.pumpAndSettle();
     expect(find.text('Sin recordatorios próximos'), findsOneWidget);
     expect(
@@ -587,20 +601,19 @@ void main() {
         find.byKey(const ValueKey('task_composer_field')),
         'Nueva hija',
       );
+      // El envío aparece en el campo cuando hay texto (boceto P09).
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('task_composer_send')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('task_subtask_child')), findsOneWidget);
       expect(find.text('Borrador sin guardar'), findsOneWidget);
-      expect(
-        tester
-            .widget<ChoiceChip>(find.byKey(const ValueKey('task_status_done')))
-            .onSelected,
-        isNull,
-      );
+      expect(await statusOptionEnabled(tester, 'done'), isFalse);
       await tester.enterText(
         find.byKey(const ValueKey('task_text_field')),
         'Tarea actualizada',
       );
+      // El tilde aparece al cambiar el texto (boceto P09).
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('task_text_save')));
       await tester.pumpAndSettle();
       expect(find.text('Prioridad: Urgente'), findsOneWidget);
@@ -697,12 +710,89 @@ void main() {
           find.text(dirty ? 'Borrador local' : 'Nuevo texto remoto'),
           findsOneWidget,
         );
+        // El título de la nota (también aparece en las migas, como la web).
         expect(
-          find.text(dirty ? 'Nota inicial' : 'Cambio desde web'),
+          find.descendant(
+            of: find.byKey(const ValueKey('note_title')),
+            matching: find.text(dirty ? 'Nota inicial' : 'Cambio desde web'),
+          ),
           findsOneWidget,
         );
         expect(tester.takeException(), isNull);
       },
     );
   }
+
+  testWidgets('P04 Mi día como el boceto: card por tarea, origen en dos '
+      'líneas, avance de las hijas junto al nombre', (tester) async {
+    final root = Task.fromJson({
+      ...taskJson(
+        'root',
+        canToggle: true,
+        children: [
+          {
+            ...taskJson('a', canToggle: true),
+            'status': {'id': 'done', 'name': 'Hecha', 'type': 'FINAL'},
+          },
+          taskJson('b', canToggle: true),
+        ],
+      ),
+      'subtaskDone': 1,
+      'objectiveTitle': 'Preparación y entrega',
+      'work': {'id': 'w1', 'name': 'Cartelería del local'},
+    });
+    final container = ProviderContainer(
+      retry: (_, _) => null,
+      overrides: [
+        richEditorBuilderProvider.overrideWithValue(fakeRichEditor),
+        myDayProvider.overrideWith((ref) async => [root]),
+        openReferencesProvider.overrideWith((ref) async => []),
+        deliveriesProvider.overrideWith((ref) async => []),
+      ],
+    );
+    addTearDown(container.dispose);
+    await mount(tester, container, const MyDayScreen());
+
+    // Proyecto en 15/600 y la ruta en una segunda línea gris.
+    final owner = tester.widget<Text>(find.text('Cartelería del local'));
+    expect(owner.style?.fontSize, 15);
+    expect(owner.style?.fontWeight, FontWeight.w600);
+    expect(find.text('› Preparación y entrega'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('› Preparación y entrega')).dy,
+      greaterThan(
+        tester.getBottomLeft(find.text('Cartelería del local')).dy - 1,
+      ),
+    );
+
+    // La tarea con hijas muestra su avance en una casilla a medio marcar que
+    // no se toca (el estado lo dan las hijas) y «1/2» junto al nombre.
+    final box = tester.widget<Checkbox>(
+      find.byKey(const ValueKey('task_progress_box_root')),
+    );
+    expect(box.tristate, isTrue);
+    expect(box.value, isNull);
+    expect(find.byKey(const ValueKey('task_toggle_root')), findsNothing);
+    final counter = find.byKey(const ValueKey('task_counter_root'));
+    expect(counter, findsOneWidget);
+    expect(
+      (tester.getCenter(counter).dy -
+              tester.getCenter(find.text('Tarea root')).dy)
+          .abs(),
+      lessThan(4),
+    );
+
+    // Barra de avance del día más marcada que la de las cards.
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(
+            find.descendant(
+              of: find.byKey(const ValueKey('my_day_progress')),
+              matching: find.byType(LinearProgressIndicator),
+            ),
+          )
+          .minHeight,
+      8,
+    );
+  });
 }

@@ -6,10 +6,15 @@ import 'app_drawer_scope.dart';
 import 'brand_name.dart';
 import 'gen_section_header.dart';
 import 'theme_toggle.dart';
+import 'content_width.dart';
 
 /// Marco de una pantalla de genwork móvil: AppBar de 48 con el botón del
-/// drawer (o `BackButton`) y la marca, [GenSectionHeader] fijo arriba y el
-/// [body] debajo con padding de 16.
+/// drawer (o `BackButton`) y la marca, [GenSectionHeader] compacto (título,
+/// subtítulo y acciones, sin tile ni regla) y el [body] debajo
+/// con el margen de página (16 dp en los cuatro lados). Como
+/// en la web, el encabezado se desplaza con el contenido: si el [body] es un
+/// scrollable sin controller propio, comparte el desplazamiento con el
+/// encabezado (`NestedScrollView`).
 ///
 /// [onRefresh] envuelve el [body] en un `RefreshIndicator`: en ese caso el
 /// [body] debe ser un scrollable (p. ej. un `ListView`), que siempre permite
@@ -19,8 +24,9 @@ class GenPageScaffold extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
-    this.icon,
     this.subtitle,
+    this.count,
+    this.breadcrumb,
     this.actions = const [],
     this.showBack = false,
     this.showThemeToggle = false,
@@ -28,12 +34,18 @@ class GenPageScaffold extends StatelessWidget {
     this.onRefresh,
     this.fab,
     this.headerBottom,
+    this.top,
     this.bodyPadding = const EdgeInsets.all(AppSpacing.md),
   });
 
   final String title;
   final String? subtitle;
-  final IconData? icon;
+
+  /// Cantidad junto al título (ver [GenSectionHeader.count]).
+  final int? count;
+
+  /// Miga arriba del título (subpantallas del proyecto).
+  final Widget? breadcrumb;
   final List<Widget> actions;
   final bool showBack;
 
@@ -48,6 +60,10 @@ class GenPageScaffold extends StatelessWidget {
 
   /// Área bajo el encabezado (tabs, filtros).
   final Widget? headerBottom;
+
+  /// Área sobre el encabezado (la barra de secciones de Configuración, que en
+  /// la web va arriba del título).
+  final Widget? top;
   final EdgeInsets bodyPadding;
 
   @override
@@ -57,25 +73,44 @@ class GenPageScaffold extends StatelessWidget {
       appBar: AppBar(
         leading: showBack ? const BackButton() : const AppDrawerButton(),
         title: const BrandName(size: 16),
-        actions: [...appBarActions, if (showThemeToggle) const ThemeToggle()],
+        actions: [
+          ...appBarActions,
+          if (showThemeToggle) const ThemeCycleButton(),
+        ],
       ),
       floatingActionButton: fab,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          GenSectionHeader(
-            title: title,
-            subtitle: subtitle,
-            icon: icon,
-            actions: actions,
-            bottom: headerBottom,
+      // Los márgenes laterales del sistema (recorte de cámara o barra en
+      // horizontal) para encabezado y cuerpo por igual (T6).
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: ContentWidth(
+          child: NestedScrollView(
+            headerSliverBuilder: (context, _) => [
+              if (top != null) SliverToBoxAdapter(child: top),
+              SliverToBoxAdapter(
+                child: GenSectionHeader(
+                  title: title,
+                  subtitle: subtitle,
+                  count: count,
+                  breadcrumb: breadcrumb,
+                  actions: actions,
+                  bottom: headerBottom,
+                ),
+              ),
+            ],
+            // Edge-to-edge (targetSdk 36): el contenido no queda bajo la barra de
+            // navegación ni bajo un recorte lateral (T6). El fondo sí pasa.
+            body: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              child: onRefresh == null
+                  ? content
+                  : RefreshIndicator(onRefresh: onRefresh!, child: content),
+            ),
           ),
-          Expanded(
-            child: onRefresh == null
-                ? content
-                : RefreshIndicator(onRefresh: onRefresh!, child: content),
-          ),
-        ],
+        ),
       ),
     );
   }

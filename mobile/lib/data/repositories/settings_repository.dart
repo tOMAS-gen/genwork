@@ -4,15 +4,15 @@ import '../models/json.dart';
 enum SettingsSection {
   system('Sistema', '/api/system-info'),
   storageLink('Cuenta de almacenamiento', '/api/auth/storage-link/status'),
-  access('Acceso', '/api/admin/access'),
-  emails('Correos permitidos', '/api/admin/access/emails'),
-  users('Usuarios', '/api/admin/users'),
-  clients('Clientes externos', '/api/admin/clients'),
-  storage('Almacenamiento del sistema', '/api/admin/storage'),
+  access('Control de acceso', '/api/admin/access'),
+  emails('Correos autorizados', '/api/admin/access/emails'),
+  users('Usuarios y roles', '/api/admin/users'),
+  clients('Clientes', '/api/admin/clients'),
+  storage('Almacenamiento', '/api/admin/storage'),
   jobs('Trabajos de almacenamiento', '/api/admin/storage/jobs'),
-  reminders('Recordatorios del sistema', '/api/admin/reminders'),
-  errors('Registro de errores', '/api/admin/errors'),
-  mcp('Conexiones MCP', '/api/me/mcp-connections'),
+  reminders('Recordatorios', '/api/admin/reminders'),
+  errors('Errores', '/api/admin/errors'),
+  mcp('Vincular con Claude', '/api/me/mcp-connections'),
   activity('Actividad MCP', '/api/me/mcp-connections/activity');
 
   const SettingsSection(this.title, this.path);
@@ -94,4 +94,10 @@ class SettingsRepository {
         '/api/auth/mobile/integrations/finish',
         body: {'flowId': flowId, 'codeVerifier': verifier},
       );
+
+  /// Integración con Genstock: solo la URL del servidor (sin credenciales).
+  Future<Json> genstock() => _api.get<Json>('/api/admin/genstock');
+  Future<Json> saveGenstock(String baseUrl) =>
+      _api.put<Json>('/api/admin/genstock', body: {'baseUrl': baseUrl});
+  Future<Json> testGenstock() => _api.post<Json>('/api/admin/genstock/test');
 }

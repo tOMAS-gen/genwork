@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/icons";
 import { Menu } from "@/components/ui/Menu";
 import { progress } from "@/lib/domain/works/progress";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import { getDueDateUrgency } from "@/lib/domain/works/dashboardUtils";
 import { getProjectColor } from "@/lib/domain/works/projectColor";
 
@@ -42,12 +43,6 @@ export interface DashboardWork {
   stage: { id: string; name: string; color: string | null } | null;
 }
 
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
-
 export function ProjectCard({
   project,
   archived,
@@ -73,16 +68,14 @@ export function ProjectCard({
           inválido y rompe el foco/tab. */}
       <Link href={`/works/${project.id}`} className="card-link" aria-label={project.name} />
 
-      {/* Row 1: pill nombre + star + menu */}
+      {/* Row 1: el nombre como título, con el punto de color si lo tiene
+          (spec 066, T42), + star + menu */}
       <div className="card-header">
-        <span
-          title={project.name}
-          className={`pc-name-pill ${color ? "color-chip" : "pc-name-pill-default"}`}
-          style={
-            color ? ({ "--c": color, color: "var(--text)" } as React.CSSProperties) : undefined
-          }
-        >
-          {project.name.toUpperCase()}
+        <span title={project.name} className="pc-name">
+          {color && (
+            <span className="pc-name-dot" style={{ background: color }} aria-hidden="true" />
+          )}
+          {project.name}
         </span>
         <div className="card-actions">
           {project.isTemplate && (
@@ -138,15 +131,14 @@ export function ProjectCard({
       )}
 
       {/* Row 5: fecha de entrega */}
+      {/* «29 oct · 3 días», con el plazo en su tono, como la app. */}
       {parsedDue && urgency && (
         <div className="pc-due">
           <span className="pc-due-date">
             <Calendar size={14} />
-            Entrega: {dueDateFormatter.format(parsedDue)}
+            {formatDueDate(parsedDue, "short")} ·
           </span>
-          <span className={`pc-due-remaining due-${urgency.color}`} style={{ fontStyle: "italic" }}>
-            {urgency.label}
-          </span>
+          <span className={`pc-due-remaining due-${urgency.tone}`}>{urgency.short}</span>
         </div>
       )}
       <div className="pc-card-footer">
@@ -161,18 +153,18 @@ export function ProjectCard({
               aria-label={`Progreso: ${prog.pct}%`}
               className="pc-progress-track"
             >
-              <div className="pc-progress-fill" style={{ width: `${prog.pct}%` }} />
+              <div
+                className={`pc-progress-fill${prog.pct === 100 ? " is-complete" : ""}`}
+                style={{ width: `${prog.pct}%` }}
+              />
             </div>
-            <span className="pc-progress-pct">{prog.pct}%</span>
+            {/* «1/3 · 33%» en la misma fila, en mono (CardProgress de la app). */}
+            <span className="pc-progress-pct">
+              {project.taskCounts.done}/{project.taskCounts.total} · {prog.pct}%
+            </span>
           </div>
         )}
-
-        {/* Row 4b: contador de tareas */}
-        <span className="pc-task-count">
-          {project.taskCounts.total > 0
-            ? `${project.taskCounts.done}/${project.taskCounts.total} tareas`
-            : "Sin tareas todavía"}
-        </span>
+        {!prog && <span className="pc-task-count">Sin tareas todavía</span>}
       </div>
     </div>
   );

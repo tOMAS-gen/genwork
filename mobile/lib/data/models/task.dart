@@ -205,7 +205,7 @@ class Task {
       labels: parseList(json['labels'], LabelChip.fromJson),
       links: parseList(json['links'], TaskLinkRef.fromJson),
       description: json['description'] as String?,
-      dueDate: parseDate(json['dueDate']),
+      dueDate: parseDay(json['dueDate']),
       completedAt: parseDate(json['completedAt']),
       parentId: json['parentId'] as String?,
       parentText: json['parentText'] as String?,

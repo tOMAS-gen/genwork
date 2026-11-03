@@ -5,9 +5,10 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/gen_colors.dart';
 import 'app_work_header.dart';
 
-/// Una superficie flotante con cabecera, cuerpo y pie continuos. El contenido
-/// se desplaza; las acciones permanecen al pie. Siempre es una ventana
-/// centrada: en genwork móvil nada entra desde el borde inferior.
+/// Una superficie flotante con cabecera, cuerpo y pie continuos, como
+/// `dialog.dialog` de la web: sin franjas ni divisores, todo sobre `floating`.
+/// El contenido se desplaza; las acciones permanecen al pie. Siempre es una
+/// ventana centrada: en genwork móvil nada entra desde el borde inferior.
 class AppWorkDialog extends StatelessWidget {
   const AppWorkDialog({
     super.key,
@@ -58,10 +59,12 @@ class AppWorkDialog extends StatelessWidget {
                   ? onClose ?? () => Navigator.of(context).pop()
                   : null,
             ),
-            Divider(height: 1, thickness: 1, color: c.border),
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
                 child: child,
               ),
             ),
@@ -73,9 +76,11 @@ class AppWorkDialog extends StatelessWidget {
   }
 }
 
-/// Pie de una ventana de trabajo: franja `field`, línea fina arriba y acciones
-/// a la derecha. [leading] queda a la izquierda —el lugar de la acción
-/// destructiva en un detalle—, lejos de la principal.
+/// Pie de una ventana de trabajo, como `.dialog-actions`: acciones a la
+/// derecha con 8 de separación, sin franja. Los `TextButton` (Cancelar) van
+/// como texto gris 13/600 sin borde: la principal es el único botón con forma
+/// (P06-M4). [leading] queda a la izquierda —el lugar de la acción destructiva
+/// en un detalle—, lejos de la principal.
 class AppWorkFooter extends StatelessWidget {
   const AppWorkFooter({super.key, required this.actions, this.leading});
 
@@ -92,27 +97,32 @@ class AppWorkFooter extends StatelessWidget {
       overflowSpacing: AppSpacing.xs,
       children: actions,
     );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Divider(height: 1, thickness: 1, color: c.border),
-        ColoredBox(
-          color: c.field,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: leading == null
-                ? bar
-                : Row(
-                    children: [
-                      leading!,
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(child: bar),
-                    ],
-                  ),
-          ),
+    // Gana sobre el del tema; lo demás (tipografía, tamaño mínimo) sale del
+    // tema.
+    final secondary = TextButton.styleFrom(
+      foregroundColor: c.muted,
+      shape: const RoundedRectangleBorder(borderRadius: AppGeometry.control),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+    ).merge(Theme.of(context).textButtonTheme.style);
+    return TextButtonTheme(
+      data: TextButtonThemeData(style: secondary),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.md,
+          AppSpacing.md,
         ),
-      ],
+        child: leading == null
+            ? bar
+            : Row(
+                children: [
+                  leading!,
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(child: bar),
+                ],
+              ),
+      ),
     );
   }
 }

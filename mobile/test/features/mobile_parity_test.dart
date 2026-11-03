@@ -22,8 +22,10 @@ import 'package:genwork_mobile/features/board/board_providers.dart';
 import 'package:genwork_mobile/features/shell/live_refresher.dart';
 import 'package:genwork_mobile/features/works/works_dashboard.dart';
 import 'package:genwork_mobile/features/works/works_filter.dart';
-import 'package:genwork_mobile/features/works/works_filters_dialog.dart';
+import 'package:genwork_mobile/core/theme/app_theme.dart';
+import 'package:genwork_mobile/features/works/works_filters_panel.dart';
 import 'package:genwork_mobile/shared/widgets/state_views.dart';
+import 'package:genwork_mobile/shared/widgets/status_chip.dart';
 
 AppUser identity(String role) => AppUser.fromJson({
   'id': 'me',
@@ -82,6 +84,7 @@ class Fixture {
   final events = StreamController<LiveEvent>.broadcast();
   int? failure;
   bool allowed = true;
+  List<Object> grants = const [];
   late final api = _api();
   ApiClient _api() {
     final dio = Dio(BaseOptions(baseUrl: 'https://test.invalid'));
@@ -141,7 +144,7 @@ class Fixture {
               'tasks': [],
               'objectives': [],
             },
-            '/api/works/w/client-grants' => [],
+            '/api/works/w/client-grants' => grants,
             _ => <Object>[],
           };
           h.resolve(Response(requestOptions: r, statusCode: 200, data: data));
@@ -288,9 +291,40 @@ void main() {
       );
     },
   );
+  testWidgets('P34 proyecto del portal: sin miga, Ver más y resumen', (
+    t,
+  ) async {
+    final f = Fixture();
+    await mount(t, f, path: Routes.portalWork('w'));
+    expect(find.byKey(const ValueKey('portal_back')), findsNothing);
+    expect(find.byKey(const ValueKey('portal_summary')), findsOneWidget);
+    expect(find.text('AVANCE'), findsOneWidget);
+    final text = t.widget<Text>(
+      find.byKey(const ValueKey('portal_description')),
+    );
+    expect(text.maxLines, 3);
+    await t.ensureVisible(
+      find.byKey(const ValueKey('portal_description_more')),
+    );
+    await t.tap(find.byKey(const ValueKey('portal_description_more')));
+    await t.pumpAndSettle();
+    expect(
+      t.widget<Text>(find.byKey(const ValueKey('portal_description'))).maxLines,
+      isNull,
+    );
+    // Un solo objetivo: la sección no repite la barra del resumen.
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+    // El estado de la tarea como chip, igual que en todas las pantallas.
+    expect(find.widgetWithText(TaskStatusChip, 'En curso'), findsOneWidget);
+  });
   testWidgets('portal pagina actividad y refresca por SSE', (t) async {
     final f = Fixture();
     await mount(t, f, path: Routes.portalWork('w'));
+    // La actividad está en su pestaña, como en la web.
+    await t.ensureVisible(find.text('Actividad'));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Actividad'));
+    await t.pumpAndSettle();
     final more = find.byKey(const ValueKey('portal_activity_more'));
     await t.ensureVisible(more);
     await t.tap(more);
@@ -356,6 +390,45 @@ void main() {
       expect(f.requests.any((r) => r.path.endsWith('/client-grants')), isFalse);
     },
   );
+  testWidgets('quitar acceso de un cliente va dentro de su "⋯" (P19-M4)', (
+    t,
+  ) async {
+    final f = Fixture()
+      ..grants = [
+        {
+          'userId': 'u2',
+          'name': 'Cliente',
+          'email': 'cliente@test.local',
+          'firstLoginAt': null,
+        },
+      ];
+    await mount(t, f, role: 'MEMBER', path: '/works/w/clients');
+    expect(find.text('Invitado'), findsOneWidget);
+    // P19-M3: fila con avatar de iniciales; P19-M1: «Agregar cliente» es la
+    // acción del título.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('work_client_u2')),
+        matching: find.text('C'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('work_clients_add')), findsOneWidget);
+    expect(find.byKey(const ValueKey('work_clients_revoke_u2')), findsNothing);
+    await t.tap(find.byKey(const ValueKey('work_clients_menu_u2')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('work_clients_revoke_u2')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const ValueKey('settings_confirm_accept')));
+    await t.pumpAndSettle();
+    expect(
+      f.requests.any(
+        (r) =>
+            r.method == 'DELETE' && r.path == '/api/works/w/client-grants/u2',
+      ),
+      isTrue,
+    );
+  });
   testWidgets('tablero retira sectores anteriores después de un 403', (
     t,
   ) async {
@@ -381,33 +454,53 @@ void main() {
         expect(t.takeException(), isNull);
       });
       testWidgets('filtros se aplican en $width dp, oscuro=$dark', (t) async {
-        final c = await mount(
-          t,
-          Fixture(),
-          dark: dark,
-          width: width,
-          scale: 1.5,
+        // El panel de filtros de Proyectos (en línea, como la web) aplica cada
+        // cambio en el acto.
+        t.view.physicalSize = Size(width, 800);
+        t.view.devicePixelRatio = 1;
+        addTearDown(t.view.reset);
+        WorkFilters? applied;
+        await t.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark() : AppTheme.light(),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.5)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: WorksFiltersPanel(
+                  works: [
+                    WorkSummary.fromJson({
+                      'id': 'w',
+                      'name': 'Proyecto',
+                      'groupId': 'g',
+                      'groupName': 'Producción',
+                    }),
+                  ],
+                  sectors: const {'s': 'Impresión'},
+                  filters: emptyWorkFilters,
+                  onChanged: (f) => applied = f,
+                ),
+              ),
+            ),
+          ),
         );
-        final context = t.element(find.byKey(const ValueKey('portal_work_w')));
-        final future = showWorksFilters(
-          context,
-          works: [
-            WorkSummary.fromJson({
-              'id': 'w',
-              'name': 'Proyecto',
-              'groupId': 'g',
-              'groupName': 'Producción',
-            }),
-          ],
-          sectors: {'s': 'Impresión'},
-          current: emptyWorkFilters,
+        // T1: casilla y desplegables con nombre.
+        final handle = t.ensureSemantics();
+        expect(
+          t
+              .getSemantics(find.byKey(const ValueKey('works_filter_group_g')))
+              .label,
+          contains('Producción'),
         );
-        await t.pumpAndSettle();
+        await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
+        handle.dispose();
         await t.tap(find.byKey(const ValueKey('works_filter_group_g')));
-        await t.tap(find.byKey(const ValueKey('works_filters_apply')));
         await t.pumpAndSettle();
-        expect((await future)!.groups, {'g'});
-        expect(c.read(routerProvider), isNotNull);
+        expect(applied!.groups, {'g'});
         expect(t.takeException(), isNull);
       });
     }

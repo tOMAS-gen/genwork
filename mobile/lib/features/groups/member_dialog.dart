@@ -12,6 +12,8 @@ import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
 import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 Future<void> showMemberDialog(
   BuildContext context,
@@ -98,20 +100,22 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.member == null) ...[
-              TextField(
-                key: const ValueKey('member_search'),
-                enabled: !_busy,
-                decoration: const InputDecoration(labelText: 'Nombre o correo'),
-                onChanged: (v) {
-                  _debounce?.cancel();
-                  setState(() {
-                    _typed = v.trim();
-                    _selected = null;
-                  });
-                  _debounce = Timer(const Duration(milliseconds: 300), () {
-                    if (mounted) setState(() => _query = _typed);
-                  });
-                },
+              LabeledField(
+                label: 'Nombre o correo',
+                child: TextField(
+                  key: const ValueKey('member_search'),
+                  enabled: !_busy,
+                  onChanged: (v) {
+                    _debounce?.cancel();
+                    setState(() {
+                      _typed = v.trim();
+                      _selected = null;
+                    });
+                    _debounce = Timer(const Duration(milliseconds: 300), () {
+                      if (mounted) setState(() => _query = _typed);
+                    });
+                  },
+                ),
               ),
               if (_typed.length < 2)
                 const Text('Escribí al menos 2 caracteres')
@@ -152,16 +156,22 @@ class _MemberDialogState extends ConsumerState<_MemberDialog> {
             ] else
               Text('${_selected!.name}\n${_selected!.email}'),
             const SizedBox(height: AppSpacing.md),
-            DropdownButtonFormField<String>(
-              key: const ValueKey('member_role'),
-              initialValue: _role,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Rol'),
-              items: const [
-                DropdownMenuItem(value: 'MEMBER', child: Text('Miembro')),
-                DropdownMenuItem(value: 'ADMIN', child: Text('Administrador')),
-              ],
-              onChanged: _busy ? null : (v) => setState(() => _role = v!),
+            LabeledField(
+              label: 'Rol',
+              child: DropdownButtonFormField<String>(
+                icon: const AppDropdownIcon(),
+                key: const ValueKey('member_role'),
+                initialValue: _role,
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(value: 'MEMBER', child: Text('Miembro')),
+                  DropdownMenuItem(
+                    value: 'ADMIN',
+                    child: Text('Administrador'),
+                  ),
+                ],
+                onChanged: _busy ? null : (v) => setState(() => _role = v!),
+              ),
             ),
             if (!allowed)
               const Text('Ya no tenés permiso para administrar este grupo.'),

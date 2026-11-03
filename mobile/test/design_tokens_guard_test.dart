@@ -38,6 +38,17 @@ final _rules = <_Rule>[
     RegExp(r'showModalBottomSheet'),
   ),
   _Rule('Icons.* (usar AppIcons)', RegExp(r'\bIcons\.')),
+  // D7: guardar es un botón relleno o tonal, nunca un enlace de texto.
+  _Rule(
+    'Guardar como TextButton (usar FilledButton o FilledButton.tonal)',
+    RegExp(
+      r"TextButton(?:\.icon)?\((?:(?!(?:Text|Filled|Outlined)Button)[\s\S]){0,400}?Text\(\s*'Guardar",
+    ),
+  ),
+  // D5: los plazos y metadatos no van en itálica.
+  _Rule('FontStyle.italic', RegExp(r'FontStyle\.italic')),
+  // PS10: una sola receta de campo, con el rótulo arriba.
+  _Rule('labelText (usar LabeledField)', RegExp(r'\blabelText:')),
   _Rule('AlertDialog (usar AppWorkDialog)', RegExp(r'\bAlertDialog\(')),
   _Rule(
     'showDialog directo (usar showAppFormDialog)',

@@ -74,7 +74,13 @@ class WorksRepository {
     body: {
       'name': ?name,
       'description': ?description,
-      if (dueDate != null) 'dueDate': dueDate.toUtc().toIso8601String(),
+      // Día de calendario a medianoche UTC, como lo guarda el selector web.
+      if (dueDate != null)
+        'dueDate': DateTime.utc(
+          dueDate.year,
+          dueDate.month,
+          dueDate.day,
+        ).toIso8601String(),
       if (clearDueDate) 'dueDate': null,
     },
   );

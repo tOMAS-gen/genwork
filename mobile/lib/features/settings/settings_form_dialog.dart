@@ -5,6 +5,8 @@ import '../../core/theme/app_geometry.dart';
 import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
 import '../../shared/widgets/color_palette.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 class SettingsField {
   const SettingsField(
@@ -158,29 +160,35 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
                       vertical: AppSpacing.xs,
                     ),
                     child: f.options != null
-                        ? DropdownButtonFormField<String>(
-                            key: ValueKey('settings_field_${f.name}'),
-                            initialValue: f.initial.isEmpty ? null : f.initial,
-                            isExpanded: true,
-                            decoration: InputDecoration(labelText: f.label),
-                            items: f.options!.entries
-                                .map(
-                                  (e) => DropdownMenuItem(
-                                    value: e.key,
-                                    child: Text(
-                                      e.value,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                        ? LabeledField(
+                            label: f.label,
+                            child: DropdownButtonFormField<String>(
+                              icon: const AppDropdownIcon(),
+                              key: ValueKey('settings_field_${f.name}'),
+                              initialValue: f.initial.isEmpty
+                                  ? null
+                                  : f.initial,
+                              isExpanded: true,
+                              items: f.options!.entries
+                                  .map(
+                                    (e) => DropdownMenuItem(
+                                      value: e.key,
+                                      child: Text(
+                                        e.value,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: _busy
-                                ? null
-                                : (v) => _controllers[f.name]!.text = v ?? '',
-                            validator: (v) => f.required && (v?.isEmpty ?? true)
-                                ? 'Elegí una opción.'
-                                : null,
+                                  )
+                                  .toList(),
+                              onChanged: _busy
+                                  ? null
+                                  : (v) => _controllers[f.name]!.text = v ?? '',
+                              validator: (v) =>
+                                  f.required && (v?.isEmpty ?? true)
+                                  ? 'Elegí una opción.'
+                                  : null,
+                            ),
                           )
                         : f.color
                         ? ColorPalette(
@@ -196,27 +204,29 @@ class _SettingsFormDialogState extends State<SettingsFormDialog> {
                                         _controllers[f.name]!.text = hex ?? '',
                                   ),
                           )
-                        : TextFormField(
-                            key: ValueKey('settings_field_${f.name}'),
-                            controller: _controllers[f.name],
-                            enabled: !_busy,
-                            obscureText: f.secret,
-                            autocorrect: !f.secret,
-                            enableSuggestions: !f.secret,
-                            decoration: InputDecoration(labelText: f.label),
-                            maxLength: f.maxLength,
-                            validator: (value) {
-                              final v = f.secret
-                                  ? value ?? ''
-                                  : (value ?? '').trim();
-                              if (f.required && v.isEmpty) {
-                                return 'Completá este campo.';
-                              }
-                              if (v.length > f.maxLength) {
-                                return 'Máximo ${f.maxLength} caracteres.';
-                              }
-                              return f.validate?.call(v);
-                            },
+                        : LabeledField(
+                            label: f.label,
+                            child: TextFormField(
+                              key: ValueKey('settings_field_${f.name}'),
+                              controller: _controllers[f.name],
+                              enabled: !_busy,
+                              obscureText: f.secret,
+                              autocorrect: !f.secret,
+                              enableSuggestions: !f.secret,
+                              maxLength: f.maxLength,
+                              validator: (value) {
+                                final v = f.secret
+                                    ? value ?? ''
+                                    : (value ?? '').trim();
+                                if (f.required && v.isEmpty) {
+                                  return 'Completá este campo.';
+                                }
+                                if (v.length > f.maxLength) {
+                                  return 'Máximo ${f.maxLength} caracteres.';
+                                }
+                                return f.validate?.call(v);
+                              },
+                            ),
                           ),
                   ),
               ],

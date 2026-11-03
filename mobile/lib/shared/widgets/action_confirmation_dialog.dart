@@ -6,6 +6,7 @@ import 'app_form_dialog.dart';
 import 'app_work_dialog.dart';
 import 'error_text.dart';
 import 'state_views.dart';
+import 'labeled_field.dart';
 
 /// Mantiene la confirmación y el error visibles hasta que la operación termina.
 Future<bool> confirmAction(
@@ -112,12 +113,14 @@ class _ConfirmationState extends State<_Confirmation> {
           if (widget.exactName != null) ...[
             const SizedBox(height: AppSpacing.md),
             Text('Escribí «${widget.exactName}» para confirmar:'),
-            TextField(
-              key: const ValueKey('confirm_name'),
-              controller: _name,
-              enabled: !_busy,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(labelText: 'Nombre exacto'),
+            LabeledField(
+              label: 'Nombre exacto',
+              child: TextField(
+                key: const ValueKey('confirm_name'),
+                controller: _name,
+                enabled: !_busy,
+                onChanged: (_) => setState(() {}),
+              ),
             ),
           ],
           if (_error != null)

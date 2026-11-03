@@ -59,3 +59,73 @@ class WorkspaceListPanel extends StatelessWidget {
     );
   }
 }
+
+/// [WorkspaceListPanel] perezoso, para listas largas dentro de un
+/// `CustomScrollView` (T2): el marco se dibuja con [DecoratedSliver] y solo
+/// se construyen las filas visibles. La primera y la última fila se recortan
+/// a la curva del panel para que la tinta no se salga.
+class SliverListPanel extends StatelessWidget {
+  const SliverListPanel({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    const radius = AppGeometry.card;
+    return PanelSliver(
+      sliver: SliverList.separated(
+        itemCount: itemCount,
+        separatorBuilder: (_, _) =>
+            Divider(height: 1, thickness: 1, color: c.border),
+        itemBuilder: (context, i) {
+          final row = Material(
+            type: MaterialType.transparency,
+            child: itemBuilder(context, i),
+          );
+          final first = i == 0, last = i == itemCount - 1;
+          if (!first && !last) return row;
+          return ClipRRect(
+            borderRadius: BorderRadius.vertical(
+              top: first ? radius.topLeft : Radius.zero,
+              bottom: last ? radius.bottomLeft : Radius.zero,
+            ),
+            child: row,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// El marco de [WorkspacePanel] alrededor de un sliver (T2): fondo `surface`
+/// con la curva de card y el contorno delante, como [AppWorkBox].
+class PanelSliver extends StatelessWidget {
+  const PanelSliver({super.key, required this.sliver});
+
+  final Widget sliver;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return DecoratedSliver(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        border: Border.all(color: c.border),
+        borderRadius: AppGeometry.card,
+      ),
+      sliver: DecoratedSliver(
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: AppGeometry.card,
+        ),
+        sliver: sliver,
+      ),
+    );
+  }
+}

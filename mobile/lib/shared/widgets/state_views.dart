@@ -6,6 +6,7 @@ import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
 import 'app_error_widget.dart';
+import 'app_button_styles.dart';
 import 'app_state_block.dart';
 import 'gen_skeleton.dart';
 
@@ -73,10 +74,11 @@ class LoadingView extends StatelessWidget {
 }
 
 class ErrorView extends StatelessWidget {
-  const ErrorView({super.key, required this.error, this.onRetry});
+  const ErrorView({super.key, required this.error, this.onRetry, this.title});
 
   final Object error;
   final VoidCallback? onRetry;
+  final String? title;
 
   @override
   Widget build(BuildContext context) => AppStateBlock(
@@ -84,40 +86,98 @@ class ErrorView extends StatelessWidget {
     child: AppErrorWidget(
       error: error,
       onRetry: onRetry,
+      title: title,
       retryKey: const ValueKey('error_retry'),
     ),
   );
 }
 
+/// Estado vacío, como `EmptyState` de la web: ícono 48 `muted`, título 16/600
+/// opcional, texto `muted` y una acción opcional debajo.
 class EmptyView extends StatelessWidget {
   const EmptyView({
     super.key,
     required this.message,
     this.icon = AppIcons.inbox,
+    this.title,
+    this.actionLabel,
+    this.onAction,
+    this.actionKey,
+    this.framed = true,
   });
 
   final String message;
   final IconData icon;
+  final String? title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final Key? actionKey;
+
+  /// Sin borde ni fondo propios, para un vacío dentro de una card.
+  final bool framed;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return AppStateBlock(
-      child: Padding(
+    // Un solo vacío (PS11): card arriba del contenido, ícono de 32 dp de
+    // marca sobre `brandFill`, título 15/600, texto 13/400 y acción tonal.
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      child: Container(
+        key: const ValueKey('empty_card'),
+        width: double.infinity,
         padding: const EdgeInsets.all(AppSpacing.lg),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _kEmptyMaxWidth),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: AppIconSizes.state, color: c.muted),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(color: c.muted),
-              ),
-            ],
+        decoration: framed
+            ? BoxDecoration(
+                color: c.surface,
+                border: Border.all(color: c.border),
+                borderRadius: AppGeometry.card,
+              )
+            : null,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _kEmptyMaxWidth),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  key: const ValueKey('empty_icon_tile'),
+                  width: AppSpacing.xxxl,
+                  height: AppSpacing.xxxl,
+                  decoration: BoxDecoration(
+                    color: c.brandFill,
+                    borderRadius: AppGeometry.card,
+                  ),
+                  child: Icon(icon, size: AppIconSizes.empty, color: c.brand),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                if (title != null) ...[
+                  Text(
+                    title!,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.cardTitle.copyWith(color: c.text),
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                ],
+                if (message.isNotEmpty)
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(color: c.muted),
+                  ),
+                // Sin onAction, el botón queda deshabilitado (p. ej. mientras guarda).
+                if (actionLabel != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton.tonal(
+                    key: actionKey,
+                    style: AppButtonStyles.tonal(context),
+                    onPressed: onAction,
+                    child: Text(actionLabel!),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -127,7 +187,9 @@ class EmptyView extends StatelessWidget {
 
 /// Muestra un SnackBar (con el estilo del tema) con el error de una acción.
 void showErrorSnack(BuildContext context, Object error) {
-  ScaffoldMessenger.of(context).showSnackBar(errorSnackBar(context.colors, error));
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(errorSnackBar(context.colors, error));
 }
 
 /// El SnackBar de [showErrorSnack], para mostrarlo con un `ScaffoldMessenger`

@@ -19,6 +19,9 @@ import '../../shared/widgets/async_value_view.dart';
 import '../../shared/widgets/state_views.dart';
 import 'reminders_providers.dart';
 
+/// Alto del botón «Nuevo» de la cabecera.
+const double _newButtonHeight = 36;
+
 /// Notificaciones pendientes (descartar / posponer) y próximas ocurrencias.
 class RemindersScreen extends ConsumerStatefulWidget {
   const RemindersScreen({super.key, this.deliveriesOnly = false});
@@ -29,7 +32,8 @@ class RemindersScreen extends ConsumerStatefulWidget {
 }
 
 class _RemindersScreenState extends ConsumerState<RemindersScreen> {
-  bool _calendar = false;
+  /// Como la web, abre en el calendario del mes.
+  bool _calendar = true;
   bool get deliveriesOnly => widget.deliveriesOnly;
   @override
   Widget build(BuildContext context) {
@@ -78,16 +82,24 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
 
     return GenPageScaffold(
       title: deliveriesOnly ? 'Vence hoy' : 'Recordatorios',
+      // Una sola cabecera con el contador al lado (P22-M1).
+      count: deliveriesOnly ? deliveries.value?.length : null,
       subtitle: deliveriesOnly
           ? null
           : 'Fechas, avisos y compromisos del equipo.',
-      icon: AppIcons.bell,
       actions: [
         if (!deliveriesOnly)
-          IconButton.filled(
+          // Botón compacto «+ Nuevo» de 36 dp, alineado con el título
+          // (P21-M4); el área táctil sigue siendo de 48.
+          FilledButton.icon(
             key: const ValueKey('reminders_create'),
-            tooltip: 'Crear recordatorio',
-            icon: const Icon(AppIcons.reminderAdd),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, _newButtonHeight),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+              tapTargetSize: MaterialTapTargetSize.padded,
+            ),
+            icon: const Icon(AppIcons.add, size: AppIconSizes.field),
+            label: const Text('Nuevo'),
             onPressed: () => context.push(Routes.newReminder),
           ),
       ],
@@ -109,43 +121,33 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
         children: [
-          if (timezone?.hasValue == true)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
-              child: Text(
-                'Zona horaria del sistema: ${timezone!.requireValue.name}',
-                style: AppTextStyles.body.copyWith(color: c.muted),
+          if (deliveriesOnly) ...[
+            const SizedBox(height: AppSpacing.md),
+            if (deliveries.isLoading && !deliveries.hasValue)
+              const LoadingView(),
+            if (deliveries.hasError)
+              ErrorView(
+                error: deliveries.error!,
+                onRetry: () => ref.invalidate(deliveriesProvider),
               ),
-            ),
-          section(
-            deliveriesOnly ? 'Avisos pendientes' : 'Notificaciones',
-            'Avisos que necesitan tu atención.',
-            AppIcons.bell,
-          ),
-          if (deliveries.isLoading && !deliveries.hasValue) const LoadingView(),
-          if (deliveries.hasError)
-            ErrorView(
-              error: deliveries.error!,
-              onRetry: () => ref.invalidate(deliveriesProvider),
-            ),
-          if (deliveries.hasValue && deliveries.requireValue.isEmpty)
-            const WorkspacePanel(
-              child: ListTile(
-                title: Text('Estás al día'),
-                subtitle: Text('No tenés avisos pendientes.'),
+            if (deliveries.hasValue && deliveries.requireValue.isEmpty)
+              const EmptyView(
+                icon: AppIcons.check,
+                title: 'Estás al día',
+                message: 'No tenés avisos pendientes.',
               ),
-            ),
-          if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
-            WorkspaceListPanel(
-              children: [
-                for (final d in deliveries.requireValue)
-                  DeliveryTile(
-                    key: ValueKey('delivery_row_${d.id}'),
-                    delivery: d,
-                    dayLabel: dayLabel(d.occurrenceDate),
-                  ),
-              ],
-            ),
+            if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
+              WorkspaceListPanel(
+                children: [
+                  for (final d in deliveries.requireValue)
+                    DeliveryTile(
+                      key: ValueKey('delivery_row_${d.id}'),
+                      delivery: d,
+                      dayLabel: dayLabel(d.occurrenceDate),
+                    ),
+                ],
+              ),
+          ],
           if (!deliveriesOnly) ...[
             const SizedBox(height: AppSpacing.md),
             SegmentedButton<bool>(
@@ -162,6 +164,8 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                   icon: Icon(AppIcons.calendarMonth),
                 ),
               ],
+              // Sin check: la opción activa se lee por el relleno (P21-M5).
+              showSelectedIcon: false,
               selected: {_calendar},
               onSelectionChanged: (v) => setState(() => _calendar = v.single),
             ),
@@ -195,10 +199,13 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
                           key: ValueKey(
                             'occurrence_${o.reminderId}_${o.date.toIso8601String()}',
                           ),
+                          // Ícono neutro y el alcance como chip (P21-M2).
                           leading: Icon(
                             AppIcons.reminders,
-                            color: reminderScopeColor(context, o.scope),
+                            size: AppIconSizes.action,
+                            color: context.colors.muted,
                           ),
+                          trailing: ReminderScopeChip(scope: o.scope),
                           title: Text(o.title),
                           subtitle: Text(dayLabel(o.date)),
                           onTap: () =>
@@ -210,6 +217,48 @@ class _RemindersScreenState extends ConsumerState<RemindersScreen> {
               ),
             ],
           ],
+          // Solo en la app: los avisos van debajo del calendario.
+          if (!deliveriesOnly) ...[
+            section(
+              deliveriesOnly ? 'Avisos pendientes' : 'Notificaciones',
+              'Avisos que necesitan tu atención.',
+              AppIcons.bell,
+            ),
+            if (deliveries.isLoading && !deliveries.hasValue)
+              const LoadingView(),
+            if (deliveries.hasError)
+              ErrorView(
+                error: deliveries.error!,
+                onRetry: () => ref.invalidate(deliveriesProvider),
+              ),
+            if (deliveries.hasValue && deliveries.requireValue.isEmpty)
+              const EmptyView(
+                icon: AppIcons.check,
+                title: 'Estás al día',
+                message: 'No tenés avisos pendientes.',
+              ),
+            if (deliveries.hasValue && deliveries.requireValue.isNotEmpty)
+              WorkspaceListPanel(
+                children: [
+                  for (final d in deliveries.requireValue)
+                    DeliveryTile(
+                      key: ValueKey('delivery_row_${d.id}'),
+                      delivery: d,
+                      dayLabel: dayLabel(d.occurrenceDate),
+                    ),
+                ],
+              ),
+          ],
+          // Como la web: la zona horaria al pie.
+          if (!deliveriesOnly && timezone?.hasValue == true)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: Text(
+                timezone!.requireValue.name.replaceAll('_', ' '),
+                key: const ValueKey('reminders_timezone'),
+                style: AppTextStyles.body.copyWith(color: c.muted),
+              ),
+            ),
           const SizedBox(height: AppSpace.bottomClearance),
         ],
       ),

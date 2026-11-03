@@ -10,6 +10,7 @@ import 'package:genwork_mobile/features/reminders/reminder_calendar.dart';
 import 'package:genwork_mobile/features/reminders/reminders_providers.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'daily_parity_test.dart' show ApiHarness;
+import 'package:genwork_mobile/shared/widgets/workspace_panel.dart';
 
 typedef Json = Map<String, dynamic>;
 Json reminder({String type = 'WEEKLY'}) => {
@@ -425,6 +426,51 @@ void main() {
       '2032-02-29T00:00:00.000Z',
     );
   });
+  testWidgets(
+    'P21 calendario: mes y grilla en una card, celdas sin líneas y hoy en '
+    'un círculo de 28 dp',
+    (t) async {
+      final handle = t.ensureSemantics();
+      final f = Fixture();
+      await mount(
+        t,
+        f,
+        child: Scaffold(
+          body: SingleChildScrollView(
+            child: ReminderCalendar(today: DateTime.utc(2026, 10, 27)),
+          ),
+        ),
+      );
+      final panel = find.ancestor(
+        of: find.byKey(const ValueKey('reminders_day_1')),
+        matching: find.byType(WorkspacePanel),
+      );
+      expect(panel, findsOneWidget);
+      expect(
+        find.descendant(
+          of: panel,
+          matching: find.byKey(const ValueKey('reminders_next_month')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        t.getSize(find.byKey(const ValueKey('reminders_today_mark'))),
+        const Size(28, 28),
+      );
+      // Sin líneas internas: ninguna celda dibuja borde.
+      expect(
+        find.descendant(
+          of: panel,
+          matching: find.byWidgetPredicate(
+            (w) => w is Material && w.shape is Border,
+          ),
+        ),
+        findsNothing,
+      );
+      await expectLater(t, meetsGuideline(androidTapTargetGuideline));
+      handle.dispose();
+    },
+  );
   for (final dark in [false, true]) {
     testWidgets(
       'REC-01 calendario navega fuera de 60 días a 360dp/150%, dark=$dark',

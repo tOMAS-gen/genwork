@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/theme/app_geometry.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
+import 'package:genwork_mobile/core/theme/color_contrast.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
 import 'package:genwork_mobile/shared/widgets/action_confirmation_dialog.dart';
 import 'package:genwork_mobile/shared/widgets/adaptive_modal.dart';
@@ -67,15 +68,34 @@ void main() {
         expect(t.takeException(), isNull);
         expect(find.text('Guardar'), findsOneWidget);
         final c = dark ? GenColors.dark : GenColors.light;
-        final footer = t.widget<ColoredBox>(
-          find
-              .descendant(
-                of: find.byType(AppWorkFooter),
-                matching: find.byType(ColoredBox),
-              )
-              .first,
+        // Como `dialog.dialog` de la web: sin franjas ni divisores en la
+        // cabecera y el pie.
+        final dialog = find.byType(AppWorkDialog);
+        expect(
+          find.descendant(of: dialog, matching: find.byType(Divider)),
+          findsNothing,
         );
-        expect(footer.color, c.field);
+        expect(
+          t
+              .widgetList<ColoredBox>(
+                find.descendant(of: dialog, matching: find.byType(ColoredBox)),
+              )
+              .where((box) => box.color == c.field),
+          isEmpty,
+        );
+        final cancel = t.element(find.text('Cancelar'));
+        final side = TextButtonTheme.of(
+          cancel,
+        ).style?.side?.resolve(<WidgetState>{});
+        // P06-M4: «Cancelar» es texto gris sin borde; la principal es el
+        // único botón con forma. Sin contorno, lo que tiene que contrastar
+        // es el texto (4,5:1 sobre el diálogo).
+        expect(side, anyOf(isNull, BorderSide.none));
+        final fg = TextButtonTheme.of(
+          cancel,
+        ).style?.foregroundColor?.resolve(<WidgetState>{});
+        expect(fg, c.muted, reason: 'la acción secundaria no va en acento');
+        expect(appContrastRatio(fg!, c.floating), greaterThanOrEqualTo(4.5));
         final close = find.byTooltip('Cerrar');
         expect(
           t.getSize(close).shortestSide,

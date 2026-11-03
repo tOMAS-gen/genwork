@@ -14,6 +14,10 @@ import 'settings_form_dialog.dart';
 import 'settings_providers.dart';
 import '../../core/theme/app_geometry.dart';
 import '../../core/theme/app_icons.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../shared/widgets/app_button_styles.dart';
 
 /// Se puede sustituir en tests sin abrir un navegador ni compartir credenciales.
 final integrationBrowserProvider = Provider<Future<String> Function(String)>(
@@ -32,9 +36,13 @@ class GoogleIntegrationButton extends ConsumerStatefulWidget {
     required this.purpose,
     required this.label,
     required this.onChanged,
+    this.filled = false,
   });
   final String purpose, label;
   final VoidCallback onChanged;
+
+  /// Relleno cuando es la única acción pendiente (P30-M2).
+  final bool filled;
   @override
   ConsumerState<GoogleIntegrationButton> createState() =>
       _GoogleIntegrationButtonState();
@@ -105,12 +113,23 @@ class _GoogleIntegrationButtonState
   }
 
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    key: ValueKey('settings_google_${widget.purpose}'),
-    onPressed: busy ? null : connect,
-    icon: const Icon(AppIcons.link),
-    label: Text(busy ? 'Esperando autorización…' : widget.label),
-  );
+  Widget build(BuildContext context) {
+    final key = ValueKey('settings_google_${widget.purpose}');
+    final label = Text(busy ? 'Esperando autorización…' : widget.label);
+    return widget.filled
+        ? FilledButton.icon(
+            key: key,
+            onPressed: busy ? null : connect,
+            icon: const Icon(AppIcons.link, size: AppIconSizes.field),
+            label: label,
+          )
+        : OutlinedButton.icon(
+            key: key,
+            onPressed: busy ? null : connect,
+            icon: const Icon(AppIcons.link),
+            label: label,
+          );
+  }
 }
 
 class StorageAccountPanel extends ConsumerStatefulWidget {
@@ -275,9 +294,13 @@ class SystemStoragePanel extends ConsumerStatefulWidget {
     super.key,
     required this.config,
     required this.onChanged,
+    this.onTest,
   });
   final Json config;
   final VoidCallback onChanged;
+
+  /// «Probar conexión», junto a «Editar» al pie de la card (P31a-M1).
+  final VoidCallback? onTest;
   @override
   ConsumerState<SystemStoragePanel> createState() => _SystemStoragePanelState();
 }
@@ -364,22 +387,76 @@ class _SystemStoragePanelState extends ConsumerState<SystemStoragePanel> {
   @override
   Widget build(BuildContext context) {
     final google = config['provider'] == 'GDRIVE';
+    final c = context.colors;
+    // Rótulo 11/700 y el valor en mono sobre `field` (P31a-M2).
+    Widget pair(String label, String value) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: c.field,
+              borderRadius: AppGeometry.control,
+            ),
+            child: SelectableText(
+              value,
+              style: AppTextStyles.technical.copyWith(color: c.text),
+            ),
+          ),
+        ],
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Proveedor activo: ${google ? 'Google Drive' : 'Nextcloud'}'),
+        // Proveedor como encabezado con el chip «Activo».
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                header: true,
+                child: Text(
+                  google ? 'Google Drive' : 'Nextcloud',
+                  style: AppTextStyles.cardTitle.copyWith(color: c.text),
+                ),
+              ),
+            ),
+            StatusChip(
+              key: const ValueKey('settings_storage_active'),
+              label: 'Activo',
+              color: c.ok,
+              fill: c.ok.withValues(alpha: .12),
+            ),
+          ],
+        ),
         if (google) ...[
-          Text(
+          pair(
+            'CUENTA',
             config['connected'] == true
-                ? 'Cuenta conectada: ${config['connectedEmail'] ?? 'Google'}'
-                : 'Cuenta sin conectar',
+                ? '${config['connectedEmail'] ?? 'Google'}'
+                : 'Sin conectar',
           ),
-          Text(
-            'Empresa: ${config['orgName'] ?? config['defaultOrgName'] ?? ''}',
+          pair(
+            'EMPRESA',
+            '${config['orgName'] ?? config['defaultOrgName'] ?? ''}',
           ),
-          Text(
-            'Carpeta raíz: ${config['rootFolderId'] == '' ? 'Mi unidad' : config['rootFolderId'] ?? 'Mi unidad'}',
+          pair(
+            'CARPETA RAÍZ',
+            config['rootFolderId'] == ''
+                ? 'Mi unidad'
+                : '${config['rootFolderId'] ?? 'Mi unidad'}',
           ),
+          const SizedBox(height: AppSpacing.sm),
           GoogleIntegrationButton(
             purpose: 'drive',
             label: config['connected'] == true
@@ -426,29 +503,57 @@ class _SystemStoragePanelState extends ConsumerState<SystemStoragePanel> {
             label: const Text('Elegir carpeta raíz'),
           ),
         ] else ...[
-          Text('${config['url'] ?? ''}'),
-          Text('Usuario: ${config['adminUser'] ?? ''}'),
+          pair('SERVIDOR', '${config['url'] ?? ''}'),
+          pair('USUARIO', '${config['adminUser'] ?? ''}'),
         ],
-        OutlinedButton(
-          key: const ValueKey('settings_edit_storage'),
-          onPressed: () => edit(context, ref, google ? 'GDRIVE' : 'NEXTCLOUD'),
-          child: const Text('Editar configuración'),
+        Divider(height: AppSpacing.lg, color: c.border),
+        // «Editar» y «Probar conexión» lado a lado (P31a-M1, P31a-M4).
+        Row(
+          children: [
+            OutlinedButton(
+              key: const ValueKey('settings_edit_storage'),
+              onPressed: () =>
+                  edit(context, ref, google ? 'GDRIVE' : 'NEXTCLOUD'),
+              child: const Text('Editar'),
+            ),
+            if (widget.onTest != null) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  key: const ValueKey('settings_test_connection'),
+                  style: AppButtonStyles.tonal(context),
+                  onPressed: widget.onTest,
+                  icon: const Icon(AppIcons.retry, size: AppIconSizes.field),
+                  label: const Text(
+                    'Probar conexión',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-        OutlinedButton(
-          key: const ValueKey('settings_change_provider'),
-          onPressed: () async {
-            final provider = google ? 'NEXTCLOUD' : 'GDRIVE';
-            if (await settingsConfirm(
-                  context,
-                  '¿Cambiar proveedor?',
-                  'Cambiar el proveedor afecta el acceso a los archivos del sistema. Revisá la configuración antes de guardar.',
-                ) &&
-                context.mounted) {
-              await edit(context, ref, provider);
-            }
-          },
-          child: Text(
-            google ? 'Cambiar a Nextcloud' : 'Cambiar a Google Drive',
+        // El otro proveedor, como enlace aparte.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const ValueKey('settings_change_provider'),
+            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            onPressed: () async {
+              final provider = google ? 'NEXTCLOUD' : 'GDRIVE';
+              if (await settingsConfirm(
+                    context,
+                    '¿Cambiar proveedor?',
+                    'Cambiar el proveedor afecta el acceso a los archivos del sistema. Revisá la configuración antes de guardar.',
+                  ) &&
+                  context.mounted) {
+                await edit(context, ref, provider);
+              }
+            },
+            child: Text(
+              google ? 'Cambiar a Nextcloud' : 'Cambiar a Google Drive',
+            ),
           ),
         ),
       ],

@@ -47,26 +47,46 @@
         font-family: "Montserrat", system-ui, sans-serif;
         line-height: 1.7;
       }
+      /* Barra con radio 6 y relleno `field`, dentro del margen de 16 de la
+         página (P16-M2): Material Symbols de 20 en `muted`, activo en `brand`. */
       #toolbar {
         display: flex;
         overflow-x: auto;
+        scrollbar-width: none;
         position: sticky;
         top: 0;
-        background: var(--surface);
-        border-bottom: 1px solid var(--border);
+        margin: 0 16px;
+        background: var(--field);
+        border-radius: var(--radius);
         z-index: 2;
       }
+      #toolbar::-webkit-scrollbar {
+        display: none;
+      }
       button {
-        flex-shrink: 0;
-        min-width: 48px;
+        flex: 1 0 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
         min-height: 48px;
         font-family: inherit;
         font-size: 0.8125rem;
         font-weight: 600;
+        white-space: nowrap;
         background: transparent;
         color: var(--muted);
         border: 0;
-        padding: 8px;
+        border-radius: var(--radius);
+        padding: 0 8px;
+      }
+      button svg {
+        width: 20px;
+        height: 20px;
+        fill: currentColor;
+      }
+      button[aria-pressed="true"] {
+        color: var(--brand);
       }
       button:active {
         color: var(--brand);

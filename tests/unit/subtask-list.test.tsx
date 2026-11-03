@@ -8,7 +8,7 @@ import {
   deleteConfirmMessage,
   canReorderSubtasks,
 } from "@/components/tasks/SubtaskList";
-import { TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
+import { taskRowActions, TaskItem, type TaskDto } from "@/components/tasks/TaskItem";
 import { TaskBoardView } from "@/components/tasks/TaskBoardView";
 import { TaskMoveDialog } from "@/components/tasks/TaskMoveDialog";
 
@@ -105,7 +105,11 @@ describe("TaskItem — render de una tarea contenedora (Tarea 12)", () => {
     const filaPadre = html.slice(0, html.indexOf('class="subtask-list"'));
     expect(filaPadre).not.toMatch(/<input[^>]*type="checkbox"/);
     expect(filaPadre).toContain("1/3");
-    expect(filaPadre).toContain("Agregar subtarea");
+    // «Agregar subtarea» se ofrece en el «⋯» de la fila (spec 066, T42).
+    expect(filaPadre).toContain('aria-label="Acciones de &quot;Tarea padre&quot;"');
+    expect(taskRowActions({ canAddSubtask: true, canDelete: true }).map((a) => a.label)).toContain(
+      "Agregar subtarea",
+    );
     // La hija, en cambio, conserva su propio control de estado.
     expect(html).toMatch(/<input[^>]*type="checkbox"/);
   });

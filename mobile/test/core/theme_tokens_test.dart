@@ -26,11 +26,24 @@ void main() {
     expect(kActiveTickWidth, 3);
   });
 
-  test('tipografía de la tabla 2.3', () {
-    expect(AppTextStyles.screenTitle.fontSize, 24);
+  // D2 (auditoría premium): cuatro pasos — 20/700 título, 15/600 título de
+  // card o sección, 13/400 cuerpo y 11/700 rótulo con tracking de 0,06 em.
+  test('tipografía de cuatro pasos (D2)', () {
+    expect(AppTextStyles.screenTitle.fontSize, 20);
+    expect(AppTextStyles.screenTitle.fontWeight, FontWeight.w700);
+    expect(AppTextStyles.entityTitle, AppTextStyles.screenTitle);
+    expect(AppTextStyles.cardTitle.fontSize, 15);
+    expect(AppTextStyles.cardTitle.fontWeight, FontWeight.w600);
+    expect(AppTextStyles.itemTitle, AppTextStyles.cardTitle);
+    expect(AppTextStyles.dialogTitle, AppTextStyles.cardTitle);
     expect(AppTextStyles.body.fontSize, 13);
     expect(AppTextStyles.body.height, 1.6);
-    expect(AppTextStyles.sectionLabel.letterSpacing, 1.2);
+    expect(AppTextStyles.sectionLabel.fontSize, 11);
+    expect(AppTextStyles.sectionLabel.letterSpacing, closeTo(11 * .06, .001));
+    expect(
+      AppTextStyles.technical.fontFeatures,
+      contains(const FontFeature.tabularFigures()),
+    );
     expect(AppTextStyles.technical.fontFamily, 'RobotoMono');
     expect(AppTextStyles.action.fontFamily, 'Montserrat');
   });
@@ -113,6 +126,6 @@ void main() {
       ).style.merge(t.widget<Text>(find.text(label)).style);
       expect(style.letterSpacing, 0, reason: label);
     }
-    expect(AppTextStyles.sectionLabel.letterSpacing, 1.2);
+    expect(AppTextStyles.sectionLabel.letterSpacing, closeTo(11 * .06, .001));
   });
 }

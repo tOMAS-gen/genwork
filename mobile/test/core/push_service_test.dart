@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:genwork_mobile/core/auth/token_store.dart';
@@ -95,4 +96,20 @@ void main() {
     expect(service.hasAsked, isFalse);
     expect(await service.permitted(), isFalse);
   });
+  test(
+    'T13: ready se completa al terminar de iniciar, aun sin Firebase',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final service = PushService(prefs, ServerRegistry(prefs), MemoryTokens());
+      var ready = false;
+      unawaited(service.ready.then((_) => ready = true));
+      await Future<void>.delayed(Duration.zero);
+      expect(ready, isFalse);
+      await service.initialize();
+      await Future<void>.delayed(Duration.zero);
+      expect(ready, isTrue);
+      expect(service.available, isFalse);
+    },
+  );
 }

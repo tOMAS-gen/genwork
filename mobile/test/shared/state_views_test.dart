@@ -95,21 +95,39 @@ void main() {
     expect(find.byKey(const ValueKey('error_retry')), findsNothing);
   });
 
-  testWidgets('EmptyView: ícono 48 muted, texto acotado a 360', (t) async {
+  // PS11: un solo vacío. Card de radio 8 arriba de todo (no centrada en un
+  // bloque de 240 dp), ícono de 32 dp de marca sobre `brandFill`, texto
+  // acotado a 360 y anunciado como región viva.
+  testWidgets('EmptyView: card arriba, ícono 32 de marca y texto acotado', (
+    t,
+  ) async {
     t.view.physicalSize = const Size(800, 1200);
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.reset);
+    final handle = t.ensureSemantics();
     await _mount(t, EmptyView(message: 'Nada por acá. ' * 30));
     final icon = t.widget<Icon>(find.byType(Icon));
     expect(icon.icon, AppIcons.inbox);
-    expect(icon.size, 48);
-    expect(icon.color, GenColors.light.muted);
+    expect(icon.size, 32);
+    expect(icon.color, GenColors.light.brand);
+    final tile = find.byKey(const ValueKey('empty_icon_tile'));
+    expect(
+      (t.widget<Container>(tile).decoration as BoxDecoration).color,
+      GenColors.light.brandFill,
+    );
+    final card = find.byKey(const ValueKey('empty_card'));
+    final shape = t.widget<Container>(card).decoration as BoxDecoration;
+    expect(shape.borderRadius, AppGeometry.card);
+    expect(shape.color, GenColors.light.surface);
+    // Anclada arriba: no flota en medio de la pantalla.
+    expect(t.getTopLeft(card).dy, lessThan(48));
     final text = find.textContaining('Nada por acá.');
     expect(t.getSize(text).width, lessThanOrEqualTo(360));
     expect(
-      t.getSize(find.byType(EmptyView)).height,
-      greaterThanOrEqualTo(AppBlockHeights.state),
+      t.getSemantics(find.byType(EmptyView)),
+      matchesSemantics(isLiveRegion: true),
     );
+    handle.dispose();
   });
 
   testWidgets('showErrorSnack muestra ícono y mensaje', (t) async {
@@ -127,5 +145,75 @@ void main() {
     expect(find.byType(SnackBar), findsOneWidget);
     expect(find.text(errorMessage(Exception('x'))), findsOneWidget);
     expect(find.byIcon(AppIcons.error), findsOneWidget);
+  });
+
+  testWidgets('EmptyView como EmptyState de la web: título, texto y acción', (
+    t,
+  ) async {
+    var tapped = 0;
+    await _mount(
+      t,
+      EmptyView(
+        icon: AppIcons.projectOpen,
+        title: 'Todavía no tenés proyectos',
+        message: 'Creá tu primer proyecto para empezar.',
+        actionLabel: 'Nuevo proyecto',
+        onAction: () => tapped++,
+      ),
+    );
+    final title = t.getRect(find.text('Todavía no tenés proyectos'));
+    expect(
+      t.widget<Text>(find.text('Creá tu primer proyecto para empezar.')).style,
+      isA<TextStyle>()
+          .having((s) => s.fontSize, 'fontSize', 13)
+          .having((s) => s.color, 'color', GenColors.light.muted),
+    );
+    final text = t.getRect(find.text('Creá tu primer proyecto para empezar.'));
+    expect(title.top, lessThan(text.top));
+    expect(
+      t.widget<Text>(find.text('Todavía no tenés proyectos')).style?.fontWeight,
+      FontWeight.w600,
+    );
+    // Acción tonal: brandFill con texto de marca, no el relleno azul.
+    final style = t.widget<FilledButton>(find.byType(FilledButton)).style!;
+    expect(style.backgroundColor!.resolve({}), GenColors.light.brandFill);
+    expect(style.foregroundColor!.resolve({}), GenColors.light.brand);
+    await t.tap(find.text('Nuevo proyecto'));
+    expect(tapped, 1);
+  });
+
+  testWidgets('ErrorView muestra el título de la web sobre el mensaje', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      ErrorView(
+        error: Exception('x'),
+        title: 'No se pudo cargar el proyecto',
+        onRetry: () {},
+      ),
+    );
+    expect(find.text('No se pudo cargar el proyecto'), findsOneWidget);
+    expect(
+      find.text('Ocurrió un error inesperado. Probá de nuevo.'),
+      findsOneWidget,
+    );
+    expect(find.text('Reintentar'), findsOneWidget);
+    expect(
+      t.getTopLeft(find.text('No se pudo cargar el proyecto')).dy,
+      lessThan(
+        t
+            .getTopLeft(
+              find.text('Ocurrió un error inesperado. Probá de nuevo.'),
+            )
+            .dy,
+      ),
+    );
+  });
+
+  testWidgets('EmptyView sin marco dentro de una card', (t) async {
+    await _mount(t, const EmptyView(message: 'Nada', framed: false));
+    final card = t.widget<Container>(find.byKey(const ValueKey('empty_card')));
+    expect(card.decoration, isNull);
   });
 }

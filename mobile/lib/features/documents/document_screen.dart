@@ -1,4 +1,5 @@
 import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_button_styles.dart';
 import '../../shared/widgets/app_form_dialog.dart';
 import '../../shared/widgets/app_work_dialog.dart';
@@ -13,7 +14,6 @@ import '../../core/network/api_exception.dart';
 import '../../shared/widgets/async_value_view.dart';
 import '../../core/theme/app_icons.dart';
 import '../../shared/widgets/brand_name.dart';
-import '../../shared/widgets/gen_section_header.dart';
 import '../../shared/widgets/state_views.dart';
 import '../works/works_providers.dart';
 import '../files/files_providers.dart';
@@ -21,6 +21,10 @@ import '../notes/notes_providers.dart';
 import 'document_draft.dart';
 import 'rich_document_editor.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../shared/widgets/breadcrumb.dart';
+import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/gen_colors.dart';
+import '../works/project_breadcrumb.dart';
 
 final richEditorBuilderProvider = Provider<Widget Function(RichDocumentEditor)>(
   (ref) =>
@@ -238,6 +242,92 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
     }
   }
 
+  /// Un solo indicador de guardado (P16-M4, P17-M2): «✓ Guardado» en 12
+  /// `muted` y, solo con cambios sin guardar, el botón tonal «Guardar».
+  Widget _saveStatus() {
+    final c = context.colors;
+    final style = AppTextStyles.supporting.copyWith(color: c.muted);
+    if (_draft.error != null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              _draft.status,
+              style: AppTextStyles.supporting.copyWith(color: c.danger),
+            ),
+          ),
+          TextButton(
+            key: const ValueKey('document_retry'),
+            onPressed: _draft.saving ? null : _draft.save,
+            child: const Text('Reintentar'),
+          ),
+        ],
+      );
+    }
+    if (_draft.dirty && !_draft.saving) {
+      return FilledButton.tonal(
+        key: ValueKey(widget.noteId != null ? 'note_save' : 'document_save'),
+        style: AppButtonStyles.tonal(context).copyWith(
+          minimumSize: const WidgetStatePropertyAll(Size(0, AppSpacing.xl)),
+        ),
+        onPressed: _draft.save,
+        child: const Text('Guardar'),
+      );
+    }
+    return Row(
+      key: const ValueKey('document_status'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!_draft.saving) ...[
+          Icon(AppIcons.check, size: AppIconSizes.compact, color: c.muted),
+          const SizedBox(width: AppSpacing.xxs),
+        ],
+        Text(_draft.status, style: style),
+      ],
+    );
+  }
+
+  /// Opciones (⋯), como la barra del editor web.
+  List<Widget> _actions() => [
+    PopupMenuButton<String>(
+      key: const ValueKey('document_options'),
+      tooltip: 'Opciones del documento',
+      onSelected: (v) {
+        if (v == 'import') _import();
+        if (v == 'export') _editor.command('export');
+        if (v == 'image') _image();
+        if (v == 'delete') _delete();
+      },
+      itemBuilder: (_) => [
+        if (_editable)
+          PopupMenuItem(
+            value: 'import',
+            enabled: !_fileBusy,
+            child: const Text('Importar .md'),
+          ),
+        PopupMenuItem(
+          value: 'export',
+          enabled: !_unsupported,
+          child: const Text('Exportar .md'),
+        ),
+        if (_editable && widget.workId != null)
+          PopupMenuItem(
+            value: 'image',
+            enabled: !_fileBusy,
+            child: const Text('Adjuntar imagen'),
+          ),
+        if (widget.noteId != null)
+          PopupMenuItem(
+            key: const ValueKey('note_delete'),
+            value: 'delete',
+            enabled: !_draft.saving && !_fileBusy,
+            child: const Text('Borrar nota'),
+          ),
+      ],
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_draft.dirty && !_draft.saving && !_fileBusy,
@@ -257,95 +347,94 @@ class _DocumentScreenState extends ConsumerState<DocumentScreen>
       appBar: AppBar(title: const BrandName(size: 16)),
       body: Column(
         children: [
-          GenSectionHeader(
-            title: widget.noteId != null ? 'Nota' : 'Documentación',
-            icon: widget.noteId != null ? AppIcons.notes : AppIcons.document,
-            actions: [
-              if (widget.editable)
-                IconButton(
-                  key: ValueKey(
-                    widget.noteId != null ? 'note_save' : 'document_save',
-                  ),
-                  tooltip:
-                      'Guardar ${widget.noteId != null ? 'nota' : 'documento'}',
-                  onPressed: _draft.dirty && !_draft.saving
-                      ? _draft.save
-                      : null,
-                  icon: const Icon(AppIcons.check),
+          // Migas y acciones en un renglón; debajo el título 20/700 y el
+          // estado de guardado (P16-M1, P17-M1). Todo sobre la línea de 16.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.gutter,
+              AppSpacing.sm,
+              AppSpacing.xxs,
+              0,
+            ),
+            child: Row(
+              key: const ValueKey('note_actions'),
+              children: [
+                Expanded(
+                  child: widget.noteId != null
+                      ? Breadcrumb(
+                          rootLabel: 'Mis notas',
+                          onRoot: () => Navigator.maybePop(context),
+                          current: _title.text.isEmpty
+                              ? 'Sin título'
+                              : _title.text,
+                        )
+                      : widget.workId != null
+                      ? ProjectBreadcrumb(
+                          workId: widget.workId!,
+                          current: 'Documento',
+                        )
+                      : const SizedBox.shrink(),
                 ),
-              PopupMenuButton<String>(
-                key: const ValueKey('document_options'),
-                tooltip: 'Opciones del documento',
-                onSelected: (v) {
-                  if (v == 'import') _import();
-                  if (v == 'export') _editor.command('export');
-                  if (v == 'image') _image();
-                  if (v == 'delete') _delete();
-                },
-                itemBuilder: (_) => [
-                  if (_editable)
-                    PopupMenuItem(
-                      value: 'import',
-                      enabled: !_fileBusy,
-                      child: const Text('Importar .md'),
-                    ),
-                  PopupMenuItem(
-                    value: 'export',
-                    enabled: !_unsupported,
-                    child: const Text('Exportar .md'),
-                  ),
-                  if (_editable && widget.workId != null)
-                    PopupMenuItem(
-                      value: 'image',
-                      enabled: !_fileBusy,
-                      child: const Text('Adjuntar imagen'),
-                    ),
-                  if (widget.noteId != null)
-                    PopupMenuItem(
-                      key: const ValueKey('note_delete'),
-                      value: 'delete',
-                      enabled: !_draft.saving && !_fileBusy,
-                      child: const Text('Borrar nota'),
-                    ),
-                ],
-              ),
-            ],
+                ..._actions(),
+              ],
+            ),
           ),
-          if (widget.noteId != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: TextField(
-                key: const ValueKey('note_title'),
-                controller: _title,
-                readOnly: !widget.editable,
-                decoration: const InputDecoration(
-                  hintText: 'Título',
-                  counterText: '',
-                ),
-                style: Theme.of(context).textTheme.titleLarge,
-                onChanged: (v) => _draft.change(title: v),
-              ),
-            ),
-          if (widget.editable)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _draft.status,
-                      style: Theme.of(context).textTheme.bodySmall,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.gutter),
+            child: widget.noteId != null
+                ? TextField(
+                    key: const ValueKey('note_title'),
+                    controller: _title,
+                    readOnly: !widget.editable,
+                    maxLines: null,
+                    decoration: const InputDecoration(
+                      hintText: 'Título',
+                      counterText: '',
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
                     ),
+                    style: AppTextStyles.screenTitle.copyWith(
+                      color: context.colors.text,
+                    ),
+                    onChanged: (v) => _draft.change(title: v),
+                  )
+                // El título es corto: el estado va en su renglón (P17-M2).
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            'Documento',
+                            style: AppTextStyles.screenTitle.copyWith(
+                              color: context.colors.text,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (widget.editable) _saveStatus(),
+                    ],
                   ),
-                  if (_draft.error != null)
-                    TextButton(
-                      key: const ValueKey('document_retry'),
-                      onPressed: _draft.saving ? null : _draft.save,
-                      child: const Text('Reintentar'),
-                    ),
-                ],
+          ),
+          if (widget.editable && widget.noteId != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.gutter,
+                AppSpacing.xxs,
+                AppSpace.gutter,
+                AppSpacing.sm,
               ),
-            ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _saveStatus(),
+              ),
+            )
+          else
+            const SizedBox(height: AppSpacing.sm),
           if (_draft.error != null)
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xs),

@@ -26,10 +26,13 @@ abstract final class Routes {
   static const notes = '/notes';
   static const more = '/more';
   static const reminders = '/more/reminders';
+  static const materials = '/more/materials';
   static const newReminder = '/more/reminders/new';
   static const account = '/more/account';
   static const settings = '/more/settings';
   static String setting(String section) => '$settings/module/$section';
+  static const mobileApp = '$settings/mobile';
+  static const genstock = '$settings/genstock';
   static String catalog(String kind) => '$settings/catalog/$kind';
   static String settingsError(String id) => '$settings/errors/$id';
 
@@ -75,6 +78,7 @@ abstract final class Routes {
         'groups' => groups,
         'notes' => notes,
         'reminders' => reminders,
+        'materials' => materials,
         'settings' || 'admin' => settings,
         'portal' => portal,
         'tv' => tv,

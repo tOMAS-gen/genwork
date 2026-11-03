@@ -77,3 +77,31 @@ class InfoChip extends StatelessWidget {
     return StatusChip(label: label, color: c.info, fill: c.infoFill);
   }
 }
+
+/// Estado de una tarea con los mismos colores en todas las pantallas (P34-M5,
+/// P35-M2): terminado verde, en curso azul y el resto (pendiente) neutro.
+class TaskStatusChip extends StatelessWidget {
+  const TaskStatusChip({super.key, required this.name, required this.done});
+
+  final String name;
+  final bool done;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final inProgress = !done && name.toLowerCase().contains('curso');
+    return StatusChip(
+      label: name,
+      color: done
+          ? c.ok
+          : inProgress
+          ? c.brand
+          : c.muted,
+      fill: done
+          ? c.ok.withValues(alpha: .12)
+          : inProgress
+          ? c.brandFill
+          : c.hover,
+    );
+  }
+}

@@ -29,7 +29,6 @@ class NotesListScreen extends ConsumerWidget {
     return GenPageScaffold(
       title: 'Mis notas',
       subtitle: 'Tu espacio para escribir, organizar ideas y documentar.',
-      icon: AppIcons.notes,
       actions: [
         IconButton.filled(
           key: const ValueKey('notes_create'),
@@ -57,7 +56,9 @@ class NotesListScreen extends ConsumerWidget {
                 children: const [
                   EmptyView(
                     icon: AppIcons.notes,
-                    message: 'Todavía no tenés notas',
+                    title: 'No tenés notas todavía',
+                    message:
+                        'Creá tu primera nota para guardar apuntes y recordatorios con formato.',
                   ),
                 ],
               )
@@ -87,6 +88,7 @@ class _NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final preview = docToPlainText(note.content);
+    final day = formatDay(note.updatedAt);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -97,14 +99,12 @@ class _NoteCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Título y fecha en un renglón, sin ícono: título, fecha y
+              // extracto arrancan en la misma línea (P15-M1, P15-M2).
               Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
-                  Icon(
-                    AppIcons.notes,
-                    size: AppIconSizes.field,
-                    color: c.muted,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
                       note.title.isEmpty ? 'Sin título' : note.title,
@@ -113,15 +113,20 @@ class _NoteCard extends StatelessWidget {
                       style: AppTextStyles.itemTitle.copyWith(color: c.text),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    day,
+                    // Mono solo si la fecha lleva cifras («27 oct»).
+                    style:
+                        (day.contains(RegExp(r'\d'))
+                                ? AppTextStyles.technical
+                                : AppTextStyles.supporting)
+                            .copyWith(color: c.muted),
+                  ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                formatDay(note.updatedAt),
-                style: AppTextStyles.technical.copyWith(color: c.muted),
-              ),
               if (preview.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xxs),
                 Text(
                   preview,
                   maxLines: 2,

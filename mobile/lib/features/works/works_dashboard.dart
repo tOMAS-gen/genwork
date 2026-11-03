@@ -1,5 +1,9 @@
+import 'package:flutter/painting.dart';
+
+import '../../core/theme/gen_colors.dart';
 import '../../core/util/name_order.dart';
 import '../../data/models/common.dart';
+import '../../data/models/task.dart';
 import '../../data/models/work.dart';
 
 /// Estado de un proyecto según sus tareas, igual que `getProjectStatus` de la
@@ -47,11 +51,14 @@ class WorksStats {
   int pct(int n) => total > 0 ? (n / total * 100).round() : 0;
 }
 
-enum DueTone { green, orange, red }
+enum DueTone { neutral, warning, danger }
 
-/// Urgencia de una fecha límite, como `getDueDateUrgency` de la web: más de 7
-/// días, verde; de 1 a 7, naranja; hoy o vencido, rojo. Solo cuenta la fecha.
-({String label, DueTone tone}) dueUrgency(DateTime due, DateTime now) {
+/// Urgencia de una fecha límite (D5): con más de 3 días, neutro; de hoy a 3
+/// días, ámbar; vencido, rojo. Solo cuenta la fecha.
+({String label, String short, DueTone tone}) dueUrgency(
+  DateTime due,
+  DateTime now,
+) {
   final days = DateTime(
     due.year,
     due.month,
@@ -61,14 +68,43 @@ enum DueTone { green, orange, red }
       ? 'Vencido'
       : days == 0
       ? 'Vence hoy'
+      : days == 1
+      // La web dice «1 días restantes»; acá con su singular (fase 5: web).
+      ? '1 día restante'
       : '$days días restantes';
-  final tone = days > 7
-      ? DueTone.green
-      : days >= 1
-      ? DueTone.orange
-      : DueTone.red;
-  return (label: label, tone: tone);
+  // Para una línea de meta («29 oct · 3 días», P05-M3).
+  final short = days < 0
+      ? 'Vencido'
+      : days == 0
+      ? 'Hoy'
+      : days == 1
+      ? '1 día'
+      : '$days días';
+  final tone = days > 3
+      ? DueTone.neutral
+      : days >= 0
+      ? DueTone.warning
+      : DueTone.danger;
+  return (label: label, short: short, tone: tone);
 }
+
+/// Color del texto de urgencia: gris, ámbar o rojo.
+Color dueToneColor(GenColors c, DueTone tone) => switch (tone) {
+  DueTone.neutral => c.muted,
+  DueTone.warning => c.warningText,
+  DueTone.danger => c.dangerText,
+};
+
+/// Colores de un estado de proyecto, iguales en todas las pantallas (D5):
+/// pendiente neutro, en curso azul y terminado verde.
+({Color text, Color fill}) projectStatusColors(
+  GenColors c,
+  ProjectStatus status,
+) => switch (status) {
+  ProjectStatus.pending => (text: c.muted, fill: c.hover),
+  ProjectStatus.inProgress => (text: c.brand, fill: c.brandFill),
+  ProjectStatus.completed => (text: c.successText, fill: c.successFill),
+};
 
 /// Color del proyecto a partir de sus etiquetas (igual que `WorkSummary.color`):
 /// la etiqueta principal o, si no hay, la primera por nombre de clave.
@@ -79,4 +115,20 @@ String? projectColor(List<LabelChip> labels) {
   final sorted = [...labels]
     ..sort((a, b) => compareNamesEs(a.keyName, b.keyName));
   return sorted.first.color;
+}
+
+/// Avance de un grupo de tareas contando hojas, como la web: una tarea con
+/// subtareas aporta sus subtareas, no ella misma.
+({int done, int total}) leafProgress(List<Task> tasks) {
+  var done = 0, total = 0;
+  for (final t in tasks) {
+    if (t.subtaskCount > 0) {
+      done += t.subtaskDone;
+      total += t.subtaskCount;
+    } else {
+      total += 1;
+      if (t.isDone) done += 1;
+    }
+  }
+  return (done: done, total: total);
 }

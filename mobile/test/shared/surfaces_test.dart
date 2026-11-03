@@ -57,7 +57,6 @@ void main() {
           GenPageScaffold(
             title: 'Un título de pantalla bastante largo',
             subtitle: 'Un subtítulo explicativo que también es largo.',
-            icon: AppIcons.myDay,
             actions: [
               TextButton(onPressed: () {}, child: const Text('Acción uno')),
               TextButton(onPressed: () {}, child: const Text('Acción dos')),
@@ -97,6 +96,69 @@ void main() {
       });
     }
   }
+
+  // PS2 (auditoría premium): todo arranca en la misma línea de 16 dp.
+  testWidgets('GenPageScaffold: margen de página único de 16 dp', (t) async {
+    await _mount(
+      t,
+      const GenPageScaffold(title: 'Proyectos', body: Text('contenido')),
+    );
+    expect(t.getTopLeft(find.text('Proyectos')).dx, AppSpace.gutter);
+    expect(t.getTopLeft(find.text('contenido')).dx, AppSpace.gutter);
+    expect(AppSpace.page.left, AppSpace.gutter);
+    expect(AppSpace.list.left, AppSpace.gutter);
+  });
+
+  // P02-M2: la flecha en 16 dp y el título 16 dp después (x≈56), no en 72.
+  testWidgets('GenPageScaffold: el título de la barra arranca en 56 dp', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      const GenPageScaffold(title: 'Detalle', showBack: true, body: Text('x')),
+    );
+    expect(t.getTopLeft(find.byType(BrandName)).dx, 56);
+  });
+
+  // T6: con edge-to-edge, el final de la lista no queda bajo la barra de
+  // navegación de 3 botones.
+  testWidgets('GenPageScaffold: respeta el inset inferior del sistema', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(360, 720),
+          padding: EdgeInsets.only(bottom: 48),
+          viewPadding: EdgeInsets.only(bottom: 48),
+        ),
+        child: GenPageScaffold(
+          title: 'Configuración',
+          bodyPadding: EdgeInsets.zero,
+          body: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              for (var i = 0; i < 30; i++)
+                SizedBox(height: 56, child: Text('fila $i')),
+            ],
+          ),
+        ),
+      ),
+    );
+    await t.dragUntilVisible(
+      find.text('fila 29'),
+      find.byType(ListView),
+      const Offset(0, -300),
+    );
+    await t.pumpAndSettle();
+    await t.drag(find.byType(ListView), const Offset(0, -2000));
+    await t.pumpAndSettle();
+    expect(
+      t.getBottomLeft(find.text('fila 29')).dy,
+      lessThanOrEqualTo(720 - 48),
+    );
+  });
 
   testWidgets('GenPageScaffold: showBack usa BackButton y AppBar de 48', (
     t,
@@ -154,37 +216,58 @@ void main() {
     expect(parts[1].style!.color, GenColors.light.text);
   });
 
-  testWidgets('PageIntro: caja de ícono 38 brandFill, título 24/700', (
+  // PS3/D1 (auditoría premium): cabecera compacta, sin caja de ícono ni regla.
+  testWidgets('PageIntro: compacta, título 20/700 sin tile ni regla', (
     t,
   ) async {
     await _mount(
       t,
       const Scaffold(
-        body: PageIntro(title: 'Mi día', subtitle: 'Hoy', icon: AppIcons.myDay),
+        body: PageIntro(title: 'Mi día', subtitle: 'Hoy'),
       ),
     );
     expect(find.text('Mi día'), findsOneWidget);
     expect(find.text('Hoy'), findsOneWidget);
     final style = t.widget<Text>(find.text('Mi día')).style!;
-    expect(style.fontSize, 24);
+    expect(style.fontSize, 20);
     expect(style.fontWeight, FontWeight.w700);
-    final box = t.widget<Container>(
-      find.ancestor(
-        of: find.byIcon(AppIcons.myDay),
-        matching: find.byType(Container),
+    final boxes = t.widgetList<DecoratedBox>(
+      find.descendant(
+        of: find.byType(PageIntro),
+        matching: find.byType(DecoratedBox),
       ),
     );
-    expect((box.decoration as BoxDecoration).color, GenColors.light.brandFill);
-    expect(
-      t.getSize(
-        find.ancestor(
-          of: find.byIcon(AppIcons.myDay),
-          matching: find.byType(Container),
-        ),
-      ),
-      const Size.square(38),
-    );
+    for (final box in boxes) {
+      final d = box.decoration;
+      expect(d is BoxDecoration && d.border != null, isFalse);
+      expect(
+        d is BoxDecoration && d.color == GenColors.light.brandFill,
+        isFalse,
+      );
+    }
   });
+
+  // D1: en una raíz, el contenido empieza antes de los 160 dp.
+  testWidgets(
+    'GenPageScaffold: el contenido de una raíz arranca antes de 160 dp',
+    (t) async {
+      await t.runAsync(() async {
+        final loader = FontLoader('Montserrat')
+          ..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'));
+        await loader.load();
+      });
+      await _mount(
+        t,
+        const GenPageScaffold(
+          title: 'Mi día y referencias',
+          subtitle:
+              'Primero lo que hay que hacer hoy, después las tareas que necesitan tu aporte.',
+          body: Text('primer contenido'),
+        ),
+      );
+      expect(t.getTopLeft(find.text('primer contenido')).dy, lessThan(160));
+    },
+  );
 
   testWidgets('WorkspaceListPanel separa filas con línea border', (t) async {
     await _mount(
@@ -252,7 +335,6 @@ void main() {
         home: Scaffold(
           body: GenSectionHeader(
             title: 'Todos los Proyectos',
-            icon: AppIcons.projects,
             actions: [
               IconButton.filled(
                 onPressed: () {},
@@ -266,7 +348,80 @@ void main() {
     expect(
       t.getSize(find.text('Todos los Proyectos')).height,
       lessThan(40),
-      reason: 'una sola línea (24 × 1.3 ≈ 31)',
+      reason: 'una sola línea (20 × 1.3 ≈ 26)',
+    );
+  });
+
+  testWidgets(
+    'GenSectionHeader: la acción queda a la derecha del título a 390 (P05)',
+    (t) async {
+      await t.runAsync(() async {
+        final loader = FontLoader('Montserrat')
+          ..addFont(rootBundle.load('assets/fonts/Montserrat.ttf'));
+        await loader.load();
+      });
+      t.view.physicalSize = const Size(390, 844);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.reset);
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: GenSectionHeader(
+              title: 'Todos los Proyectos',
+              subtitle: 'Un subtítulo',
+              actions: [
+                IconButton.filled(
+                  key: const ValueKey('accion'),
+                  onPressed: () {},
+                  icon: const Icon(AppIcons.add),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      final action = t.getRect(find.byKey(const ValueKey('accion')));
+      final title = t.getRect(find.text('Todos los Proyectos'));
+      expect(
+        action.left,
+        greaterThan(title.right),
+        reason: 'misma fila, a la derecha',
+      );
+      expect(
+        action.top,
+        lessThan(title.bottom),
+        reason: 'no baja a otra línea',
+      );
+      final subtitle = t.getRect(find.text('Un subtítulo'));
+      expect(
+        subtitle.left,
+        title.left,
+        reason: 'el subtítulo va en la columna del título',
+      );
+    },
+  );
+
+  testWidgets('GenPageScaffold: el encabezado se desplaza con el contenido', (
+    t,
+  ) async {
+    await _mount(
+      t,
+      GenPageScaffold(
+        title: 'Lista larga',
+        body: ListView(
+          children: [for (var i = 0; i < 60; i++) Text('Fila $i')],
+        ),
+      ),
+    );
+    final before = t.getRect(find.text('Lista larga')).top;
+    await t.drag(find.text('Fila 5'), const Offset(0, -200));
+    await t.pumpAndSettle();
+    final title = find.text('Lista larga');
+    expect(
+      title.evaluate().isEmpty || t.getRect(title).top < before,
+      isTrue,
+      reason: 'como la web, el encabezado no queda fijo',
     );
   });
 }

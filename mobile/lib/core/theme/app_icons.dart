@@ -22,17 +22,26 @@ abstract final class AppIconSizes {
   /// Encabezado de página.
   static const header = 22.0;
 
-  /// Estado vacío.
+  /// Estado de error a pantalla completa.
   static const state = 48.0;
+
+  /// Ícono del estado vacío, sobre su recuadro de `brandFill` (PS11).
+  static const empty = 32.0;
 }
 
 abstract final class AppIcons {
   static const priority = Icons.priority_high_outlined;
+
+  /// Chip "Urgente" del detalle de tarea (bandera, como el boceto premium).
+  static const urgent = Icons.flag_outlined;
   static const qrScanner = Icons.qr_code_scanner_outlined;
   static const keyboard = Icons.keyboard_outlined;
 
   /// Reintentar / recargar
   static const retry = Icons.refresh_outlined;
+
+  /// Fila "Apariencia" de Configuración.
+  static const appearance = Icons.contrast_outlined;
   static const themeSystem = Icons.computer_outlined;
   static const themeLight = Icons.wb_sunny_outlined;
   static const themeDark = Icons.dark_mode_outlined;
@@ -48,6 +57,12 @@ abstract final class AppIcons {
   static const expandMore = Icons.expand_more_outlined;
   static const expandLess = Icons.expand_less_outlined;
   static const menu = Icons.menu_outlined;
+
+  /// Menú de acciones de una card (`MoreHorizontal` de la web).
+  static const moreHorizontal = Icons.more_horiz;
+
+  /// Menú de la barra de una pantalla abierta (detalle de tarea, boceto P09).
+  static const moreVertical = Icons.more_vert;
   static const edit = Icons.edit_outlined;
   static const delete = Icons.delete_outline;
   static const copy = Icons.copy_outlined;
@@ -59,6 +74,21 @@ abstract final class AppIcons {
 
   /// Reordenar
   static const reorder = Icons.swap_vert_outlined;
+
+  /// Manija para arrastrar una fila (subtareas del detalle, P09).
+  static const dragHandle = Icons.drag_indicator;
+
+  /// "← Mis proyectos" del portal (`ArrowLeft` de la web).
+  static const back = Icons.arrow_back;
+
+  /// Materiales (`Package` de la web).
+  static const materials = Icons.inventory_2_outlined;
+
+  /// Vacío de Materiales: «sin cargas», distinto del ícono del menú (P20-M3).
+  static const materialsEmpty = Icons.add_box_outlined;
+
+  /// Integración con Genstock (`Globe` de la web).
+  static const integration = Icons.public;
   static const sortAsc = Icons.arrow_upward_outlined;
   static const sortDesc = Icons.arrow_downward_outlined;
   static const tune = Icons.tune;
@@ -75,10 +105,19 @@ abstract final class AppIcons {
   static const success = Icons.check_circle_outline;
   static const warning = Icons.warning_amber_outlined;
   static const info = Icons.info_outline;
+
+  /// Ayuda del compositor de tareas.
+  static const help = Icons.help_outline;
   static const offline = Icons.wifi_off_outlined;
   static const server = Icons.dns_outlined;
+
+  /// Trabajos de almacenamiento (P31a-M3).
+  static const storage = Icons.storage_outlined;
   static const login = Icons.login_outlined;
   static const logout = Icons.logout_outlined;
+
+  /// Cuenta de almacenamiento vinculada.
+  static const cloud = Icons.cloud_outlined;
   static const person = Icons.person_outline;
   static const personAdd = Icons.person_add_outlined;
   static const personRemove = Icons.person_remove_outlined;

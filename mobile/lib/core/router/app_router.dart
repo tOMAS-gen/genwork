@@ -39,6 +39,10 @@ import '../auth/session.dart';
 import '../providers.dart';
 import 'auth_redirect.dart';
 import 'routes.dart';
+import '../../features/materials/work_materials_screen.dart';
+import '../../features/materials/materials_screen.dart';
+import '../../features/settings/mobile_app_screen.dart';
+import '../../features/settings/genstock_settings_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   String? identity(SessionState? session) => session is SignedIn
@@ -158,6 +162,12 @@ final routerProvider = Provider<GoRouter>((ref) {
                         builder: (_, state) =>
                             FilesScreen(workId: state.pathParameters['id']!),
                       ),
+                      GoRoute(
+                        path: 'materials',
+                        builder: (_, state) => WorkMaterialsScreen(
+                          workId: state.pathParameters['id']!,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -213,6 +223,10 @@ final routerProvider = Provider<GoRouter>((ref) {
                     builder: (_, _) => const NotificationSettingsScreen(),
                   ),
                   GoRoute(
+                    path: 'materials',
+                    builder: (_, _) => const MaterialsScreen(),
+                  ),
+                  GoRoute(
                     path: 'reminders',
                     builder: (_, _) => const RemindersScreen(),
                     routes: [
@@ -241,6 +255,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                     path: 'settings',
                     builder: (_, _) => const SettingsHomeScreen(),
                     routes: [
+                      GoRoute(
+                        path: 'mobile',
+                        builder: (_, _) => const MobileAppScreen(),
+                      ),
+                      GoRoute(
+                        path: 'genstock',
+                        builder: (_, _) => const GenstockSettingsScreen(),
+                      ),
                       GoRoute(
                         path: 'module/:section',
                         builder: (_, state) => SettingsScreen(

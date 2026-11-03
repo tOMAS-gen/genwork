@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genwork_mobile/core/theme/app_theme.dart';
 import 'package:genwork_mobile/core/theme/gen_colors.dart';
+import 'package:genwork_mobile/data/models/task.dart';
 import 'package:genwork_mobile/data/models/work.dart';
 import 'package:genwork_mobile/features/works/work_card.dart';
 import 'package:genwork_mobile/features/works/works_dashboard.dart';
@@ -50,19 +51,32 @@ void main() {
     expect(WorksStats.of([]).pct(0), 0);
   });
 
-  test('dueUrgency: >7 verde, 1–7 naranja, hoy/vencido rojo', () {
+  // D5: neutro con margen, ámbar a 3 días o menos (hoy incluido) y rojo
+  // solo si venció.
+  test('dueUrgency: >3 neutro, 0–3 ámbar, vencido rojo', () {
     final now = DateTime(2026, 10, 10, 18);
-    expect(dueUrgency(DateTime(2026, 10, 25), now).tone, DueTone.green);
+    expect(dueUrgency(DateTime(2026, 10, 25), now).tone, DueTone.neutral);
     expect(dueUrgency(DateTime(2026, 10, 25), now).label, '15 días restantes');
     expect(
-      dueUrgency(DateTime(2026, 10, 18), now).tone,
-      DueTone.green,
-    ); // 8 días
-    expect(dueUrgency(DateTime(2026, 10, 17), now).tone, DueTone.orange); // 7
-    expect(dueUrgency(DateTime(2026, 10, 11), now).tone, DueTone.orange);
-    expect(dueUrgency(DateTime(2026, 10, 10), now).tone, DueTone.red);
+      dueUrgency(DateTime(2026, 10, 14), now).tone,
+      DueTone.neutral,
+    ); // 4 días
+    expect(dueUrgency(DateTime(2026, 10, 13), now).tone, DueTone.warning); // 3
+    expect(dueUrgency(DateTime(2026, 10, 11), now).tone, DueTone.warning);
+    expect(dueUrgency(DateTime(2026, 10, 10), now).tone, DueTone.warning);
     expect(dueUrgency(DateTime(2026, 10, 10), now).label, 'Vence hoy');
+    expect(dueUrgency(DateTime(2026, 10, 9), now).tone, DueTone.danger);
     expect(dueUrgency(DateTime(2026, 10, 9), now).label, 'Vencido');
+  });
+
+  test('dueToneColor: gris, ámbar o rojo', () {
+    for (final c in [GenColors.light, GenColors.dark]) {
+      expect(dueToneColor(c, DueTone.neutral), c.muted);
+      expect(dueToneColor(c, DueTone.warning), c.warningText);
+      expect(dueToneColor(c, DueTone.danger), c.dangerText);
+    }
+    expect(GenColors.light.dangerText, const Color(0xFF991B1B));
+    expect(GenColors.dark.dangerText, const Color(0xFFFCA5A5));
   });
 
   for (final dark in [false, true]) {
@@ -97,20 +111,26 @@ void main() {
       );
       expect(t.takeException(), isNull);
       final c = dark ? GenColors.dark : GenColors.light;
-      expect(find.text('PROYECTO A'), findsOneWidget);
+      // D4: el nombre es el título, en su caja original.
+      expect(find.text('Proyecto a'), findsOneWidget);
       expect(find.text('Grupo Diseño'), findsOneWidget);
-      expect(find.text('75%'), findsOneWidget);
-      expect(find.text('3/4 tareas'), findsOneWidget);
-      expect(find.textContaining('Entrega:'), findsOneWidget);
-      final remaining = t.widget<Text>(find.text('2 días restantes'));
-      expect(remaining.style!.color, c.warning);
-      expect(remaining.style!.fontStyle, FontStyle.italic);
+      // P05-M3: «3/4 · 75%» en mono junto a la barra y «12 oct · 2 días».
+      expect(find.text('3/4 · 75%'), findsOneWidget);
+      expect(
+        t.widget<Text>(find.text('3/4 · 75%')).textSpan!.style!.fontFamily,
+        'RobotoMono',
+      );
+      expect(find.textContaining('12 oct'), findsOneWidget);
+      final remaining = t.widget<Text>(find.text('2 días'));
+      expect(remaining.style!.color, c.warningText);
+      // D5: el plazo nunca va en itálica; el progreso, azul de 4 dp.
+      expect(remaining.style!.fontStyle, isNot(FontStyle.italic));
       final bar = t.widget<LinearProgressIndicator>(
         find.byType(LinearProgressIndicator),
       );
       expect(
         (bar.minHeight, bar.color, bar.backgroundColor),
-        (8, c.ok, c.border),
+        (4, c.brand, c.outline),
       );
       await t.tap(find.byKey(const ValueKey('work_a')));
       await t.tap(find.byKey(const ValueKey('work_favorite_a')));
@@ -130,5 +150,55 @@ void main() {
     expect(find.text('Personal'), findsOneWidget);
     expect(find.text('Sin tareas todavía'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
+  testWidgets('WorkCard: fecha corta con los días y menú ⋯ (P05)', (t) async {
+    var archived = 0, opened = 0;
+    await t.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: WorkCard(
+            work: _work('c', due: '2026-10-29T00:00:00.000Z'),
+            now: DateTime(2026, 10, 26),
+            onTap: () => opened++,
+            onFavorite: () {},
+            onArchive: () => archived++,
+          ),
+        ),
+      ),
+    );
+    // P05-M3: «29 oct · 3 días» con el plazo en su color.
+    expect(find.text('29 oct · '), findsOneWidget);
+    expect(find.text('3 días'), findsOneWidget);
+    await t.tap(find.byKey(const ValueKey('work_menu_c')));
+    await t.pumpAndSettle();
+    expect(find.text('Abrir proyecto'), findsOneWidget);
+    await t.tap(find.text('Archivar'));
+    await t.pumpAndSettle();
+    expect(archived, 1);
+    await t.tap(find.byKey(const ValueKey('work_menu_c')));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Abrir proyecto'));
+    await t.pumpAndSettle();
+    expect(opened, 1);
+  });
+
+  test('leafProgress cuenta hojas, como el avance de objetivo web (P07)', () {
+    Task task(String id, {bool done = false, int subs = 0, int subsDone = 0}) =>
+        Task.fromJson({
+          'id': id,
+          'displayText': id,
+          'status': {'id': 's', 'type': done ? 'FINAL' : 'IN_PROGRESS'},
+          'subtaskCount': subs,
+          'subtaskDone': subsDone,
+        });
+    // "Preparar" con 1 de 2 subtareas hechas + "Imprimir" pendiente = 1/3.
+    expect(
+      leafProgress([task('preparar', subs: 2, subsDone: 1), task('imprimir')]),
+      (done: 1, total: 3),
+    );
+    expect(leafProgress([task('a', done: true)]), (done: 1, total: 1));
+    expect(leafProgress(const []), (done: 0, total: 0));
   });
 }

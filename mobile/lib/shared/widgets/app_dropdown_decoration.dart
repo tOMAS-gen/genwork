@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_geometry.dart';
+import '../../core/theme/app_icons.dart';
+import '../../core/theme/gen_colors.dart';
 
 /// Iguala el cuerpo de un dropdown al campo de texto del tema.
 ///
@@ -19,3 +21,16 @@ InputDecoration appDropdownDecoration([
         vertical: AppSpacing.xs,
       ),
 );
+
+/// Chevron de todos los desplegables (PS10): gris y de 20 dp, en lugar del
+/// triángulo de Material.
+class AppDropdownIcon extends StatelessWidget {
+  const AppDropdownIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) => Icon(
+    AppIcons.expandMore,
+    size: AppIconSizes.action,
+    color: context.colors.muted,
+  );
+}

@@ -5,7 +5,8 @@ import { api } from "@/components/ui/useApi";
 import { showToast } from "@/components/ui/Toast";
 import { showConfirm } from "@/components/ui/ConfirmDialog";
 import { ColorField } from "@/components/ui/ColorField";
-import { ArrowUp, ArrowDown, Trash2, Plus } from "@/components/ui/icons";
+import { Plus } from "@/components/ui/icons";
+import { Menu } from "@/components/ui/Menu";
 
 export type TaskStatusScope = { groupId: string } | { ownerId: string } | { sectorId: string } | { global: true };
 
@@ -160,27 +161,15 @@ export function TaskStatusSettings({ scope, title = "Estados de tarea" }: { scop
                   Final
                 </button>
               </div>
-              <button
-                type="button"
-                className="icon-btn min-h-[44px] min-w-[44px]"
-                disabled={i === 0}
-                onClick={() => void move(i, -1)}
-                aria-label="Subir"
-              >
-                <ArrowUp size={15} />
-              </button>
-              <button
-                type="button"
-                className="icon-btn min-h-[44px] min-w-[44px]"
-                disabled={i === statuses.length - 1}
-                onClick={() => void move(i, 1)}
-                aria-label="Bajar"
-              >
-                <ArrowDown size={15} />
-              </button>
-              <button type="button" className="icon-btn min-h-[44px] min-w-[44px]" onClick={() => void remove(s)} aria-label="Eliminar">
-                <Trash2 size={15} />
-              </button>
+              {/* Subir, bajar y eliminar en el «⋯», como la app (spec 066, T41). */}
+              <Menu
+                label={`Acciones de ${s.name}`}
+                items={[
+                  ...(i > 0 ? [{ label: "Subir", onSelect: () => void move(i, -1) }] : []),
+                  ...(i < statuses.length - 1 ? [{ label: "Bajar", onSelect: () => void move(i, 1) }] : []),
+                  { label: "Eliminar", danger: true, onSelect: () => void remove(s) },
+                ]}
+              />
             </div>
           ) : (
             <div key={s.id} className="task-status-row task-status-row-readonly">

@@ -1,13 +1,13 @@
 import { mkdir, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const root = path.resolve('.context/mobile-parity');
+const root = path.resolve(process.argv[2] ?? '.context/mobile-parity');
 await mkdir(root, { recursive: true });
 const escape = (s) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
 const files = (await readdir(root)).filter((f) => /\.(png|jpe?g)$/.test(f));
 const groups = new Map();
 for (const file of files.sort()) {
-  const key = file.replace(/-(web|android|ios)\.(png|jpe?g)$/, '');
+  const key = file.replace(/-(web|android|ios|boceto)\.(png|jpe?g)$/, '');
   groups.set(key, [...(groups.get(key) ?? []), file]);
 }
 const sections = [...groups].map(([key, images]) => `<section><h2>${escape(key)}</h2><div class="pair">${images.map((f) => `<figure><figcaption>${escape(f)}</figcaption><a href="${encodeURIComponent(f)}"><img loading="lazy" src="${encodeURIComponent(f)}" alt="${escape(f)}"></a></figure>`).join('')}</div></section>`).join('');

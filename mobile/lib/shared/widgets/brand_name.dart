@@ -11,6 +11,9 @@ import '../../core/theme/gen_colors.dart';
 class BrandName extends StatelessWidget {
   const BrandName({super.key, this.size = 18, this.scaleDownToFit = false});
 
+  /// Cuerpo de la marca en la barra de una pantalla abierta (boceto P09).
+  static const double headerSize = 22;
+
   final double size;
 
   /// Reduce toda la marca para respetar el ancho que le asigne su padre. El

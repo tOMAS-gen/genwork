@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_geometry.dart';
-import '../../core/theme/app_icons.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/gen_colors.dart';
-import '../../core/util/format.dart';
 import '../../data/models/sector.dart';
-import '../../shared/widgets/color_dot.dart';
 import '../../shared/widgets/workspace_panel.dart';
+import '../../data/models/common.dart';
+import '../works/works_dashboard.dart';
+import '../../shared/widgets/entity_header.dart';
+import '../../shared/widgets/progress_bar.dart';
 
 /// Card de resumen del sector, como la de la web: símbolo del color del sector,
 /// nombre 20/700, ámbito, kebab, «Avance del sector» (20/600 + barra) y, sobre
@@ -21,12 +22,19 @@ class SectorSummaryPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final accent = board.color == null ? c.brand : colorFromHex(board.color);
     final label = AppTextStyles.supporting.copyWith(
       fontWeight: FontWeight.w500,
       color: c.muted,
     );
-    final progress = board.progress;
+    // Como la web: el avance cuenta las hojas (una tarea con subtareas aporta
+    // sus subtareas). Sin tareas a la vista, el de la API.
+    final leaves = leafProgress([
+      ...board.loose,
+      for (final group in board.byWork) ...group.tasks,
+    ]);
+    final progress = leaves.total == 0
+        ? board.progress
+        : Progress(done: leaves.done, total: leaves.total);
     final pct = progress.total == 0
         ? 0
         : (progress.done / progress.total * 100).round();
@@ -41,66 +49,42 @@ class SectorSummaryPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: AppSpacing.xl + AppSpacing.xxs,
-                      height: AppSpacing.xl + AppSpacing.xxs,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: .12),
-                        borderRadius: AppGeometry.card,
-                      ),
-                      child: Icon(
-                        AppIcons.sectors,
-                        size: AppIconSizes.header,
-                        color: accent,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              board.name,
-                              style: AppTextStyles.screenTitle.copyWith(
-                                fontSize: 20,
-                                color: c.text,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.xxs),
-                          Text(
-                            // La web dice «Espacio personal» para el ámbito
-                            // personal.
-                            board.scopeLabel == 'Personal'
-                                ? 'Espacio personal'
-                                : board.scopeLabel,
-                            style: AppTextStyles.body.copyWith(color: c.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ?menu,
-                  ],
+                EntityHeader(
+                  title: board.name,
+                  colorHex: board.color,
+                  trailing: menu,
+                  meta: Text(
+                    // La web dice «Espacio personal» para el ámbito personal.
+                    board.scopeLabel == 'Personal'
+                        ? 'Espacio personal'
+                        : board.isGroupScope
+                        ? 'Grupo ${board.scopeLabel}'
+                        : board.scopeLabel,
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('Avance del sector', style: label),
-                const SizedBox(height: AppSpacing.xxs),
+                // Rótulo 11/700 y cifra en mono (P12-M3).
+                Text(
+                  'AVANCE',
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+                ),
+                const SizedBox(height: AppSpacing.xs),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
                       progress.total == 0 ? 'Sin tareas' : '$pct%',
-                      style: AppTextStyles.screenTitle.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: c.text,
-                      ),
+                      style: progress.total == 0
+                          ? AppTextStyles.body.copyWith(color: c.muted)
+                          : AppTextStyles.technical.copyWith(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: c.text,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
@@ -118,40 +102,23 @@ class SectorSummaryPanel extends StatelessWidget {
                     label:
                         '${progress.done} de ${progress.total} tareas completadas',
                     excludeSemantics: true,
-                    child: LinearProgressIndicator(
-                      value: progress.ratio,
-                      minHeight: 5,
-                      color: c.brand,
-                      backgroundColor: c.outline,
-                      borderRadius: AppGeometry.chip,
-                    ),
+                    child: ProgressBar(value: progress.ratio),
                   ),
                 ],
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            color: c.field,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '$linked ${linked == 1 ? 'proyecto vinculado' : 'proyectos vinculados'}',
-                    style: label.copyWith(fontWeight: FontWeight.w400),
-                  ),
-                ),
-                Text('Color del sector', style: label),
-                const SizedBox(width: AppSpacing.xs),
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.xs),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: c.outline),
-                    borderRadius: AppGeometry.control,
-                  ),
-                  child: ColorDot(hex: board.color, size: AppSpacing.md),
-                ),
-              ],
+          // Un renglón separado por un divisor, sin la banda gris; el color
+          // ya va como punto junto al título (P12-M3).
+          Divider(height: 1, thickness: 1, color: c.border),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.sm,
+            ),
+            child: Text(
+              '$linked ${linked == 1 ? 'proyecto vinculado' : 'proyectos vinculados'}',
+              style: label.copyWith(fontWeight: FontWeight.w400),
             ),
           ),
         ],

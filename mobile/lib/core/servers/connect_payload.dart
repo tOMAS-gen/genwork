@@ -19,3 +19,11 @@ Uri? parseConnectPayload(String raw) {
 
   return normalizeServerUrl(text);
 }
+
+/// Payload del QR, igual que `buildConnectPayload` de la web:
+/// `genwork://connect?server=<origen>`. Solo la dirección, nunca credenciales.
+String buildConnectPayload(String origin) => Uri(
+  scheme: 'genwork',
+  host: 'connect',
+  queryParameters: {'server': origin},
+).toString();

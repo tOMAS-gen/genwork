@@ -4,8 +4,9 @@ typedef Json = Map<String, dynamic>;
 DateTime? parseDate(Object? value) =>
     value is String ? DateTime.tryParse(value)?.toLocal() : null;
 
-/// Fechas-día de recordatorios: llegan como medianoche UTC y se leen como día
-/// calendario, sin pasar a hora local (si no, en UTC-3 serían el día anterior).
+/// Fechas-día (recordatorios y fechas de entrega): llegan como medianoche UTC y
+/// se leen como día calendario, sin pasar a hora local (si no, en UTC-3 serían
+/// el día anterior).
 DateTime? parseDay(Object? value) {
   if (value is! String) return null;
   final utc = DateTime.tryParse(value)?.toUtc();

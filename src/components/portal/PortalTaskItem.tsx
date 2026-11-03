@@ -3,6 +3,7 @@
 import { Calendar } from "@/components/ui/icons";
 import { parseTags, normalizeTagName } from "@/lib/domain/tags/parser";
 import { parseDates } from "@/lib/domain/dates/parser";
+import { formatDueDate } from "@/lib/domain/dates/dueDate";
 import type { PortalTask } from "./types";
 
 /**
@@ -18,12 +19,6 @@ import type { PortalTask } from "./types";
  * Reusa las funciones puras del parser y las clases del sistema de diseño
  * (.task, .tag, .label-chip, .date-chip), así que no agrega estilos propios.
  */
-
-const dueDateFormatter = new Intl.DateTimeFormat("es-AR", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-});
 
 /**
  * Reconstruye el texto con sus chips en la posición en que fueron escritos.
@@ -127,7 +122,7 @@ export function PortalTaskItem({ task }: { task: PortalTask }) {
       {due && (
         <p className="portal-task-due">
           <Calendar size={13} aria-hidden="true" />
-          Entrega: {dueDateFormatter.format(due)}
+          Entrega: {formatDueDate(due)}
         </p>
       )}
 

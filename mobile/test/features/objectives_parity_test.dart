@@ -11,6 +11,7 @@ import 'package:genwork_mobile/features/works/works_providers.dart';
 import 'day_overview_test.dart' as overview;
 import 'daily_parity_test.dart' show taskJson;
 import 'resource_operations_test.dart' show tap, Json;
+import 'package:genwork_mobile/core/theme/app_icons.dart';
 
 Json root(
   String id, {
@@ -211,6 +212,8 @@ Future<void> enter(WidgetTester t, String key, String text) async {
 Future<void> label(WidgetTester t, String text) async {
   final f = find.text(text).last;
   await t.ensureVisible(f);
+  // El desplazamiento se ve recién en el cuadro siguiente.
+  await t.pumpAndSettle();
   await t.tap(f);
   await t.pumpAndSettle();
 }
@@ -224,12 +227,26 @@ Future<void> scrollTo(WidgetTester t, String key) async {
       .first;
   t.state<ScrollableState>(list).position.jumpTo(0);
   await t.pumpAndSettle();
-  await t.scrollUntilVisible(find.byKey(ValueKey(key)), 200, scrollable: list);
+  // Hasta que se pueda tocar: la barra fija del composer tapa el pie.
+  await t.scrollUntilVisible(
+    find.byKey(ValueKey(key)).hitTestable(),
+    100,
+    scrollable: list,
+  );
 }
 
 Future<void> openTask(WidgetTester t, String id) async {
   await scrollTo(t, 'task_$id');
-  await tap(t, 'task_$id');
+  // Sobre el texto: la fila lleva a la derecha ☀, + y × (como la web).
+  await t.tap(
+    find
+        .descendant(
+          of: find.byKey(ValueKey('task_$id')),
+          matching: find.byType(Text),
+        )
+        .first,
+  );
+  await t.pumpAndSettle();
 }
 
 Future<void> objectiveMenu(WidgetTester t) async {
@@ -238,6 +255,19 @@ Future<void> objectiveMenu(WidgetTester t) async {
 }
 
 Future<void> sheetTap(WidgetTester t, String key) async {
+  // Mover, separar, historial y borrar viven en el menú ⋯ de la barra
+  // (piloto premium P09, spec 066).
+  if (const {
+    'task_move_objective',
+    'task_move_parent',
+    'task_promote',
+    'task_history',
+    'task_delete',
+  }.contains(key)) {
+    await tap(t, 'task_more');
+    await tap(t, key);
+    return;
+  }
   final scroll = find
       .descendant(
         of: find.byKey(const ValueKey('task_detail_list')),
@@ -258,14 +288,29 @@ void main() {
   ) async {
     final f = Fixture();
     final app = await overview.mount(t, f, path: Routes.work('w'));
-    final tile = find.byKey(const PageStorageKey('work_section_o1'));
-    final controller = t.widget<ExpansionTile>(tile).controller!;
-    controller.collapse();
+    // El encabezado del objetivo pliega y despliega la sección: la flecha
+    // dice si está abierta.
+    final header = find.byKey(
+      const ValueKey('work_section_o1'),
+      skipOffstage: false,
+    );
+    bool expanded() => find
+        .descendant(
+          of: header,
+          matching: find.byIcon(AppIcons.expandMore, skipOffstage: false),
+          skipOffstage: false,
+        )
+        .evaluate()
+        .isNotEmpty;
+    expect(expanded(), isTrue);
+    await t.ensureVisible(header);
     await t.pumpAndSettle();
-    expect(controller.isExpanded, isFalse);
+    await t.tap(header);
+    await t.pumpAndSettle();
+    expect(expanded(), isFalse);
     app.router.go('/works/w?objectiveId=o1');
     await t.pumpAndSettle();
-    expect(controller.isExpanded, isTrue);
+    expect(expanded(), isTrue);
     expect(t.takeException(), isNull);
   });
 
@@ -328,7 +373,9 @@ void main() {
     await objectiveMenu(t);
     await label(t, 'Guardar como plantilla');
     expect(f.mutations.last.path, '/api/objectives/o1/save-as-template');
-    await scrollTo(t, 'objective_insert_template');
+    // Insertar plantilla va en el "⋯" de la fila de tareas (P07-M4).
+    await scrollTo(t, 'work_tasks_more');
+    await tap(t, 'work_tasks_more');
     await tap(t, 'objective_insert_template');
     await tap(t, 'objective_template_tpl');
     await enter(t, 'objective_title', 'Otro objetivo');
@@ -348,7 +395,11 @@ void main() {
     f.failTemplates = false;
     await label(t, 'Reintentar');
     await enter(t, 'templates_search', 'no existe');
-    expect(find.text('No hay plantillas para mostrar.'), findsOneWidget);
+    expect(
+      // En Plantillas el texto dice "plantillas" (P08-M3).
+      find.text('Sin plantillas que coincidan con el filtro.'),
+      findsOneWidget,
+    );
     await enter(t, 'templates_search', '');
     await tap(t, 'template_use_tpl');
     await enter(t, 'create_work_name', 'Nueva entrega');
@@ -422,9 +473,16 @@ void main() {
     await sheetTap(t, 'task_promote');
     expect(f.mutations.last.data, {'parentId': null});
     await openTask(t, 'c');
-    await sheetTap(t, 'subtasks_reorder');
-    await tap(t, 'order_down_c1');
-    await tap(t, 'order_save');
+    // Se ordena arrastrando la manija (boceto P09): c1 baja debajo de c2.
+    final handle = find.byKey(const ValueKey('subtask_handle_c1'));
+    await t.ensureVisible(handle);
+    await t.pumpAndSettle();
+    await t.timedDrag(
+      handle,
+      const Offset(0, 80),
+      const Duration(milliseconds: 400),
+    );
+    await t.pumpAndSettle();
     expect(f.mutations.last.path, '/api/tasks/c/subtasks/reorder');
     expect(f.mutations.last.data, {
       'orderedTaskIds': ['c2', 'c1'],
@@ -435,7 +493,10 @@ void main() {
     await overview.mount(t, f, path: Routes.work('w'));
     await label(t, 'Tablero');
     await openTask(t, 'a');
-    expect(find.byKey(const ValueKey('task_text_save')), findsOneWidget);
+    expect(
+      t.widget<TextField>(find.byKey(const ValueKey('task_text_field'))).enabled,
+      isTrue,
+    );
   });
   test('vencimiento hereda fecha más próxima solo de hijas pendientes', () {
     final task = Task.fromJson(

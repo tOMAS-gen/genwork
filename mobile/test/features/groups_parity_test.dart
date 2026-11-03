@@ -689,7 +689,7 @@ void main() {
       router.go('/groups/missing');
       await t.pumpAndSettle();
       expect(
-        find.text('El grupo ya no está disponible o no tenés acceso.'),
+        find.text('No existe o no tenés acceso a este grupo.'),
         findsOneWidget,
       );
     },

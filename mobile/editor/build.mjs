@@ -27,4 +27,8 @@ for (const input of Object.keys(result.metafile.inputs)) {
   if (!license) throw new Error(`Missing bundled license: ${pkg.name}`);
   notices.push(`${pkg.name} ${pkg.version}\n${readFileSync(join(directory, license), "utf8")}`);
 }
+// Íconos de la barra: trazos de Material Symbols copiados en editor.ts.
+notices.push(
+  `Material Symbols (Google)\n${readFileSync("node_modules/@gen/ui/src/components/material-symbols-LICENSE.txt", "utf8")}`,
+);
 writeFileSync("mobile/assets/editor/THIRD_PARTY_NOTICES.txt", notices.join("\n\n-----\n\n"));

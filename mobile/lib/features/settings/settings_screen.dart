@@ -21,115 +21,175 @@ import '../../shared/widgets/theme_toggle.dart';
 import '../works/works_providers.dart';
 import 'settings_providers.dart';
 import 'settings_form_dialog.dart';
+import 'settings_tabs.dart';
 import 'storage_settings.dart';
 import '../../core/theme/app_geometry.dart';
+import '../../shared/widgets/panel_section.dart';
+import '../../shared/widgets/row_actions_menu.dart';
+import '../../shared/widgets/settings_rows.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../../core/auth/session.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/numbered_steps.dart';
+import '../../shared/widgets/initials_avatar.dart';
+import '../../shared/widgets/app_segmented.dart';
+import '../../core/util/format.dart';
 
+/// Portada de Configuración, como `/admin` de la web: los mismos destinos,
+/// agrupados en cards con rótulo y filas de 56 dp (PS4). Arriba van las
+/// preferencias propias de la app (tema y notificaciones, decisión 2 de la
+/// spec 066).
 class SettingsHomeScreen extends ConsumerWidget {
   const SettingsHomeScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final admin = ref.watch(currentUserProvider)?.isSuperAdmin == true;
-    final c = context.colors;
-    Widget label(String text) => Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.xs),
-      child: Semantics(
-        header: true,
-        child: Text(
-          text.toUpperCase(),
-          style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
-        ),
-      ),
+    Widget row(
+      String key,
+      IconData icon,
+      String title,
+      String description,
+      String route,
+    ) => SettingsRow(
+      key: ValueKey('settings_$key'),
+      icon: icon,
+      title: title,
+      subtitle: description,
+      onTap: () => context.push(route),
     );
-    Widget links(List<Widget> children) =>
-        WorkspaceListPanel(children: children);
+    Widget section(SettingsSection s, IconData icon, String title, String d) =>
+        row(s.name, icon, title, d, Routes.setting(s.name));
 
     return GenPageScaffold(
       title: 'Configuración',
-      subtitle: 'Tu cuenta, preferencias y catálogos.',
-      icon: AppIcons.settings,
-      bodyPadding: EdgeInsets.zero,
+      top: const SettingsTabs(current: 'home'),
       body: ListView(
         key: const ValueKey('settings_home'),
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md,
-          0,
-          AppSpacing.md,
-          AppSpacing.md,
-        ),
+        padding: EdgeInsets.zero,
         children: [
-          label('Tu cuenta y preferencias'),
-          links([
-            const ThemeToggleTile(key: ValueKey('settings_theme')),
-            _link(context, 'Notificaciones', Routes.notificationSettings, 'notifications'),
-            for (final section in [
-              SettingsSection.system,
-              SettingsSection.storageLink,
-              SettingsSection.mcp,
-            ])
-              _link(
-                context,
-                section.title,
-                Routes.setting(section.name),
-                section.name,
+          // Solo en la app: tema y notificaciones push.
+          SettingsGroup(
+            children: [
+              const ThemeToggleTile(key: ValueKey('settings_theme')),
+              row(
+                'notifications',
+                AppIcons.bell,
+                'Notificaciones',
+                'Avisos en este teléfono',
+                Routes.notificationSettings,
               ),
-          ]),
-          label('Catálogos por ámbito'),
-          links([
-            _link(
-              context,
-              'Etiquetas y colores',
-              Routes.catalog('labels'),
-              'labels',
-            ),
-            _link(
-              context,
-              'Etapas de producción',
-              Routes.catalog('stages'),
-              'stages',
-            ),
-            _link(
-              context,
-              'Estados de tarea',
-              Routes.catalog('statuses'),
-              'statuses',
-            ),
-          ]),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SettingsGroup(
+            label: 'Cuenta',
+            children: [
+              row(
+                'account',
+                AppIcons.person,
+                'Mi cuenta',
+                'Almacenamiento vinculado, versión y estado del sistema',
+                Routes.account,
+              ),
+              section(
+                SettingsSection.mcp,
+                AppIcons.link,
+                'Vincular con Claude',
+                'Vinculación de asistentes de IA a la cuenta vía MCP',
+              ),
+            ],
+          ),
           if (admin) ...[
-            label('Administración del sistema'),
-            links([
-              for (final section in [
-                SettingsSection.access,
-                SettingsSection.users,
-                SettingsSection.clients,
-                SettingsSection.storage,
-                SettingsSection.reminders,
-                SettingsSection.errors,
-              ])
-                _link(
-                  context,
-                  section.title,
-                  Routes.setting(section.name),
-                  section.name,
+            const SizedBox(height: AppSpacing.md),
+            SettingsGroup(
+              label: 'Equipo',
+              children: [
+                section(
+                  SettingsSection.access,
+                  AppIcons.lock,
+                  'Control de acceso',
+                  'Quién puede ingresar: dominio corporativo o lista de correos',
                 ),
-            ]),
+                section(
+                  SettingsSection.users,
+                  AppIcons.groups,
+                  'Usuarios y roles',
+                  'Rol Lector para pantallas/TV y grupos habilitados',
+                ),
+                section(
+                  SettingsSection.clients,
+                  AppIcons.view,
+                  'Clientes',
+                  'Cuentas externas que ven el avance de sus proyectos, sin poder modificar nada',
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: AppSpacing.md),
+          SettingsGroup(
+            label: 'Catálogos',
+            children: [
+              row(
+                'labels',
+                AppIcons.label,
+                'Etiquetas',
+                'Claves y valores de etiquetas para clasificar proyectos',
+                Routes.catalog('labels'),
+              ),
+              row(
+                'stages',
+                AppIcons.sectors,
+                'Estados de producción',
+                'Configurar las etapas de producción para los proyectos del grupo',
+                Routes.catalog('stages'),
+              ),
+              row(
+                'statuses',
+                AppIcons.check,
+                'Estados de tarea',
+                'Conjunto general de estados de tarea (en curso/final) por grupo o personal',
+                Routes.catalog('statuses'),
+              ),
+            ],
+          ),
+          if (admin) ...[
+            const SizedBox(height: AppSpacing.md),
+            SettingsGroup(
+              label: 'Sistema',
+              children: [
+                section(
+                  SettingsSection.storage,
+                  AppIcons.server,
+                  'Almacenamiento (mini nube)',
+                  'Conexión con Nextcloud y estado del aprovisionamiento',
+                ),
+                row(
+                  'genstock',
+                  AppIcons.integration,
+                  'Integración con Genstock',
+                  'URL del server para buscar productos y materiales',
+                  Routes.genstock,
+                ),
+                section(
+                  SettingsSection.reminders,
+                  AppIcons.bell,
+                  'Recordatorios',
+                  'Calendario y avisos programados del grupo',
+                ),
+                section(
+                  SettingsSection.errors,
+                  AppIcons.error,
+                  'Errores',
+                  'Errores capturados automáticamente, listos para revisar y corregir',
+                ),
+              ],
+            ),
           ],
           const SizedBox(height: AppSpacing.xxxl),
         ],
       ),
     );
   }
-
-  Widget _link(BuildContext context, String title, String route, String key) =>
-      ListTile(
-        key: ValueKey('settings_$key'),
-        title: Text(title),
-        trailing: Icon(
-          AppIcons.chevronRight,
-          size: AppIconSizes.action,
-          color: context.colors.muted,
-        ),
-        onTap: () => context.push(route),
-      );
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -231,12 +291,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // en un único panel.
     final cards =
         widget.section == SettingsSection.users ||
-        widget.section == SettingsSection.clients;
+        widget.section == SettingsSection.clients ||
+        widget.section == SettingsSection.mcp ||
+        widget.section == SettingsSection.storage ||
+        widget.section == SettingsSection.reminders;
     final body = data.hasValue ? content(data.value) : const <Widget>[];
     return GenPageScaffold(
       title: widget.section.title,
-      icon: AppIcons.settings,
       showBack: true,
+      top: SettingsTabs(current: widget.section.name),
+      // «Agregar cliente» relleno, junto al título (P27-M5).
+      actions: [
+        if (widget.section == SettingsSection.clients)
+          FilledButton.icon(
+            key: const ValueKey('settings_add_client'),
+            onPressed: _busy ? null : addClient,
+            icon: const Icon(AppIcons.personAdd, size: AppIconSizes.field),
+            label: const Text('Agregar cliente'),
+          ),
+      ],
       bodyPadding: EdgeInsets.zero,
       onRefresh: () async {
         ref.invalidate(settingsDataProvider(query));
@@ -249,15 +322,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           if (_busy) const LinearProgressIndicator(),
           if (widget.section == SettingsSection.errors) ...[
-            DropdownButtonFormField<String>(
+            // Segmentado en lugar del desplegable (P32-M1).
+            AppSegmented<String>(
               key: const ValueKey('settings_error_filter'),
-              initialValue: _filter ?? 'ALL',
-              decoration: const InputDecoration(labelText: 'Estado'),
-              items: const [
-                DropdownMenuItem(value: 'ALL', child: Text('Todos')),
-                DropdownMenuItem(value: 'PENDING', child: Text('Abiertos')),
-                DropdownMenuItem(value: 'RESOLVED', child: Text('Resueltos')),
-              ],
+              keyPrefix: 'settings_error_filter',
+              options: const {
+                'PENDING': 'Abiertos',
+                'RESOLVED': 'Resueltos',
+                'ALL': 'Todos',
+              },
+              selected: _filter ?? 'ALL',
               onChanged: (v) => setState(() => _filter = v == 'ALL' ? null : v),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -270,8 +344,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           if (data.isLoading && !data.hasValue) const LoadingView(),
           if (data.hasValue && cards) ...body,
           if (data.hasValue && !cards)
+            // 16 dp de relleno en todas las cards de ajustes (P26a-M3).
             WorkspacePanel(
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: body,
@@ -309,58 +384,73 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case SettingsSection.storageLink:
         return [StorageAccountPanel(status: json, onChanged: refresh)];
       case SettingsSection.access:
-        return [
-          tile(
-            'Modo de acceso',
-            json['mode'] == 'DOMAIN'
-                ? 'Dominio: ${json['domain'] ?? 'sin definir'}'
-                : 'Lista de correos permitidos',
-          ),
-          button(
-            'edit_access',
-            'Editar acceso',
-            () => edit(
-              'Acceso al sistema',
-              [
-                SettingsField(
-                  'mode',
-                  'Modo',
-                  initial: json['mode'] ?? 'LIST',
-                  options: const {
-                    'LIST': 'Lista de correos',
-                    'DOMAIN': 'Dominio',
-                  },
-                ),
-                SettingsField(
-                  'domain',
-                  'Dominio (sin https://)',
-                  initial: json['domain'] ?? '',
-                  required: false,
-                  validate: (v) =>
-                      v.isNotEmpty &&
-                          !RegExp(
-                            r'^@?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-                          ).hasMatch(v)
-                      ? 'Ingresá un dominio válido.'
-                      : null,
-                ),
-              ],
-              (input) async {
-                if (input['mode'] == 'DOMAIN' && input['domain'] == '') {
-                  throw const ApiException(
-                    code: 'INVALID_INPUT',
-                    message: 'Ingresá el dominio permitido.',
-                  );
-                }
-                await repo.saveAccess({
-                  ...input,
-                  'domain': input['domain'] == '' ? null : input['domain'],
-                });
-              },
-              description:
-                  'Este cambio afecta quién puede ingresar al sistema.',
+        final c = context.colors;
+        void editAccess() => edit(
+          'Acceso al sistema',
+          [
+            SettingsField(
+              'mode',
+              'Modo',
+              initial: json['mode'] ?? 'LIST',
+              options: const {'LIST': 'Lista de correos', 'DOMAIN': 'Dominio'},
             ),
+            SettingsField(
+              'domain',
+              'Dominio (sin https://)',
+              initial: json['domain'] ?? '',
+              required: false,
+              validate: (v) =>
+                  v.isNotEmpty &&
+                      !RegExp(r'^@?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(v)
+                  ? 'Ingresá un dominio válido.'
+                  : null,
+            ),
+          ],
+          (input) async {
+            if (input['mode'] == 'DOMAIN' && input['domain'] == '') {
+              throw const ApiException(
+                code: 'INVALID_INPUT',
+                message: 'Ingresá el dominio permitido.',
+              );
+            }
+            await repo.saveAccess({
+              ...input,
+              'domain': input['domain'] == '' ? null : input['domain'],
+            });
+          },
+          description: 'Este cambio afecta quién puede ingresar al sistema.',
+        );
+        // Modo como chip con «Editar» a la derecha, divisor y la fila de
+        // correos (P26a-M1).
+        return [
+          Text(
+            'MODO DE ACCESO',
+            style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
           ),
+          const SizedBox(height: AppSpacing.xxs),
+          Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: StatusChip(
+                    key: const ValueKey('settings_access_mode'),
+                    label: json['mode'] == 'DOMAIN'
+                        ? 'Dominio: ${json['domain'] ?? 'sin definir'}'
+                        : 'Lista de correos',
+                    color: c.text,
+                    fill: c.hover,
+                  ),
+                ),
+              ),
+              TextButton(
+                key: const ValueKey('settings_edit_access'),
+                onPressed: _busy ? null : editAccess,
+                child: const Text('Editar'),
+              ),
+            ],
+          ),
+          Divider(height: AppSpacing.md, color: c.border),
           tile(
             'Correos permitidos',
             'Agregar o quitar acceso por correo',
@@ -410,76 +500,202 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ];
       case SettingsSection.users:
         return [
-          if (list.isEmpty) const Text('No hay usuarios internos.'),
-          for (final raw in list) userCard(Json.from(raw as Map)),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'El rol Lector es para pantallas de visualización (ej.: el correo del televisor): ve el dashboard y nunca puede modificar nada.',
+              style: AppTextStyles.body.copyWith(color: context.colors.muted),
+            ),
+          ),
+          if (list.isEmpty)
+            const EmptyView(
+              icon: AppIcons.groups,
+              message: 'No hay usuarios internos.',
+            ),
+          if (list.isNotEmpty)
+            SettingsGroup(
+              children: [
+                for (final raw in list) userRow(Json.from(raw as Map)),
+              ],
+            ),
         ];
       case SettingsSection.clients:
         return [
-          button(
-            'add_client',
-            'Agregar cliente',
-            addClient,
-            icon: AppIcons.personAdd,
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Un cliente entra con su correo y solo ve los proyectos que le asignes, sin poder modificar nada. '
+              'Los proyectos se asignan desde la pestaña "Acceso cliente" de cada proyecto.',
+              style: AppTextStyles.body.copyWith(color: context.colors.muted),
+            ),
           ),
-          if (list.isEmpty) const Text('No hay clientes externos.'),
+          if (list.isEmpty)
+            const EmptyView(
+              icon: AppIcons.view,
+              message: 'No hay clientes externos.',
+            ),
           for (final raw in list) clientCard(Json.from(raw as Map)),
         ];
       case SettingsSection.errors:
         return [
           if (list.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(AppSpacing.lg),
-              child: Text('No hay errores en este estado.'),
+            // Estado positivo: check y una línea (P32-M2).
+            EmptyView(
+              framed: false,
+              icon: AppIcons.success,
+              title: _filter == 'PENDING'
+                  ? 'Sin errores abiertos'
+                  : 'Sin errores',
+              message: _filter == 'PENDING'
+                  ? 'Todo funciona como se espera.'
+                  : 'No hay errores en este estado.',
             ),
-          for (final raw in list)
-            tile(
-              '${raw['message']}',
-              '${raw['route'] ?? 'Sin ruta'} · ${raw['occurrences']} veces\n${raw['lastSeenAt']}',
-              key: 'settings_error_${raw['id']}',
-              titleLines: 3,
-              trailing: const Icon(AppIcons.chevronRight),
-              onTap: () => context.push(Routes.settingsError(raw['id'])),
-            ),
+          for (var i = 0; i < list.length; i++) ...[
+            if (i > 0) Divider(height: 1, color: context.colors.border),
+            errorRow(Json.from(list[i] as Map)),
+          ],
         ];
       case SettingsSection.mcp:
         final connections = (json['connections'] as List?) ?? [];
+        final session = ref.watch(sessionProvider).value;
+        final base = session is SignedIn
+            ? session.serverUrl.toString().replaceAll(RegExp(r'/$'), '')
+            : '';
+        final mcpUrl = '$base/api/mcp';
+        void copy(String value) {
+          Clipboard.setData(ClipboardData(text: value));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Copiado')));
+        }
+
+        // Las mismas secciones que la web (McpConnectionsPanel).
         return [
-          const Text(
-            'Cada conexión permite que un asistente opere con los permisos de tu cuenta.',
+          PanelSection(
+            title: 'Dirección del servidor',
+            description:
+                'Conectá Claude a Genwork para que pueda ver y gestionar tus proyectos y tareas, con exactamente tus mismos permisos.',
+            children: [
+              CopyField(
+                value: mcpUrl,
+                buttonKey: const ValueKey('settings_mcp_copy_url'),
+                onCopy: () => copy(mcpUrl),
+              ),
+            ],
           ),
-          button('add_mcp', 'Crear conexión', createMcp, icon: AppIcons.add),
-          tile(
-            'Actividad reciente',
-            'Operaciones de tus asistentes',
-            key: 'settings_mcp_activity',
-            trailing: const Icon(AppIcons.chevronRight),
-            onTap: () => context.push(Routes.setting('activity')),
+          PanelSection(
+            title: 'Tus tokens',
+            description:
+                'El token identifica a Claude como vos. Podés revocarlo cuando quieras; el acceso se corta en el momento.',
+            children: [
+              for (final c in connections)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${c['label']}'),
+                  subtitle: Text(
+                    c['lastUsedAt'] == null
+                        ? 'Sin uso todavía'
+                        : 'Último uso ${c['lastUsedAt']}',
+                  ),
+                  trailing: c['revokedAt'] != null
+                      ? StatusChip(
+                          label: 'Revocado',
+                          color: context.colors.muted,
+                          fill: context.colors.hover,
+                        )
+                      : OutlinedButton(
+                          key: ValueKey('settings_revoke_mcp_${c['id']}'),
+                          style: AppButtonStyles.destructiveOutlined(context),
+                          onPressed: _busy
+                              ? null
+                              : () async {
+                                  if (await settingsConfirm(
+                                    context,
+                                    '¿Revocar token?',
+                                    'El asistente perderá el acceso inmediatamente.',
+                                    action: 'Revocar',
+                                  )) {
+                                    await run(() => repo.revokeMcp(c['id']));
+                                  }
+                                },
+                          child: const Text('Revocar'),
+                        ),
+                ),
+              // Pie del grupo: el vacío en gris y «Generar token» a la
+              // derecha (P24a-M2).
+              Divider(height: AppSpacing.lg, color: context.colors.border),
+              Builder(
+                builder: (context) {
+                  final empty = connections.isEmpty
+                      ? Text(
+                          'Todavía no tenés tokens. Generá uno para vincular Claude.',
+                          key: const ValueKey('settings_mcp_empty'),
+                          style: AppTextStyles.body.copyWith(
+                            color: context.colors.muted,
+                          ),
+                        )
+                      : null;
+                  final button = FilledButton(
+                    key: const ValueKey('settings_add_mcp'),
+                    onPressed: _busy ? null : createMcp,
+                    child: const Text('Generar token'),
+                  );
+                  // Con texto grande no entran lado a lado: el botón baja.
+                  if (MediaQuery.textScalerOf(context).scale(1) > 1.2) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (empty != null) ...[
+                          empty,
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                        Align(alignment: Alignment.centerRight, child: button),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: empty ?? const SizedBox.shrink()),
+                      const SizedBox(width: AppSpacing.sm),
+                      button,
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
-          if (connections.isEmpty) const Text('No tenés conexiones.'),
-          for (final c in connections)
-            tile(
-              '${c['label']}',
-              '${c['revokedAt'] != null ? 'Revocada' : 'Activa'} · Último uso: ${c['lastUsedAt'] ?? 'sin uso'}',
-              trailing: c['revokedAt'] != null
-                  ? null
-                  : IconButton(
-                      key: ValueKey('settings_revoke_mcp_${c['id']}'),
-                      tooltip: 'Revocar conexión',
-                      onPressed: _busy
-                          ? null
-                          : () async {
-                              if (await settingsConfirm(
-                                context,
-                                '¿Revocar conexión?',
-                                'El asistente perderá el acceso inmediatamente.',
-                                action: 'Revocar',
-                              )) {
-                                await run(() => repo.revokeMcp(c['id']));
-                              }
-                            },
-                      icon: const Icon(AppIcons.unlink),
-                    ),
-            ),
+          PanelSection(
+            title: 'Conectar en claude.ai',
+            children: [
+              // Lista numerada con círculos de 20 dp (P24a-M4).
+              const NumberedSteps(
+                keyPrefix: 'settings_mcp_step',
+                steps: [
+                  'En claude.ai abrí Configuración → Conectores y tocá Agregar conector personalizado.',
+                  'Nombre: genwork. URL: la dirección del servidor.',
+                  'En autenticación elegí Sin inicio de sesión.',
+                  'Tocá Agregar encabezado. Nombre: authorization. Valor: Bearer, un espacio y tu token.',
+                  'Tocá Agregar.',
+                  'En un chat, activá genwork desde el menú +.',
+                ],
+              ),
+            ],
+          ),
+          // Solo en la app: la actividad de los asistentes.
+          PanelSection(
+            title: 'Actividad reciente',
+            description: 'Operaciones de tus asistentes',
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton(
+                  key: const ValueKey('settings_mcp_activity'),
+                  onPressed: () => context.push(Routes.setting('activity')),
+                  child: const Text('Ver actividad'),
+                ),
+              ),
+            ],
+          ),
         ];
       case SettingsSection.activity:
         final entries = (json['entries'] as List?) ?? [];
@@ -493,19 +709,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ];
       case SettingsSection.storage:
         return [
-          SystemStoragePanel(config: json, onChanged: refresh),
-          button(
-            'test_connection',
-            'Probar conexión guardada',
-            () => run(testConnection),
-            icon: AppIcons.retry,
+          WorkspacePanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: SystemStoragePanel(
+              config: json,
+              onChanged: refresh,
+              onTest: _busy ? null : () => run(testConnection),
+            ),
           ),
-          tile(
-            'Trabajos de almacenamiento',
-            'Pendientes, fallidos y reintentos',
-            key: 'settings_open_jobs',
-            trailing: const Icon(AppIcons.chevronRight),
-            onTap: () => context.push(Routes.setting('jobs')),
+          const SizedBox(height: AppSpacing.sm),
+          // Los trabajos, en una card aparte con su fila (P31a-M3).
+          WorkspaceListPanel(
+            children: [
+              SettingsRow(
+                key: const ValueKey('settings_open_jobs'),
+                icon: AppIcons.storage,
+                title: 'Trabajos de almacenamiento',
+                subtitle: 'Pendientes, fallidos y reintentos',
+                onTap: () => context.push(Routes.setting('jobs')),
+              ),
+            ],
           ),
         ];
       case SettingsSection.jobs:
@@ -529,60 +752,216 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
         ];
       case SettingsSection.reminders:
+        // Dos bloques, como la web: zona horaria y correo de avisos.
+        final c = context.colors;
+        final timezone = '${json['timezone'] ?? ''}';
+        final connected = json['emailConnected'] == true;
         return [
-          tile('Zona horaria del sistema', '${json['timezone']}'),
-          button(
-            'timezone',
-            'Cambiar zona horaria',
-            () => edit(
-              'Zona horaria',
-              [
-                SettingsField(
-                  'timezone',
-                  'Zona IANA',
-                  initial: json['timezone'] ?? '',
-                  maxLength: 64,
+          // Rótulo, ciudad y «Cambiar» en una fila; la explicación debajo
+          // (P30-M1, P30-M3).
+          WorkspacePanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'ZONA HORARIA',
+                  style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            timezone.split('/').last.replaceAll('_', ' '),
+                            key: const ValueKey('settings_timezone_city'),
+                            style: AppTextStyles.cardTitle.copyWith(
+                              color: c.text,
+                            ),
+                          ),
+                          Text(
+                            timezone,
+                            style: AppTextStyles.technical.copyWith(
+                              color: c.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton.icon(
+                      key: const ValueKey('settings_timezone'),
+                      onPressed: _busy
+                          ? null
+                          : () => edit(
+                              'Zona horaria',
+                              [
+                                SettingsField(
+                                  'timezone',
+                                  'Zona IANA',
+                                  initial: json['timezone'] ?? '',
+                                  maxLength: 64,
+                                ),
+                              ],
+                              (v) => repo.saveReminders(v),
+                              description:
+                                  'La zona rige los días y horarios de todos los recordatorios.',
+                            ),
+                      icon: const Icon(AppIcons.edit, size: AppIconSizes.field),
+                      label: const Text('Cambiar'),
+                    ),
+                  ],
+                ),
+                Divider(height: AppSpacing.lg, color: c.border),
+                Text(
+                  'Una sola zona horaria para todos los horarios de recordatorios. Se muestra en el calendario.',
+                  style: AppTextStyles.supporting.copyWith(color: c.muted),
                 ),
               ],
-              (v) => repo.saveReminders(v),
-              description:
-                  'La zona rige los días y horarios de todos los recordatorios.',
             ),
           ),
-          GoogleIntegrationButton(
-            purpose: 'gmail',
-            label: json['emailConnected'] == true
-                ? 'Reconectar Gmail'
-                : 'Conectar Gmail',
-            onChanged: refresh,
-          ),
-          tile(
-            'Correo de avisos',
-            json['emailConnected'] == true
-                ? 'Conectado${json['emailFrom'] == null ? '' : ' · ${json['emailFrom']}'}'
-                : 'Sin conectar',
-          ),
-          if (json['emailConnected'] == true)
-            button(
-              'disconnect_gmail',
-              'Desconectar Gmail',
-              () async {
-                if (await settingsConfirm(
-                  context,
-                  '¿Desconectar Gmail?',
-                  'Se dejarán de enviar los avisos por correo.',
-                  action: 'Desconectar',
-                )) {
-                  await run(
-                    () => repo.saveReminders({'disconnectEmail': true}),
-                  );
-                }
-              },
-              icon: AppIcons.unlink,
-              destructive: true,
+          const SizedBox(height: AppSpacing.sm),
+          // Encabezado con el estado como chip y la acción pendiente
+          // rellena, al pie (P30-M2).
+          WorkspacePanel(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Email (Gmail)',
+                          style: AppTextStyles.cardTitle.copyWith(
+                            color: c.text,
+                          ),
+                        ),
+                      ),
+                    ),
+                    StatusChip(
+                      key: const ValueKey('settings_gmail_state'),
+                      label: connected ? 'Conectado' : 'Sin conectar',
+                      color: connected ? c.ok : c.muted,
+                      fill: connected ? c.ok.withValues(alpha: .12) : c.hover,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Avisos con tu cuenta de Google conectada.',
+                  style: AppTextStyles.body.copyWith(color: c.muted),
+                ),
+                Text(
+                  connected && json['emailFrom'] != null
+                      ? '${json['emailFrom']}'
+                      : 'scope gmail.send',
+                  style: AppTextStyles.technical.copyWith(color: c.muted),
+                ),
+                Divider(height: AppSpacing.lg, color: c.border),
+                Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    if (connected)
+                      TextButton(
+                        key: const ValueKey('settings_disconnect_gmail'),
+                        style: TextButton.styleFrom(foregroundColor: c.danger),
+                        onPressed: _busy
+                            ? null
+                            : () async {
+                                if (await settingsConfirm(
+                                  context,
+                                  '¿Desconectar Gmail?',
+                                  'Se dejarán de enviar los avisos por correo.',
+                                  action: 'Desconectar',
+                                )) {
+                                  await run(
+                                    () => repo.saveReminders({
+                                      'disconnectEmail': true,
+                                    }),
+                                  );
+                                }
+                              },
+                        child: const Text('Desconectar'),
+                      ),
+                    GoogleIntegrationButton(
+                      purpose: 'gmail',
+                      filled: !connected,
+                      label: connected ? 'Reconectar Gmail' : 'Conectar Gmail',
+                      onChanged: refresh,
+                    ),
+                  ],
+                ),
+              ],
             ),
+          ),
         ];
     }
+  }
+
+  /// Error en una fila de 64–72 dp: mensaje 13/600 en dos líneas, la ruta en
+  /// mono gris, las veces como chip «×12» y la fecha relativa (P32-M3).
+  Widget errorRow(Json raw) {
+    final c = context.colors;
+    final seen = DateTime.tryParse('${raw['lastSeenAt']}');
+    return InkWell(
+      key: ValueKey('settings_error_${raw['id']}'),
+      onTap: () => context.push(Routes.settingsError(raw['id'])),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: _errorRowHeight),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${raw['message']}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.action.copyWith(color: c.text),
+                    ),
+                    const SizedBox(height: AppSpacing.hairline),
+                    Text(
+                      '${raw['route'] ?? 'Sin ruta'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.technical.copyWith(color: c.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  StatusChip(
+                    label: '×${raw['occurrences'] ?? 1}',
+                    color: c.muted,
+                    fill: c.hover,
+                    mono: true,
+                  ),
+                  if (seen != null) ...[
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      formatAgo(seen),
+                      style: AppTextStyles.supporting.copyWith(color: c.muted),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> testConnection() async {
@@ -611,85 +990,180 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget userCard(Json u) {
+  /// Usuario en una fila de 56–64 dp; sus acciones van en el "⋯" (P26u-M1).
+  Widget userRow(Json u) {
     final editable =
         u['globalRole'] != 'SUPERADMIN' &&
         u['id'] != ref.watch(currentUserProvider)?.id;
+    final name = u['name'] ?? u['email'];
+    final actions = [
+      if (editable)
+        RowAction(
+          key: 'settings_role_${u['id']}',
+          label: 'Cambiar rol',
+          onSelected: () => edit('Rol de ${u['name']}', [
+            SettingsField(
+              'role',
+              'Rol',
+              initial: u['globalRole'],
+              options: const {'MEMBER': 'Miembro', 'READER': 'Lector'},
+            ),
+          ], (v) => repo.setRole(u['id'], v['role'])),
+        ),
+      if (u['globalRole'] == 'READER')
+        RowAction(
+          key: 'settings_grants_${u['id']}',
+          label: 'Grupos con permiso de lectura',
+          onSelected: () async {
+            await showAppFormDialog<void>(
+              context,
+              builder: (_) => ReaderGrantsDialog(user: u),
+            );
+            if (mounted) refresh();
+          },
+        ),
+    ];
+    final c = context.colors;
+    final admin = u['globalRole'] == 'SUPERADMIN';
+    // Avatar de iniciales, el correo solo y el rol como chip; la columna del
+    // «⋯» se reserva en todas las filas (P26u-M1, M2, M3).
+    return SettingsRow(
+      key: ValueKey('settings_user_${u['id']}'),
+      leading: InitialsAvatar(name: '$name'),
+      title: name,
+      subtitle: '${u['email']}',
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * .25,
+            ),
+            child: StatusChip(
+              key: ValueKey('settings_user_role_${u['id']}'),
+              label: roleChipLabel(u['globalRole']),
+              color: admin ? c.brand : c.muted,
+              fill: admin ? c.brandFill : c.hover,
+            ),
+          ),
+          if (actions.isEmpty)
+            const SizedBox(width: kMinInteractiveDimension)
+          else
+            RowActionsMenu(
+              key: ValueKey('settings_user_menu_${u['id']}'),
+              tooltip: 'Acciones de $name',
+              enabled: !_busy,
+              actions: actions,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Cliente: nombre 15/600 con el chip de estado, el correo, y sus
+  /// proyectos bajo un rótulo; «Dar de baja» dentro del «⋯» (P27-M3, M4).
+  Widget clientCard(Json client) {
+    final c = context.colors;
+    final works = (client['works'] as List?) ?? [];
     return Padding(
+      key: ValueKey('settings_client_${client['id']}'),
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: WorkspacePanel(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md,
+          AppSpacing.xs,
+          AppSpacing.xxs,
+          AppSpacing.md,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            tile(
-              u['name'] ?? u['email'],
-              '${u['email']} · ${roleLabel(u['globalRole'])}',
-            ),
-            if (editable)
-              button(
-                'role_${u['id']}',
-                'Cambiar rol',
-                () => edit('Rol de ${u['name']}', [
-                  SettingsField(
-                    'role',
-                    'Rol',
-                    initial: u['globalRole'],
-                    options: const {'MEMBER': 'Miembro', 'READER': 'Lector'},
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: AppSpacing.xs,
+                    runSpacing: AppSpacing.xxs,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        client['name'] ?? '',
+                        style: AppTextStyles.cardTitle.copyWith(color: c.text),
+                      ),
+                      StatusChip(
+                        label: client['firstLoginAt'] == null
+                            ? 'Sin ingresar'
+                            : 'Activo',
+                        color: c.muted,
+                        fill: c.hover,
+                      ),
+                    ],
                   ),
-                ], (v) => repo.setRole(u['id'], v['role'])),
+                ),
+                RowActionsMenu(
+                  key: ValueKey('settings_client_menu_${client['id']}'),
+                  tooltip: 'Acciones de ${client['name'] ?? client['email']}',
+                  enabled: !_busy,
+                  actions: [
+                    RowAction(
+                      key: 'settings_delete_client_${client['id']}',
+                      label: 'Dar de baja',
+                      destructive: true,
+                      onSelected: () async {
+                        if (await settingsConfirm(
+                          context,
+                          '¿Dar de baja al cliente?',
+                          'Se eliminará ${client['email']} y sus permisos de consulta en proyectos.',
+                          action: 'Dar de baja',
+                        )) {
+                          await run(() => repo.deleteClient(client['id']));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            Text(
+              '${client['email']}',
+              style: AppTextStyles.body.copyWith(color: c.muted),
+            ),
+            if (works.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpacing.sm),
+                child: Divider(height: AppSpacing.lg, color: c.border),
               ),
-            if (u['globalRole'] == 'READER')
-              button(
-                'grants_${u['id']}',
-                'Grupos con permiso de lectura',
-                () async {
-                  await showAppFormDialog<void>(
-                    context,
-                    builder: (_) => ReaderGrantsDialog(user: u),
-                  );
-                  if (mounted) refresh();
-                },
+              Text(
+                'PROYECTOS',
+                style: AppTextStyles.sectionLabel.copyWith(color: c.muted),
               ),
+              for (final work in works)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Row(
+                    children: [
+                      Icon(
+                        AppIcons.projects,
+                        size: AppIconSizes.compact,
+                        color: c.muted,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          '${work['name']}',
+                          style: AppTextStyles.body.copyWith(color: c.text),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget clientCard(Json c) => Padding(
-    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-    child: WorkspacePanel(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          tile(
-            c['name'] ?? '',
-            '${c['email']}\n${c['firstLoginAt'] == null ? 'Todavía no ingresó' : 'Ya ingresó al portal'}',
-          ),
-          for (final work in (c['works'] as List?) ?? [])
-            Text('• ${work['name']}'),
-          button(
-            'delete_client_${c['id']}',
-            'Dar de baja',
-            () async {
-              if (await settingsConfirm(
-                context,
-                '¿Dar de baja al cliente?',
-                'Se eliminará ${c['email']} y sus permisos de consulta en proyectos.',
-                action: 'Dar de baja',
-              )) {
-                await run(() => repo.deleteClient(c['id']));
-              }
-            },
-            icon: AppIcons.personRemove,
-            destructive: true,
-          ),
-        ],
-      ),
-    ),
-  );
   Future<void> addClient() async {
     final done = await showAppFormDialog<bool>(
       context,
@@ -751,12 +1225,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 }
 
+/// Alto mínimo de la fila de error (P32-M3).
+const double _errorRowHeight = 64;
+
 String? emailError(String value) =>
     RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value)
     ? null
     : 'Ingresá un correo válido.';
-String roleLabel(Object? role) => switch (role) {
-  'SUPERADMIN' => 'Administrador del sistema',
+
+/// Rol corto para el chip de la fila de usuario.
+String roleChipLabel(Object? role) => switch (role) {
+  'SUPERADMIN' => 'Admin',
   'READER' => 'Lector',
   _ => 'Miembro',
 };
@@ -904,22 +1383,26 @@ class _AddClientDialogState extends ConsumerState<AddClientDialog> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    key: const ValueKey('settings_client_name'),
-                    controller: name,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                    maxLength: 120,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Ingresá el nombre.'
-                        : null,
+                  LabeledField(
+                    label: 'Nombre',
+                    child: TextFormField(
+                      key: const ValueKey('settings_client_name'),
+                      controller: name,
+                      enabled: !busy,
+                      maxLength: 120,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Ingresá el nombre.'
+                          : null,
+                    ),
                   ),
-                  TextFormField(
-                    key: const ValueKey('settings_client_email'),
-                    controller: email,
-                    enabled: !busy,
-                    decoration: const InputDecoration(labelText: 'Correo'),
-                    validator: (v) => emailError(v?.trim() ?? ''),
+                  LabeledField(
+                    label: 'Correo',
+                    child: TextFormField(
+                      key: const ValueKey('settings_client_email'),
+                      controller: email,
+                      enabled: !busy,
+                      validator: (v) => emailError(v?.trim() ?? ''),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   const Text('Proyectos autorizados (opcional)'),
@@ -968,7 +1451,6 @@ class _SettingsErrorScreenState extends ConsumerState<SettingsErrorScreen> {
     final c = context.colors;
     return GenPageScaffold(
       title: 'Detalle del error',
-      icon: AppIcons.settings,
       showBack: true,
       bodyPadding: EdgeInsets.zero,
       body: ListView(

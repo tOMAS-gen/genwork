@@ -11,6 +11,8 @@ import '../../shared/widgets/state_views.dart';
 import '../shell/resource_refresh.dart';
 import '../works/works_providers.dart';
 import '../../shared/widgets/error_text.dart';
+import '../../shared/widgets/labeled_field.dart';
+import '../../shared/widgets/app_dropdown_decoration.dart';
 
 List<GroupSummary> sectorCreationGroups(
   AppUser? user,
@@ -140,14 +142,17 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
-                key: const ValueKey('sector_form_name'),
-                controller: _name,
-                enabled: !_busy,
-                maxLength: 80,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Ingresá un nombre' : null,
+              LabeledField(
+                label: 'Nombre',
+                child: TextFormField(
+                  key: const ValueKey('sector_form_name'),
+                  controller: _name,
+                  enabled: !_busy,
+                  maxLength: 80,
+                  validator: (v) => v == null || v.trim().isEmpty
+                      ? 'Ingresá un nombre'
+                      : null,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               ColorPalette(
@@ -157,36 +162,39 @@ class _SectorFormState extends ConsumerState<_SectorForm> {
               ),
               if (_creating) ...[
                 const SizedBox(height: AppSpacing.md),
-                DropdownButtonFormField<String>(
-                  key: ValueKey('sector_form_scope_$selectedScope'),
-                  isExpanded: true,
-                  initialValue: selectedScope,
-                  decoration: const InputDecoration(labelText: 'Ámbito'),
-                  items: [
-                    const DropdownMenuItem(
-                      value: 'personal',
-                      child: Text('Personal'),
-                    ),
-                    for (final group in allowedGroups)
-                      DropdownMenuItem(
-                        value: group.id,
-                        child: Text(
-                          group.name,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    if (user?.isSuperAdmin == true)
+                LabeledField(
+                  label: 'Ámbito',
+                  child: DropdownButtonFormField<String>(
+                    icon: const AppDropdownIcon(),
+                    key: ValueKey('sector_form_scope_$selectedScope'),
+                    isExpanded: true,
+                    initialValue: selectedScope,
+                    items: [
                       const DropdownMenuItem(
-                        value: 'global',
-                        child: Text('Global'),
+                        value: 'personal',
+                        child: Text('Personal'),
                       ),
-                  ],
-                  onChanged: _busy
-                      ? null
-                      : (value) => setState(() => _scope = value!),
-                  validator: (_) => selectedScope == null
-                      ? 'Volvé a elegir un ámbito disponible'
-                      : null,
+                      for (final group in allowedGroups)
+                        DropdownMenuItem(
+                          value: group.id,
+                          child: Text(
+                            group.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      if (user?.isSuperAdmin == true)
+                        const DropdownMenuItem(
+                          value: 'global',
+                          child: Text('Global'),
+                        ),
+                    ],
+                    onChanged: _busy
+                        ? null
+                        : (value) => setState(() => _scope = value!),
+                    validator: (_) => selectedScope == null
+                        ? 'Volvé a elegir un ámbito disponible'
+                        : null,
+                  ),
                 ),
                 if (groups.isLoading)
                   const Padding(

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/repositories/me_repository.dart';
 import '../data/repositories/board_repository.dart';
 import '../data/repositories/groups_repository.dart';
+import '../data/repositories/materials_repository.dart';
 import '../data/repositories/notes_repository.dart';
 import '../data/repositories/reminders_repository.dart';
 import '../data/repositories/sectors_repository.dart';
@@ -78,6 +79,9 @@ final tasksRepositoryProvider = Provider(
 );
 final sectorsRepositoryProvider = Provider(
   (ref) => SectorsRepository(ref.watch(apiClientProvider)),
+);
+final materialsRepositoryProvider = Provider(
+  (ref) => MaterialsRepository(ref.watch(apiClientProvider)),
 );
 final notesRepositoryProvider = Provider(
   (ref) => NotesRepository(ref.watch(apiClientProvider)),
